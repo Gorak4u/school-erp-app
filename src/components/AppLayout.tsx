@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import Toast from './Toast';
@@ -250,6 +251,7 @@ export default function AppLayout({
                           globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                         }`} />
                         <button
+                          onClick={() => signOut({ callbackUrl: '/login' })}
                           className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                             globalTheme === 'dark' 
                               ? 'hover:bg-gray-700 text-gray-300' 

@@ -18,6 +18,7 @@ ChartJS.register(
 );
 
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from './types';
+import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi } from '@/lib/apiClient';
 import { useFeeState } from './hooks/useFeeState';
 import { createFeeDataHandlers } from './handlers/feeDataHandlers';
 import { createFeeActionHandlers } from './handlers/feeActionHandlers';
@@ -25,6 +26,7 @@ import FeeDashboard from './components/FeeDashboard';
 import FeeFilters from './components/FeeFilters';
 import FeeTabContent from './components/FeeTabContent';
 import FeeStructureModal from './components/FeeStructureModal';
+import EnhancedFeeStructureModal from './components/EnhancedFeeStructureModal';
 import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
 import EnhancedFeeCollection from './components/EnhancedFeeCollection';
@@ -42,6 +44,10 @@ export default function FeesPage() {
   const state = useFeeState();
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<any>(null);
+  
+  // User role detection (in real app, this would come from auth context)
+  const [userRole, setUserRole] = useState('admin'); // Default to admin for demo
+  const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
 
   // Build handler context incrementally
   const ctx: any = { ...state, theme };
@@ -54,6 +60,12 @@ export default function FeesPage() {
     setActiveTab,
     feeStructureForm,
     feeStructures,
+    setFeeStructures,
+    setFeeRecords,
+    setDiscounts,
+    setFeeCollections,
+    setStudentFeeSummaries,
+    calculateStudentFeeSummaries,
     handleCreateFeeStructure,
     setFeeStructureForm,
     setShowFeeStructureModal,
@@ -64,7 +76,6 @@ export default function FeesPage() {
     toggleColumn,
     resetColumns,
     setShowColumnSettings,
-    initializeMockData,
     isClient,
     setIsClient,
     selectedStudents,
@@ -74,8 +85,32 @@ export default function FeesPage() {
   // Initialize data
   useEffect(() => {
     setIsClient(true);
-    initializeMockData();
+    loadRealData();
   }, []);
+
+  const loadRealData = async () => {
+    try {
+      const [structuresData, recordsData, paymentsData, discountsData, studentsData] = await Promise.all([
+        feeStructuresApi.list(),
+        feeRecordsApi.list(),
+        paymentsApi.list(),
+        discountsApi.list(),
+        studentsApi.list(),
+      ]);
+
+      setFeeStructures(structuresData.structures || []);
+      setFeeRecords(recordsData.records || []);
+      setDiscounts(discountsData.discounts || []);
+      // TODO: Convert payments to collections format
+      setFeeCollections([]);
+      
+      // Calculate student fee summaries
+      const summaries = calculateStudentFeeSummaries(studentsData.students || [], recordsData.records || []);
+      setStudentFeeSummaries(summaries);
+    } catch (error) {
+      console.error('Failed to load fees data:', error);
+    }
+  };
 
   if (!isClient) {
     return <div>Loading...</div>;
@@ -131,7 +166,26 @@ export default function FeesPage() {
         )}
       </div>
 
-            <FeeStructureModal feeStructureForm={feeStructureForm} handleCreateFeeStructure={handleCreateFeeStructure} setFeeStructureForm={setFeeStructureForm} setShowFeeStructureModal={setShowFeeStructureModal} showFeeStructureModal={showFeeStructureModal} theme={theme} />
+            {useEnhancedModal ? (
+              <EnhancedFeeStructureModal 
+                feeStructureForm={feeStructureForm} 
+                handleCreateFeeStructure={handleCreateFeeStructure} 
+                setFeeStructureForm={setFeeStructureForm} 
+                setShowFeeStructureModal={setShowFeeStructureModal} 
+                showFeeStructureModal={showFeeStructureModal} 
+                theme={theme}
+                userRole={userRole}
+              />
+            ) : (
+              <FeeStructureModal 
+                feeStructureForm={feeStructureForm} 
+                handleCreateFeeStructure={handleCreateFeeStructure} 
+                setFeeStructureForm={setFeeStructureForm} 
+                setShowFeeStructureModal={setShowFeeStructureModal} 
+                showFeeStructureModal={showFeeStructureModal} 
+                theme={theme} 
+              />
+            )}
       <FeeColumnSettingsModal 
         columnSettings={columnSettings}
         resetColumns={resetColumns}
@@ -178,18 +232,56 @@ export default function FeesPage() {
           <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
             theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
           }`}>
-            <div className="sticky top-0 flex justify-between items-center p-6 border-b">
-              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                Student Workflows
-              </h2>
-              <button
-                onClick={() => setActiveTab('all-students')}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-              >
-                ✕
-              </button>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Fee Management
+                </h1>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Current Role: 
+                  </span>
+                  <select
+                    value={userRole}
+                    onChange={(e) => setUserRole(e.target.value)}
+                    className={`text-sm px-3 py-1 rounded-lg border ${
+                      theme === 'dark'
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="principal">Principal</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="parent">Parent</option>
+                  </select>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={useEnhancedModal}
+                      onChange={(e) => setUseEnhancedModal(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                      Use Enhanced Modal
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFeeStructureModal(true)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                    theme === 'dark'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  💰 Create Fee Structure
+                </button>
+              </div>
             </div>
             <div className="p-6">
               <StudentWorkflows 

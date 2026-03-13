@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { Student } from '../types';
-import { CLASSES } from '../data';
 
 export function createSearchHandlers(ctx: any) {
   // Destructure all needed state from context
@@ -393,140 +392,125 @@ export function createSearchHandlers(ctx: any) {
     return matchesSearch && matchesClass && matchesStatus && matchesGender && matchesLanguage && matchesAttendance;
   });
 
-  const classes = CLASSES;
 
-  const handleAddStudent = (studentData: Partial<Student>) => {
-    // Generate unique admission number starting with current year
-    const currentYear = new Date().getFullYear();
-    const sequenceNumber = String(students.length + 1).padStart(4, '0');
-    const admissionNo = `${currentYear}${sequenceNumber}`;
-    
-    const newStudent: Student = {
-      id: students.length + 1,
-      name: studentData.name || '',
-      email: studentData.email || '',
-      photo: studentData.photo || '',
-      class: studentData.class || '9A',
-      rollNo: studentData.rollNo || '',
-      phone: studentData.phone || '',
-      grade: studentData.grade || 'A',
-      status: 'active',
-      admissionNo: admissionNo,
-      dateOfBirth: '2008-01-01',
-      gender: 'Male',
-      address: '',
-      parentName: '',
-      parentPhone: '',
-      parentEmail: '',
-      enrollmentDate: new Date().toISOString().split('T')[0],
-      board: 'CBSE',
-      section: 'A',
-      bloodGroup: 'O+',
-      emergencyContact: '',
-      medicalConditions: 'None',
-      fees: {
-        total: 50000,
-        paid: 0,
-        pending: 50000,
-        lastPaymentDate: ''
-      },
-      academics: {
-        gpa: 3.0,
-        rank: students.length + 1,
-        totalSubjects: 6,
-        passedSubjects: 6,
-        failedSubjects: 0
-      },
-      behavior: {
-        disciplineScore: 80,
-        incidents: 0,
-        achievements: 0
-      },
-      attendance: {
-        present: 0,
-        absent: 0,
-        late: 0,
-        percentage: 95
-      },
-      documents: {
-        birthCertificate: false,
-        transferCertificate: false,
-        medicalCertificate: false,
-        aadharCard: false,
-        passportPhoto: false,
-        marksheet: false,
-        casteCertificate: false,
-        incomeCertificate: false
-      },
-      nationality: 'Indian',
-      religion: '',
-      category: '',
-      motherTongue: '',
-      city: '',
-      state: '',
-      pinCode: '',
-      emergencyRelation: '',
-      admissionDate: new Date().toISOString().split('T')[0],
-      previousSchool: '',
-      previousClass: '',
-      transferCertificate: '',
-      fatherName: '',
-      fatherOccupation: '',
-      fatherPhone: '',
-      fatherEmail: '',
-      motherName: '',
-      motherOccupation: '',
-      motherPhone: '',
-      motherEmail: '',
-      guardianName: '',
-      guardianRelation: '',
-      guardianPhone: '',
-      allergies: '',
-      medications: '',
-      doctorName: '',
-      doctorPhone: '',
-      transport: 'No',
-      transportRoute: '',
-      hostel: 'No',
-      sibling: 'No',
-      siblingName: '',
-      siblingClass: '',
+  const handleAddStudent = async (studentData: Partial<Student>) => {
+    try {
+      const { studentsApi } = await import('@/lib/apiClient');
+      const result = await studentsApi.create(studentData);
+      if (result.student) {
+        // Refresh the student list to get updated data
+        const updatedResult = await studentsApi.list({ page: '1', pageSize: '50' });
+        if (updatedResult.students) {
+          setStudents(updatedResult.students);
+        }
+        setShowAddModal(false);
+        if ((window as any).toast) {
+          (window as any).toast({
+            type: 'success',
+            title: 'Student Added',
+            message: `${result.student.name} has been added successfully with admission number ${result.student.admissionNo}`,
+            duration: 4000
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to add student:', err);
+      let errorMessage = 'Something went wrong';
       
-      // Additional Indian-specific fields
-      aadharNumber: studentData.aadharNumber || '',
-      stsId: studentData.stsId || '',
+      // Provide more specific error messages
+      if (err.message.includes('Admission number')) {
+        errorMessage = 'Admission number conflict. Please try again.';
+      } else if (err.message.includes('required')) {
+        errorMessage = 'Please fill in all required fields.';
+      } else if (err.message.includes('email')) {
+        errorMessage = 'Invalid email format.';
+      } else if (err.message.includes('phone')) {
+        errorMessage = 'Invalid phone number format.';
+      }
       
-      // Language Medium
-      languageMedium: studentData.languageMedium || 'English',
-      
-      // Bank details
-      bankName: studentData.bankName || '',
-      bankAccountNumber: studentData.bankAccountNumber || '',
-      bankIfsc: studentData.bankIfsc || '',
-      
-      // Previous school details
-      previousSchoolName: studentData.previousSchoolName || '',
-      previousSchoolAddress: studentData.previousSchoolAddress || '',
-      previousSchoolPhone: studentData.previousSchoolPhone || '',
-      previousSchoolEmail: studentData.previousSchoolEmail || '',
-      transferCertificateNumber: studentData.transferCertificateNumber || '',
-      
-      // Remarks
-      remarks: studentData.remarks || ''
-    };
-    setStudents([...students, newStudent]);
-    setShowAddModal(false);
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'error',
+          title: 'Failed to Add Student',
+          message: errorMessage,
+          duration: 4000
+        });
+      }
+    }
   };
 
-  const handleEditStudent = (studentData: Partial<Student>) => {
-    setStudents(students.map(s => s.id === editingStudent?.id ? { ...s, ...studentData } : s));
-    setEditingStudent(null);
+  const handleEditStudent = async (studentData: Partial<Student>) => {
+    if (!editingStudent?.id) return;
+    try {
+      const { studentsApi } = await import('@/lib/apiClient');
+      const result = await studentsApi.update(editingStudent.id, studentData);
+      if (result.student) {
+        setStudents(students.map(s => s.id === editingStudent.id ? result.student : s));
+        setEditingStudent(null);
+        if ((window as any).toast) {
+          (window as any).toast({
+            type: 'success',
+            title: 'Student Updated',
+            message: `${result.student.name} has been updated successfully`,
+            duration: 3000
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to update student:', err);
+      let errorMessage = 'Something went wrong';
+      
+      if (err.message.includes('not found')) {
+        errorMessage = 'Student not found. Please refresh the page.';
+      } else if (err.message.includes('required')) {
+        errorMessage = 'Please fill in all required fields.';
+      }
+      
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'error',
+          title: 'Failed to Update Student',
+          message: errorMessage,
+          duration: 3000
+        });
+      }
+    }
   };
 
-  const handleDeleteStudent = (id: number) => {
-    setStudents(students.filter(s => s.id !== id));
+  const handleDeleteStudent = async (id: number) => {
+    try {
+      const { studentsApi } = await import('@/lib/apiClient');
+      await studentsApi.delete(id);
+      setStudents(students.filter(s => s.id !== id));
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Student Deleted',
+          message: 'Student has been deleted successfully',
+          duration: 3000
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to delete student:', err);
+      let errorMessage = 'Something went wrong';
+      
+      if (err.message.includes('not found')) {
+        errorMessage = 'Student not found. Please refresh the page.';
+      } else if (err.message.includes('foreign key')) {
+        errorMessage = 'Cannot delete student with existing records (fees, attendance, etc.).';
+      }
+      
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'error',
+          title: 'Failed to Delete Student',
+          message: errorMessage,
+          duration: 3000
+        });
+      }
+    }
   };
 
 
-  return { fuzzyMatch, performAdvancedSearch, evaluateCondition, calculateRelevanceScore, filteredStudents, classes, handleAddStudent, handleEditStudent, handleDeleteStudent };
+  return { fuzzyMatch, performAdvancedSearch, evaluateCondition, calculateRelevanceScore, filteredStudents, handleAddStudent, handleEditStudent, handleDeleteStudent };
 }

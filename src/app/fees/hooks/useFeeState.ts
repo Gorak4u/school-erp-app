@@ -201,12 +201,7 @@ export function useFeeState() {
   // Dashboard widgets state
   const [dashboardCollapsed, setDashboardCollapsed] = useState(false);
   const [showDashboard, setShowDashboard] = useState(true);
-  const [recentActivities, setRecentActivities] = useState([
-    { id: 1, type: 'payment', message: 'Rahul Kumar paid tuition fee', time: '2 mins ago', icon: '💰' },
-    { id: 2, type: 'overdue', message: '5 students have overdue fees', time: '15 mins ago', icon: '⚠️' },
-    { id: 3, type: 'discount', message: 'Sibling discount applied to 2 students', time: '1 hour ago', icon: '🎁' },
-    { id: 4, type: 'collection', message: 'Daily collection target achieved', time: '2 hours ago', icon: '✅' }
-  ]);
+  const [recentActivities, setRecentActivities] = useState<{ id: number; type: string; message: string; time: string; icon: string }[]>([]);
 
   // Responsive detection
   useEffect(() => {

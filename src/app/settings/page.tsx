@@ -1,173 +1,942 @@
+// @ts-nocheck
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import {
+  academicYearsApi, boardsApi, mediumsApi, classesApi, sectionsApi,
+  schoolSettingsApi, schoolTimingsApi, feeStructuresApi,
+} from '@/lib/apiClient';
+
+const showToast = (t: any) => { if ((window as any).toast) (window as any).toast(t); };
+
+const LEVELS = [
+  { value: 'kindergarten', label: 'Kindergarten' },
+  { value: 'primary', label: 'Primary' },
+  { value: 'middle', label: 'Middle' },
+  { value: 'high', label: 'High' },
+  { value: 'higher_secondary', label: 'Higher Secondary' },
+];
+
+const TABS = [
+  { id: 'school', label: 'School Details', icon: '🏫' },
+  { id: 'academic', label: 'Academic Years', icon: '📅' },
+  { id: 'structure', label: 'Board / Medium / Class / Section', icon: '🏛️' },
+  { id: 'fees', label: 'Fee Structure', icon: '💰' },
+  { id: 'timings', label: 'School Timings', icon: '🕐' },
+  { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
+  { id: 'access', label: 'Access Rights', icon: '🔒' },
+  { id: 'app', label: 'App Settings', icon: '⚙️' },
+];
 
 export default function SettingsPage() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const { theme } = useTheme();
+  const { refresh: refreshSchoolConfig } = useSchoolConfig();
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState('school');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
+  // ─── Data state ────────────────────────────────────────────────────────────
+  const [academicYears, setAcademicYears] = useState<any[]>([]);
+  const [boards, setBoards] = useState<any[]>([]);
+  const [mediums, setMediums] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [timings, setTimings] = useState<any[]>([]);
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [settingsMap, setSettingsMap] = useState<Record<string, Record<string, string>>>({});
+
+  // ─── Modal / form state ────────────────────────────────────────────────────
+  const [showModal, setShowModal] = useState(false);
+  const [modalEntity, setModalEntity] = useState('');
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState<any>({});
+
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+  const isDark = theme === 'dark';
+  const card = `rounded-xl border p-6 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
+  const row = `p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-200 bg-gray-50'}`;
+  const input = `w-full px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'}`;
+  const label = `block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
+  const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+  const btnDanger = `px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`;
+  const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`;
+  const badge = (active: boolean) => `px-2 py-0.5 rounded text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+  const heading = `text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`;
+  const subtext = `text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
+
+  // ─── Fetch all data ────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [ayRes, bRes, mRes, cRes, secRes, tRes, sRes, fsRes] = await Promise.allSettled([
+        academicYearsApi.list(),
+        boardsApi.list(),
+        mediumsApi.list(),
+        classesApi.list(),
+        sectionsApi.list(),
+        schoolTimingsApi.list(),
+        schoolSettingsApi.getAll(),
+        feeStructuresApi.list(),
+      ]);
+      if (ayRes.status === 'fulfilled') setAcademicYears(ayRes.value.academicYears || []);
+      if (bRes.status === 'fulfilled') setBoards(bRes.value.boards || []);
+      if (mRes.status === 'fulfilled') setMediums(mRes.value.mediums || []);
+      if (cRes.status === 'fulfilled') setClasses(cRes.value.classes || []);
+      if (secRes.status === 'fulfilled') setSections(secRes.value.sections || []);
+      if (tRes.status === 'fulfilled') setTimings(tRes.value.timings || []);
+      if (sRes.status === 'fulfilled') setSettingsMap(sRes.value.settings || {});
+      if (fsRes.status === 'fulfilled') setFeeStructures(fsRes.value.structures || []);
+    } catch (e: any) {
+      showToast({ type: 'error', title: 'Failed to load data', message: e.message });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (!isClient) {
-    return <div>Loading...</div>;
-  }
+  useEffect(() => { setIsClient(true); fetchAll(); }, [fetchAll]);
 
+  if (!isClient) return <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>Loading...</div>;
+
+  // ─── Settings helpers ──────────────────────────────────────────────────────
+  const getSetting = (group: string, key: string, fallback = '') => settingsMap[group]?.[key] ?? fallback;
+
+  const saveBatchSettings = async (group: string, settings: Record<string, string>) => {
+    setSaving(true);
+    try {
+      await schoolSettingsApi.upsertBatch({ group, settings });
+      setSettingsMap(prev => ({ ...prev, [group]: { ...(prev[group] || {}), ...settings } }));
+      showToast({ type: 'success', title: 'Settings saved' });
+      refreshSchoolConfig();
+    } catch (e: any) {
+      showToast({ type: 'error', title: 'Failed to save', message: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Generic CRUD ──────────────────────────────────────────────────────────
+  const openCreate = (entity: string, defaults: any = {}) => {
+    setEditingItem(null);
+    setFormData(defaults);
+    setModalEntity(entity);
+    setShowModal(true);
+  };
+
+  const openEdit = (entity: string, item: any) => {
+    setEditingItem(item);
+    setFormData({ ...item });
+    setModalEntity(entity);
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi, section: sectionsApi, timing: schoolTimingsApi };
+      const api = apiMap[modalEntity];
+      if (editingItem) {
+        await api.update({ id: editingItem.id, ...formData });
+        showToast({ type: 'success', title: `${modalEntity} updated` });
+      } else {
+        await api.create(formData);
+        showToast({ type: 'success', title: `${modalEntity} created` });
+      }
+      setShowModal(false);
+      fetchAll();
+      refreshSchoolConfig();
+    } catch (e: any) {
+      showToast({ type: 'error', title: 'Save failed', message: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (entity: string, id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    try {
+      const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi, section: sectionsApi, timing: schoolTimingsApi };
+      await apiMap[entity].delete(id);
+      showToast({ type: 'success', title: `${name} deleted` });
+      fetchAll();
+      refreshSchoolConfig();
+    } catch (e: any) {
+      showToast({ type: 'error', title: 'Delete failed', message: e.message });
+    }
+  };
+
+  // ─── Active academic year ──────────────────────────────────────────────────
+  const activeAY = academicYears.find((a: any) => a.isActive);
+
+  // ─── School Details Tab ────────────────────────────────────────────────────
+  const SchoolDetailsTab = () => {
+    const [local, setLocal] = useState({
+      name: getSetting('school_details', 'name', ''),
+      address: getSetting('school_details', 'address', ''),
+      city: getSetting('school_details', 'city', ''),
+      state: getSetting('school_details', 'state', ''),
+      pincode: getSetting('school_details', 'pincode', ''),
+      phone: getSetting('school_details', 'phone', ''),
+      email: getSetting('school_details', 'email', ''),
+      website: getSetting('school_details', 'website', ''),
+      principal: getSetting('school_details', 'principal', ''),
+      affiliation_no: getSetting('school_details', 'affiliation_no', ''),
+      established: getSetting('school_details', 'established', ''),
+      logo_url: getSetting('school_details', 'logo_url', ''),
+    });
+    const [uploading, setUploading] = useState(false);
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'school_logo');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setLocal({ ...local, logo_url: data.url });
+        showToast({ type: 'success', title: 'Logo uploaded' });
+      } catch (err: any) {
+        showToast({ type: 'error', title: 'Upload failed', message: err.message });
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    const textFields = Object.entries(local).filter(([key]) => key !== 'logo_url');
+
+    return (
+      <div className={card}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className={heading}>School Details</h3>
+          <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('school_details', local)}>
+            {saving ? 'Saving...' : 'Save Details'}
+          </button>
+        </div>
+
+        {/* Logo Upload Section */}
+        <div className={`mb-6 p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/30' : 'border-gray-200 bg-gray-50'}`}>
+          <label className={`${label} mb-3`}>School Logo</label>
+          <div className="flex items-center gap-6">
+            <div className={`w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-300 bg-white'}`}>
+              {local.logo_url ? (
+                <img src={local.logo_url} alt="School Logo" className="w-full h-full object-contain" />
+              ) : (
+                <span className={`text-3xl ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>🏫</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className={subtext}>Upload your school logo (PNG, JPG, WEBP, SVG — max 2MB).</p>
+              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This logo will appear on all receipts, print documents, and reports.</p>
+              <div className="flex items-center gap-3 mt-3">
+                <label className={`${btnPrimary} cursor-pointer`}>
+                  {uploading ? 'Uploading...' : 'Choose File'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+                </label>
+                {local.logo_url && (
+                  <button className={btnDanger} onClick={() => setLocal({ ...local, logo_url: '' })}>Remove</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {textFields.map(([key, val]) => (
+            <div key={key}>
+              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+              <input className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Academic Years Tab ────────────────────────────────────────────────────
+  const AcademicYearsTab = () => (
+    <div className={card}>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className={heading}>Academic Years</h3>
+        <button className={btnPrimary} onClick={() => openCreate('academicYear', { year: '', name: '', startDate: '', endDate: '', isActive: false })}>
+          + Add Academic Year
+        </button>
+      </div>
+      {academicYears.length === 0 && <p className={subtext}>No academic years configured yet.</p>}
+      <div className="space-y-3">
+        {academicYears.map((ay: any) => (
+          <div key={ay.id} className={`${row} flex items-center justify-between`}>
+            <div className="flex items-center gap-4">
+              <div>
+                <div className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{ay.name}</div>
+                <div className={subtext}>{ay.year} &middot; {ay.startDate} to {ay.endDate}</div>
+              </div>
+              <span className={badge(ay.isActive)}>{ay.isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+            <div className="flex gap-2">
+              <button className={btnSecondary} onClick={() => openEdit('academicYear', ay)}>Edit</button>
+              <button className={btnDanger} onClick={() => handleDelete('academicYear', ay.id, ay.name)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ─── Structure Tab (Board / Medium / Class / Section) ─────────────────────
+  const StructureTab = () => (
+    <div className="space-y-6">
+      {/* Boards */}
+      <div className={card}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className={heading}>Education Boards</h3>
+          <button className={btnPrimary} onClick={() => openCreate('board', { code: '', name: '', description: '', isActive: true })}>+ Add Board</button>
+        </div>
+        {boards.length === 0 && <p className={subtext}>No boards. Add CBSE, ICSE, State Board, etc.</p>}
+        <div className="space-y-2">
+          {boards.map((b: any) => (
+            <div key={b.id} className={`${row} flex items-center justify-between`}>
+              <div className="flex items-center gap-3">
+                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{b.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{b.code}</span>
+                <span className={badge(b.isActive)}>{b.isActive ? 'Active' : 'Inactive'}</span>
+              </div>
+              <div className="flex gap-2">
+                <button className={btnSecondary} onClick={() => openEdit('board', b)}>Edit</button>
+                <button className={btnDanger} onClick={() => handleDelete('board', b.id, b.name)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mediums */}
+      <div className={card}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className={heading}>Language Mediums</h3>
+          <button className={btnPrimary} onClick={() => openCreate('medium', { code: '', name: '', description: '', isActive: true, academicYearId: activeAY?.id || '' })}>+ Add Medium</button>
+        </div>
+        {mediums.length === 0 && <p className={subtext}>No mediums. Add English, Hindi, Kannada, etc.</p>}
+        <div className="space-y-2">
+          {mediums.map((m: any) => (
+            <div key={m.id} className={`${row} flex items-center justify-between`}>
+              <div className="flex items-center gap-3">
+                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{m.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{m.code}</span>
+                <span className={badge(m.isActive)}>{m.isActive ? 'Active' : 'Inactive'}</span>
+                <span className={subtext}>{m.classes?.length || 0} classes</span>
+              </div>
+              <div className="flex gap-2">
+                <button className={btnSecondary} onClick={() => openEdit('medium', m)}>Edit</button>
+                <button className={btnDanger} onClick={() => handleDelete('medium', m.id, m.name)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Classes */}
+      <div className={card}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className={heading}>Classes</h3>
+          <button className={btnPrimary} onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: activeAY?.id || '', isActive: true })}>+ Add Class</button>
+        </div>
+        {classes.length === 0 && <p className={subtext}>No classes configured.</p>}
+        <div className="space-y-2">
+          {classes.map((c: any) => (
+            <div key={c.id} className={`${row} flex items-center justify-between`}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{c.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{c.code}</span>
+                <span className={`text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700`}>{c.level?.replace('_', ' ')}</span>
+                <span className={subtext}>{c.medium?.name || '—'}</span>
+                <span className={subtext}>{c.sections?.length || 0} sections</span>
+              </div>
+              <div className="flex gap-2">
+                <button className={btnSecondary} onClick={() => openEdit('class', c)}>Edit</button>
+                <button className={btnDanger} onClick={() => handleDelete('class', c.id, c.name)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sections */}
+      <div className={card}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className={heading}>Sections</h3>
+          <button className={btnPrimary} onClick={() => openCreate('section', { code: '', name: '', classId: '', capacity: 40, roomNumber: '', isActive: true })}>+ Add Section</button>
+        </div>
+        {sections.length === 0 && <p className={subtext}>No sections.</p>}
+        <div className="overflow-x-auto">
+          <table className={`w-full text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <thead><tr className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+              <th className="text-left py-2 px-3">Class</th><th className="text-left py-2 px-3">Section</th><th className="text-left py-2 px-3">Code</th><th className="text-left py-2 px-3">Capacity</th><th className="text-left py-2 px-3">Room</th><th className="text-left py-2 px-3">Actions</th>
+            </tr></thead>
+            <tbody>
+              {sections.map((s: any) => (
+                <tr key={s.id} className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                  <td className="py-2 px-3">{s.class?.name || '—'}</td>
+                  <td className="py-2 px-3">{s.name}</td>
+                  <td className="py-2 px-3">{s.code}</td>
+                  <td className="py-2 px-3">{s.capacity}</td>
+                  <td className="py-2 px-3">{s.roomNumber || '—'}</td>
+                  <td className="py-2 px-3 flex gap-1">
+                    <button className={btnSecondary} onClick={() => openEdit('section', s)}>Edit</button>
+                    <button className={btnDanger} onClick={() => handleDelete('section', s.id, s.name)}>Del</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── Fee Structure Tab ─────────────────────────────────────────────────────
+  const FeeTab = () => {
+    const [filterAY, setFilterAY] = useState(activeAY?.id || '');
+    const [filterBoard, setFilterBoard] = useState('');
+    const [filterMedium, setFilterMedium] = useState('');
+    const [filterClass, setFilterClass] = useState('');
+    const [showFeeModal, setShowFeeModal] = useState(false);
+    const [editingFee, setEditingFee] = useState<any>(null);
+    const [feeForm, setFeeForm] = useState<any>({});
+    const [showCloneModal, setShowCloneModal] = useState(false);
+    const [cloneSource, setCloneSource] = useState('');
+    const [cloneTarget, setCloneTarget] = useState('');
+    const [globalConfig, setGlobalConfig] = useState({
+      late_fee_per_day: getSetting('fee_config', 'late_fee_per_day', '0'),
+      grace_period_days: getSetting('fee_config', 'grace_period_days', '7'),
+      receipt_prefix: getSetting('fee_config', 'receipt_prefix', 'REC'),
+    });
+
+    const filteredFS = feeStructures.filter((fs: any) => {
+      if (filterAY && fs.academicYearId !== filterAY) return false;
+      if (filterBoard && fs.boardId !== filterBoard) return false;
+      if (filterMedium && fs.mediumId !== filterMedium) return false;
+      if (filterClass && fs.classId !== filterClass) return false;
+      return true;
+    });
+
+    const filteredClasses = filterMedium ? classes.filter((c: any) => c.mediumId === filterMedium) : classes;
+
+    const openCreateFee = () => {
+      setEditingFee(null);
+      setFeeForm({
+        name: '', category: 'tuition', amount: 0, frequency: 'monthly', dueDate: 1,
+        lateFee: 0, description: '', applicableCategories: 'all', isActive: true,
+        academicYearId: filterAY || activeAY?.id || '',
+        boardId: filterBoard || null, mediumId: filterMedium || null, classId: filterClass || null,
+      });
+      setShowFeeModal(true);
+    };
+
+    const openEditFee = (fs: any) => {
+      setEditingFee(fs);
+      setFeeForm({ ...fs });
+      setShowFeeModal(true);
+    };
+
+    const saveFee = async () => {
+      setSaving(true);
+      try {
+        const payload = { ...feeForm };
+        if (!payload.boardId) payload.boardId = null;
+        if (!payload.mediumId) payload.mediumId = null;
+        if (!payload.classId) payload.classId = null;
+        if (editingFee) {
+          await feeStructuresApi.update(editingFee.id, payload);
+          showToast({ type: 'success', title: 'Fee structure updated' });
+        } else {
+          await feeStructuresApi.create(payload);
+          showToast({ type: 'success', title: 'Fee structure created' });
+        }
+        setShowFeeModal(false);
+        fetchAll();
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Save failed', message: e.message });
+      } finally { setSaving(false); }
+    };
+
+    const deleteFee = async (fs: any) => {
+      if (!confirm(`Delete "${fs.name}"?`)) return;
+      try {
+        await feeStructuresApi.delete(fs.id);
+        showToast({ type: 'success', title: 'Deleted' });
+        fetchAll();
+      } catch (e: any) { showToast({ type: 'error', title: 'Failed', message: e.message }); }
+    };
+
+    const handleClone = async () => {
+      if (!cloneSource || !cloneTarget) return;
+      setSaving(true);
+      try {
+        const res = await feeStructuresApi.clone(cloneSource, cloneTarget);
+        showToast({ type: 'success', title: `${res.cloned} fee structures cloned` });
+        setShowCloneModal(false);
+        fetchAll();
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Clone failed', message: e.message });
+      } finally { setSaving(false); }
+    };
+
+    const categories = [
+      { value: 'tuition', label: 'Tuition' }, { value: 'transport', label: 'Transport' },
+      { value: 'lab', label: 'Lab' }, { value: 'exam', label: 'Exam' },
+      { value: 'hostel', label: 'Hostel' }, { value: 'activity', label: 'Activity' },
+      { value: 'library', label: 'Library' }, { value: 'other', label: 'Other' },
+    ];
+    const frequencies = [
+      { value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' },
+      { value: 'half_yearly', label: 'Half Yearly' }, { value: 'annually', label: 'Annually' },
+      { value: 'one_time', label: 'One Time' },
+    ];
+
+    return (
+      <div className="space-y-6">
+        {/* Global Fee Config */}
+        <div className={card}>
+          <div className="flex justify-between items-center mb-4">
+            <div><h3 className={heading}>Global Fee Settings</h3><p className={subtext}>Late fee, grace period, receipt prefix</p></div>
+            <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('fee_config', globalConfig)}>{saving ? 'Saving...' : 'Save'}</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Object.entries(globalConfig).map(([key, val]) => (
+              <div key={key}>
+                <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+                <input className={input} value={val} onChange={e => setGlobalConfig({ ...globalConfig, [key]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Fee Structures */}
+        <div className={card}>
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+            <div><h3 className={heading}>Fee Structures</h3><p className={subtext}>Define fees per academic year, board, medium, and class</p></div>
+            <div className="flex gap-2">
+              <button className={`${btnSecondary} !px-4 !py-2`} onClick={() => setShowCloneModal(true)}>📋 Clone to Another Year</button>
+              <button className={btnPrimary} onClick={openCreateFee}>+ Add Fee Structure</button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3 mb-4">
+            <select className={input + ' !w-auto'} value={filterAY} onChange={e => setFilterAY(e.target.value)}>
+              <option value="">All Academic Years</option>
+              {academicYears.map((ay: any) => <option key={ay.id} value={ay.id}>{ay.name}</option>)}
+            </select>
+            <select className={input + ' !w-auto'} value={filterBoard} onChange={e => setFilterBoard(e.target.value)}>
+              <option value="">All Boards</option>
+              {boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <select className={input + ' !w-auto'} value={filterMedium} onChange={e => { setFilterMedium(e.target.value); setFilterClass(''); }}>
+              <option value="">All Mediums</option>
+              {mediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <select className={input + ' !w-auto'} value={filterClass} onChange={e => setFilterClass(e.target.value)}>
+              <option value="">All Classes</option>
+              {filteredClasses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Table */}
+          {filteredFS.length === 0 && <p className={subtext}>No fee structures match the current filters. Click "+ Add Fee Structure" to create one.</p>}
+          {filteredFS.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className={`w-full text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <thead><tr className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                  <th className="text-left py-2 px-2">Name</th>
+                  <th className="text-left py-2 px-2">Category</th>
+                  <th className="text-right py-2 px-2">Amount</th>
+                  <th className="text-left py-2 px-2">Frequency</th>
+                  <th className="text-left py-2 px-2">Board</th>
+                  <th className="text-left py-2 px-2">Medium</th>
+                  <th className="text-left py-2 px-2">Class</th>
+                  <th className="text-left py-2 px-2">AY</th>
+                  <th className="text-left py-2 px-2">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {filteredFS.map((fs: any) => (
+                    <tr key={fs.id} className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                      <td className="py-2 px-2 font-medium">{fs.name}</td>
+                      <td className="py-2 px-2"><span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700">{fs.category}</span></td>
+                      <td className="py-2 px-2 text-right font-semibold">₹{fs.amount?.toLocaleString()}</td>
+                      <td className="py-2 px-2">{fs.frequency?.replace('_', ' ')}</td>
+                      <td className="py-2 px-2">{fs.board?.name || '—'}</td>
+                      <td className="py-2 px-2">{fs.medium?.name || '—'}</td>
+                      <td className="py-2 px-2">{fs.class?.name || '—'}</td>
+                      <td className="py-2 px-2">{fs.academicYear?.year || '—'}</td>
+                      <td className="py-2 px-2 flex gap-1">
+                        <button className={btnSecondary} onClick={() => openEditFee(fs)}>Edit</button>
+                        <button className={btnDanger} onClick={() => deleteFee(fs)}>Del</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Fee Structure Create/Edit Modal */}
+        <AnimatePresence>
+          {showFeeModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFeeModal(false)}>
+              <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
+                <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {editingFee ? 'Edit' : 'Create'} Fee Structure
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><label className={label}>Fee Name</label><input className={input} value={feeForm.name || ''} onChange={e => setFeeForm({ ...feeForm, name: e.target.value })} placeholder="e.g. Tuition Fee" /></div>
+                  <div><label className={label}>Category</label><select className={input} value={feeForm.category || 'tuition'} onChange={e => setFeeForm({ ...feeForm, category: e.target.value })}>{categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}</select></div>
+                  <div><label className={label}>Amount (₹)</label><input className={input} type="number" value={feeForm.amount || 0} onChange={e => setFeeForm({ ...feeForm, amount: parseFloat(e.target.value) || 0 })} /></div>
+                  <div><label className={label}>Frequency</label><select className={input} value={feeForm.frequency || 'monthly'} onChange={e => setFeeForm({ ...feeForm, frequency: e.target.value })}>{frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select></div>
+                  <div><label className={label}>Due Date (Day of Month)</label><input className={input} type="number" min={1} max={28} value={feeForm.dueDate || 1} onChange={e => setFeeForm({ ...feeForm, dueDate: parseInt(e.target.value) || 1 })} /></div>
+                  <div><label className={label}>Late Fee (₹/day)</label><input className={input} type="number" value={feeForm.lateFee || 0} onChange={e => setFeeForm({ ...feeForm, lateFee: parseFloat(e.target.value) || 0 })} /></div>
+                  <div className="md:col-span-2"><label className={label}>Description</label><input className={input} value={feeForm.description || ''} onChange={e => setFeeForm({ ...feeForm, description: e.target.value })} /></div>
+                  <div><label className={label}>Academic Year *</label><select className={input} value={feeForm.academicYearId || ''} onChange={e => setFeeForm({ ...feeForm, academicYearId: e.target.value })}><option value="">Select...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+                  <div><label className={label}>Board</label><select className={input} value={feeForm.boardId || ''} onChange={e => setFeeForm({ ...feeForm, boardId: e.target.value || null })}><option value="">All Boards</option>{boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+                  <div><label className={label}>Medium</label><select className={input} value={feeForm.mediumId || ''} onChange={e => setFeeForm({ ...feeForm, mediumId: e.target.value || null, classId: null })}><option value="">All Mediums</option>{mediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                  <div><label className={label}>Class</label><select className={input} value={feeForm.classId || ''} onChange={e => setFeeForm({ ...feeForm, classId: e.target.value || null })}><option value="">All Classes</option>{(feeForm.mediumId ? classes.filter((c: any) => c.mediumId === feeForm.mediumId) : classes).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div><label className={label}>Applicable Categories</label><input className={input} value={feeForm.applicableCategories || 'all'} onChange={e => setFeeForm({ ...feeForm, applicableCategories: e.target.value })} placeholder="all, General, OBC, SC, ST" /></div>
+                  <div className="flex items-center gap-2 pt-6"><input type="checkbox" checked={feeForm.isActive !== false} onChange={e => setFeeForm({ ...feeForm, isActive: e.target.checked })} /><span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Active</span></div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button className={btnPrimary} disabled={saving || !feeForm.name || !feeForm.academicYearId} onClick={saveFee}>{saving ? 'Saving...' : editingFee ? 'Update' : 'Create'}</button>
+                  <button className={btnSecondary} onClick={() => setShowFeeModal(false)}>Cancel</button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Clone Modal */}
+        <AnimatePresence>
+          {showCloneModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCloneModal(false)}>
+              <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-md rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
+                <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Clone Fee Structures</h3>
+                <p className={`${subtext} mb-4`}>Copy all fee structures from one academic year to another. Amounts, categories, board/medium/class assignments will be preserved.</p>
+                <div className="space-y-4">
+                  <div><label className={label}>Source Academic Year</label><select className={input} value={cloneSource} onChange={e => setCloneSource(e.target.value)}><option value="">Select source...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name} ({feeStructures.filter((f: any) => f.academicYearId === a.id).length} structures)</option>)}</select></div>
+                  <div className="text-center text-2xl">⬇️</div>
+                  <div><label className={label}>Target Academic Year</label><select className={input} value={cloneTarget} onChange={e => setCloneTarget(e.target.value)}><option value="">Select target...</option>{academicYears.filter((a: any) => a.id !== cloneSource).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button className={btnPrimary} disabled={saving || !cloneSource || !cloneTarget} onClick={handleClone}>{saving ? 'Cloning...' : 'Clone Structures'}</button>
+                  <button className={btnSecondary} onClick={() => setShowCloneModal(false)}>Cancel</button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  // ─── Timings Tab ───────────────────────────────────────────────────────────
+  const TimingsTab = () => (
+    <div className={card}>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className={heading}>School Timings & Period Timetable</h3>
+          <p className={subtext}>Define periods, breaks, and assembly timings</p>
+        </div>
+        <button className={btnPrimary} onClick={() => openCreate('timing', { name: '', type: 'period', startTime: '08:00', endTime: '08:45', dayOfWeek: 'all', sortOrder: timings.length, isActive: true })}>
+          + Add Timing
+        </button>
+      </div>
+      {timings.length === 0 && <p className={subtext}>No timings configured.</p>}
+      <div className="space-y-2">
+        {timings.map((t: any) => (
+          <div key={t.id} className={`${row} flex items-center justify-between`}>
+            <div className="flex items-center gap-4">
+              <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded ${t.type === 'period' ? 'bg-blue-100 text-blue-700' : t.type === 'break' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}`}>{t.type}</span>
+              <span className={subtext}>{t.startTime} – {t.endTime}</span>
+              <span className={subtext}>({t.dayOfWeek})</span>
+            </div>
+            <div className="flex gap-2">
+              <button className={btnSecondary} onClick={() => openEdit('timing', t)}>Edit</button>
+              <button className={btnDanger} onClick={() => handleDelete('timing', t.id, t.name)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ─── Integrations Tab (SMTP & Payment Gateways) ───────────────────────────
+  const IntegrationsTab = () => {
+    const [smtp, setSmtp] = useState({
+      host: getSetting('smtp', 'host', ''),
+      port: getSetting('smtp', 'port', '587'),
+      user: getSetting('smtp', 'user', ''),
+      password: getSetting('smtp', 'password', ''),
+      from_email: getSetting('smtp', 'from_email', ''),
+      from_name: getSetting('smtp', 'from_name', ''),
+      encryption: getSetting('smtp', 'encryption', 'tls'),
+    });
+    const [pg, setPg] = useState({
+      provider: getSetting('payment_gateway', 'provider', 'razorpay'),
+      api_key: getSetting('payment_gateway', 'api_key', ''),
+      api_secret: getSetting('payment_gateway', 'api_secret', ''),
+      webhook_secret: getSetting('payment_gateway', 'webhook_secret', ''),
+      enabled: getSetting('payment_gateway', 'enabled', 'false'),
+    });
+    return (
+      <div className="space-y-6">
+        <div className={card}>
+          <div className="flex justify-between items-center mb-6">
+            <div><h3 className={heading}>SMTP Configuration</h3><p className={subtext}>Email delivery settings</p></div>
+            <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('smtp', smtp)}>{saving ? 'Saving...' : 'Save SMTP'}</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(smtp).map(([key, val]) => (
+              <div key={key}>
+                <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+                <input className={input} type={key === 'password' ? 'password' : 'text'} value={val} onChange={e => setSmtp({ ...smtp, [key]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={card}>
+          <div className="flex justify-between items-center mb-6">
+            <div><h3 className={heading}>Payment Gateway</h3><p className={subtext}>Online payment configuration</p></div>
+            <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('payment_gateway', pg)}>{saving ? 'Saving...' : 'Save Gateway'}</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(pg).map(([key, val]) => (
+              <div key={key}>
+                <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+                <input className={input} type={key.includes('secret') ? 'password' : 'text'} value={val} onChange={e => setPg({ ...pg, [key]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Access Rights Tab ─────────────────────────────────────────────────────
+  const AccessTab = () => {
+    const [local, setLocal] = useState({
+      admin_modules: getSetting('access_rights', 'admin_modules', 'all'),
+      teacher_modules: getSetting('access_rights', 'teacher_modules', 'students,attendance,exams,assignments'),
+      student_modules: getSetting('access_rights', 'student_modules', 'dashboard,profile,fees,exams'),
+      parent_modules: getSetting('access_rights', 'parent_modules', 'dashboard,fees,attendance,exams'),
+      allow_teacher_fee_collection: getSetting('access_rights', 'allow_teacher_fee_collection', 'false'),
+      allow_student_self_registration: getSetting('access_rights', 'allow_student_self_registration', 'false'),
+    });
+    return (
+      <div className={card}>
+        <div className="flex justify-between items-center mb-6">
+          <div><h3 className={heading}>Access Rights & Permissions</h3><p className={subtext}>Control what each role can access</p></div>
+          <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('access_rights', local)}>{saving ? 'Saving...' : 'Save Permissions'}</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.entries(local).map(([key, val]) => (
+            <div key={key}>
+              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+              {key.includes('allow_') ? (
+                <select className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })}>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              ) : (
+                <input className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })} placeholder="Comma-separated module names" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── App Settings Tab ──────────────────────────────────────────────────────
+  const AppSettingsTab = () => {
+    const [local, setLocal] = useState({
+      attendance_auto_absent: getSetting('app_config', 'attendance_auto_absent', 'true'),
+      sms_notifications: getSetting('app_config', 'sms_notifications', 'false'),
+      email_notifications: getSetting('app_config', 'email_notifications', 'true'),
+      push_notifications: getSetting('app_config', 'push_notifications', 'false'),
+      default_language: getSetting('app_config', 'default_language', 'en'),
+      date_format: getSetting('app_config', 'date_format', 'DD/MM/YYYY'),
+      currency: getSetting('app_config', 'currency', 'INR'),
+      currency_symbol: getSetting('app_config', 'currency_symbol', '₹'),
+      pagination_size: getSetting('app_config', 'pagination_size', '25'),
+      session_timeout_mins: getSetting('app_config', 'session_timeout_mins', '60'),
+    });
+    return (
+      <div className={card}>
+        <div className="flex justify-between items-center mb-6">
+          <div><h3 className={heading}>Application Settings</h3><p className={subtext}>Control how the application behaves</p></div>
+          <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('app_config', local)}>{saving ? 'Saving...' : 'Save Settings'}</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(local).map(([key, val]) => (
+            <div key={key}>
+              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
+              {['true','false'].includes(val) ? (
+                <select className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })}>
+                  <option value="true">Enabled</option>
+                  <option value="false">Disabled</option>
+                </select>
+              ) : (
+                <input className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Modal form fields per entity ──────────────────────────────────────────
+  const modalFields: Record<string, { key: string; label: string; type?: string; options?: any[] }[]> = {
+    academicYear: [
+      { key: 'year', label: 'Year Code (e.g. 2024-25)' },
+      { key: 'name', label: 'Display Name' },
+      { key: 'startDate', label: 'Start Date', type: 'date' },
+      { key: 'endDate', label: 'End Date', type: 'date' },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+    board: [
+      { key: 'code', label: 'Code (e.g. CBSE)' },
+      { key: 'name', label: 'Name' },
+      { key: 'description', label: 'Description' },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+    medium: [
+      { key: 'code', label: 'Code (e.g. EN)' },
+      { key: 'name', label: 'Name' },
+      { key: 'description', label: 'Description' },
+      { key: 'academicYearId', label: 'Academic Year', type: 'select', options: academicYears.map((a: any) => ({ value: a.id, label: a.name })) },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+    class: [
+      { key: 'code', label: 'Code (e.g. 1-EN)' },
+      { key: 'name', label: 'Name' },
+      { key: 'level', label: 'Level', type: 'select', options: LEVELS.map(l => ({ value: l.value, label: l.label })) },
+      { key: 'mediumId', label: 'Medium', type: 'select', options: mediums.map((m: any) => ({ value: m.id, label: m.name })) },
+      { key: 'academicYearId', label: 'Academic Year', type: 'select', options: academicYears.map((a: any) => ({ value: a.id, label: a.name })) },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+    section: [
+      { key: 'code', label: 'Code (e.g. 1-EN-A)' },
+      { key: 'name', label: 'Name (e.g. A)' },
+      { key: 'classId', label: 'Class', type: 'select', options: classes.map((c: any) => ({ value: c.id, label: c.name })) },
+      { key: 'capacity', label: 'Capacity', type: 'number' },
+      { key: 'roomNumber', label: 'Room Number' },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+    timing: [
+      { key: 'name', label: 'Name (e.g. Period 1)' },
+      { key: 'type', label: 'Type', type: 'select', options: [{ value: 'period', label: 'Period' }, { value: 'break', label: 'Break' }, { value: 'assembly', label: 'Assembly' }] },
+      { key: 'startTime', label: 'Start Time', type: 'time' },
+      { key: 'endTime', label: 'End Time', type: 'time' },
+      { key: 'dayOfWeek', label: 'Day', type: 'select', options: ['all','mon','tue','wed','thu','fri','sat','sun'].map(d => ({ value: d, label: d.charAt(0).toUpperCase() + d.slice(1) })) },
+      { key: 'sortOrder', label: 'Sort Order', type: 'number' },
+      { key: 'isActive', label: 'Active', type: 'checkbox' },
+    ],
+  };
+
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <AppLayout 
-      currentPage="settings" 
-      title="Settings"
-      theme={theme}
-      onThemeChange={setTheme}
-    >
+    <AppLayout currentPage="settings" title="Settings" theme={theme}>
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-            Settings
-          </h2>
-          <p className={`mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            Manage your application settings and preferences
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Settings</h2>
+          <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Central configuration for your school ERP
+            {activeAY && <span className="ml-2 text-blue-400 font-medium">(AY: {activeAY.name})</span>}
           </p>
         </div>
 
-        {/* Settings Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* General Settings */}
-          <div className={`rounded-lg border ${
-            theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="p-6">
-              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                ⚙️ General Settings
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    School Name
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue="Demo School"
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Academic Year
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue="2024-2025"
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Notification Settings */}
-          <div className={`rounded-lg border ${
-            theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="p-6">
-              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                🔔 Notifications
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center justify-between">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Email Notifications
-                  </span>
-                  <input
-                    type="checkbox"
-                    defaultChecked
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                </label>
-                <label className="flex items-center justify-between">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                    SMS Alerts
-                  </span>
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                </label>
-                <label className="flex items-center justify-between">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Push Notifications
-                  </span>
-                  <input
-                    type="checkbox"
-                    defaultChecked
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Security Settings */}
-          <div className={`rounded-lg border ${
-            theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="p-6">
-              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                🔒 Security
-              </h3>
-              <div className="space-y-4">
-                <button className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  theme === 'dark'
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}>
-                  Change Password
-                </button>
-                <button className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  theme === 'dark'
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}>
-                  Enable 2FA
-                </button>
-                <button className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  theme === 'dark'
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}>
-                  Login History
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>{tab.icon}</span> {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-            theme === 'dark'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}>
-            💾 Save Settings
-          </button>
-        </div>
+        {/* Loading */}
+        {loading && <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading configuration...</div>}
+
+        {/* Tab Content */}
+        {!loading && (
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            {activeTab === 'school' && <SchoolDetailsTab />}
+            {activeTab === 'academic' && <AcademicYearsTab />}
+            {activeTab === 'structure' && <StructureTab />}
+            {activeTab === 'fees' && <FeeTab />}
+            {activeTab === 'timings' && <TimingsTab />}
+            {activeTab === 'integrations' && <IntegrationsTab />}
+            {activeTab === 'access' && <AccessTab />}
+            {activeTab === 'app' && <AppSettingsTab />}
+          </motion.div>
+        )}
       </div>
+
+      {/* ─── CRUD Modal ─────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
+              <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {editingItem ? 'Edit' : 'Create'} {modalEntity.replace(/([A-Z])/g, ' $1').trim()}
+              </h3>
+              <div className="space-y-4">
+                {(modalFields[modalEntity] || []).map(field => (
+                  <div key={field.key}>
+                    <label className={label}>{field.label}</label>
+                    {field.type === 'checkbox' ? (
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={!!formData[field.key]} onChange={e => setFormData({ ...formData, [field.key]: e.target.checked })} className="w-4 h-4" />
+                        <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Enabled</span>
+                      </label>
+                    ) : field.type === 'select' ? (
+                      <select className={input} value={formData[field.key] || ''} onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}>
+                        <option value="">Select...</option>
+                        {field.options?.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    ) : (
+                      <input className={input} type={field.type || 'text'} value={formData[field.key] ?? ''} onChange={e => setFormData({ ...formData, [field.key]: field.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button className={btnPrimary} disabled={saving} onClick={handleSave}>
+                  {saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+                </button>
+                <button className={btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 }

@@ -5,8 +5,10 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
+  const { dropdowns } = useSchoolConfig();
   const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
 
   return (
@@ -203,8 +205,8 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       }`}
                     >
                       <option value="all">All Classes</option>
-                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map(cls => (
-                        <option key={cls} value={cls}>Class {cls}</option>
+                      {dropdowns.classes.map(cls => (
+                        <option key={cls.value} value={cls.label}>{cls.label}</option>
                       ))}
                     </select>
 

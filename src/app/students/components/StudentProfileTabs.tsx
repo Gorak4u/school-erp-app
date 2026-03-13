@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Student } from '../types';
 
 interface StudentProfileTabsProps {
@@ -18,6 +18,47 @@ export default function StudentProfileTabs({
   activeTab, selectedStudent, setFeeManagement, setAttendanceTracking,
   setParentPortal, setCommunicationCenter, theme
 }: StudentProfileTabsProps) {
+  const [feeData, setFeeData] = useState({
+    totalFees: 0,
+    paidAmount: 0,
+    pendingAmount: 0,
+    overdueAmount: 0,
+    feeRecords: []
+  });
+
+  // Load fee data when student changes
+  useEffect(() => {
+    if (selectedStudent && activeTab === 'fees') {
+      loadFeeData();
+    }
+  }, [selectedStudent, activeTab]);
+
+  const loadFeeData = async () => {
+    try {
+      // Fetch fee records for this student
+      const response = await fetch(`/api/fees/records?studentId=${selectedStudent.id}`);
+      const data = await response.json();
+      
+      if (data.records) {
+        const totalFees = data.records.reduce((sum: number, record: any) => sum + record.amount, 0);
+        const paidAmount = data.records.reduce((sum: number, record: any) => sum + record.paidAmount, 0);
+        const pendingAmount = data.records.reduce((sum: number, record: any) => sum + record.pendingAmount, 0);
+        const overdueAmount = data.records
+          .filter((record: any) => record.status === 'overdue')
+          .reduce((sum: number, record: any) => sum + record.pendingAmount, 0);
+
+        setFeeData({
+          totalFees,
+          paidAmount,
+          pendingAmount,
+          overdueAmount,
+          feeRecords: data.records
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load fee data:', error);
+    }
+  };
   return (
     <>
                   {/* Fees Tab */}
@@ -49,7 +90,7 @@ export default function StudentProfileTabs({
                           }`}>Total Fees</p>
                           <p className={`text-xl font-bold mt-1 ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹45,000</p>
+                          }`}>₹{feeData.totalFees.toLocaleString()}</p>
                         </div>
                         <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
@@ -59,7 +100,7 @@ export default function StudentProfileTabs({
                           }`}>Paid Amount</p>
                           <p className={`text-xl font-bold mt-1 ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹35,000</p>
+                          }`}>₹{feeData.paidAmount.toLocaleString()}</p>
                         </div>
                         <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
@@ -69,7 +110,7 @@ export default function StudentProfileTabs({
                           }`}>Pending Amount</p>
                           <p className={`text-xl font-bold mt-1 ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹10,000</p>
+                          }`}>₹{feeData.pendingAmount.toLocaleString()}</p>
                         </div>
                         <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
@@ -113,56 +154,42 @@ export default function StudentProfileTabs({
                             <tbody className={`divide-y ${
                               theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
                             }`}>
-                              <tr>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Tuition Fee</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>₹25,000</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>15 Mar 2024</td>
-                                <td className={`py-3 px-4`}>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                  }`}>Paid</span>
-                                </td>
-                                <td className={`py-3 px-4`}>
-                                  <button className={`px-3 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark'
-                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                              {feeData.feeRecords.length > 0 ? feeData.feeRecords.map((record: any, index: number) => (
+                                <tr key={index}>
+                                  <td className={`py-3 px-4 ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>{record.feeStructure?.name || 'Fee'}</td>
+                                  <td className={`py-3 px-4 ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>₹{record.amount.toLocaleString()}</td>
+                                  <td className={`py-3 px-4 ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                  }`}>{new Date(record.dueDate).toLocaleDateString()}</td>
+                                  <td className={`py-3 px-4`}>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                      record.status === 'paid' ? (theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700') :
+                                      record.status === 'partially_paid' ? (theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700') :
+                                      record.status === 'overdue' ? (theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700') :
+                                      (theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
+                                    }`}>
+                                      {record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('_', ' ')}
+                                    </span>
+                                  </td>
+                                  <td className={`py-3 px-4`}>
+                                    <button className={`text-blue-500 hover:text-blue-600 text-sm font-medium`}>
+                                      {record.status === 'paid' ? 'View Receipt' : 'Pay Now'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              )) : (
+                                <tr>
+                                  <td colSpan={5} className={`py-8 text-center ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                                   }`}>
-                                    View Receipt
-                                  </button>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Transport Fee</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>₹10,000</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>15 Mar 2024</td>
-                                <td className={`py-3 px-4`}>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
-                                  }`}>Pending</span>
-                                </td>
-                                <td className={`py-3 px-4`}>
-                                  <button className={`px-3 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark'
-                                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                                      : 'bg-green-500 hover:bg-green-600 text-white'
-                                  }`}>
-                                    Pay Now
-                                  </button>
-                                </td>
-                              </tr>
+                                    No fee records found. Click "Manage Fees" to add fee structures.
+                                  </td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -358,7 +385,14 @@ export default function StudentProfileTabs({
                                 }`}>Fee Payment Reminder</p>
                                 <p className={`text-xs ${
                                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Transport fee of ₹10,000 is due on 15 Mar</p>
+                                }`}>
+                                  {feeData.overdueAmount > 0 
+                                    ? `₹${feeData.overdueAmount.toLocaleString()} in overdue fees`
+                                    : feeData.pendingAmount > 0 
+                                    ? `₹${feeData.pendingAmount.toLocaleString()} in pending fees`
+                                    : 'All fees are up to date'
+                                  }
+                                </p>
                               </div>
                               <span className={`text-xs ${
                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'

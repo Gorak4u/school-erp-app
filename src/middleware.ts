@@ -19,7 +19,7 @@ const roleBasedRoutes = {
   '/attendance': ['admin', 'teacher'],
   '/reports': ['admin', 'teacher'],
   '/profile': ['admin', 'teacher', 'student', 'parent'],
-  '/settings': ['admin', 'teacher', 'student', 'parent'],
+  '/settings': ['admin'],
 };
 
 export function middleware(request: NextRequest) {

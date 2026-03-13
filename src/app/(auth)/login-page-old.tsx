@@ -5,12 +5,15 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { signIn } from 'next-auth/react';
 import { ButtonAdvanced, Card, CardContent, Badge } from '@/lib/design-system';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -26,20 +29,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Demo login logic
-      if (formData.email === 'admin@schoolerp.in' && formData.password === 'admin123') {
-        router.push('/dashboard');
-      } else if (formData.email === 'teacher@schoolerp.in' && formData.password === 'teacher123') {
-        router.push('/dashboard');
-      } else if (formData.email === 'student@schoolerp.in' && formData.password === 'student123') {
-        router.push('/dashboard');
-      } else if (formData.email === 'parent@schoolerp.in' && formData.password === 'parent123') {
-        router.push('/dashboard');
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Invalid email or password');
+      } else if (result?.ok) {
+        router.push(callbackUrl);
       } else {
-        setError('Invalid credentials. Please try again.');
+        setError('Login failed. Please try again.');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -279,10 +280,8 @@ export default function LoginPage() {
                     🎓 Demo Credentials Available
                   </Badge>
                   <div className="space-y-1 text-xs text-purple-200 bg-white/5 rounded-lg p-3 border border-white/10">
-                    <div>Admin: admin@schoolerp.in / admin123</div>
-                    <div>Teacher: teacher@schoolerp.in / teacher123</div>
-                    <div>Student: student@schoolerp.in / student123</div>
-                    <div>Parent: parent@schoolerp.in / parent123</div>
+                    <div>Admin: admin@schoolerp.com / admin123</div>
+                    <div>Teacher: teacher@schoolerp.com / teacher123</div>
                   </div>
                 </motion.div>
 

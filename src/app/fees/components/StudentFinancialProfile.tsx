@@ -1,10 +1,11 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PaymentReceipt from './PaymentReceipt';
 import { PDFGenerator } from '@/utils/pdfGenerator';
+import { feeRecordsApi } from '@/lib/apiClient';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,76 +43,88 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const chartTextColor = isDark ? '#fff' : '#000';
   const chartGridColor = isDark ? '#333' : '#ddd';
 
-  // Use provided student data or fallback to mock data
-  const currentStudentData = studentData || {
-    name: 'Rahul Sharma',
-    studentClass: '10-A',
-    admissionNo: 'ADM-2023-045',
-    parentName: 'Mr. Rajesh Sharma',
-    contact: '+91 98765 43210',
-    email: 'rajesh.sharma@email.com',
-    feePlan: 'Quarterly',
-    scholarship: 'Merit (10%)',
-    totalFees: 125000,
-    paid: 93750,
-    pending: 31250,
-    lateFees: 500,
-    discount: 12500,
-    nextDueDate: '2026-04-15',
-    nextDueAmount: 31250,
-    riskLevel: 'low',
-    // Previous year pending fees
-    previousYearPending: {
-      '2023-24': {
-        total: 85000,
-        paid: 75000,
-        pending: 10000,
-        overdueFees: ['Transport Fee', 'Sports Fee'],
-        lastPaymentDate: '2024-02-15'
-      },
-      '2022-23': {
-        total: 75000,
-        paid: 75000,
-        pending: 0,
-        overdueFees: [],
-        lastPaymentDate: '2023-03-10'
-      }
-    }
+  // Fetch fee records for the student
+  const [feeRecords, setFeeRecords] = useState<any[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(true);
+
+  useEffect(() => {
+    if (!studentId && !studentData?.id) { setLoadingRecords(false); return; }
+    (async () => {
+      try {
+        const sid = studentId || studentData?.id;
+        const data = await feeRecordsApi.list({ studentId: sid, pageSize: 200 });
+        setFeeRecords(data.records || data.feeRecords || []);
+      } catch (e) { console.error('Failed to load student fee records', e); }
+      finally { setLoadingRecords(false); }
+    })();
+  }, [studentId, studentData?.id]);
+
+  // Compute aggregates from real records
+  const totalFees = useMemo(() => feeRecords.reduce((s, r) => s + (r.amount || 0), 0), [feeRecords]);
+  const totalPaid = useMemo(() => feeRecords.reduce((s, r) => s + (r.paidAmount || 0), 0), [feeRecords]);
+  const totalPending = totalFees - totalPaid;
+
+  // Build currentStudentData from prop or computed defaults
+  const currentStudentData = studentData ? {
+    ...studentData,
+    totalFees: studentData.totalFees ?? totalFees,
+    paid: studentData.paid ?? totalPaid,
+    pending: studentData.pending ?? totalPending,
+    discount: studentData.discount ?? 0,
+    riskLevel: studentData.riskLevel ?? (totalPending > totalFees * 0.5 ? 'high' : totalPending > 0 ? 'medium' : 'low'),
+  } : {
+    name: 'Select a student', studentClass: '-', admissionNo: '-', parentName: '-', contact: '-', email: '-',
+    feePlan: '-', scholarship: '', totalFees, paid: totalPaid, pending: totalPending,
+    lateFees: 0, discount: 0, nextDueDate: '-', nextDueAmount: 0, riskLevel: 'low',
+    previousYearPending: {},
   };
 
-  const paymentHistory = [
-    { id: '1', date: '2026-03-05', amount: 31250, method: 'Online - UPI', receipt: 'RCP-2026-089', type: 'Q3 Tuition', status: 'success' },
-    { id: '2', date: '2025-12-10', amount: 31250, method: 'Bank Transfer', receipt: 'RCP-2025-412', type: 'Q2 Tuition', status: 'success' },
-    { id: '3', date: '2025-09-08', amount: 31250, method: 'Online - Card', receipt: 'RCP-2025-267', type: 'Q1 Tuition', status: 'success' },
-    { id: '4', date: '2025-07-15', amount: 8000, method: 'Cash', receipt: 'RCP-2025-189', type: 'Transport Fee', status: 'success' },
-    { id: '5', date: '2025-06-20', amount: 5000, method: 'UPI', receipt: 'RCP-2025-145', type: 'Activity Fee', status: 'success' },
-  ];
+  // Payment history from fee records with paid amounts
+  const paymentHistory = useMemo(() => feeRecords
+    .filter(r => r.paidAmount > 0)
+    .map(r => ({
+      id: r.id,
+      date: r.updatedAt?.split('T')[0] || r.dueDate || '',
+      amount: r.paidAmount,
+      method: r.paymentMethod || 'N/A',
+      receipt: r.receiptNumber || `RCP-${r.id.slice(-6)}`,
+      type: r.feeStructure?.name || r.remarks || 'Fee',
+      status: 'success',
+    }))
+  , [feeRecords]);
 
+  // Fee breakdown chart from records
+  const catAmounts = useMemo(() => {
+    const ca: Record<string, number> = {};
+    feeRecords.forEach(r => {
+      const c = r.feeStructure?.category || r.feeStructure?.name || 'Other';
+      ca[c] = (ca[c] || 0) + (r.amount || 0);
+    });
+    return ca;
+  }, [feeRecords]);
   const feeBreakdown = {
-    labels: ['Tuition', 'Transport', 'Lab', 'Library', 'Activity', 'Technology'],
+    labels: Object.keys(catAmounts).length ? Object.keys(catAmounts) : ['No data'],
     datasets: [{
-      data: [75, 8, 5, 2, 5, 5],
+      data: Object.keys(catAmounts).length ? Object.values(catAmounts) : [1],
       backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(147, 51, 234, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(20, 184, 166, 0.8)']
     }]
   };
 
-  const paymentTrend = {
-    labels: ['Apr', 'Jun', 'Sep', 'Dec', 'Mar'],
-    datasets: [{
-      label: 'Payment Amount (Rs)',
-      data: [5000, 31250, 31250, 31250, 31250],
-      borderColor: 'rgb(34, 197, 94)',
-      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-      tension: 0.4
-    }]
-  };
+  // Payment trend chart
+  const paymentTrend = useMemo(() => {
+    const paid = paymentHistory.sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      labels: paid.length ? paid.map(p => p.date) : ['No data'],
+      datasets: [{
+        label: 'Payment Amount (Rs)',
+        data: paid.length ? paid.map(p => p.amount) : [0],
+        borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4
+      }]
+    };
+  }, [paymentHistory]);
 
-  const communicationLog = [
-    { date: '2026-03-10', type: 'email', message: 'Q4 fee reminder sent', status: 'delivered' },
-    { date: '2026-03-05', type: 'sms', message: 'Payment confirmation for Rs.31,250', status: 'delivered' },
-    { date: '2025-12-05', type: 'email', message: 'Q3 fee reminder sent', status: 'read' },
-    { date: '2025-09-01', type: 'email', message: 'Q2 fee reminder sent', status: 'read' },
-  ];
+  // No hardcoded communication log — start empty
+  const communicationLog: { date: string; type: string; message: string; status: string }[] = [];
 
   const chartOpts = {
     responsive: true, maintainAspectRatio: false,
@@ -354,76 +367,29 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>Tuition Fee</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>Academic</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-25</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹50,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹30,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-red-500`}>₹20,000</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`}>Partial</span>
-                    </td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-04-05</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
-                  </tr>
-                  <tr className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>Transport Fee</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>Transport</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-25</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹12,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹6,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-red-500`}>₹6,000</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`}>Partial</span>
-                    </td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-04-10</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
-                  </tr>
-                  <tr className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>Library Fee</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>Academic</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-25</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹3,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹3,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹0</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'}`}>Paid</span>
-                    </td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-04-20</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
-                  </tr>
-                  {/* Previous Year Fees */}
-                  <tr className={`${isDark ? 'border-red-700 hover:bg-red-700/30' : 'border-red-200 hover:bg-red-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>Transport Fee</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>Transport</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2023-24</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹10,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹7,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-red-500`}>₹3,000</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>Overdue</span>
-                    </td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-03-10</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>⚠️ ₹3,000</span>
-                    </td>
-                  </tr>
-                  <tr className={`${isDark ? 'border-red-700 hover:bg-red-700/30' : 'border-red-200 hover:bg-red-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>Sports Fee</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>Extracurricular</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2023-24</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium`}>₹5,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹2,000</td>
-                    <td className={`py-3 px-4 text-sm text-right font-medium text-red-500`}>₹3,000</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>Overdue</span>
-                    </td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>2024-02-15</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>⚠️ ₹3,000</span>
-                    </td>
-                  </tr>
+                  {feeRecords.length === 0 && (
+                    <tr><td colSpan={9} className={`py-6 text-center text-sm ${textSecondary}`}>No fee records found</td></tr>
+                  )}
+                  {feeRecords.map(r => {
+                    const pending = (r.amount || 0) - (r.paidAmount || 0);
+                    const statusLabel = r.status === 'paid' ? 'Paid' : pending > 0 && r.paidAmount > 0 ? 'Partial' : r.status === 'overdue' ? 'Overdue' : 'Pending';
+                    const statusCls = statusLabel === 'Paid' ? (isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600')
+                      : statusLabel === 'Overdue' ? (isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600')
+                      : (isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600');
+                    return (
+                      <tr key={r.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
+                        <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{r.feeStructure?.name || 'Fee'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.feeStructure?.category || '-'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.academicYear || '-'}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium`}>₹{(r.amount || 0).toLocaleString()}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹{(r.paidAmount || 0).toLocaleString()}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium ${pending > 0 ? 'text-red-500' : ''}`}>₹{pending.toLocaleString()}</td>
+                        <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${statusCls}`}>{statusLabel}</span></td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.dueDate || '-'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

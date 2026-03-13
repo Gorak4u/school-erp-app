@@ -3,8 +3,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const CLASSES = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeFilters({ ctx }: { ctx: any }) {
   const {
@@ -15,6 +14,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
     filteredStudentSummaries, studentFeeSummaries, selectedStudents, setSelectedStudents,
     setShowBulkOperations, setShowExportModal, showAISuggestions, setShowAISuggestions, handleAISearch,
   } = ctx;
+  const { dropdowns } = useSchoolConfig();
 
   const inputClass = `w-full px-3 py-2 rounded-lg text-sm border transition-colors ${
     theme === 'dark'
@@ -238,8 +238,9 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
         {/* Row 2: Dropdowns + Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            {CLASSES.map(cls => (
-              <option key={cls} value={cls}>{cls === 'all' ? 'All Classes' : `Class ${cls}`}</option>
+            <option value="all">All Classes</option>
+            {dropdowns.classes.map(cls => (
+              <option key={cls.value} value={cls.label}>{cls.label}</option>
             ))}
           </select>
 

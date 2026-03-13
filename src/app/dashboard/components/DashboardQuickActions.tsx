@@ -65,6 +65,15 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
       color: 'cyan'
     },
     {
+      id: 'school-structure',
+      title: 'School Structure',
+      description: 'Manage classes & sections',
+      icon: '🏫',
+      link: '/settings/school-structure',
+      color: 'purple',
+      badge: 'Admin'
+    },
+    {
       id: 'send-notice',
       title: 'Send Notice',
       description: 'Broadcast announcements',

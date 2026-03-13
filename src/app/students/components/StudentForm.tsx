@@ -77,7 +77,7 @@ export default function StudentForm({
     previousSchoolAddress: student?.previousSchoolAddress || '',
     previousSchoolPhone: student?.previousSchoolPhone || '',
     previousSchoolEmail: student?.previousSchoolEmail || '',
-    transferCertificateNumber: student?.transferCertificateNumber || '',
+    transferCertificateNumber: student?.transferCertificateNo || '',
     
     // Remarks
     remarks: student?.remarks || '',
@@ -112,12 +112,34 @@ export default function StudentForm({
       incomeCertificate: student?.documents?.incomeCertificate || false
     },
     
-    grade: student?.grade || 'A',
+    gpa: student?.gpa || 0,
     status: student?.status || 'active'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    const requiredFields = ['name', 'dateOfBirth', 'gender', 'class', 'section'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+    
+    if (missingFields.length > 0) {
+      alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    
+    // Validate email format if provided
+    if (formData.email && formData.email.trim() && !formData.email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate phone format if provided
+    if (formData.phone && !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      alert('Please enter a valid 10-digit phone number');
+      return;
+    }
+    
     // Clear auto-save data on successful submission
     localStorage.removeItem('studentFormAutoSave');
     onSubmit(formData);

@@ -182,6 +182,22 @@ export default function NavigationSidebar({
           </Link>
 
           <Link
+            href="/settings/school-structure"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPage === 'school-structure'
+                ? theme === 'dark' 
+                  ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-400' 
+                  : 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                : theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <span className="text-lg">🏫</span>
+            <span className="font-medium">School Structure</span>
+          </Link>
+
+          <Link
             href="/reports"
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               currentPage === 'reports'

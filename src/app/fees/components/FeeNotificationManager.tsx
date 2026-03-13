@@ -34,15 +34,8 @@ export default function FeeNotificationManager({ theme, onClose }: FeeNotificati
   const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
   const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
 
-  const notifications: Notification[] = [
-    { id: '1', type: 'reminder', recipient: 'parent@email.com', studentName: 'Rahul Sharma', class: '10-A', subject: 'Fee Payment Reminder - April 2026', message: 'Dear Parent, this is a reminder that the tuition fee of Rs.25,000 for April 2026 is due on 15th April.', sentDate: '2026-03-10', status: 'delivered', channel: 'email', amount: 25000 },
-    { id: '2', type: 'confirmation', recipient: '+91 98765xxxxx', studentName: 'Priya Patel', class: '9-B', subject: 'Payment Received', message: 'Payment of Rs.22,000 received successfully. Receipt #RCP-2026-045.', sentDate: '2026-03-08', status: 'delivered', channel: 'sms', amount: 22000 },
-    { id: '3', type: 'overdue', recipient: 'parent3@email.com', studentName: 'Amit Kumar', class: '11-A', subject: 'Overdue Fee Notice', message: 'This is to inform you that the fee of Rs.30,000 is overdue since 1st March 2026.', sentDate: '2026-03-05', status: 'read', channel: 'email', amount: 30000 },
-    { id: '4', type: 'reminder', recipient: '+91 87654xxxxx', studentName: 'Sneha Verma', class: '8-C', subject: 'Transport Fee Reminder', message: 'Reminder: Transport fee of Rs.4,000 is pending.', sentDate: '2026-03-12', status: 'sent', channel: 'whatsapp', amount: 4000 },
-    { id: '5', type: 'escalation', recipient: 'parent5@email.com', studentName: 'Vikram Singh', class: '12-A', subject: 'Final Fee Notice', message: 'This is the final notice for pending fee of Rs.28,000. Please clear dues immediately.', sentDate: '2026-03-01', status: 'read', channel: 'email', amount: 28000 },
-    { id: '6', type: 'update', recipient: 'all-parents@school.com', studentName: 'All Students', class: 'All', subject: 'Fee Structure Update - 2026-27', message: 'We are pleased to inform that the fee structure for 2026-27 has been finalized.', sentDate: '2026-03-13', status: 'scheduled', channel: 'email' },
-    { id: '7', type: 'confirmation', recipient: '+91 76543xxxxx', studentName: 'Ananya Reddy', class: '7-B', subject: 'Payment Confirmed', message: 'Activity fee of Rs.5,000 received via UPI.', sentDate: '2026-03-11', status: 'delivered', channel: 'push', amount: 5000 },
-  ];
+  // Notifications are populated from user actions (compose/schedule); no hardcoded data
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const getTypeStyle = (type: Notification['type']) => {
     const map = {

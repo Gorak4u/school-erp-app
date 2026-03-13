@@ -6,18 +6,26 @@ export function createFeeActionHandlers(ctx: any) {
 
   // Filter functions
   const filteredFeeRecords = feeRecords.filter(record => {
-    const matchesClass = selectedClass === 'all' || record.studentClass.includes(selectedClass);
+    const studentName = record.student?.name || '';
+    const feeStructureName = record.feeStructure?.name || '';
+    const studentClass = record.student?.class || '';
+    
+    const matchesClass = selectedClass === 'all' || studentClass.includes(selectedClass);
     const matchesStatus = selectedStatus === 'all' || record.status === selectedStatus;
-    const matchesSearch = record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.feeStructureName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (studentName && studentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (feeStructureName && feeStructureName.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesClass && matchesStatus && matchesSearch;
   });
 
   const filteredStudentSummaries = studentFeeSummaries.filter((student: StudentFeeSummary) => {
-    const matchesClass = selectedClass === 'all' || student.studentClass.includes(selectedClass);
+    const studentName = student.studentName || '';
+    const rollNo = student.rollNo || '';
+    const studentClass = student.studentClass || '';
+    
+    const matchesClass = selectedClass === 'all' || studentClass.includes(selectedClass);
     const matchesStatus = selectedStatus === 'all' || student.paymentStatus === selectedStatus;
-    const matchesSearch = student.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.rollNo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (studentName && studentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (rollNo && rollNo.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesClass && matchesStatus && matchesSearch;
   });
 
@@ -26,9 +34,9 @@ export function createFeeActionHandlers(ctx: any) {
     const csvContent = [
       ['Student Name', 'Class', 'Fee Type', 'Amount', 'Paid', 'Pending', 'Due Date', 'Status', 'Payment Method'],
       ...filteredFeeRecords.map(record => [
-        record.studentName,
-        record.studentClass,
-        record.feeStructureName,
+        record.student?.name || '',
+        record.student?.class || '',
+        record.feeStructure?.name || '',
         record.amount,
         record.paidAmount,
         record.pendingAmount,
@@ -50,36 +58,41 @@ export function createFeeActionHandlers(ctx: any) {
   };
 
   // Handler functions
-  const handleCreateFeeStructure = () => {
-    const newFeeStructure: FeeStructure = {
-      id: Date.now().toString(),
-      name: feeStructureForm.name || '',
-      category: feeStructureForm.category || 'tuition',
-      amount: feeStructureForm.amount || 0,
-      frequency: feeStructureForm.frequency || 'monthly',
-      dueDate: feeStructureForm.dueDate || 1,
-      lateFee: feeStructureForm.lateFee || 0,
-      description: feeStructureForm.description || '',
-      applicableClasses: feeStructureForm.applicableClasses || [],
-      applicableCategories: feeStructureForm.applicableCategories || [],
-      isActive: feeStructureForm.isActive || true,
-      createdAt: new Date().toISOString()
-    };
-
-    setFeeStructures([...feeStructures, newFeeStructure]);
-    setShowFeeStructureModal(false);
-    setFeeStructureForm({
-      name: '',
-      category: 'tuition',
-      amount: 0,
-      frequency: 'monthly',
-      dueDate: 1,
-      lateFee: 0,
-      description: '',
-      applicableClasses: [],
-      applicableCategories: [],
-      isActive: true
-    });
+  const handleCreateFeeStructure = async () => {
+    try {
+      const { feeStructuresApi } = await import('@/lib/apiClient');
+      const result = await feeStructuresApi.create({
+        name: feeStructureForm.name || '',
+        category: feeStructureForm.category || 'tuition',
+        amount: Number(feeStructureForm.amount) || 0,
+        frequency: feeStructureForm.frequency || 'monthly',
+        dueDate: Number(feeStructureForm.dueDate) || 1,
+        lateFee: Number(feeStructureForm.lateFee) || 0,
+        description: feeStructureForm.description || '',
+        applicableClasses: JSON.stringify(feeStructureForm.applicableClasses || []),
+        applicableCategories: JSON.stringify(feeStructureForm.applicableCategories || []),
+        isActive: feeStructureForm.isActive ?? true,
+        academicYear: '2024-25',
+      });
+      if (result.structure) {
+        setFeeStructures([...feeStructures, result.structure]);
+      }
+      setShowFeeStructureModal(false);
+      setFeeStructureForm({
+        name: '',
+        category: 'tuition',
+        amount: 0,
+        frequency: 'monthly',
+        dueDate: 1,
+        lateFee: 0,
+        description: '',
+        applicableClasses: [],
+        applicableCategories: [],
+        isActive: true
+      });
+    } catch (err) {
+      console.error('Failed to create fee structure:', err);
+    }
   };
 
   return { exportFeeRecords, filteredFeeRecords, filteredStudentSummaries, handleCreateFeeStructure };

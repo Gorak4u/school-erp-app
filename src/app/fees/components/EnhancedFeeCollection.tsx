@@ -128,26 +128,28 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     },
   ];
 
-  // Enhanced comprehensive fee data with priority and discount info
-  const allFeeData: FeeItem[] = [
-    // Current Year Fees - High Priority
-    { id: '1', name: 'Tuition Fee', category: 'academic', amount: 50000, dueDate: '2024-04-05', status: 'pending', paidAmount: 0, frequency: 'monthly', academicYear: '2024-25', description: 'Monthly tuition fee for all subjects', priority: 'high', lateFee: 500, discountAvailable: true },
-    { id: '2', name: 'Transport Fee', category: 'transport', amount: 12000, dueDate: '2024-04-10', status: 'partial', paidAmount: 6000, frequency: 'yearly', academicYear: '2024-25', description: 'Annual bus service fee', priority: 'medium', lateFee: 200, discountAvailable: false },
-    { id: '3', name: 'Lab Fee', category: 'academic', amount: 8000, dueDate: '2024-04-15', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Science lab equipment and maintenance', priority: 'medium', lateFee: 100, discountAvailable: true },
-    { id: '4', name: 'Library Fee', category: 'academic', amount: 3000, dueDate: '2024-04-20', status: 'paid', paidAmount: 3000, frequency: 'yearly', academicYear: '2024-25', description: 'Library resources and books', priority: 'low', discountAvailable: false },
-    { id: '5', name: 'Sports Fee', category: 'extracurricular', amount: 4000, dueDate: '2024-04-25', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Sports equipment and coaching', priority: 'low', lateFee: 50, discountAvailable: true },
-    { id: '6', name: 'Exam Fee', category: 'academic', amount: 2000, dueDate: '2024-05-01', status: 'pending', paidAmount: 0, frequency: 'one-time', academicYear: '2024-25', description: 'Board examination fees', priority: 'high', lateFee: 300, discountAvailable: false },
+  // Get real fee data from studentData prop (comes from database via fees page)
+  const allFeeData: FeeItem[] = useMemo(() => {
+    if (!studentData?.feeRecords || studentData.feeRecords.length === 0) {
+      return [];
+    }
     
-    // Additional fees for comprehensive view
-    { id: '7', name: 'Hostel Fee', category: 'accommodation', amount: 60000, dueDate: '2024-04-01', status: 'overdue', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Hostel accommodation and meals', priority: 'high', lateFee: 1000, discountAvailable: true },
-    { id: '8', name: 'Computer Lab Fee', category: 'academic', amount: 5000, dueDate: '2024-04-12', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Computer lab maintenance and software', priority: 'medium', discountAvailable: true },
-    { id: '9', name: 'Medical Insurance', category: 'other', amount: 2500, dueDate: '2024-04-08', status: 'paid', paidAmount: 2500, frequency: 'yearly', academicYear: '2024-25', description: 'Student medical insurance coverage', priority: 'medium', discountAvailable: false },
-    { id: '10', name: 'Uniform Fee', category: 'other', amount: 3500, dueDate: '2024-04-18', status: 'pending', paidAmount: 0, frequency: 'one-time', academicYear: '2024-25', description: 'School uniform and accessories', priority: 'low', discountAvailable: true },
-    
-    // Previous Year Fees for history
-    { id: '11', name: 'Tuition Fee', category: 'academic', amount: 45000, dueDate: '2023-03-05', status: 'paid', paidAmount: 45000, frequency: 'monthly', academicYear: '2023-24', description: 'Monthly tuition fee for all subjects', priority: 'high', discountAvailable: false },
-    { id: '12', name: 'Annual Function Fee', category: 'extracurricular', amount: 1500, dueDate: '2023-02-15', status: 'paid', paidAmount: 1500, frequency: 'one-time', academicYear: '2023-24', description: 'Annual day celebration fee', priority: 'low', discountAvailable: false },
-  ];
+    return studentData.feeRecords.map((record: any) => ({
+      id: record.id,
+      name: record.feeStructure?.name || record.feeStructureName || 'Fee',
+      category: record.feeStructure?.category || 'academic',
+      amount: record.amount || 0,
+      dueDate: record.dueDate || '',
+      status: record.status || 'pending',
+      paidAmount: record.paidAmount || 0,
+      frequency: record.feeStructure?.frequency || 'one-time',
+      academicYear: record.academicYear || '2024-25',
+      description: record.feeStructure?.description || '',
+      priority: record.status === 'overdue' ? 'high' : 'medium',
+      lateFee: record.feeStructure?.lateFee || 0,
+      discountAvailable: false,
+    }));
+  }, [studentData]);
 
   // Computed values for enhanced UI
   const filteredFees = useMemo(() => {
@@ -269,7 +271,6 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const handlePayment = async () => {
     setIsProcessing(true);
     
-    // Show processing toast
     if ((window as any).toast) {
       (window as any).toast({
         type: 'info',
@@ -279,25 +280,38 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       });
     }
     
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      
-      // Show success toast
+    try {
+      // Process each selected fee via the real payments API
+      const { paymentsApi } = await import('@/lib/apiClient');
+      for (const feeId of selectedFees) {
+        const fee = filteredFees.find(f => f.id === feeId);
+        if (!fee || fee.status === 'paid') continue;
+        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount);
+        await paymentsApi.process({
+          feeRecordId: feeId,
+          amount,
+          paymentMethod: paymentMethod,
+          collectedBy: 'Admin',
+          remarks: promoCode ? `Promo: ${promoCode}` : undefined,
+        });
+      }
+
       if ((window as any).toast) {
         (window as any).toast({
           type: 'success',
           title: 'Payment Successful',
           message: `Payment of ₹${stats.selectedFeesTotal.toLocaleString()} processed successfully`,
-          action: {
-            label: 'View Receipt',
-            onClick: () => setShowReceipt(true)
-          }
+          action: { label: 'View Receipt', onClick: () => setShowReceipt(true) }
         });
       }
-      
       setShowReceipt(true);
-    }, 2000);
+    } catch (err: any) {
+      if ((window as any).toast) {
+        (window as any).toast({ type: 'error', title: 'Payment Failed', message: err.message || 'Something went wrong' });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Enhanced UI helper functions

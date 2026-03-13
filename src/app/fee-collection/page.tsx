@@ -26,7 +26,7 @@ export default function FeeCollectionPage() {
   useEffect(() => {
     setIsClient(true);
     feeState.setIsClient(true);
-    feeState.initializeMockData?.();
+    // Real data loaded in fees page - no need for mock data
   }, []);
 
   useEffect(() => {

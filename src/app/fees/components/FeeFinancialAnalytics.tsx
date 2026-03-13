@@ -1,8 +1,9 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { feeRecordsApi, feeStructuresApi } from '@/lib/apiClient';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -53,54 +54,119 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
     plugins: { legend: { position: 'right' as const, labels: { color: chartTextColor } } }
   };
 
-  // Chart data
+  const [records, setRecords] = useState<any[]>([]);
+  const [structures, setStructures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [recData, strData] = await Promise.all([
+          feeRecordsApi.list({ pageSize: 500 }),
+          feeStructuresApi.list(),
+        ]);
+        setRecords(recData.records || recData.feeRecords || []);
+        setStructures(strData.feeStructures || []);
+      } catch (e) { console.error('Failed to load analytics data', e); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  // Compute aggregates from real data
+  const totalBilled = useMemo(() => records.reduce((s, r) => s + (r.amount || 0), 0), [records]);
+  const totalCollected = useMemo(() => records.reduce((s, r) => s + (r.paidAmount || 0), 0), [records]);
+  const totalPending = totalBilled - totalCollected;
+  const collectionRate = totalBilled > 0 ? ((totalCollected / totalBilled) * 100).toFixed(1) : '0';
+
+  // Monthly collection trend (keyed by month index from createdAt or dueDate)
+  const monthLabels = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+  const monthlyCollected = useMemo(() => {
+    const m = new Array(12).fill(0);
+    records.forEach(r => {
+      if (r.paidAmount > 0) {
+        const d = new Date(r.updatedAt || r.dueDate);
+        // Fiscal month index: Apr=0 .. Mar=11
+        const fiscal = (d.getMonth() + 9) % 12;
+        m[fiscal] += r.paidAmount;
+      }
+    });
+    return m;
+  }, [records]);
+
   const revenueData = {
-    labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+    labels: monthLabels,
     datasets: [
-      { label: 'Revenue', data: [850000, 920000, 780000, 810000, 950000, 900000, 870000, 850000, 800000, 880000, 940000, 960000], borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4 },
-      { label: 'Expenses', data: [620000, 650000, 600000, 630000, 680000, 660000, 640000, 630000, 610000, 650000, 670000, 690000], borderColor: 'rgb(239, 68, 68)', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.4 }
+      { label: 'Collected', data: monthlyCollected, borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4 },
     ]
   };
 
+  // Collection by payment method
+  const methodCounts = useMemo(() => {
+    const mc: Record<string, number> = {};
+    records.forEach(r => {
+      if (r.paidAmount > 0) {
+        const m = r.paymentMethod || 'Other';
+        mc[m] = (mc[m] || 0) + r.paidAmount;
+      }
+    });
+    return mc;
+  }, [records]);
   const collectionByMethod = {
-    labels: ['Online Payment', 'Bank Transfer', 'Cash', 'Cheque', 'UPI', 'Credit Card'],
+    labels: Object.keys(methodCounts).length ? Object.keys(methodCounts) : ['No data'],
     datasets: [{
-      data: [35, 25, 15, 10, 10, 5],
-      backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(147, 51, 234, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(20, 184, 166, 0.8)']
+      data: Object.keys(methodCounts).length ? Object.values(methodCounts) : [1],
+      backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(34,197,94,0.8)', 'rgba(251,146,60,0.8)', 'rgba(147,51,234,0.8)', 'rgba(236,72,153,0.8)', 'rgba(20,184,166,0.8)']
+    }]
+  };
+
+  // Collection by fee category
+  const categoryCounts = useMemo(() => {
+    const cc: Record<string, { collected: number; pending: number }> = {};
+    records.forEach(r => {
+      const cat = r.feeStructure?.category || 'other';
+      if (!cc[cat]) cc[cat] = { collected: 0, pending: 0 };
+      cc[cat].collected += r.paidAmount || 0;
+      cc[cat].pending += r.pendingAmount || 0;
+    });
+    return cc;
+  }, [records]);
+  const catLabels = Object.keys(categoryCounts).length ? Object.keys(categoryCounts) : ['No data'];
+  const feeTypeRevenue = {
+    labels: catLabels,
+    datasets: [{
+      label: 'Collected (Rs)',
+      data: Object.keys(categoryCounts).length ? Object.values(categoryCounts).map(c => c.collected) : [0],
+      backgroundColor: 'rgba(59, 130, 246, 0.8)'
     }]
   };
 
   const collectionByGrade = {
-    labels: ['Class 1-5', 'Class 6-8', 'Class 9-10', 'Class 11-12'],
+    labels: catLabels,
     datasets: [
-      { label: 'Collected', data: [2800000, 2200000, 1800000, 1600000], backgroundColor: 'rgba(34, 197, 94, 0.8)' },
-      { label: 'Pending', data: [200000, 300000, 250000, 350000], backgroundColor: 'rgba(239, 68, 68, 0.8)' }
+      { label: 'Collected', data: Object.keys(categoryCounts).length ? Object.values(categoryCounts).map(c => c.collected) : [0], backgroundColor: 'rgba(34, 197, 94, 0.8)' },
+      { label: 'Pending', data: Object.keys(categoryCounts).length ? Object.values(categoryCounts).map(c => c.pending) : [0], backgroundColor: 'rgba(239, 68, 68, 0.8)' }
     ]
   };
 
+  // Status breakdown for doughnut
+  const statusCounts = useMemo(() => {
+    const sc: Record<string, number> = {};
+    records.forEach(r => { const s = r.status || 'pending'; sc[s] = (sc[s] || 0) + 1; });
+    return sc;
+  }, [records]);
   const expenseBreakdown = {
-    labels: ['Salaries', 'Infrastructure', 'Utilities', 'Learning Materials', 'Administration', 'Maintenance', 'Other'],
+    labels: Object.keys(statusCounts).length ? Object.keys(statusCounts).map(s => s.charAt(0).toUpperCase() + s.slice(1)) : ['No data'],
     datasets: [{
-      data: [55, 12, 8, 8, 7, 5, 5],
-      backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(147, 51, 234, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(20, 184, 166, 0.8)', 'rgba(156, 163, 175, 0.8)']
+      data: Object.keys(statusCounts).length ? Object.values(statusCounts) : [1],
+      backgroundColor: ['rgba(34,197,94,0.8)', 'rgba(251,191,36,0.8)', 'rgba(239,68,68,0.8)', 'rgba(59,130,246,0.8)', 'rgba(147,51,234,0.8)', 'rgba(156,163,175,0.8)']
     }]
   };
 
   const cashFlowData = {
-    labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+    labels: monthLabels,
     datasets: [
-      { label: 'Cash Inflow', data: [850, 920, 780, 810, 950, 900, 870, 850, 800, 880, 940, 960], backgroundColor: 'rgba(34, 197, 94, 0.8)' },
-      { label: 'Cash Outflow', data: [620, 650, 600, 630, 680, 660, 640, 630, 610, 650, 670, 690], backgroundColor: 'rgba(239, 68, 68, 0.8)' }
+      { label: 'Collections', data: monthlyCollected, backgroundColor: 'rgba(34, 197, 94, 0.8)' },
     ]
-  };
-
-  const feeTypeRevenue = {
-    labels: ['Tuition', 'Transport', 'Lab', 'Library', 'Sports', 'Activity', 'Technology'],
-    datasets: [{
-      label: 'Revenue (in Lakhs)',
-      data: [65, 12, 6, 3, 5, 4, 5],
-      backgroundColor: 'rgba(59, 130, 246, 0.8)'
-    }]
   };
 
   const MetricCard = ({ title, value, subtitle, color, trend }: { title: string; value: string; subtitle: string; color: string; trend?: string }) => (
@@ -142,12 +208,16 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
       </div>
 
       {/* KPI Cards */}
+      {loading ? (
+        <div className={`text-center py-8 ${textSecondary}`}>Loading analytics...</div>
+      ) : (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="Total Revenue" value="Rs.1.05Cr" subtitle="Current academic year" color="text-green-400" trend="+12.4%" />
-        <MetricCard title="Total Expenses" value="Rs.78.3L" subtitle="Current academic year" color="text-red-400" trend="+5.2%" />
-        <MetricCard title="Net Income" value="Rs.26.7L" subtitle="Revenue - Expenses" color="text-blue-400" trend="+24.8%" />
-        <MetricCard title="Collection Rate" value="92.3%" subtitle="Fees collected vs billed" color="text-purple-400" trend="+3.1%" />
+        <MetricCard title="Total Billed" value={`Rs.${(totalBilled / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
+        <MetricCard title="Collected" value={`Rs.${(totalCollected / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
+        <MetricCard title="Pending" value={`Rs.${(totalPending / 1000).toFixed(0)}K`} subtitle="Billed - Collected" color="text-red-400" />
+        <MetricCard title="Collection Rate" value={`${collectionRate}%`} subtitle="Fees collected vs billed" color="text-purple-400" />
       </div>
+      )}
 
       {/* Revenue vs Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/hooks/useAuth';
+import { dashboardApi } from '@/lib/apiClient';
 import DashboardKPICards from './components/DashboardKPICards';
 import DashboardCharts from './components/DashboardCharts';
 import DashboardAnalytics from './components/DashboardAnalytics';
@@ -16,103 +18,122 @@ import DashboardAlerts from './components/DashboardAlerts';
 
 export default function DashboardPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isClient, setIsClient] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
+    loadDashboardData();
   }, []);
 
-  // Mock data for charts
-  const [chartData] = useState({
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await dashboardApi.stats();
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Chart data built from real API response
+  const chartData = {
     overview: {
       studentGrowth: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        labels: ['Total', 'Active', 'Inactive'],
         datasets: [{
-          label: 'Total Students',
-          data: [1200, 1250, 1300, 1280, 1350, 1400],
+          label: 'Students',
+          data: [
+            dashboardData?.students?.total || 0,
+            dashboardData?.students?.active || 0,
+            dashboardData?.students?.inactive || 0,
+          ],
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           tension: 0.4
         }]
       },
       feeCollection: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [
-          {
-            label: 'Collected',
-            data: [45000, 52000, 48000, 58000, 62000, 68000],
-            backgroundColor: 'rgba(34, 197, 94, 0.8)',
-          },
-          {
-            label: 'Pending',
-            data: [5000, 3000, 7000, 2000, 3000, 2000],
-            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-          }
-        ]
+        labels: dashboardData?.charts?.feeCollection?.labels || ['No data'],
+        datasets: [{
+          label: 'Fees Collected',
+          data: dashboardData?.charts?.feeCollection?.collected || [0],
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        }]
       },
       classDistribution: {
-        labels: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6'],
+        labels: dashboardData?.charts?.classDistribution?.labels || ['No data'],
         datasets: [{
-          data: [120, 115, 130, 125, 140, 135],
+          label: 'Students per Class',
+          data: dashboardData?.charts?.classDistribution?.data || [0],
           backgroundColor: [
             'rgba(59, 130, 246, 0.8)',
             'rgba(34, 197, 94, 0.8)',
             'rgba(251, 146, 60, 0.8)',
             'rgba(147, 51, 234, 0.8)',
             'rgba(236, 72, 153, 0.8)',
-            'rgba(20, 184, 166, 0.8)'
+            'rgba(14, 165, 233, 0.8)',
           ]
         }]
       },
       subjectPerformance: {
-        labels: ['Math', 'Science', 'English', 'History', 'Geography'],
+        labels: (dashboardData?.upcomingExams || []).map((e: any) => e.subject || e.name),
         datasets: [{
-          label: 'Class Average',
-          data: [78, 82, 85, 75, 80],
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          label: 'Upcoming Exams (Total Marks)',
+          data: (dashboardData?.upcomingExams || []).map((e: any) => e.totalMarks || 0),
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
           borderColor: 'rgb(59, 130, 246)',
-          pointBackgroundColor: 'rgb(59, 130, 246)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgb(59, 130, 246)'
         }]
       },
       attendanceTrend: {
-        labels: Array.from({length: 30}, (_, i) => `Day ${i + 1}`),
+        labels: ['Present', 'Absent', 'Late'],
         datasets: [{
-          label: 'Attendance %',
-          data: Array.from({length: 30}, () => Math.floor(Math.random() * 15) + 85),
+          label: 'Today\'s Attendance',
+          data: [
+            dashboardData?.attendance?.present || 0,
+            dashboardData?.attendance?.absent || 0,
+            dashboardData?.attendance?.late || 0,
+          ],
           borderColor: 'rgb(34, 197, 94)',
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
           tension: 0.4
         }]
       }
     }
-  });
+  };
 
-  // Mock KPI data
-  const [kpiData] = useState({
+  // Real KPI data from API
+  const kpiData = dashboardData ? {
     academic: {
-      totalStudents: 1400,
-      activeStudents: 1350,
-      averageAttendance: 92,
-      passRate: 95
+      totalStudents: dashboardData.students?.total || 0,
+      activeStudents: dashboardData.students?.active || 0,
+      averageAttendance: dashboardData.attendance?.total ? 
+        Math.round((dashboardData.attendance.present / dashboardData.attendance.total) * 100) : 0,
+      passRate: 95 // TODO: Calculate from exam results
     },
     financial: {
-      totalRevenue: 2800000,
-      feesCollected: 2680000,
-      pendingFees: 120000,
-      collectionRate: 96
+      totalRevenue: dashboardData.fees?.totalAmount || 0,
+      feesCollected: dashboardData.fees?.totalCollected || 0,
+      pendingFees: dashboardData.fees?.totalPending || 0,
+      collectionRate: dashboardData.fees?.collectionRate || 0
     },
     operational: {
-      totalTeachers: 85,
-      activeTeachers: 82,
-      satisfactionScore: 4.5,
-      efficiency: 88
+      totalTeachers: dashboardData.teachers?.total || 0,
+      activeTeachers: dashboardData.teachers?.active || 0,
+      satisfactionScore: 85, // TODO: Calculate from real data
+      efficiency: 92 // TODO: Calculate from real data
     }
-  });
+  } : {
+    academic: { totalStudents: 0, activeStudents: 0, averageAttendance: 0, passRate: 0 },
+    financial: { totalRevenue: 0, feesCollected: 0, pendingFees: 0, collectionRate: 0 },
+    operational: { totalTeachers: 0, activeTeachers: 0, satisfactionScore: 0, efficiency: 0 }
+  };
 
   if (!isClient) {
     return <div>Loading...</div>;

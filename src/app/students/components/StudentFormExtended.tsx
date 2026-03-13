@@ -2,6 +2,8 @@
 'use client';
 
 import React from 'react';
+import SchoolStructureSelector from '@/components/SchoolStructureSelector';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 interface StudentFormExtendedProps {
   formData: any;
@@ -15,6 +17,7 @@ interface StudentFormExtendedProps {
 export default function StudentFormExtended({
   formData, setFormData, theme, student, onCancel, clearAutoSave
 }: StudentFormExtendedProps) {
+  const { dropdowns } = useSchoolConfig();
   return (
     <>
         {/* Academic Information */}
@@ -71,68 +74,25 @@ export default function StudentFormExtended({
               />
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>Class *</label>
-              <select
-                value={formData.class}
-                onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="Nursery">Nursery</option>
-                <option value="LKG">LKG</option>
-                <option value="UKG">UKG</option>
-                <option value="1A">1A</option>
-                <option value="1B">1B</option>
-                <option value="2A">2A</option>
-                <option value="2B">2B</option>
-                <option value="3A">3A</option>
-                <option value="3B">3B</option>
-                <option value="4A">4A</option>
-                <option value="4B">4B</option>
-                <option value="5A">5A</option>
-                <option value="5B">5B</option>
-                <option value="6A">6A</option>
-                <option value="6B">6B</option>
-                <option value="7A">7A</option>
-                <option value="7B">7B</option>
-                <option value="8A">8A</option>
-                <option value="8B">8B</option>
-                <option value="9A">9A</option>
-                <option value="9B">9B</option>
-                <option value="10A">10A</option>
-                <option value="10B">10B</option>
-                <option value="11A">11A</option>
-                <option value="11B">11B</option>
-                <option value="12A">12A</option>
-                <option value="12B">12B</option>
-              </select>
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>Section *</label>
-              <select
-                value={formData.section}
-                onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-              </select>
-            </div>
+            <SchoolStructureSelector
+              theme={theme}
+              onMediumChange={(mediumId) => {
+                const mediumName = mediumId ? mediumId.charAt(0).toUpperCase() + mediumId.slice(1) : '';
+                setFormData({ ...formData, languageMedium: mediumName });
+              }}
+              onClassChange={(classId) => {
+                setFormData({ ...formData, class: classId });
+              }}
+              onSectionChange={(sectionId) => {
+                // Extract section letter from section ID (e.g., "1-a" -> "A")
+                const sectionLetter = sectionId ? sectionId.split('-')[1]?.toUpperCase() : '';
+                setFormData({ ...formData, section: sectionLetter });
+              }}
+              selectedMedium={formData.languageMedium?.toLowerCase()}
+              selectedClass={formData.class}
+              selectedSection={formData.section ? `${formData.class}-${formData.section.toLowerCase()}` : ''}
+              showAll={true}
+            />
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${
@@ -164,11 +124,10 @@ export default function StudentFormExtended({
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
               >
-                <option value="CBSE">CBSE</option>
-                <option value="ICSE">ICSE</option>
-                <option value="State Board">State Board</option>
-                <option value="IB">IB</option>
-                <option value="Cambridge">Cambridge</option>
+                <option value="">Select Board</option>
+                {dropdowns.boards.map(b => (
+                  <option key={b.value} value={b.label}>{b.label}</option>
+                ))}
               </select>
             </div>
 
@@ -384,13 +343,10 @@ export default function StudentFormExtended({
                     : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
                 }`}
               >
-                <option value="English">English Medium</option>
-                <option value="Hindi">Hindi Medium</option>
-                <option value="Regional">Regional Language Medium</option>
-                <option value="Bilingual">Bilingual (English + Regional)</option>
-                <option value="Urdu">Urdu Medium</option>
-                <option value="Sanskrit">Sanskrit Medium</option>
-                <option value="Other">Other Language Medium</option>
+                <option value="">Select Medium</option>
+                {dropdowns.mediums.map(m => (
+                  <option key={m.value} value={m.label}>{m.label}</option>
+                ))}
               </select>
             </div>
 

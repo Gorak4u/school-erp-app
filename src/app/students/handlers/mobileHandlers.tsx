@@ -227,7 +227,7 @@ export function createMobileHandlers(ctx: any) {
           class: row.class || '',
           rollNo: row.rollNo || '',
           phone: row.phone || '',
-          grade: row.grade || 'A',
+          gpa: row.gpa || 0,
           status: row.status || 'active',
           admissionNo: row.admissionNo || `ADM${new Date().getFullYear()}${students.length + 1}`,
           dateOfBirth: row.dateOfBirth || '',

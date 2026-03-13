@@ -3,12 +3,14 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 interface FeeStructureModalProps {
   feeStructureForm: any; handleCreateFeeStructure: any; setFeeStructureForm: any; setShowFeeStructureModal: any; showFeeStructureModal: any; theme: any;
 }
 
 export default function FeeStructureModal({ feeStructureForm, handleCreateFeeStructure, setFeeStructureForm, setShowFeeStructureModal, showFeeStructureModal, theme }: FeeStructureModalProps) {
+  const { dropdowns } = useSchoolConfig();
   return (
     <>
       {/* Fee Structure Modal */}
@@ -152,6 +154,96 @@ export default function FeeStructureModal({ feeStructureForm, handleCreateFeeStr
                         : 'bg-white border-gray-300 text-gray-900'
                     }`}
                   />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Applicable Classes
+                  </label>
+                  <select
+                    multiple
+                    value={feeStructureForm.applicableClasses || []}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => option.value);
+                      setFeeStructureForm({ ...feeStructureForm, applicableClasses: selected });
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      theme === 'dark'
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    size={4}
+                  >
+                    {dropdowns.classes.map(cls => (
+                      <option key={cls.value} value={cls.label}>{cls.label}{cls.mediumName ? ` (${cls.mediumName})` : ''}</option>
+                    ))}
+                  </select>
+                  <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Hold Ctrl/Cmd to select multiple classes
+                  </p>
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Applicable Categories
+                  </label>
+                  <select
+                    multiple
+                    value={feeStructureForm.applicableCategories || []}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => option.value);
+                      setFeeStructureForm({ ...feeStructureForm, applicableCategories: selected });
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      theme === 'dark'
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    size={4}
+                  >
+                    <option value="General">General</option>
+                    <option value="OBC">OBC</option>
+                    <option value="SC">SC</option>
+                    <option value="ST">ST</option>
+                    <option value="EWS">EWS</option>
+                    <option value="Minority">Minority</option>
+                  </select>
+                  <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Hold Ctrl/Cmd to select multiple categories
+                  </p>
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Language Medium
+                  </label>
+                  <select
+                    multiple
+                    value={feeStructureForm.applicableMediums || []}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => option.value);
+                      setFeeStructureForm({ ...feeStructureForm, applicableMediums: selected });
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      theme === 'dark'
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    size={3}
+                  >
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="Kannada">Kannada</option>
+                    <option value="Tamil">Tamil</option>
+                    <option value="Telugu">Telugu</option>
+                    <option value="Malayalam">Malayalam</option>
+                  </select>
+                  <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Hold Ctrl/Cmd to select multiple mediums
+                  </p>
                 </div>
                 <div className="md:col-span-2">
                   <label className={`block text-sm font-medium mb-2 ${

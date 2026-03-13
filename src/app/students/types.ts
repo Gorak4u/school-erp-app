@@ -6,7 +6,7 @@ export interface Student {
   class: string;
   rollNo: string;
   phone: string;
-  grade: string;
+  gpa: number;
   status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended';
   admissionNo: string;
   dateOfBirth: string;
@@ -94,7 +94,7 @@ export interface Student {
   previousSchoolAddress?: string;
   previousSchoolPhone?: string;
   previousSchoolEmail?: string;
-  transferCertificateNumber?: string;
+  transferCertificateNo?: string;
   
   // Remarks
   remarks?: string;

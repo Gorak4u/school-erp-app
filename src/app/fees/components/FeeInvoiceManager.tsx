@@ -1,8 +1,10 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { feeRecordsApi } from '@/lib/apiClient';
 
 interface Invoice {
   id: string;
@@ -25,10 +27,14 @@ interface FeeInvoiceManagerProps {
 
 export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
+  const { dropdowns } = useSchoolConfig();
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [showBulkGenerate, setShowBulkGenerate] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -36,16 +42,28 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
   const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
   const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
 
-  const mockInvoices: Invoice[] = [
-    { id: '1', invoiceNo: 'INV-2026-001', studentName: 'Rahul Sharma', class: '10-A', feeType: 'Tuition Fee', amount: 25000, dueDate: '2026-04-15', status: 'pending', generatedDate: '2026-03-01', paidAmount: 0 },
-    { id: '2', invoiceNo: 'INV-2026-002', studentName: 'Priya Patel', class: '9-B', feeType: 'Tuition Fee', amount: 22000, dueDate: '2026-04-15', status: 'paid', generatedDate: '2026-03-01', paidAmount: 22000, paymentMethod: 'Online' },
-    { id: '3', invoiceNo: 'INV-2026-003', studentName: 'Amit Kumar', class: '11-A', feeType: 'Tuition + Lab', amount: 30000, dueDate: '2026-03-01', status: 'overdue', generatedDate: '2026-02-01', paidAmount: 0 },
-    { id: '4', invoiceNo: 'INV-2026-004', studentName: 'Sneha Verma', class: '8-C', feeType: 'Transport Fee', amount: 8000, dueDate: '2026-04-15', status: 'partial', generatedDate: '2026-03-01', paidAmount: 4000, paymentMethod: 'Cash' },
-    { id: '5', invoiceNo: 'INV-2026-005', studentName: 'Vikram Singh', class: '12-A', feeType: 'Tuition Fee', amount: 28000, dueDate: '2026-03-01', status: 'overdue', generatedDate: '2026-02-01', paidAmount: 0 },
-    { id: '6', invoiceNo: 'INV-2026-006', studentName: 'Ananya Reddy', class: '7-B', feeType: 'Activity Fee', amount: 5000, dueDate: '2026-04-15', status: 'paid', generatedDate: '2026-03-01', paidAmount: 5000, paymentMethod: 'UPI' },
-    { id: '7', invoiceNo: 'INV-2026-007', studentName: 'Rohan Gupta', class: '6-A', feeType: 'Tuition Fee', amount: 18000, dueDate: '2026-04-15', status: 'pending', generatedDate: '2026-03-01', paidAmount: 0 },
-    { id: '8', invoiceNo: 'INV-2026-008', studentName: 'Meera Joshi', class: '10-B', feeType: 'Lab + Library', amount: 7000, dueDate: '2026-04-15', status: 'cancelled', generatedDate: '2026-03-01', paidAmount: 0 },
-  ];
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await feeRecordsApi.list({ pageSize: 200 });
+        const records = data.records || data.feeRecords || [];
+        setInvoices(records.map((r: any) => ({
+          id: r.id,
+          invoiceNo: r.receiptNumber || `INV-${r.id.slice(-6)}`,
+          studentName: r.student?.name || 'Unknown',
+          class: r.student?.class ? `${r.student.class}-${r.student.section || ''}` : '—',
+          feeType: r.feeStructure?.name || r.remarks || 'Fee',
+          amount: r.amount || 0,
+          dueDate: r.dueDate || '',
+          status: r.status || 'pending',
+          generatedDate: r.createdAt?.split('T')[0] || '',
+          paidAmount: r.paidAmount || 0,
+          paymentMethod: r.paymentMethod || undefined,
+        })));
+      } catch (e) { console.error('Failed to load invoices', e); }
+      finally { setLoading(false); }
+    })();
+  }, []);
 
   const getStatusStyle = (status: Invoice['status']) => {
     const map = {
@@ -58,18 +76,18 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
     return map[status];
   };
 
-  const filteredInvoices = mockInvoices.filter(inv => {
+  const filteredInvoices = invoices.filter(inv => {
     if (activeTab !== 'all' && inv.status !== activeTab) return false;
     if (searchQuery && !inv.studentName.toLowerCase().includes(searchQuery.toLowerCase()) && !inv.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
   const stats = {
-    total: mockInvoices.length,
-    totalAmount: mockInvoices.reduce((sum, i) => sum + i.amount, 0),
-    collected: mockInvoices.reduce((sum, i) => sum + i.paidAmount, 0),
-    pending: mockInvoices.filter(i => i.status === 'pending').length,
-    overdue: mockInvoices.filter(i => i.status === 'overdue').length,
+    total: invoices.length,
+    totalAmount: invoices.reduce((sum, i) => sum + i.amount, 0),
+    collected: invoices.reduce((sum, i) => sum + i.paidAmount, 0),
+    pending: invoices.filter(i => i.status === 'pending').length,
+    overdue: invoices.filter(i => i.status === 'overdue').length,
   };
 
   const toggleInvoiceSelection = (id: string) => {
@@ -295,7 +313,9 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
                   <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Class</label>
                   <select className={`w-full px-3 py-2 rounded-lg border text-sm ${inputCls}`}>
                     <option value="">All Classes</option>
-                    {Array.from({ length: 12 }, (_, i) => <option key={i}>Class {i + 1}</option>)}
+                    {dropdowns.classes.map(cls => (
+                      <option key={cls.value} value={cls.label}>{cls.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

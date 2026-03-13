@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMotionValue, useSpring } from 'framer-motion';
 import { Student } from '../types';
 import { useDomainState } from './useDomainState';
-import { mockStudents, CLASSES } from '../data';
+import { studentsApi } from '@/lib/apiClient';
 
 export function useStudentState() {
   const router = useRouter();
@@ -172,41 +172,14 @@ export function useStudentState() {
       activeStudents: students.filter(s => s.status === 'active').length,
       inactiveStudents: students.filter(s => s.status === 'inactive').length,
       graduatedStudents: students.filter(s => s.status === 'graduated').length,
-      averageAttendance: students.reduce((acc, s) => acc + s.attendance.percentage, 0) / students.length || 0,
-      totalFeesCollected: students.reduce((acc, s) => acc + s.fees.paid, 0),
-      pendingFees: students.reduce((acc, s) => acc + s.fees.pending, 0),
-      recentAdmissions: students.filter(s => {
-        const admissionDate = new Date(s.admissionDate);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return admissionDate > thirtyDaysAgo;
-      }).length,
-      lowAttendanceStudents: students.filter(s => s.attendance.percentage < 75).length,
+      averageAttendance: students.reduce((acc, s) => acc + (s.attendance?.percentage || 0), 0) / students.length || 0,
+      totalFeesCollected: students.reduce((acc, s) => acc + (s.fees?.paid || 0), 0),
+      pendingFees: students.reduce((acc, s) => acc + (s.fees?.pending || 0), 0),
+      recentAdmissions: 0,
+      lowAttendanceStudents: students.filter(s => (s.attendance?.percentage || 0) < 75).length,
       classDistribution: {} as Record<string, number>,
       genderDistribution: { male: 0, female: 0, other: 0 },
-      recentActivities: [
-        {
-          id: '1',
-          type: 'admission' as const,
-          description: 'New student admitted',
-          timestamp: new Date().toISOString(),
-          studentName: 'Rahul Kumar'
-        },
-        {
-          id: '2',
-          type: 'fee_payment' as const,
-          description: 'Fee payment received',
-          timestamp: new Date(Date.now() - 86400000).toISOString(),
-          studentName: 'Priya Sharma'
-        },
-        {
-          id: '3',
-          type: 'status_change' as const,
-          description: 'Student status updated',
-          timestamp: new Date(Date.now() - 172800000).toISOString(),
-          studentName: 'Amit Patel'
-        }
-      ]
+      recentActivities: []
     };
 
     // Calculate class distribution
@@ -224,15 +197,56 @@ export function useStudentState() {
     setDashboardStats(stats);
   }, [students]);
 
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const loadStudents = async (
+    page = currentPage,
+    size = pageSize,
+    search = searchTerm,
+    cls = selectedClass,
+    status = selectedStatus,
+    gender = selectedGender,
+  ) => {
+    try {
+      setLoading(true);
+      const params: Record<string, string | number> = { page, pageSize: size };
+      if (search) params.search = search;
+      if (cls && cls !== 'all') params.class = cls;
+      if (status && status !== 'all') params.status = status;
+      if (gender && gender !== 'all') params.gender = gender;
+
+      const data = await studentsApi.list(params);
+      setStudents(data.students || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+    } catch (err) {
+      console.error('Failed to load students:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => { loadStudents(); }, []);
+
+  // Reload when filters change (debounced)
   useEffect(() => {
-    setStudents(mockStudents);
-  }, []);
+    const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm, selectedClass, selectedStatus, selectedGender]);
+
+  // Reload when page or pageSize changes
+  useEffect(() => {
+    loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender);
+  }, [currentPage, pageSize]);
 
 
   return {
     ...domainState,
     router,
     students, setStudents,
+    total, loading, loadStudents,
     searchTerm, setSearchTerm,
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,

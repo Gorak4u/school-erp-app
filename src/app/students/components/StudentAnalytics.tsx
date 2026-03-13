@@ -144,10 +144,12 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       }]
     },
     subjectPerformance: {
-      labels: ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi', 'Computer'],
+      labels: Object.keys(analytics.classAttendance).length ? Object.keys(analytics.classAttendance).sort() : ['No data'],
       datasets: [{
-        label: 'Class Average Score',
-        data: [78, 82, 85, 72, 88, 90],
+        label: 'Avg Attendance %',
+        data: Object.keys(analytics.classAttendance).length
+          ? Object.keys(analytics.classAttendance).sort().map(cls => +(analytics.classAttendance[cls].sum / analytics.classAttendance[cls].total).toFixed(1))
+          : [0],
         backgroundColor: 'rgba(59, 130, 246, 0.8)'
       }]
     },
@@ -155,24 +157,31 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       labels: Object.keys(analytics.classAttendance).sort(),
       datasets: [{
         label: 'Average GPA',
-        data: Object.keys(analytics.classAttendance).sort().map(() => (Math.random() * 1.5 + 2.5).toFixed(2)),
+        data: Object.keys(analytics.classAttendance).sort().map(cls => {
+          const classStudents = students.filter(s => s.class === cls && s.status === 'active');
+          if (!classStudents.length) return 0;
+          return +(classStudents.reduce((sum, s) => sum + (s.academics?.gpa || 0), 0) / classStudents.length).toFixed(2);
+        }),
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
         tension: 0.4
       }]
     },
     performanceRadar: {
-      labels: ['Math', 'Science', 'English', 'Social Studies', 'Hindi', 'Computer'],
+      labels: Object.keys(analytics.classAttendance).sort().slice(0, 6),
       datasets: [
         {
-          label: 'Current Term',
-          data: [78, 82, 85, 72, 88, 90],
+          label: 'Avg GPA',
+          data: Object.keys(analytics.classAttendance).sort().slice(0, 6).map(cls => {
+            const cs = students.filter(s => s.class === cls && s.status === 'active');
+            return cs.length ? +(cs.reduce((sum, s) => sum + (s.academics?.gpa || 0), 0) / cs.length).toFixed(2) : 0;
+          }),
           backgroundColor: 'rgba(59, 130, 246, 0.2)',
           borderColor: 'rgb(59, 130, 246)'
         },
         {
-          label: 'Previous Term',
-          data: [72, 78, 80, 68, 85, 87],
+          label: 'Avg Attendance %',
+          data: Object.keys(analytics.classAttendance).sort().slice(0, 6).map(cls => +(analytics.classAttendance[cls].sum / analytics.classAttendance[cls].total / 25).toFixed(2)),
           backgroundColor: 'rgba(156, 163, 175, 0.2)',
           borderColor: 'rgb(156, 163, 175)'
         }
@@ -182,10 +191,10 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
 
   const attendanceCharts = {
     monthlyTrend: {
-      labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+      labels: Object.keys(analytics.classAttendance).sort(),
       datasets: [{
-        label: 'Attendance %',
-        data: [92, 94, 88, 90, 95, 93, 91, 89, 85, 92, 94, analytics.avgAttendance.toFixed(1)],
+        label: 'Avg Attendance %',
+        data: Object.keys(analytics.classAttendance).sort().map(cls => +(analytics.classAttendance[cls].sum / analytics.classAttendance[cls].total).toFixed(1)),
         borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.1)',
         tension: 0.4
@@ -218,16 +227,19 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       labels: Object.keys(analytics.classAttendance).sort(),
       datasets: [{
         label: 'Avg Discipline Score',
-        data: Object.keys(analytics.classAttendance).sort().map(() => (Math.random() * 3 + 7).toFixed(1)),
+        data: Object.keys(analytics.classAttendance).sort().map(cls => {
+          const cs = students.filter(s => s.class === cls && s.status === 'active');
+          return cs.length ? +(cs.reduce((sum, s) => sum + (s.behavior?.disciplineScore || 0), 0) / cs.length).toFixed(1) : 0;
+        }),
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
         tension: 0.4
       }]
     },
     incidentTypes: {
-      labels: ['Behavioral', 'Academic', 'Attendance', 'Dress Code', 'Property', 'Other'],
+      labels: analytics.totalIncidents > 0 ? ['Incidents'] : ['No data'],
       datasets: [{
-        data: [15, 8, 12, 5, 3, 7],
+        data: analytics.totalIncidents > 0 ? [analytics.totalIncidents] : [1],
         backgroundColor: [
           'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(251, 191, 36, 0.8)',
           'rgba(59, 130, 246, 0.8)', 'rgba(147, 51, 234, 0.8)', 'rgba(156, 163, 175, 0.8)'
@@ -238,17 +250,16 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
 
   const financialCharts = {
     collectionTrend: {
-      labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+      labels: ['Collected %', 'Pending %'],
       datasets: [
-        { label: 'Collected', data: [85, 88, 78, 82, 92, 90, 88, 85, 80, 87, 91, analytics.collectionRate.toFixed(1)], borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4 },
-        { label: 'Pending', data: [15, 12, 22, 18, 8, 10, 12, 15, 20, 13, 9, (100 - analytics.collectionRate).toFixed(1)], borderColor: 'rgb(239, 68, 68)', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.4 }
+        { label: 'Current', data: [+analytics.collectionRate.toFixed(1), +(100 - analytics.collectionRate).toFixed(1)], backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(239, 68, 68, 0.8)'] },
       ]
     },
     feeDistribution: {
-      labels: ['Tuition', 'Transport', 'Lab', 'Library', 'Sports', 'Other'],
+      labels: analytics.totalPaid > 0 ? ['Paid', 'Pending'] : ['No data'],
       datasets: [{
-        data: [60, 15, 8, 5, 7, 5],
-        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(147, 51, 234, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(156, 163, 175, 0.8)']
+        data: analytics.totalPaid > 0 ? [analytics.totalPaid, analytics.totalPending] : [1],
+        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(156, 163, 175, 0.8)']
       }]
     }
   };
@@ -357,7 +368,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
             <MetricCard title="Avg Discipline Score" value={analytics.avgDiscipline.toFixed(1)} subtitle="Out of 10" color="text-blue-400" />
             <MetricCard title="Total Incidents" value={analytics.totalIncidents} subtitle="This academic year" color="text-red-400" />
             <MetricCard title="Achievements" value={analytics.totalAchievements} subtitle="Awards and recognitions" color="text-green-400" />
-            <MetricCard title="Improvement Rate" value="78%" subtitle="Students showing improvement" color="text-purple-400" />
+            <MetricCard title="Students Tracked" value={analytics.totalStudents} subtitle="Active students" color="text-purple-400" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -375,12 +386,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
           <div className={`p-6 rounded-xl border ${cardCls}`}>
             <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Recent Incidents</h3>
             <div className="space-y-3">
-              {[
-                { student: 'Rahul Sharma', type: 'Behavioral', description: 'Disrupted class during lecture', severity: 'medium', date: '2 days ago' },
-                { student: 'Priya Patel', type: 'Attendance', description: 'Absent for 3 consecutive days', severity: 'low', date: '3 days ago' },
-                { student: 'Amit Kumar', type: 'Academic', description: 'Submitted plagiarized assignment', severity: 'high', date: '5 days ago' },
-                { student: 'Sneha Verma', type: 'Property', description: 'Damaged lab equipment', severity: 'medium', date: '1 week ago' },
-              ].map((incident, i) => (
+              {([] as { student: string; type: string; description: string; severity: string; date: string }[]).map((incident, i) => (
                 <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                   <div className="flex items-center space-x-3">
                     <div className={`w-2 h-2 rounded-full ${incident.severity === 'high' ? 'bg-red-500' : incident.severity === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'}`} />
@@ -395,6 +401,9 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
                   </div>
                 </div>
               ))}
+              {([] as any[]).length === 0 && (
+                <p className={`text-sm text-center py-4 ${textSecondary}`}>No incidents recorded</p>
+              )}
             </div>
           </div>
         </motion.div>

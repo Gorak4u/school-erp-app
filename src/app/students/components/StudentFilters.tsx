@@ -4,7 +4,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
-import { CLASSES } from '../data';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 interface StudentFiltersProps {
   advancedFilters: any;
@@ -61,7 +61,9 @@ export default function StudentFilters({
   setShowAdvancedFilters, setShowBulkOperationModal, setShowColumnSettings,
   setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme
 }: StudentFiltersProps) {
-  const classes = CLASSES;
+  const { dropdowns } = useSchoolConfig();
+  const dbClasses = dropdowns.classes;
+  const dbMediums = dropdowns.mediums;
 
   const selectClass = `w-full px-3 py-2 rounded-lg text-sm border transition-colors ${
     theme === 'dark'
@@ -256,8 +258,9 @@ export default function StudentFilters({
         {/* Quick Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 mt-4">
           <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            {classes.map(cls => (
-              <option key={cls} value={cls}>{cls === 'all' ? 'All Classes' : `Class ${cls}`}</option>
+            <option value="all">All Classes</option>
+            {dbClasses.map(cls => (
+              <option key={cls.value} value={cls.label}>{cls.label}</option>
             ))}
           </select>
 
@@ -278,11 +281,10 @@ export default function StudentFilters({
           </select>
 
           <select value={selectedLanguage} onChange={e => { setSelectedLanguage(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Languages</option>
-            <option value="English">English</option>
-            <option value="Hindi">Hindi</option>
-            <option value="Telugu">Telugu</option>
-            <option value="Tamil">Tamil</option>
+            <option value="all">All Mediums</option>
+            {dbMediums.map(m => (
+              <option key={m.value} value={m.label}>{m.label}</option>
+            ))}
           </select>
 
           <select value={attendanceFilter} onChange={e => { setAttendanceFilter(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>

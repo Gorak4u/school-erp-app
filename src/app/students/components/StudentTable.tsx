@@ -142,7 +142,7 @@ export default function StudentTable({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(student.status)}`}>{student.status}</span>
-                  <span className={`text-xs font-medium ${getAttendanceColor(student.attendance.percentage)}`}>{student.attendance.percentage}%</span>
+                  <span className={`text-xs font-medium ${getAttendanceColor(student.attendance?.percentage || 0)}`}>{student.attendance?.percentage || 0}%</span>
                 </div>
                 <div className="flex gap-2 mt-3">
                   <button
@@ -284,14 +284,14 @@ export default function StudentTable({
                       )}
                       {visibleColumns.includes('attendance') && (
                         <td className="px-4 py-3">
-                          <span className={`font-semibold text-sm ${getAttendanceColor(student.attendance.percentage)}`}>
-                            {student.attendance.percentage}%
+                          <span className={`font-semibold text-sm ${getAttendanceColor(student.attendance?.percentage || 0)}`}>
+                            {student.attendance?.percentage || 0}%
                           </span>
                         </td>
                       )}
                       {visibleColumns.includes('grade') && (
                         <td className={`px-4 py-3 font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {student.grade}
+                          {student.gpa ? student.gpa.toFixed(1) : 'N/A'}
                         </td>
                       )}
                       {visibleColumns.includes('status') && (
