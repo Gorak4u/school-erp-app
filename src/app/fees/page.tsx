@@ -26,6 +26,8 @@ import FeeDashboard from './components/FeeDashboard';
 import FeeFilters from './components/FeeFilters';
 import FeeTabContent from './components/FeeTabContent';
 import FeeStructureModal from './components/FeeStructureModal';
+import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
+import StudentWorkflows from './components/StudentWorkflows';
 import FeeInvoiceManager from './components/FeeInvoiceManager';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
@@ -56,9 +58,17 @@ export default function FeesPage() {
     setShowFeeStructureModal,
     showCollectionModal,
     showFeeStructureModal,
+    showColumnSettings,
+    columnSettings,
+    selectedColumns,
+    toggleColumn,
+    resetColumns,
+    setShowColumnSettings,
     initializeMockData,
     isClient,
     setIsClient,
+    selectedStudents,
+    studentFeeSummaries,
   } = ctx;
 
   // Initialize data
@@ -92,8 +102,6 @@ export default function FeesPage() {
             { id: 'invoices', label: '🧾 Invoices' },
             { id: 'analytics', label: '📉 Analytics' },
             { id: 'notifications', label: '🔔 Notifications' },
-            { id: 'student-profile', label: '👤 Student Profile' },
-            { id: 'workflows', label: '🔄 Workflows' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -118,10 +126,6 @@ export default function FeesPage() {
           <FeeFinancialAnalytics theme={theme} />
         ) : activeTab === 'notifications' ? (
           <FeeNotificationManager theme={theme} />
-        ) : activeTab === 'student-profile' ? (
-          <StudentFinancialProfile theme={theme} />
-        ) : activeTab === 'workflows' ? (
-          <FeeWorkflows theme={theme} />
         ) : (
           <FeeTabContent ctx={ctx} />
         )}
@@ -129,6 +133,74 @@ export default function FeesPage() {
 
       <FeeCollectionModal collectionForm={collectionForm} feeStructures={feeStructures} handleCollectFee={handleCollectFee} setCollectionForm={setCollectionForm} setShowCollectionModal={setShowCollectionModal} showCollectionModal={showCollectionModal} theme={theme} />
       <FeeStructureModal feeStructureForm={feeStructureForm} handleCreateFeeStructure={handleCreateFeeStructure} setFeeStructureForm={setFeeStructureForm} setShowFeeStructureModal={setShowFeeStructureModal} showFeeStructureModal={showFeeStructureModal} theme={theme} />
+      <FeeColumnSettingsModal 
+        columnSettings={columnSettings}
+        resetColumns={resetColumns}
+        setShowColumnSettings={setShowColumnSettings}
+        showColumnSettings={showColumnSettings}
+        theme={theme}
+        toggleColumn={toggleColumn}
+        visibleColumns={selectedColumns}
+      />
+      
+      {/* Student Profile Modal */}
+      {activeTab === 'student-profile' && selectedStudents.length === 1 && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
+            theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+          }`}>
+            <div className="sticky top-0 flex justify-between items-center p-6 border-b">
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Student Financial Profile
+              </h2>
+              <button
+                onClick={() => setActiveTab('all-students')}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              <StudentFinancialProfile 
+                theme={theme} 
+                studentId={selectedStudents[0]}
+                studentData={studentFeeSummaries.find(s => s.studentId === selectedStudents[0])}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Student Workflows Modal */}
+      {activeTab === 'workflows' && selectedStudents.length === 1 && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
+            theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+          }`}>
+            <div className="sticky top-0 flex justify-between items-center p-6 border-b">
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Student Workflows
+              </h2>
+              <button
+                onClick={() => setActiveTab('all-students')}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              <StudentWorkflows 
+                theme={theme} 
+                studentData={studentFeeSummaries.find(s => s.studentId === selectedStudents[0])}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

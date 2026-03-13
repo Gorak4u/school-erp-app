@@ -13,7 +13,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
     currentPage, setCurrentPage, showAdvancedFilters, setShowAdvancedFilters,
     showColumnSettings, setShowColumnSettings, advancedFilters, setAdvancedFilters,
     filteredStudentSummaries, studentFeeSummaries, selectedStudents, setSelectedStudents,
-    setShowBulkOperations, setShowExportModal,
+    setShowBulkOperations, setShowExportModal, showAISuggestions, setShowAISuggestions, handleAISearch,
   } = ctx;
 
   const inputClass = `w-full px-3 py-2 rounded-lg text-sm border transition-colors ${
@@ -50,9 +50,10 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
                   <button
                     onClick={() => setAdvancedFilters({
                       studentName: '', rollNo: '', class: '', paymentStatus: '',
-                      feeType: '', paymentMethod: '', amountMin: '', amountMax: '',
+                      feeType: '', amountMin: '', amountMax: '', amountRange: '',
                       dueDateFrom: '', dueDateTo: '', paidDateFrom: '', paidDateTo: '',
-                      overdueDaysMin: '', overdueDaysMax: '', discountApplied: '', collectedBy: ''
+                      overdueDaysMin: '', overdueDaysMax: '', overdueRange: '', discountApplied: '', 
+                      collectedBy: '', session: '', receiptNumber: '', admissionNumber: ''
                     })}
                     className="px-3 py-1 text-sm rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                   >
@@ -126,6 +127,23 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
                   <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Collected By</label>
                   <input type="text" value={advancedFilters?.collectedBy || ''} onChange={e => setAdvancedFilters(p => ({ ...p, collectedBy: e.target.value }))} placeholder="Staff name..." className={inputClass} />
                 </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Session</label>
+                  <select value={advancedFilters?.session || ''} onChange={e => setAdvancedFilters(p => ({ ...p, session: e.target.value }))} className={inputClass}>
+                    <option value="">All Sessions</option>
+                    <option value="2024-25">2024-25</option>
+                    <option value="2023-24">2023-24</option>
+                    <option value="2022-23">2022-23</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Receipt Number</label>
+                  <input type="text" value={advancedFilters?.receiptNumber || ''} onChange={e => setAdvancedFilters(p => ({ ...p, receiptNumber: e.target.value }))} placeholder="Receipt number..." className={inputClass} />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission Number</label>
+                  <input type="text" value={advancedFilters?.admissionNumber || ''} onChange={e => setAdvancedFilters(p => ({ ...p, admissionNumber: e.target.value }))} placeholder="Admission number..." className={inputClass} />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -134,21 +152,88 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
 
       {/* Search & Quick Filters Bar */}
       <div className={`rounded-xl border p-4 mb-4 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        {/* Row 1: Search Input */}
+        {/* Row 1: AI-Powered Search Input */}
         <div className="relative mb-3">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🤖</span>
           <input
             type="text"
             value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            placeholder="Search by student name, roll no, class..."
-            className={`w-full pl-10 pr-4 py-2.5 rounded-lg text-sm border transition-colors ${
+            onChange={e => { 
+              setSearchTerm(e.target.value); 
+              setCurrentPage(1);
+              // Trigger AI search suggestions for longer queries
+              if (e.target.value.length >= 3) {
+                handleAISearch(e.target.value);
+              }
+            }}
+            placeholder="AI Search: 'students with pending fees', 'overdue payments', 'class 10 fees'..."
+            className={`w-full pl-10 pr-12 py-2.5 rounded-lg text-sm border transition-colors ${
               theme === 'dark'
                 ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500'
             } outline-none`}
           />
+          <button
+            onClick={() => setShowAISuggestions(!showAISuggestions)}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors ${
+              theme === 'dark' 
+                ? 'hover:bg-gray-700 text-gray-400' 
+                : 'hover:bg-gray-200 text-gray-600'
+            }`}
+            title="AI Search Suggestions"
+          >
+            ✨
+          </button>
         </div>
+
+        {/* AI Search Suggestions */}
+        {showAISuggestions && (
+          <div className={`mb-3 p-3 rounded-lg border ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium">🤖 AI Search Suggestions:</span>
+              <button
+                onClick={() => setShowAISuggestions(false)}
+                className={`ml-auto text-xs p-1 rounded ${
+                  theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'Students with pending fees',
+                'Overdue payments > 30 days',
+                'Class 10 fee defaulters',
+                'Highest fee payers',
+                'Students with scholarships',
+                'Transport fee pending',
+                'Last payment this month',
+                'Fee amount > 50000'
+              ].map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSearchTerm(suggestion);
+                    setCurrentPage(1);
+                    setShowAISuggestions(false);
+                  }}
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300'
+                      : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Row 2: Dropdowns + Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
@@ -164,6 +249,51 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
             <option value="partially_paid">Partially Paid</option>
             <option value="overdue">Overdue</option>
             <option value="pending">Pending</option>
+          </select>
+
+          <select value={advancedFilters?.feeType || ''} onChange={e => setAdvancedFilters(p => ({ ...p, feeType: e.target.value }))} className={selectClass} style={{ width: 'auto' }}>
+            <option value="">All Fee Types</option>
+            <option value="tuition">Tuition Fee</option>
+            <option value="transport">Transport Fee</option>
+            <option value="hostel">Hostel Fee</option>
+            <option value="library">Library Fee</option>
+            <option value="lab">Lab Fee</option>
+            <option value="sports">Sports Fee</option>
+            <option value="exam">Exam Fee</option>
+            <option value="uniform">Uniform Fee</option>
+            <option value="stationery">Stationery Fee</option>
+          </select>
+
+          
+          <select value={advancedFilters?.overdueRange || ''} onChange={e => setAdvancedFilters(p => ({ ...p, overdueRange: e.target.value }))} className={selectClass} style={{ width: 'auto' }}>
+            <option value="">All Overdue</option>
+            <option value="0-30">0-30 Days</option>
+            <option value="31-60">31-60 Days</option>
+            <option value="61-90">61-90 Days</option>
+            <option value="91-120">91-120 Days</option>
+            <option value="120+">120+ Days</option>
+          </select>
+
+          <select value={advancedFilters?.amountRange || ''} onChange={e => setAdvancedFilters(p => ({ ...p, amountRange: e.target.value }))} className={selectClass} style={{ width: 'auto' }}>
+            <option value="">All Amounts</option>
+            <option value="0-5000">₹0-5,000</option>
+            <option value="5001-10000">₹5,001-10,000</option>
+            <option value="10001-20000">₹10,001-20,000</option>
+            <option value="20001-50000">₹20,001-50,000</option>
+            <option value="50000+">₹50,000+</option>
+          </select>
+
+          <select value={advancedFilters?.discountApplied || ''} onChange={e => setAdvancedFilters(p => ({ ...p, discountApplied: e.target.value }))} className={selectClass} style={{ width: 'auto' }}>
+            <option value="">Discount Status</option>
+            <option value="with">With Discount</option>
+            <option value="without">Without Discount</option>
+          </select>
+
+          <select value={advancedFilters?.session || ''} onChange={e => setAdvancedFilters(p => ({ ...p, session: e.target.value }))} className={selectClass} style={{ width: 'auto' }}>
+            <option value="">All Sessions</option>
+            <option value="2024-25">2024-25</option>
+            <option value="2023-24">2023-24</option>
+            <option value="2022-23">2022-23</option>
           </select>
 
           <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>

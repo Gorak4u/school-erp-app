@@ -27,22 +27,63 @@ export function useFeeState() {
     class: '',
     paymentStatus: '',
     feeType: '',
-    paymentMethod: '',
     amountMin: '',
     amountMax: '',
+    amountRange: '',
     dueDateFrom: '',
     dueDateTo: '',
     paidDateFrom: '',
     paidDateTo: '',
     overdueDaysMin: '',
     overdueDaysMax: '',
+    overdueRange: '',
     discountApplied: '',
-    collectedBy: ''
+    collectedBy: '',
+    session: '',
+    receiptNumber: '',
+    admissionNumber: ''
   });
 
   // UI states
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkOperations, setShowBulkOperations] = useState(false);
+
+  // Column settings
+  const [selectedColumns, setSelectedColumns] = useState([
+    'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
+    'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
+  ]);
+  
+  const columnSettings = {
+    availableColumns: [
+      { key: 'select', label: 'Select', fixed: true },
+      { key: 'studentName', label: 'Student Name', fixed: true },
+      { key: 'rollNo', label: 'Roll No', fixed: false },
+      { key: 'studentClass', label: 'Class', fixed: false },
+      { key: 'totalFees', label: 'Total Fees', fixed: false },
+      { key: 'totalPaid', label: 'Paid Amount', fixed: false },
+      { key: 'totalPending', label: 'Pending Amount', fixed: false },
+      { key: 'totalOverdue', label: 'Overdue Amount', fixed: false },
+      { key: 'paymentStatus', label: 'Payment Status', fixed: false },
+      { key: 'lastPaymentDate', label: 'Last Payment Date', fixed: false },
+      { key: 'actions', label: 'Actions', fixed: true },
+    ]
+  };
+
+  const toggleColumn = (columnKey: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(col => col !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
+
+  const resetColumns = () => {
+    setSelectedColumns([
+      'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
+      'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
+    ]);
+  };
   const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -57,16 +98,78 @@ export function useFeeState() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mobileView, setMobileView] = useState<'list' | 'grid' | 'card'>('list');
   const [isMobile, setIsMobile] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState([
-    'studentName', 'rollNo', 'class', 'totalFees', 'paid', 'pending', 'overdue', 'status', 'lastPayment', 'actions'
-  ]);
 
   // Search and analytics
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [searchAnalytics, setSearchAnalytics] = useState({
     totalSearches: 0,
     averageResults: 0,
     recentSearches: [] as string[]
+  });
+
+  // AI Search Handler
+  const handleAISearch = (query: string) => {
+    // Update search analytics
+    setSearchAnalytics(prev => ({
+      ...prev,
+      totalSearches: prev.totalSearches + 1,
+      recentSearches: [query, ...prev.recentSearches.slice(0, 4)]
+    }));
+  };
+
+  // Enhanced filtering with AI search capabilities
+  const filteredStudentSummaries = studentFeeSummaries.filter(student => {
+    let matchesSearch = true;
+    
+    if (searchTerm) {
+      const lowerQuery = searchTerm.toLowerCase();
+      
+      // Basic text matching
+      const basicMatch = student.studentName.toLowerCase().includes(lowerQuery) ||
+        student.rollNo.toLowerCase().includes(lowerQuery) ||
+        student.studentClass.toLowerCase().includes(lowerQuery);
+      
+      // AI-powered semantic matching
+      const aiMatch = 
+        // Fee status queries
+        (lowerQuery.includes('pending') && student.totalPending > 0) ||
+        (lowerQuery.includes('overdue') && student.paymentStatus === 'overdue') ||
+        (lowerQuery.includes('paid') && student.paymentStatus === 'fully_paid') ||
+        (lowerQuery.includes('partial') && student.paymentStatus === 'partially_paid') ||
+        
+        // Amount-based queries
+        (lowerQuery.includes('> 50000') && student.totalFees > 50000) ||
+        (lowerQuery.includes('> 100000') && student.totalFees > 100000) ||
+        (lowerQuery.includes('high') && student.totalFees > 75000) ||
+        (lowerQuery.includes('low') && student.totalFees < 30000) ||
+        
+        // Class-specific queries
+        (lowerQuery.includes('class 10') && student.studentClass === '10') ||
+        (lowerQuery.includes('class 12') && student.studentClass === '12') ||
+        
+        // Payment-related queries
+        (lowerQuery.includes('defaulter') && student.totalPending > 0) ||
+        (lowerQuery.includes('scholarship') && student.discountApplied > 0) ||
+        (lowerQuery.includes('transport') && student.totalFees > 60000) ||
+        
+        // Time-based queries
+        (lowerQuery.includes('this month') && student.lastPaymentDate && 
+         new Date(student.lastPaymentDate).getMonth() === new Date().getMonth()) ||
+        
+        // Risk assessment
+        (lowerQuery.includes('risk') && student.paymentStatus === 'overdue') ||
+        (lowerQuery.includes('good') && student.paymentStatus === 'fully_paid');
+      
+      matchesSearch = basicMatch || aiMatch;
+    }
+    
+    const matchesClass = selectedClass === 'all' || student.studentClass === selectedClass;
+    const matchesStatus = selectedStatus === 'all' || student.paymentStatus === selectedStatus;
+    
+    return matchesSearch && matchesClass && matchesStatus;
   });
 
   // Bulk operations
@@ -107,8 +210,6 @@ export function useFeeState() {
 
   
   // Filter states
-  const [selectedClass, setSelectedClass] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -147,6 +248,7 @@ export function useFeeState() {
     discounts, setDiscounts,
     selectedStudents, setSelectedStudents,
     studentFeeSummaries, setStudentFeeSummaries,
+    filteredStudentSummaries,
     showAdvancedFilters, setShowAdvancedFilters,
     advancedFilters, setAdvancedFilters,
     showColumnSettings, setShowColumnSettings,
@@ -164,7 +266,12 @@ export function useFeeState() {
     mobileView, setMobileView,
     isMobile, setIsMobile,
     selectedColumns, setSelectedColumns,
+    columnSettings, toggleColumn, resetColumns,
     searchTerm, setSearchTerm,
+    selectedClass, setSelectedClass,
+    selectedStatus, setSelectedStatus,
+    showAISuggestions, setShowAISuggestions,
+    handleAISearch,
     searchAnalytics, setSearchAnalytics,
     bulkOperationType, setBulkOperationType,
     bulkOperationData, setBulkOperationData,
@@ -172,8 +279,6 @@ export function useFeeState() {
     dashboardCollapsed, setDashboardCollapsed,
     showDashboard, setShowDashboard,
     recentActivities, setRecentActivities,
-    selectedClass, setSelectedClass,
-    selectedStatus, setSelectedStatus,
     selectedMonth, setSelectedMonth,
     selectedYear, setSelectedYear,
     feeStructureForm, setFeeStructureForm,

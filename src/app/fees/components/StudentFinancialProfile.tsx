@@ -21,11 +21,13 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 interface StudentFinancialProfileProps {
   theme: 'dark' | 'light';
   onClose?: () => void;
+  studentId?: string;
+  studentData?: any;
 }
 
-export default function StudentFinancialProfile({ theme, onClose }: StudentFinancialProfileProps) {
+export default function StudentFinancialProfile({ theme, onClose, studentId, studentData }: StudentFinancialProfileProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<string | null>('STU-001');
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId);
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -35,10 +37,10 @@ export default function StudentFinancialProfile({ theme, onClose }: StudentFinan
   const chartTextColor = isDark ? '#fff' : '#000';
   const chartGridColor = isDark ? '#333' : '#ddd';
 
-  // Mock student financial data
-  const studentData = {
+  // Use provided student data or fallback to mock data
+  const currentStudentData = studentData || {
     name: 'Rahul Sharma',
-    class: '10-A',
+    studentClass: '10-A',
     admissionNo: 'ADM-2023-045',
     parentName: 'Mr. Rajesh Sharma',
     contact: '+91 98765 43210',
@@ -129,28 +131,28 @@ export default function StudentFinancialProfile({ theme, onClose }: StudentFinan
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">{studentData.name.charAt(0)}</span>
+              <span className="text-white text-2xl font-bold">{currentStudentData?.name?.charAt(0) || 'S'}</span>
             </div>
             <div>
-              <h3 className={`text-lg font-semibold ${textPrimary}`}>{studentData.name}</h3>
-              <p className={`text-sm ${textSecondary}`}>Class {studentData.class} | {studentData.admissionNo}</p>
-              <p className={`text-sm ${textSecondary}`}>Parent: {studentData.parentName} | {studentData.contact}</p>
+              <h3 className={`text-lg font-semibold ${textPrimary}`}>{currentStudentData?.name || 'Student Name'}</h3>
+              <p className={`text-sm ${textSecondary}`}>Class {currentStudentData?.studentClass || 'N/A'} | {currentStudentData?.admissionNo || 'N/A'}</p>
+              <p className={`text-sm ${textSecondary}`}>Parent: {currentStudentData?.parentName || 'N/A'} | {currentStudentData?.contact || 'N/A'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             <span className={`px-3 py-1 rounded-full text-sm ${
-              studentData.riskLevel === 'low' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-              : studentData.riskLevel === 'medium' ? isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
+              (currentStudentData?.riskLevel || 'low') === 'low' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
+              : (currentStudentData?.riskLevel || 'low') === 'medium' ? isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
               : isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
             }`}>
-              {studentData.riskLevel.charAt(0).toUpperCase() + studentData.riskLevel.slice(1)} Risk
+              {(currentStudentData?.riskLevel || 'low').charAt(0).toUpperCase() + (currentStudentData?.riskLevel || 'low').slice(1)} Risk
             </span>
             <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-              {studentData.feePlan} Plan
+              {currentStudentData?.feePlan || 'Quarterly'} Plan
             </span>
-            {studentData.scholarship && (
+            {currentStudentData?.scholarship && (
               <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
-                {studentData.scholarship}
+                {currentStudentData.scholarship}
               </span>
             )}
           </div>
@@ -161,24 +163,24 @@ export default function StudentFinancialProfile({ theme, onClose }: StudentFinan
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className={`p-4 rounded-lg border ${cardCls}`}>
           <p className={`text-sm ${textSecondary}`}>Total Fees</p>
-          <p className={`text-xl font-bold ${textPrimary}`}>Rs.{studentData.totalFees.toLocaleString()}</p>
+          <p className={`text-xl font-bold ${textPrimary}`}>Rs.{(currentStudentData?.totalFees || 0).toLocaleString()}</p>
         </div>
         <div className={`p-4 rounded-lg border ${cardCls}`}>
           <p className={`text-sm ${textSecondary}`}>Paid</p>
-          <p className="text-xl font-bold text-green-500">Rs.{studentData.paid.toLocaleString()}</p>
+          <p className="text-xl font-bold text-green-500">Rs.{(currentStudentData?.paid || 0).toLocaleString()}</p>
         </div>
         <div className={`p-4 rounded-lg border ${cardCls}`}>
           <p className={`text-sm ${textSecondary}`}>Pending</p>
-          <p className="text-xl font-bold text-red-500">Rs.{studentData.pending.toLocaleString()}</p>
+          <p className="text-xl font-bold text-red-500">Rs.{(currentStudentData?.pending || 0).toLocaleString()}</p>
         </div>
         <div className={`p-4 rounded-lg border ${cardCls}`}>
           <p className={`text-sm ${textSecondary}`}>Discount</p>
-          <p className="text-xl font-bold text-blue-500">Rs.{studentData.discount.toLocaleString()}</p>
+          <p className="text-xl font-bold text-blue-500">Rs.{(currentStudentData?.discount || 0).toLocaleString()}</p>
         </div>
         <div className={`p-4 rounded-lg border ${cardCls}`}>
           <p className={`text-sm ${textSecondary}`}>Next Due</p>
-          <p className={`text-xl font-bold ${textPrimary}`}>{studentData.nextDueDate}</p>
-          <p className={`text-xs ${textSecondary}`}>Rs.{studentData.nextDueAmount.toLocaleString()}</p>
+          <p className={`text-xl font-bold ${textPrimary}`}>{currentStudentData?.nextDueDate || 'N/A'}</p>
+          <p className={`text-xs ${textSecondary}`}>Rs.{(currentStudentData?.nextDueAmount || 0).toLocaleString()}</p>
         </div>
       </div>
 

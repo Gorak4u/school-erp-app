@@ -7,7 +7,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowCollectionModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowCollectionModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
 
   return (
     <>
@@ -21,8 +21,8 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Summary Cards — handled by FeeDashboard above */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 hidden">
                 <div className={`p-4 rounded-lg border ${
                   theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                 }`}>
@@ -813,13 +813,13 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                         <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Last Payment</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Actions</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                      {filteredStudentSummaries.map((student) => (
+                      {filteredStudentSummaries.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((student) => (
                         <tr key={student.studentId} className={`hover:${
                           theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
                         } transition-colors ${selectedStudents.includes(student.studentId) ? (
@@ -915,30 +915,49 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                               </span>
                             )}
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap`}>
-                            <div className="flex gap-2">
+                          <td className={`px-6 py-4 whitespace-nowrap text-center`}>
+                            <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => setShowCollectionModal(true)}
-                                className={`text-blue-600 hover:text-blue-800 text-sm ${
+                                className={`text-blue-600 hover:text-blue-800 text-lg ${
                                   theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
                                 }`}
+                                title="Collect Fee"
                               >
-                                Collect
+                                💰
                               </button>
                               <button
                                 onClick={() => setShowReceiptModal(true)}
-                                className={`text-green-600 hover:text-green-800 text-sm ${
+                                className={`text-green-600 hover:text-green-800 text-lg ${
                                   theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
                                 }`}
+                                title="View Receipt"
                               >
-                                Receipt
+                                🧾
                               </button>
                               <button
-                                className={`text-purple-600 hover:text-purple-800 text-sm ${
+                                onClick={() => {
+                                  setSelectedStudents([student.studentId]);
+                                  setActiveTab('student-profile');
+                                }}
+                                className={`text-purple-600 hover:text-purple-800 text-lg ${
                                   theme === 'dark' ? 'text-purple-400 hover:text-purple-300' : ''
                                 }`}
+                                title="Student Profile"
                               >
-                                Details
+                                👤
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedStudents([student.studentId]);
+                                  setActiveTab('workflows');
+                                }}
+                                className={`text-orange-600 hover:text-orange-800 text-lg ${
+                                  theme === 'dark' ? 'text-orange-400 hover:text-orange-300' : ''
+                                }`}
+                                title="Student Workflows"
+                              >
+                                ⚙️
                               </button>
                             </div>
                           </td>
@@ -946,6 +965,72 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              <div className={`flex items-center justify-between px-6 py-4 border-t ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredStudentSummaries.length)} of {filteredStudentSummaries.length} results
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === 1
+                        ? theme === 'dark' ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-300'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil(filteredStudentSummaries.length / pageSize)) }, (_, i) => {
+                      const totalPages = Math.ceil(filteredStudentSummaries.length / pageSize);
+                      let pageNum;
+                      
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === pageNum
+                              ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                              : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-300'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(Math.min(Math.ceil(filteredStudentSummaries.length / pageSize), currentPage + 1))}
+                    disabled={currentPage === Math.ceil(filteredStudentSummaries.length / pageSize)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === Math.ceil(filteredStudentSummaries.length / pageSize)
+                        ? theme === 'dark' ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-300'
+                    }`}
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </motion.div>

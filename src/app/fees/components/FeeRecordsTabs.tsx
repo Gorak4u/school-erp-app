@@ -22,8 +22,8 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              {/* Filters */}
-              <div className={`p-4 rounded-lg border mb-6 ${
+              {/* Filters — handled by global FeeFilters above */}
+              <div className={`p-4 rounded-lg border mb-6 hidden ${
                 theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               }`}>
                 <div className="flex flex-wrap gap-4">
