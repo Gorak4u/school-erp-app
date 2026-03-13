@@ -7,7 +7,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowCollectionModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
 
   return (
     <>
@@ -918,7 +918,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                           <td className={`px-6 py-4 whitespace-nowrap text-center`}>
                             <div className="flex gap-2 justify-center">
                               <button
-                                onClick={() => setShowCollectionModal(true)}
+                                onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
                                 className={`text-blue-600 hover:text-blue-800 text-lg ${
                                   theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
                                 }`}

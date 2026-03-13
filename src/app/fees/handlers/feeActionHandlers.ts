@@ -2,7 +2,7 @@
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from '../types';
 
 export function createFeeActionHandlers(ctx: any) {
-  const { collectionForm, feeRecords, feeStructureForm, feeStructures, isClient, searchTerm, selectedClass, selectedStatus, setCollectionForm, setFeeRecords, setFeeStructureForm, setFeeStructures, setShowCollectionModal, setShowFeeStructureModal, studentFeeSummaries } = ctx;
+  const { feeRecords, feeStructureForm, feeStructures, isClient, searchTerm, selectedClass, selectedStatus, setFeeRecords, setFeeStructureForm, setFeeStructures, setShowFeeStructureModal, studentFeeSummaries } = ctx;
 
   // Filter functions
   const filteredFeeRecords = feeRecords.filter(record => {
@@ -82,39 +82,5 @@ export function createFeeActionHandlers(ctx: any) {
     });
   };
 
-  const handleCollectFee = () => {
-    const newRecord: FeeRecord = {
-      id: Date.now().toString(),
-      studentId: collectionForm.studentId,
-      studentName: 'Student Name', // This would come from student data
-      studentClass: '10A',
-      feeStructureId: collectionForm.feeStructureId,
-      feeStructureName: feeStructures.find(f => f.id === collectionForm.feeStructureId)?.name || '',
-      amount: collectionForm.amount,
-      paidAmount: collectionForm.amount,
-      pendingAmount: 0,
-      dueDate: new Date().toISOString(),
-      paidDate: new Date().toISOString(),
-      status: 'paid',
-      paymentMethod: collectionForm.paymentMethod,
-      transactionId: collectionForm.transactionId,
-      receiptNumber: `RCP${Date.now()}`,
-      collectedBy: 'Admin',
-      remarks: collectionForm.remarks,
-      createdAt: new Date().toISOString()
-    };
-
-    setFeeRecords([...feeRecords, newRecord]);
-    setShowCollectionModal(false);
-    setCollectionForm({
-      studentId: '',
-      feeStructureId: '',
-      amount: 0,
-      paymentMethod: 'cash',
-      transactionId: '',
-      remarks: ''
-    });
-  };
-
-  return { exportFeeRecords, filteredFeeRecords, filteredStudentSummaries, handleCollectFee, handleCreateFeeStructure };
+  return { exportFeeRecords, filteredFeeRecords, filteredStudentSummaries, handleCreateFeeStructure };
 }

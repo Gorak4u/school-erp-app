@@ -42,10 +42,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('2024-25');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [customAmounts, setCustomAmounts] = useState<{[key: string]: number}>({});
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [promoCode, setPromoCode] = useState('');
   const [installmentPlan, setInstallmentPlan] = useState(false);
 
@@ -156,8 +157,8 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const selectedFeesTotal = useMemo(() => {
     return filteredFees
       .filter(fee => selectedFees.includes(fee.id))
-      .reduce((sum, fee) => sum + fee.amount, 0);
-  }, [filteredFees, selectedFees]);
+      .reduce((sum, fee) => sum + (customAmounts[fee.id] || fee.amount), 0);
+  }, [filteredFees, selectedFees, customAmounts]);
 
   const overdueFees = useMemo(() => {
     return filteredFees.filter(fee => fee.status === 'overdue');
@@ -190,6 +191,27 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
 
   const handleClearSelection = () => {
     setSelectedFees([]);
+    setCustomAmounts({});
+  };
+
+  const handleCustomAmountChange = (feeId: string, amount: number) => {
+    const fee = filteredFees.find(f => f.id === feeId);
+    if (!fee) return;
+    
+    const maxAmount = fee.amount - fee.paidAmount;
+    const validAmount = Math.min(Math.max(0, amount), maxAmount);
+    
+    setCustomAmounts(prev => ({
+      ...prev,
+      [feeId]: validAmount
+    }));
+    
+    // Auto-select the fee if custom amount is set
+    if (validAmount > 0 && !selectedFees.includes(feeId)) {
+      setSelectedFees(prev => [...prev, feeId]);
+    } else if (validAmount === 0) {
+      setSelectedFees(prev => prev.filter(id => id !== feeId));
+    }
   };
 
   const handlePayment = async () => {
@@ -221,73 +243,34 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      {/* Header */}
-      <div className={`sticky top-0 z-10 ${isDark ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} backdrop-blur-sm border-b`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-                >
-                  ← Back
-                </button>
-              )}
-              <div>
-                <h1 className={`text-xl font-bold ${textPrimary}`}>Fee Collection</h1>
-                <p className={`text-sm ${textSecondary}`}>
-                  {studentData ? `${studentData.studentName || 'Student'} - ${studentData.studentClass || 'Class'}` : 'All Students'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setPaymentStep(paymentStep === 1 ? 2 : 1)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isDark 
-                    ? 'bg-gray-800 hover:bg-gray-700 text-white' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                }`}
-              >
-                {paymentStep === 1 ? 'Quick Pay' : 'Detailed View'}
-              </button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
+        <div className={`flex gap-1 p-2 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100 bg-gray-50'}`}>
+          {[
+            { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
+            { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
+            { id: 'payment', label: 'Make Payment', icon: <CreditCard className="w-4 h-4" /> },
+            { id: 'history', label: 'History', icon: <Clock className="w-4 h-4" /> },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : isDark
+                    ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                    : 'hover:bg-white text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className={`sticky top-16 z-10 ${isDark ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} backdrop-blur-sm border-b`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1 p-1">
-            {[
-              { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
-              { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
-              { id: 'payment', label: 'Payment', icon: <CreditCard className="w-4 h-4" /> },
-              { id: 'history', label: 'History', icon: <Clock className="w-4 h-4" /> },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : isDark 
-                      ? 'hover:bg-gray-800 text-gray-300' 
-                      : 'hover:bg-gray-100 text-gray-600'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="p-6">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <motion.div
@@ -401,7 +384,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 animate={{ opacity: 1, scale: 1 }}
                 className={`${cardCls} p-6 rounded-xl border border-green-500 ${isDark ? 'bg-green-900/10' : 'bg-green-50'}`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className={`text-lg font-semibold ${textPrimary}`}>Selected Fees</h3>
                     <p className={`text-sm ${textSecondary}`}>{selectedFees.length} fees selected</p>
@@ -415,6 +398,35 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                       Proceed to Payment
                     </button>
                   </div>
+                </div>
+                
+                {/* Fee breakdown */}
+                <div className="space-y-2 pt-4 border-t border-green-200 dark:border-green-800">
+                  {selectedFees.map(feeId => {
+                    const fee = filteredFees.find(f => f.id === feeId);
+                    if (!fee) return null;
+                    const customAmount = customAmounts[feeId] || fee.amount;
+                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== fee.amount;
+                    
+                    return (
+                      <div key={feeId} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className={textSecondary}>{fee.name}</span>
+                          {isCustom && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isCustom && (
+                            <span className={`line-through ${textSecondary}`}>₹{fee.amount.toLocaleString()}</span>
+                          )}
+                          <span className={`font-medium ${textPrimary}`}>₹{customAmount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -483,10 +495,18 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                       )}
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className={`text-sm ${textSecondary}`}>Amount:</span>
                         <span className={`font-medium ${textPrimary}`}>₹{fee.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${textSecondary}`}>Paid:</span>
+                        <span className="font-medium text-green-500">₹{fee.paidAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${textSecondary}`}>Pending:</span>
+                        <span className="font-medium text-red-500">₹{pendingAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={`text-sm ${textSecondary}`}>Status:</span>
@@ -501,6 +521,31 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                         <div className="flex justify-between">
                           <span className={`text-sm ${textSecondary}`}>Late Fee:</span>
                           <span className="text-red-600 font-medium">+₹{fee.lateFee}</span>
+                        </div>
+                      )}
+                      
+                      {/* Custom Amount Input */}
+                      {fee.status !== 'paid' && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <label className={`text-xs font-medium ${textSecondary} block mb-2`}>
+                            Pay Custom Amount:
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={pendingAmount}
+                              value={customAmounts[fee.id] || ''}
+                              onChange={(e) => handleCustomAmountChange(fee.id, parseInt(e.target.value) || 0)}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`flex-1 px-3 py-2 text-sm rounded-lg border ${inputCls}`}
+                              placeholder={`Max: ₹${pendingAmount.toLocaleString()}`}
+                            />
+                          </div>
+                          <p className={`text-xs mt-1 ${textSecondary}`}>
+                            Max: ₹{pendingAmount.toLocaleString()}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -688,5 +733,6 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
         )}
       </AnimatePresence>
     </div>
+  </div>
   );
 }

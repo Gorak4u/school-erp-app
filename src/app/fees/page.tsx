@@ -47,16 +47,11 @@ export default function FeesPage() {
   // Destructure for JSX
   const {
     activeTab,
-    collectionForm,
-    feeStructureForm,
+        feeStructureForm,
     feeStructures,
-    handleCollectFee,
     handleCreateFeeStructure,
-    setCollectionForm,
     setFeeStructureForm,
-    setShowCollectionModal,
     setShowFeeStructureModal,
-    showCollectionModal,
     showFeeStructureModal,
     showColumnSettings,
     columnSettings,

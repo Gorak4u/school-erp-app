@@ -9,8 +9,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
   const {
     activeTab, theme, searchTerm, setSearchTerm, selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus, feeRecords, filteredFeeRecords, feeStructures, feeCollections,
-    discounts, setShowFeeStructureModal, setShowCollectionModal,
-    prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
+    discounts, setShowFeeStructureModal,     prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
   } = ctx;
 
   return (

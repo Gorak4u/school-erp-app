@@ -7,8 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function FeeDashboard({ ctx }: { ctx: any }) {
   const {
     theme, showDashboard, setShowDashboard,
-    calculateStatistics, setShowFeeStructureModal, setShowCollectionModal,
-    setShowBulkOperations, setShowImportModal, selectedStudents,
+    calculateStatistics, setShowFeeStructureModal,     setShowBulkOperations, setShowImportModal, selectedStudents,
     studentFeeSummaries, filteredStudentSummaries, recentActivities,
   } = ctx;
 
@@ -52,7 +51,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
         </button>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowCollectionModal(true)}
+            onClick={() => window.location.href = '/fee-collection'}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity"
           >
             💰 Collect Fee

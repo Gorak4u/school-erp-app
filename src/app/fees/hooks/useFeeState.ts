@@ -85,8 +85,7 @@ export function useFeeState() {
     ]);
   };
   const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
-  const [showCollectionModal, setShowCollectionModal] = useState(false);
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
+    const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showBulkCollectionModal, setShowBulkCollectionModal] = useState(false);
   const [showBulkDiscountModal, setShowBulkDiscountModal] = useState(false);
@@ -238,16 +237,6 @@ export function useFeeState() {
     isActive: true
   });
 
-  const [collectionForm, setCollectionForm] = useState({
-    studentId: '',
-    feeStructureId: '',
-    amount: 0,
-    paymentMethod: 'cash' as const,
-    transactionId: '',
-    remarks: ''
-  });
-
-
   return {
     router,
     activeTab, setActiveTab,
@@ -265,8 +254,7 @@ export function useFeeState() {
     showColumnSettings, setShowColumnSettings,
     showBulkOperations, setShowBulkOperations,
     showFeeStructureModal, setShowFeeStructureModal,
-    showCollectionModal, setShowCollectionModal,
-    showDiscountModal, setShowDiscountModal,
+        showDiscountModal, setShowDiscountModal,
     showReceiptModal, setShowReceiptModal,
     showBulkCollectionModal, setShowBulkCollectionModal,
     showBulkDiscountModal, setShowBulkDiscountModal,
@@ -295,6 +283,5 @@ export function useFeeState() {
     selectedMonth, setSelectedMonth,
     selectedYear, setSelectedYear,
     feeStructureForm, setFeeStructureForm,
-    collectionForm, setCollectionForm,
-  };
+      };
 }
