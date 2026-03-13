@@ -73,17 +73,8 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 </div>
               </div>
 
-              {/* Enhanced Search and Filters */}
-              <motion.div
-                className={`backdrop-blur-sm border rounded-2xl p-6 mb-6 transition-all duration-300 ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-800' 
-                    : 'bg-white/70 border-gray-200'
-                }`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
+              {/* Search and Filters removed — handled by FeeFilters above */}
+              <motion.div className="hidden">
                 {/* AI-Powered Search Bar */}
                 <div className="mb-6">
                   <div className="flex flex-col lg:flex-row gap-4">
@@ -577,8 +568,8 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 )}
               </motion.div>
 
-              {/* Results Summary and Bulk Actions */}
-              <div className={`p-4 rounded-lg border mb-4 ${
+              {/* Results Summary and Bulk Actions — handled by FeeFilters */}
+              <div className={`p-4 rounded-lg border mb-4 hidden ${
                 theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               }`}>
                 <div className="flex justify-between items-center">
@@ -661,7 +652,8 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 </div>
               </div>
 
-              {/* Bulk Selection Actions */}
+              {/* Bulk Selection Actions — handled by FeeFilters */}
+              <div className="hidden">
               {selectedStudents.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -772,6 +764,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                   </div>
                 </motion.div>
               )}
+              </div>
 
               {/* Students Fee Table */}
               <div className={`rounded-xl border overflow-hidden ${

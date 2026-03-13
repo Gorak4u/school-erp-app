@@ -8,7 +8,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
   const {
     activeTab, theme, searchTerm, setSearchTerm, selectedClass, setSelectedClass,
-    selectedStatus, setSelectedStatus, feeRecords, feeStructures, feeCollections,
+    selectedStatus, setSelectedStatus, feeRecords, filteredFeeRecords, feeStructures, feeCollections,
     discounts, setShowFeeStructureModal, setShowCollectionModal,
     prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
   } = ctx;
@@ -105,7 +105,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                      {filteredFeeRecords.map((record) => (
+                      {(filteredFeeRecords || []).map((record) => (
                         <tr key={record.id}>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'

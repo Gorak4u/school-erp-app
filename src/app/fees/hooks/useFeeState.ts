@@ -7,7 +7,7 @@ import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } f
 
 export function useFeeState() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('all-students');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isClient, setIsClient] = useState(false);
 
@@ -87,6 +87,7 @@ export function useFeeState() {
 
   // Dashboard widgets state
   const [dashboardCollapsed, setDashboardCollapsed] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(true);
   const [recentActivities, setRecentActivities] = useState([
     { id: 1, type: 'payment', message: 'Rahul Kumar paid tuition fee', time: '2 mins ago', icon: '💰' },
     { id: 2, type: 'overdue', message: '5 students have overdue fees', time: '15 mins ago', icon: '⚠️' },
@@ -169,6 +170,7 @@ export function useFeeState() {
     bulkOperationData, setBulkOperationData,
     bulkOperationProgress, setBulkOperationProgress,
     dashboardCollapsed, setDashboardCollapsed,
+    showDashboard, setShowDashboard,
     recentActivities, setRecentActivities,
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,

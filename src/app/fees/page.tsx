@@ -23,6 +23,7 @@ import { createFeeDataHandlers } from './handlers/feeDataHandlers';
 import { createFeeActionHandlers } from './handlers/feeActionHandlers';
 import FeeCollectionModal from './components/FeeCollectionModal';
 import FeeDashboard from './components/FeeDashboard';
+import FeeFilters from './components/FeeFilters';
 import FeeTabContent from './components/FeeTabContent';
 import FeeStructureModal from './components/FeeStructureModal';
 import FeeInvoiceManager from './components/FeeInvoiceManager';
@@ -30,82 +31,37 @@ import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
 import StudentFinancialProfile from './components/StudentFinancialProfile';
 import FeeWorkflows from './components/FeeWorkflows';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function FeesPage() {
+  const { theme } = useTheme();
   const state = useFeeState();
-  const [showInvoices, setShowInvoices] = useState(false);
-  const [showFinancialAnalytics, setShowFinancialAnalytics] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showStudentProfile, setShowStudentProfile] = useState(false);
-  const [showFeeWorkflows, setShowFeeWorkflows] = useState(false);
 
   // Build handler context incrementally
-  const ctx: any = { ...state };
+  const ctx: any = { ...state, theme };
   Object.assign(ctx, createFeeDataHandlers(ctx));
   Object.assign(ctx, createFeeActionHandlers(ctx));
 
   // Destructure for JSX
   const {
     activeTab,
-    advancedFilters,
     collectionForm,
-    currentPage,
-    dashboardCollapsed,
-    discounts,
-    feeCollections,
     feeStructureForm,
     feeStructures,
-    filteredFeeRecords,
-    filteredStudentSummaries,
     handleCollectFee,
     handleCreateFeeStructure,
-    isMobile,
-    mobileView,
-    pageSize,
-    prepareFeeCategoryData,
-    prepareMonthlyCollectionData,
-    preparePaymentMethodData,
-    recentActivities,
-    searchAnalytics,
-    searchTerm,
-    selectedClass,
-    selectedStatus,
-    selectedStudents,
-    setActiveTab,
-    setAdvancedFilters,
     setCollectionForm,
-    setDashboardCollapsed,
     setFeeStructureForm,
-    setMobileView,
-    setPageSize,
-    setSearchAnalytics,
-    setSearchTerm,
-    setSelectedClass,
-    setSelectedStatus,
-    setSelectedStudents,
-    setShowAdvancedFilters,
-    setShowBulkCollectionModal,
-    setShowBulkDiscountModal,
     setShowCollectionModal,
-    setShowColumnSettings,
-    setShowExportModal,
     setShowFeeStructureModal,
-    setShowImportModal,
-    setShowReceiptModal,
-    setTheme,
-    showAdvancedFilters,
     showCollectionModal,
-    showColumnSettings,
     showFeeStructureModal,
-    stats,
-    studentFeeSummaries,
-    theme,
     initializeMockData,
     isClient,
     setIsClient,
   } = ctx;
 
-  // Initialize data (moved from handler - React hooks must be in component)
+  // Initialize data
   useEffect(() => {
     setIsClient(true);
     initializeMockData();
@@ -116,51 +72,46 @@ export default function FeesPage() {
   }
 
   return (
-    <AppLayout 
-      currentPage="fees" 
-      title="Fees Management"
-      theme={theme}
-      onThemeChange={setTheme}
-    >
+    <AppLayout currentPage="fees" title="Fees Management">
+      <div className="space-y-0 pb-6">
+        {/* Dashboard Section — same pattern as Students page */}
         <FeeDashboard ctx={ctx} />
 
-        {/* Tabs */}
-        <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} mb-8`}>
-          <nav className="flex space-x-8">
-            {[
-              { id: 'overview', label: 'Overview', icon: '📊' },
-              { id: 'all-students', label: 'All Students Fees', icon: '👥' },
-              { id: 'fee-records', label: 'Fee Records', icon: '📋' },
-              { id: 'structures', label: 'Fee Structures', icon: '🏗️' },
-              { id: 'collections', label: 'Collections', icon: '💵' },
-              { id: 'discounts', label: 'Discounts', icon: '🎁' },
-              { id: 'reports', label: 'Reports', icon: '📈' },
-              { id: 'invoices', label: 'Invoices', icon: '🧾' },
-              { id: 'analytics', label: 'Analytics', icon: '📉' },
-              { id: 'notifications', label: 'Notifications', icon: '🔔' },
-              { id: 'student-profile', label: 'Student Profile', icon: '👤' },
-              { id: 'workflows', label: 'Workflows', icon: '🔄' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? theme === 'dark'
-                      ? 'border-blue-500 text-blue-400'
-                      : 'border-blue-500 text-blue-600'
-                    : theme === 'dark'
-                      ? 'border-transparent text-gray-400 hover:text-gray-300'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+        {/* Filters bar (search + dropdowns + action buttons) */}
+        <FeeFilters ctx={ctx} />
+
+        {/* Tab Navigation — outside the filter tile, above the data table */}
+        <div className={`flex gap-1 overflow-x-auto mb-4 pb-1 scrollbar-hide`}>
+          {[
+            { id: 'all-students', label: '👥 All Students' },
+            { id: 'fee-records', label: '📋 Fee Records' },
+            { id: 'structures', label: '🏗️ Structures' },
+            { id: 'collections', label: '💵 Collections' },
+            { id: 'discounts', label: '🎁 Discounts' },
+            { id: 'reports', label: '📈 Reports' },
+            { id: 'invoices', label: '🧾 Invoices' },
+            { id: 'analytics', label: '📉 Analytics' },
+            { id: 'notifications', label: '🔔 Notifications' },
+            { id: 'student-profile', label: '👤 Student Profile' },
+            { id: 'workflows', label: '🔄 Workflows' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => ctx.setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : theme === 'dark'
+                    ? 'bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
+        {/* Tab Content */}
         {activeTab === 'invoices' ? (
           <FeeInvoiceManager theme={theme} />
         ) : activeTab === 'analytics' ? (
@@ -174,6 +125,7 @@ export default function FeesPage() {
         ) : (
           <FeeTabContent ctx={ctx} />
         )}
+      </div>
 
       <FeeCollectionModal collectionForm={collectionForm} feeStructures={feeStructures} handleCollectFee={handleCollectFee} setCollectionForm={setCollectionForm} setShowCollectionModal={setShowCollectionModal} showCollectionModal={showCollectionModal} theme={theme} />
       <FeeStructureModal feeStructureForm={feeStructureForm} handleCreateFeeStructure={handleCreateFeeStructure} setFeeStructureForm={setFeeStructureForm} setShowFeeStructureModal={setShowFeeStructureModal} showFeeStructureModal={showFeeStructureModal} theme={theme} />

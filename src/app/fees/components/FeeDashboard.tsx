@@ -2,412 +2,220 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FeeDashboard({ ctx }: { ctx: any }) {
   const {
-    theme, dashboardCollapsed, setDashboardCollapsed,
-    calculateStatistics, prepareMonthlyCollectionData,
-    prepareFeeCategoryData, preparePaymentMethodData,
-    setShowFeeStructureModal, setShowCollectionModal,
-    setShowBulkOperations, setShowAdvancedFilters,
-    showAdvancedFilters, setActiveTab, studentFeeSummaries,
+    theme, showDashboard, setShowDashboard,
+    calculateStatistics, setShowFeeStructureModal, setShowCollectionModal,
+    setShowBulkOperations, setShowImportModal, selectedStudents,
+    studentFeeSummaries, filteredStudentSummaries, recentActivities,
   } = ctx;
 
-  const stats = calculateStatistics();
+  const stats = calculateStatistics ? calculateStatistics() : { totalFees: 0, collectedFees: 0, pendingFees: 0, overdueFees: 0, collectionRate: 0 };
 
-  // Mock recent activities data
-  const recentActivities = [
-    {
-      id: 1,
-      icon: '💰',
-      message: 'John Doe paid tuition fee - ₹50,000',
-      time: '2 minutes ago'
-    },
-    {
-      id: 2,
-      icon: '📧',
-      message: 'Fee reminder sent to 15 parents',
-      time: '1 hour ago'
-    },
-    {
-      id: 3,
-      icon: '✅',
-      message: 'Monthly fee collection completed',
-      time: '3 hours ago'
-    },
-    {
-      id: 4,
-      icon: '📊',
-      message: 'Fee report generated for Class 10A',
-      time: '5 hours ago'
-    }
+  const statCards = [
+    { label: 'Total Fees', value: `₹${(stats.totalFees / 1000).toFixed(0)}K`, icon: '💰', color: 'blue', trend: `${stats.collectionRate?.toFixed(1) || 0}% collected` },
+    { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0} fully paid` },
+    { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${studentFeeSummaries?.filter(s => s.totalPending > 0).length || 0} students` },
+    { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${studentFeeSummaries?.filter(s => s.totalOverdue > 0).length || 0} students` },
+  ];
+
+  const colorMap: Record<string, string> = {
+    blue: 'from-blue-500 to-blue-700',
+    green: 'from-green-500 to-green-700',
+    amber: 'from-amber-500 to-amber-700',
+    red: 'from-red-500 to-red-700',
+  };
+
+  const overdueCount = studentFeeSummaries?.filter(s => s.totalOverdue > 0).length || 0;
+  const partialCount = studentFeeSummaries?.filter(s => s.paymentStatus === 'partially_paid').length || 0;
+
+  const activities = recentActivities || [
+    { id: 1, type: 'payment', message: 'Rahul Kumar paid tuition fee', time: '2 mins ago', icon: '💰' },
+    { id: 2, type: 'overdue', message: '5 students have overdue fees', time: '15 mins ago', icon: '⚠️' },
+    { id: 3, type: 'discount', message: 'Sibling discount applied to 2 students', time: '1 hour ago', icon: '🎁' },
+    { id: 4, type: 'collection', message: 'Daily collection target achieved', time: '2 hours ago', icon: '✅' }
   ];
 
   return (
     <>
-        {/* Enhanced Dashboard Section */}
-        <motion.div
-          className={`backdrop-blur-sm border rounded-2xl p-6 mb-8 transition-all duration-300 ${
-            theme === 'dark' 
-              ? 'bg-gray-900/50 border-gray-800' 
-              : 'bg-white/70 border-gray-200'
+      {/* Dashboard Toggle + Action Buttons — matches StudentDashboard exactly */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setShowDashboard(!showDashboard)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
           }`}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
         >
-          {/* Dashboard Header */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-              }`}>
-                📊
-              </div>
-              <div>
-                <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Fee Management Dashboard
-                </h2>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Real-time fee collection analytics and insights
-                </p>
-              </div>
-            </div>
+          {showDashboard ? '📊 Hide Dashboard' : '� Show Dashboard'}
+        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCollectionModal(true)}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity"
+          >
+            💰 Collect Fee
+          </button>
+          <button
+            onClick={() => setShowFeeStructureModal(true)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+            }`}
+          >
+            🏗️ Fee Structure
+          </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+            }`}
+          >
+            📥 Import
+          </button>
+          {selectedStudents?.length > 0 && (
             <button
-              onClick={() => setDashboardCollapsed(!dashboardCollapsed)}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              }`}
+              onClick={() => setShowBulkOperations(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white transition-colors"
             >
-              {dashboardCollapsed ? '📊' : '📉'}
+              ⚙️ Bulk ({selectedStudents.length})
             </button>
-          </div>
-
-          {!dashboardCollapsed && (
-            <div className="space-y-6">
-              {/* Main Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-xl border hover:shadow-lg transition-all duration-300 ${
-                    theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-                    }`}>
-                      💰
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      theme === 'dark' ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-                    }`}>
-                      +12.5%
-                    </span>
-                  </div>
-                  <div>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total Fees</p>
-                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      ₹{stats.totalFees.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
-                      This month
-                    </p>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className={`p-4 rounded-xl border hover:shadow-lg transition-all duration-300 ${
-                    theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-                    }`}>
-                      ✅
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      theme === 'dark' ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-                    }`}>
-                      +8.3%
-                    </span>
-                  </div>
-                  <div>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Collected</p>
-                    <p className={`text-2xl font-bold text-green-500`}>
-                      ₹{stats.collectedFees.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
-                      {stats.collectionRate.toFixed(1)}% rate
-                    </p>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className={`p-4 rounded-xl border hover:shadow-lg transition-all duration-300 ${
-                    theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-                    }`}>
-                      ⏳
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      theme === 'dark' ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
-                    }`}>
-                      -5.2%
-                    </span>
-                  </div>
-                  <div>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Pending</p>
-                    <p className={`text-2xl font-bold text-yellow-500`}>
-                      ₹{stats.pendingFees.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
-                      {studentFeeSummaries.filter(s => s.totalPending > 0).length} students
-                    </p>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className={`p-4 rounded-xl border hover:shadow-lg transition-all duration-300 ${
-                    theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
-                    }`}>
-                      ⚠️
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      theme === 'dark' ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
-                    }`}>
-                      +2.1%
-                    </span>
-                  </div>
-                  <div>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Overdue</p>
-                    <p className={`text-2xl font-bold text-red-500`}>
-                      ₹{stats.overdueFees.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
-                      {studentFeeSummaries.filter(s => s.totalOverdue > 0).length} students
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Secondary Analytics */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Class Distribution */}
-                <div className={`p-4 rounded-xl border ${
-                  theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    Class Distribution
-                  </h3>
-                  <div className="space-y-3">
-                    {['1-5', '6-8', '9-10', '11-12'].map((classGroup, index) => {
-                      const count = studentFeeSummaries.filter(s => {
-                        if (classGroup === '1-5') return ['1', '2', '3', '4', '5'].includes(s.studentClass.charAt(0));
-                        if (classGroup === '6-8') return ['6', '7', '8'].includes(s.studentClass.charAt(0));
-                        if (classGroup === '9-10') return ['9', '10'].includes(s.studentClass.charAt(0));
-                        return ['11', '12'].includes(s.studentClass.charAt(0));
-                      }).length;
-                      const percentage = (count / studentFeeSummaries.length) * 100;
-                      return (
-                        <div key={classGroup} className="flex items-center justify-between">
-                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                            Class {classGroup}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-20 h-2 rounded-full ${
-                              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                            }`}>
-                              <div
-                                className={`h-2 rounded-full ${
-                                  index === 0 ? 'bg-blue-500' :
-                                  index === 1 ? 'bg-green-500' :
-                                  index === 2 ? 'bg-yellow-500' : 'bg-red-500'
-                                }`}
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {count}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Payment Methods */}
-                <div className={`p-4 rounded-xl border ${
-                  theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    Payment Methods
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      { method: 'Online', percentage: 45, color: 'bg-blue-500' },
-                      { method: 'Cash', percentage: 30, color: 'bg-green-500' },
-                      { method: 'Cheque', percentage: 15, color: 'bg-yellow-500' },
-                      { method: 'Bank Transfer', percentage: 10, color: 'bg-purple-500' }
-                    ].map((payment) => (
-                      <div key={payment.method} className="flex items-center justify-between">
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {payment.method}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-20 h-2 rounded-full ${
-                            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                          }`}>
-                            <div
-                              className={`h-2 rounded-full ${payment.color}`}
-                              style={{ width: `${payment.percentage}%` }}
-                            />
-                          </div>
-                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {payment.percentage}%
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Activities */}
-                <div className={`p-4 rounded-xl border ${
-                  theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                }`}>
-                  <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    Recent Activities
-                  </h3>
-                  <div className="space-y-3">
-                    {recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-start gap-3">
-                        <span className="text-lg">{activity.icon}</span>
-                        <div className="flex-1">
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {activity.message}
-                          </p>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                            {activity.time}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Alerts & Notifications */}
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'
-              }`}>
-                <h3 className={`text-sm font-semibold mb-3 text-red-500`}>
-                  🚨 Alerts & Notifications
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-700'}`}>
-                      Students with overdue fees
-                    </span>
-                    <span className={`text-sm font-bold text-red-500`}>
-                      {studentFeeSummaries.filter(s => s.totalOverdue > 0).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                      Pending approvals for discounts
-                    </span>
-                    <span className={`text-sm font-bold text-yellow-500`}>3</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>
-                      Today's collection target
-                    </span>
-                    <span className={`text-sm font-bold text-blue-500`}>75%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className={`p-4 rounded-xl border ${
-                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <h3 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  ⚡ Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <button
-                    onClick={() => setShowCollectionModal(true)}
-                    className={`p-3 rounded-lg text-center transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">💰</div>
-                    <div className="text-xs">Collect Fee</div>
-                  </button>
-                  <button
-                    onClick={() => setShowBulkCollectionModal(true)}
-                    className={`p-3 rounded-lg text-center transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">📥</div>
-                    <div className="text-xs">Bulk Collect</div>
-                  </button>
-                  <button
-                    onClick={() => setShowImportModal(true)}
-                    className={`p-3 rounded-lg text-center transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'bg-purple-500 hover:bg-purple-600 text-white'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">📤</div>
-                    <div className="text-xs">Import Data</div>
-                  </button>
-                  <button
-                    onClick={() => setShowExportModal(true)}
-                    className={`p-3 rounded-lg text-center transition-colors ${
-                      theme === 'dark'
-                        ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                        : 'bg-orange-500 hover:bg-orange-600 text-white'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">📊</div>
-                    <div className="text-xs">Export Report</div>
-                  </button>
-                </div>
-              </div>
-            </div>
           )}
-        </motion.div>
+        </div>
+      </div>
 
+      {/* Collapsible Dashboard Panel */}
+      <AnimatePresence>
+        {showDashboard && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6 overflow-hidden"
+          >
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {statCards.map((card, i) => (
+                <motion.div
+                  key={card.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`rounded-xl p-5 bg-gradient-to-br ${colorMap[card.color]} text-white shadow-lg`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl">{card.icon}</span>
+                    <span className="text-xs opacity-80 bg-white/20 px-2 py-1 rounded-full">{card.trend}</span>
+                  </div>
+                  <div className="text-3xl font-black">{card.value}</div>
+                  <div className="text-sm opacity-90 mt-1">{card.label}</div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Secondary Stats Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+              {/* Payment Status Distribution */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+              >
+                <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  💳 Payment Status
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Fully Paid', value: studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0, color: 'bg-green-500' },
+                    { label: 'Partially Paid', value: partialCount, color: 'bg-yellow-500' },
+                    { label: 'Overdue', value: overdueCount, color: 'bg-red-500' },
+                  ].map(g => {
+                    const total = studentFeeSummaries?.length || 1;
+                    const pct = total > 0 ? (g.value / total) * 100 : 0;
+                    return (
+                      <div key={g.label}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>{g.label}</span>
+                          <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>{g.value} ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className={`h-2 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                          <div className={`h-2 rounded-full ${g.color}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+
+              {/* Alerts */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+              >
+                <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  🔔 Alerts
+                </h3>
+                <div className="space-y-3">
+                  {overdueCount > 0 && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <span className="text-red-500 text-lg">⚠️</span>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>
+                        {overdueCount} students with overdue fees
+                      </span>
+                    </div>
+                  )}
+                  {partialCount > 0 && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <span className="text-amber-500 text-lg">💸</span>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-amber-300' : 'text-amber-700'}`}>
+                        {partialCount} students partially paid
+                      </span>
+                    </div>
+                  )}
+                  {stats.collectionRate < 80 && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <span className="text-blue-500 text-lg">📊</span>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                        Collection rate below 80%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Recent Activities */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+              >
+                <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  📋 Recent Activities
+                </h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {activities.slice(0, 5).map((activity: any) => (
+                    <div key={activity.id} className={`flex items-center gap-2 p-2 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <span className="text-sm">{activity.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{activity.message}</p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{activity.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Results Summary */}
+            <div className={`flex items-center justify-between px-4 py-2 rounded-lg text-sm ${
+              theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-600'
+            }`}>
+              <span>Showing {filteredStudentSummaries?.length || 0} of {studentFeeSummaries?.length || 0} records</span>
+              {selectedStudents?.length > 0 && (
+                <span className="text-blue-500 font-medium">{selectedStudents.length} selected</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
