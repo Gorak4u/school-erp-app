@@ -110,25 +110,59 @@ export function createActionsHandlers(ctx: any) {
     
     const phoneNumbers = selectedStudentsData.map(s => s.phone).filter(Boolean);
     if (phoneNumbers.length === 0) {
-      alert('No phone numbers available for selected students');
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'warning',
+          title: 'No Phone Numbers',
+          message: 'No phone numbers available for selected students',
+          duration: 3000
+        });
+      }
       return;
     }
 
     const message = `Dear Parents, This is a message from School Management System regarding your ward's progress. Please contact school office for more details.`;
     const smsUrl = `sms:${phoneNumbers.join(',')}?body=${encodeURIComponent(message)}`;
     window.open(smsUrl);
+    
+    // Show success toast
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'success',
+        title: 'SMS Opened',
+        message: `SMS app opened for ${phoneNumbers.length} parents`,
+        duration: 3000
+      });
+    }
   };
 
   // Single student functions for profile page
   const sendStudentSMS = (student: Student) => {
     if (!student.phone) {
-      alert('No phone number available for this student');
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'warning',
+          title: 'No Phone Number',
+          message: 'No phone number available for this student',
+          duration: 3000
+        });
+      }
       return;
     }
 
     const message = `Dear Parent, This is a message from School Management System regarding ${student.name}'s progress. Please contact school office for more details.`;
     const smsUrl = `sms:${student.phone}?body=${encodeURIComponent(message)}`;
     window.open(smsUrl);
+    
+    // Show success toast
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'success',
+        title: 'SMS Opened',
+        message: `SMS app opened for ${student.name}'s parent`,
+        duration: 3000
+      });
+    }
   };
 
   const printStudentProfile = (student: Student) => {
@@ -618,7 +652,14 @@ export function createActionsHandlers(ctx: any) {
 
   const saveCurrentFilter = () => {
     if (!filterName.trim()) {
-      alert('Please enter a filter name');
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'warning',
+          title: 'Filter Name Required',
+          message: 'Please enter a filter name',
+          duration: 3000
+        });
+      }
       return;
     }
     
@@ -632,15 +673,46 @@ export function createActionsHandlers(ctx: any) {
     setSavedFilters(prev => [...prev, newFilter]);
     setFilterName('');
     setShowSaveFilterModal(false);
+    
+    // Show success toast
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'success',
+        title: 'Filter Saved',
+        message: `Filter "${filterName}" has been saved successfully`,
+        duration: 3000
+      });
+    }
   };
 
   const applySavedFilter = (filter: typeof savedFilters[0]) => {
     setAdvancedFilters(filter.filters);
     setShowAdvancedFilters(true);
+    
+    // Show info toast
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'info',
+        title: 'Filter Applied',
+        message: `Filter "${filter.name}" has been applied`,
+        duration: 2000
+      });
+    }
   };
 
   const deleteSavedFilter = (filterId: string) => {
+    const filter = savedFilters.find(f => f.id === filterId);
     setSavedFilters(prev => prev.filter(f => f.id !== filterId));
+    
+    // Show info toast
+    if ((window as any).toast && filter) {
+      (window as any).toast({
+        type: 'info',
+        title: 'Filter Deleted',
+        message: `Filter "${filter.name}" has been deleted`,
+        duration: 2000
+      });
+    }
   };
 
   // Enhanced Bulk Operations Functions
@@ -664,7 +736,14 @@ export function createActionsHandlers(ctx: any) {
               const nextGrade = parseInt(grade) + 1;
               if (nextGrade <= 12) {
                 // Update student class (this would be an API call in real app)
-                console.log(`Promoting ${student.name} to ${nextGrade}${section}`);
+                if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'info',
+                  title: 'Student Promoted',
+                  message: `${student.name} promoted to ${nextGrade}${section}`,
+                  duration: 2000
+                });
+              }
               }
             }
             break;
@@ -672,27 +751,55 @@ export function createActionsHandlers(ctx: any) {
           case 'update_status':
             if (bulkOperationData.targetStatus) {
               // Update student status
-              console.log(`Updating ${student.name} status to ${bulkOperationData.targetStatus}`);
+              if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'info',
+                  title: 'Status Updated',
+                  message: `${student.name} status updated to ${bulkOperationData.targetStatus}`,
+                  duration: 2000
+                });
+              }
             }
             break;
             
           case 'assign_fees':
             if (bulkOperationData.feeAmount) {
               // Assign fees to students
-              console.log(`Assigning ₹${bulkOperationData.feeAmount} fees to ${student.name}`);
+              if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'info',
+                  title: 'Fees Assigned',
+                  message: `₹${bulkOperationData.feeAmount} fees assigned to ${student.name}`,
+                  duration: 2000
+                });
+              }
             }
             break;
             
           case 'send_message':
             if (bulkOperationData.message) {
               // Send message to parents
-              console.log(`Sending message to ${student.name}'s parents: ${bulkOperationData.message}`);
+              if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'info',
+                  title: 'Message Sent',
+                  message: `Message sent to ${student.name}'s parents`,
+                  duration: 2000
+                });
+              }
             }
             break;
             
           case 'delete':
             // Delete students (with confirmation)
-            console.log(`Deleting ${student.name}`);
+            if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'warning',
+                  title: 'Student Deleted',
+                  message: `${student.name} has been removed from the system`,
+                  duration: 3000
+                });
+              }
             break;
             
           case 'export':
@@ -708,6 +815,17 @@ export function createActionsHandlers(ctx: any) {
       }
       
       setBulkOperationProgress(prev => ({ ...prev, status: 'completed' }));
+      
+      // Show success toast
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Bulk Operation Completed',
+          message: `${bulkOperationType.replace('_', ' ')} completed for ${studentsToProcess.length} students`,
+          duration: 3000
+        });
+      }
+      
       setTimeout(() => {
         setShowBulkOperationModal(false);
         setBulkOperationProgress({ current: 0, total: 0, status: 'idle', errors: [] });
@@ -719,6 +837,16 @@ export function createActionsHandlers(ctx: any) {
         status: 'error', 
         errors: [error instanceof Error ? error.message : 'Unknown error occurred'] 
       }));
+      
+      // Show error toast
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'error',
+          title: 'Bulk Operation Failed',
+          message: error instanceof Error ? error.message : 'Unknown error occurred',
+          duration: 5000
+        });
+      }
     }
   };
 

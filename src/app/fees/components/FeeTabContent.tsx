@@ -500,7 +500,14 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       <button
                         onClick={() => {
                           // Apply advanced filters logic here
-                          console.log('Applying advanced filters:', advancedFilters);
+                          if ((window as any).toast) {
+                          (window as any).toast({
+                            type: 'info',
+                            title: 'Filters Applied',
+                            message: `${Object.values(advancedFilters).filter(v => v).length} filters applied`,
+                            duration: 2000
+                          });
+                        }
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                           theme === 'dark'
@@ -782,7 +789,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                             }
                           }, 1500);
                           
-                          console.log('Sending reminders to:', selectedStudents);
+                          // Debug log removed - using toast notifications instead
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                           theme === 'dark'

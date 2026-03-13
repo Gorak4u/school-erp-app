@@ -71,7 +71,14 @@ export default function MobileFeeTable({
           label: "Clear Filters",
           onClick: () => {
             // This would need to be passed as a prop
-            console.log('Clear filters');
+            if ((window as any).toast) {
+            (window as any).toast({
+              type: 'info',
+              title: 'Filters Cleared',
+              message: 'All filters have been reset',
+              duration: 2000
+            });
+          }
           }
         }}
       />

@@ -351,7 +351,14 @@ export function createMobileHandlers(ctx: any) {
     );
 
     if (selectedStudentsData.length === 0) {
-      alert('No students selected for export');
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'warning',
+          title: 'No Students Selected',
+          message: 'Please select students to export',
+          duration: 3000
+        });
+      }
       return;
     }
 
