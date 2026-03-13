@@ -1,8 +1,9 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CreditCard, Calendar, DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Zap, Shield, Award, Target } from 'lucide-react';
 
 interface EnhancedFeeCollectionProps {
   theme: 'dark' | 'light';
@@ -22,423 +23,637 @@ interface FeeItem {
   frequency: 'monthly' | 'quarterly' | 'yearly' | 'one-time';
   academicYear: string;
   description?: string;
+  priority?: 'high' | 'medium' | 'low';
+  lateFee?: number;
+  discountAvailable?: boolean;
+}
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+  description: string;
+  fee?: number;
 }
 
 export default function EnhancedFeeCollection({ theme, onClose, studentId, studentData }: EnhancedFeeCollectionProps) {
-  const [activeTab, setActiveTab] = useState<'current' | 'all-years' | 'all-types'>('current');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'list' | 'card' | 'summary'>('list');
   const [selectedYear, setSelectedYear] = useState('2024-25');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [showReceipt, setShowReceipt] = useState(false);
-  const [collectedAmount, setCollectedAmount] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentStep, setPaymentStep] = useState(1);
+  const [promoCode, setPromoCode] = useState('');
+  const [installmentPlan, setInstallmentPlan] = useState(false);
 
   const isDark = theme === 'dark';
+  
+  // Enhanced color scheme
+  const colors = {
+    primary: isDark ? '#3b82f6' : '#2563eb',
+    success: isDark ? '#10b981' : '#059669',
+    warning: isDark ? '#f59e0b' : '#d97706',
+    danger: isDark ? '#ef4444' : '#dc2626',
+    purple: isDark ? '#8b5cf6' : '#7c3aed',
+    cyan: isDark ? '#06b6d4' : '#0891b2',
+    pink: isDark ? '#ec4899' : '#db2777',
+  };
+
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
   const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
   const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
 
-  // Mock comprehensive fee data
+  // Enhanced payment methods
+  const paymentMethods: PaymentMethod[] = [
+    { 
+      id: 'cash', 
+      name: 'Cash Payment', 
+      icon: <DollarSign className="w-5 h-5" />, 
+      color: colors.success,
+      description: 'Pay with cash at the counter',
+      fee: 0
+    },
+    { 
+      id: 'card', 
+      name: 'Credit/Debit Card', 
+      icon: <CreditCard className="w-5 h-5" />, 
+      color: colors.primary,
+      description: 'Secure card payment',
+      fee: 0
+    },
+    { 
+      id: 'upi', 
+      name: 'UPI Payment', 
+      icon: <Zap className="w-5 h-5" />, 
+      color: colors.cyan,
+      description: 'Instant UPI transfer',
+      fee: 0
+    },
+    { 
+      id: 'netbanking', 
+      name: 'Net Banking', 
+      icon: <Shield className="w-5 h-5" />, 
+      color: colors.purple,
+      description: 'Bank transfer',
+      fee: 10
+    },
+    { 
+      id: 'wallet', 
+      name: 'Digital Wallet', 
+      icon: <Award className="w-5 h-5" />, 
+      color: colors.pink,
+      description: 'PayTM, PhonePe etc.',
+      fee: 5
+    },
+  ];
+
+  // Enhanced comprehensive fee data with priority and discount info
   const allFeeData: FeeItem[] = [
-    // Current Year Fees
-    { id: '1', name: 'Tuition Fee', category: 'academic', amount: 50000, dueDate: '2024-04-05', status: 'pending', paidAmount: 0, frequency: 'monthly', academicYear: '2024-25', description: 'Monthly tuition fee for all subjects' },
-    { id: '2', name: 'Transport Fee', category: 'transport', amount: 12000, dueDate: '2024-04-10', status: 'partial', paidAmount: 6000, frequency: 'yearly', academicYear: '2024-25', description: 'Annual bus service fee' },
-    { id: '3', name: 'Lab Fee', category: 'academic', amount: 8000, dueDate: '2024-04-15', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Science lab equipment and maintenance' },
-    { id: '4', name: 'Library Fee', category: 'academic', amount: 3000, dueDate: '2024-04-20', status: 'paid', paidAmount: 3000, frequency: 'yearly', academicYear: '2024-25', description: 'Library resources and books' },
-    { id: '5', name: 'Sports Fee', category: 'extracurricular', amount: 4000, dueDate: '2024-04-25', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Sports equipment and coaching' },
-    { id: '6', name: 'Exam Fee', category: 'academic', amount: 2000, dueDate: '2024-05-01', status: 'pending', paidAmount: 0, frequency: 'one-time', academicYear: '2024-25', description: 'Board examination fees' },
+    // Current Year Fees - High Priority
+    { id: '1', name: 'Tuition Fee', category: 'academic', amount: 50000, dueDate: '2024-04-05', status: 'pending', paidAmount: 0, frequency: 'monthly', academicYear: '2024-25', description: 'Monthly tuition fee for all subjects', priority: 'high', lateFee: 500, discountAvailable: true },
+    { id: '2', name: 'Transport Fee', category: 'transport', amount: 12000, dueDate: '2024-04-10', status: 'partial', paidAmount: 6000, frequency: 'yearly', academicYear: '2024-25', description: 'Annual bus service fee', priority: 'medium', lateFee: 200, discountAvailable: false },
+    { id: '3', name: 'Lab Fee', category: 'academic', amount: 8000, dueDate: '2024-04-15', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Science lab equipment and maintenance', priority: 'medium', lateFee: 100, discountAvailable: true },
+    { id: '4', name: 'Library Fee', category: 'academic', amount: 3000, dueDate: '2024-04-20', status: 'paid', paidAmount: 3000, frequency: 'yearly', academicYear: '2024-25', description: 'Library resources and books', priority: 'low', discountAvailable: false },
+    { id: '5', name: 'Sports Fee', category: 'extracurricular', amount: 4000, dueDate: '2024-04-25', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Sports equipment and coaching', priority: 'low', lateFee: 50, discountAvailable: true },
+    { id: '6', name: 'Exam Fee', category: 'academic', amount: 2000, dueDate: '2024-05-01', status: 'pending', paidAmount: 0, frequency: 'one-time', academicYear: '2024-25', description: 'Board examination fees', priority: 'high', lateFee: 300, discountAvailable: false },
     
-    // Previous Year Fees
-    { id: '7', name: 'Tuition Fee', category: 'academic', amount: 48000, dueDate: '2023-04-05', status: 'paid', paidAmount: 48000, frequency: 'monthly', academicYear: '2023-24', description: 'Monthly tuition fee for all subjects' },
-    { id: '8', name: 'Transport Fee', category: 'transport', amount: 11000, dueDate: '2023-04-10', status: 'paid', paidAmount: 11000, frequency: 'yearly', academicYear: '2023-24', description: 'Annual bus service fee' },
-    { id: '9', name: 'Lab Fee', category: 'academic', amount: 7500, dueDate: '2023-04-15', status: 'paid', paidAmount: 7500, frequency: 'yearly', academicYear: '2023-24', description: 'Science lab equipment and maintenance' },
+    // Additional fees for comprehensive view
+    { id: '7', name: 'Hostel Fee', category: 'accommodation', amount: 60000, dueDate: '2024-04-01', status: 'overdue', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Hostel accommodation and meals', priority: 'high', lateFee: 1000, discountAvailable: true },
+    { id: '8', name: 'Computer Lab Fee', category: 'academic', amount: 5000, dueDate: '2024-04-12', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2024-25', description: 'Computer lab maintenance and software', priority: 'medium', discountAvailable: true },
+    { id: '9', name: 'Medical Insurance', category: 'other', amount: 2500, dueDate: '2024-04-08', status: 'paid', paidAmount: 2500, frequency: 'yearly', academicYear: '2024-25', description: 'Student medical insurance coverage', priority: 'medium', discountAvailable: false },
+    { id: '10', name: 'Uniform Fee', category: 'other', amount: 3500, dueDate: '2024-04-18', status: 'pending', paidAmount: 0, frequency: 'one-time', academicYear: '2024-25', description: 'School uniform and accessories', priority: 'low', discountAvailable: true },
     
-    // Next Year Fees (Projected)
-    { id: '10', name: 'Tuition Fee', category: 'academic', amount: 52000, dueDate: '2025-04-05', status: 'pending', paidAmount: 0, frequency: 'monthly', academicYear: '2025-26', description: 'Monthly tuition fee for all subjects' },
-    { id: '11', name: 'Transport Fee', category: 'transport', amount: 13000, dueDate: '2025-04-10', status: 'pending', paidAmount: 0, frequency: 'yearly', academicYear: '2025-26', description: 'Annual bus service fee' },
+    // Previous Year Fees for history
+    { id: '11', name: 'Tuition Fee', category: 'academic', amount: 45000, dueDate: '2023-03-05', status: 'paid', paidAmount: 45000, frequency: 'monthly', academicYear: '2023-24', description: 'Monthly tuition fee for all subjects', priority: 'high', discountAvailable: false },
+    { id: '12', name: 'Annual Function Fee', category: 'extracurricular', amount: 1500, dueDate: '2023-02-15', status: 'paid', paidAmount: 1500, frequency: 'one-time', academicYear: '2023-24', description: 'Annual day celebration fee', priority: 'low', discountAvailable: false },
   ];
 
-  const academicYears = ['2022-23', '2023-24', '2024-25', '2025-26'];
-  const categories = ['all', 'academic', 'transport', 'extracurricular', 'examination', 'development'];
-  const paymentMethods = [
-    { value: 'cash', label: 'Cash', icon: '💵' },
-    { value: 'online', label: 'Online Transfer', icon: '🏦' },
-    { value: 'upi', label: 'UPI', icon: '📱' },
-    { value: 'cheque', label: 'Cheque', icon: '📄' },
-    { value: 'card', label: 'Credit/Debit Card', icon: '💳' },
-    { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏛️' }
-  ];
+  // Computed values for enhanced UI
+  const filteredFees = useMemo(() => {
+    return allFeeData.filter(fee => {
+      const yearMatch = selectedYear === 'all' || fee.academicYear === selectedYear;
+      const categoryMatch = selectedCategory === 'all' || fee.category === selectedCategory;
+      return yearMatch && categoryMatch;
+    });
+  }, [selectedYear, selectedCategory]);
 
-  // Filter fees based on active tab and selections
-  const getFilteredFees = () => {
-    let filtered = [...allFeeData];
-    
-    if (activeTab === 'current') {
-      filtered = filtered.filter(fee => fee.academicYear === '2024-25');
-    } else if (activeTab === 'all-years') {
-      filtered = filtered.filter(fee => fee.academicYear === selectedYear);
-    }
-    
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(fee => fee.category === selectedCategory);
-    }
-    
-    return filtered;
+  const totalAmount = useMemo(() => {
+    return filteredFees.reduce((sum, fee) => sum + fee.amount, 0);
+  }, [filteredFees]);
+
+  const totalPaid = useMemo(() => {
+    return filteredFees.reduce((sum, fee) => sum + fee.paidAmount, 0);
+  }, [filteredFees]);
+
+  const totalPending = useMemo(() => {
+    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount), 0);
+  }, [filteredFees]);
+
+  const selectedFeesTotal = useMemo(() => {
+    return filteredFees
+      .filter(fee => selectedFees.includes(fee.id))
+      .reduce((sum, fee) => sum + fee.amount, 0);
+  }, [filteredFees, selectedFees]);
+
+  const overdueFees = useMemo(() => {
+    return filteredFees.filter(fee => fee.status === 'overdue');
+  }, [filteredFees]);
+
+  const stats = useMemo(() => ({
+    totalFees: filteredFees.length,
+    pendingFees: filteredFees.filter(f => f.status === 'pending').length,
+    paidFees: filteredFees.filter(f => f.status === 'paid').length,
+    overdueFees: overdueFees.length,
+    totalAmount,
+    totalPaid,
+    totalPending,
+    selectedFeesTotal
+  }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, selectedFeesTotal]);
+
+  const handleFeeSelection = (feeId: string) => {
+    setSelectedFees(prev => 
+      prev.includes(feeId) 
+        ? prev.filter(id => id !== feeId)
+        : [...prev, feeId]
+    );
   };
 
-  const filteredFees = getFilteredFees();
+  const handleSelectAll = () => {
+    const pendingFees = filteredFees.filter(fee => fee.status === 'pending' || fee.status === 'overdue');
+    const pendingIds = pendingFees.map(fee => fee.id);
+    setSelectedFees(pendingIds);
+  };
 
-  // Calculate totals
-  const totalAmount = filteredFees.reduce((sum, fee) => sum + fee.amount, 0);
-  const totalPaid = filteredFees.reduce((sum, fee) => sum + fee.paidAmount, 0);
-  const totalPending = totalAmount - totalPaid;
-  const selectedFeesTotal = filteredFees
-    .filter(fee => selectedFees.includes(fee.id))
-    .reduce((sum, fee) => sum + (fee.amount - fee.paidAmount), 0);
+  const handleClearSelection = () => {
+    setSelectedFees([]);
+  };
 
-  // Apply discount
-  const finalAmount = discountType === 'percentage' 
-    ? selectedFeesTotal * (1 - discountAmount / 100)
-    : Math.max(0, selectedFeesTotal - discountAmount);
-
-  const handleCollectFee = () => {
-    if (selectedFees.length === 0) {
-      alert('Please select at least one fee to collect');
-      return;
-    }
-    
-    setCollectedAmount(finalAmount);
+  const handlePayment = async () => {
+    setIsProcessing(true);
+    // Simulate payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsProcessing(false);
     setShowReceipt(true);
   };
 
-  const renderFeeCard = (fee: FeeItem) => {
-    const isSelected = selectedFees.includes(fee.id);
-    const pendingAmount = fee.amount - fee.paidAmount;
-    const isOverdue = new Date(fee.dueDate) < new Date() && fee.status !== 'paid';
-
-    return (
-      <motion.div
-        key={fee.id}
-        whileHover={{ scale: 1.02 }}
-        className={`p-4 rounded-xl border cursor-pointer transition-all ${
-          isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : cardCls
-        }`}
-        onClick={() => {
-          if (fee.status !== 'paid') {
-            setSelectedFees(prev => 
-              isSelected 
-                ? prev.filter(id => id !== fee.id)
-                : [...prev, fee.id]
-            );
-          }
-        }}
-      >
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className={`font-semibold ${textPrimary}`}>{fee.name}</h4>
-            <p className={`text-sm ${textSecondary}`}>{fee.description}</p>
-          </div>
-          <span className={`px-2 py-1 text-xs rounded-full ${
-            fee.status === 'paid' ? 'bg-green-100 text-green-800' :
-            fee.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-            isOverdue ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            {fee.status === 'paid' ? 'PAID' : 
-             fee.status === 'partial' ? 'PARTIAL' :
-             isOverdue ? 'OVERDUE' : 'PENDING'}
-          </span>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className={textSecondary}>Amount:</span>
-            <span className={`ml-2 font-medium ${textPrimary}`}>₹{fee.amount.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className={textSecondary}>Due:</span>
-            <span className={`ml-2 font-medium ${textPrimary}`}>{fee.dueDate}</span>
-          </div>
-          <div>
-            <span className={textSecondary}>Paid:</span>
-            <span className={`ml-2 font-medium text-green-600`}>₹{fee.paidAmount.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className={textSecondary}>Pending:</span>
-            <span className={`ml-2 font-medium text-red-600`}>₹{pendingAmount.toLocaleString()}</span>
-          </div>
-        </div>
-        
-        {fee.status !== 'paid' && (
-          <div className="mt-3 pt-3 border-t">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => {}}
-                className="rounded"
-              />
-              <span className={`text-sm ${isSelected ? 'text-blue-600' : textSecondary}`}>
-                {isSelected ? 'Selected for collection' : 'Select for collection'}
-              </span>
-            </label>
-          </div>
-        )}
-      </motion.div>
-    );
+  // Enhanced UI helper functions
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return colors.success;
+      case 'pending': return colors.warning;
+      case 'partial': return colors.primary;
+      case 'overdue': return colors.danger;
+      default: return colors.primary;
+    }
   };
 
-  const renderSummaryView = () => {
-    const categoryTotals = categories.slice(1).map(category => ({
-      name: category.charAt(0).toUpperCase() + category.slice(1),
-      total: filteredFees.filter(f => f.category === category).reduce((sum, f) => sum + (f.amount - f.paidAmount), 0),
-      count: filteredFees.filter(f => f.category === category).length
-    }));
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className={`p-6 rounded-xl ${cardCls}`}>
-            <h3 className={`text-sm font-medium ${textSecondary} mb-2`}>Total Amount</h3>
-            <p className={`text-2xl font-bold ${textPrimary}`}>₹{totalAmount.toLocaleString()}</p>
-          </div>
-          <div className={`p-6 rounded-xl ${cardCls}`}>
-            <h3 className={`text-sm font-medium ${textSecondary} mb-2`}>Already Paid</h3>
-            <p className={`text-2xl font-bold text-green-600`}>₹{totalPaid.toLocaleString()}</p>
-          </div>
-          <div className={`p-6 rounded-xl ${cardCls}`}>
-            <h3 className={`text-sm font-medium ${textSecondary} mb-2`}>Pending Amount</h3>
-            <p className={`text-2xl font-bold text-red-600`}>₹{totalPending.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className={`p-6 rounded-xl ${cardCls}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Pending by Category</h3>
-          <div className="space-y-3">
-            {categoryTotals.map((cat, idx) => (
-              <div key={idx} className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-                <div>
-                  <span className={`font-medium ${textPrimary}`}>{cat.name}</span>
-                  <span className={`ml-2 text-sm ${textSecondary}`}>({cat.count} fees)</span>
-                </div>
-                <span className={`font-bold ${textPrimary}`}>₹{cat.total.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+  const getPriorityColor = (priority?: string) => {
+    switch (priority) {
+      case 'high': return colors.danger;
+      case 'medium': return colors.warning;
+      case 'low': return colors.success;
+      default: return colors.primary;
+    }
   };
 
   return (
-    <div className={`rounded-xl ${cardCls} p-6 max-w-6xl mx-auto`}>
+    <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className={`text-2xl font-bold ${textPrimary}`}>Fee Collection</h2>
-          <p className={`${textSecondary}`}>
-            {studentData?.name || 'Student'} - Class {studentData?.studentClass || 'N/A'}
-          </p>
+      <div className={`sticky top-0 z-10 ${isDark ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} backdrop-blur-sm border-b`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+                >
+                  ← Back
+                </button>
+              )}
+              <div>
+                <h1 className={`text-xl font-bold ${textPrimary}`}>Fee Collection</h1>
+                <p className={`text-sm ${textSecondary}`}>
+                  {studentData ? `${studentData.studentName || 'Student'} - ${studentData.studentClass || 'Class'}` : 'All Students'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPaymentStep(paymentStep === 1 ? 2 : 1)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  isDark 
+                    ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                }`}
+              >
+                {paymentStep === 1 ? 'Quick Pay' : 'Detailed View'}
+              </button>
+            </div>
+          </div>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-          >
-            ✕
-          </button>
-        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b">
-        <button
-          onClick={() => setActiveTab('current')}
-          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-            activeTab === 'current'
-              ? 'border-blue-500 text-blue-600'
-              : `border-transparent ${textSecondary} hover:text-primary`
-          }`}
-        >
-          Current Year
-        </button>
-        <button
-          onClick={() => setActiveTab('all-years')}
-          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-            activeTab === 'all-years'
-              ? 'border-blue-500 text-blue-600'
-              : `border-transparent ${textSecondary} hover:text-primary`
-          }`}
-        >
-          All Years
-        </button>
-        <button
-          onClick={() => setActiveTab('all-types')}
-          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-            activeTab === 'all-types'
-              ? 'border-blue-500 text-blue-600'
-              : `border-transparent ${textSecondary} hover:text-primary`
-          }`}
-        >
-          All Fee Types
-        </button>
-      </div>
-
-      {/* Filters and View Options */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        {activeTab === 'all-years' && (
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className={`px-4 py-2 rounded-lg border ${inputCls}`}
-          >
-            {academicYears.map(year => (
-              <option key={year} value={year}>{year}</option>
+      {/* Navigation Tabs */}
+      <div className={`sticky top-16 z-10 ${isDark ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} backdrop-blur-sm border-b`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex gap-1 p-1">
+            {[
+              { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
+              { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
+              { id: 'payment', label: 'Payment', icon: <CreditCard className="w-4 h-4" /> },
+              { id: 'history', label: 'History', icon: <Clock className="w-4 h-4" /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : isDark 
+                      ? 'hover:bg-gray-800 text-gray-300' 
+                      : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
             ))}
-          </select>
-        )}
-        
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className={`px-4 py-2 rounded-lg border ${inputCls}`}
-        >
-          {categories.map(cat => (
-            <option key={cat} value={cat}>
-              {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex gap-2 ml-auto">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-2 rounded-lg transition-colors ${
-              viewMode === 'list' ? 'bg-blue-600 text-white' : `${cardCls} ${textPrimary}`
-            }`}
-          >
-            📋 List
-          </button>
-          <button
-            onClick={() => setViewMode('card')}
-            className={`px-3 py-2 rounded-lg transition-colors ${
-              viewMode === 'card' ? 'bg-blue-600 text-white' : `${cardCls} ${textPrimary}`
-            }`}
-          >
-            🎴 Cards
-          </button>
-          <button
-            onClick={() => setViewMode('summary')}
-            className={`px-3 py-2 rounded-lg transition-colors ${
-              viewMode === 'summary' ? 'bg-blue-600 text-white' : `${cardCls} ${textPrimary}`
-            }`}
-          >
-            📊 Summary
-          </button>
+          </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="mb-6">
-        {viewMode === 'summary' ? (
-          renderSummaryView()
-        ) : (
-          <div className={viewMode === 'card' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
-            {filteredFees.map(renderFeeCard)}
-          </div>
-        )}
-      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Total Fees</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.totalAmount.toLocaleString()}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                    <DollarSign className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Paid Amount</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.totalPaid.toLocaleString()}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'}`}>
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Pending</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.totalPending.toLocaleString()}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-yellow-900/20' : 'bg-yellow-50'}`}>
+                    <AlertCircle className="w-6 h-6 text-yellow-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Overdue</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>{stats.overdueFees}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      {/* Collection Summary */}
-      {selectedFees.length > 0 && (
-        <div className={`p-6 rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Collection Summary</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Payment Method</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {paymentMethods.map(method => (
+            {/* Quick Actions */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  onClick={handleSelectAll}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <Target className="w-6 h-6 mb-2 mx-auto text-blue-600" />
+                  <p className="font-medium">Select All Pending</p>
+                  <p className={`text-sm ${textSecondary}`}>Select all pending fees</p>
+                </button>
+                
+                <button
+                  onClick={handleClearSelection}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <Users className="w-6 h-6 mb-2 mx-auto text-purple-600" />
+                  <p className="font-medium">Clear Selection</p>
+                  <p className={`text-sm ${textSecondary}`}>Clear all selections</p>
+                </button>
+                
+                <button
+                  onClick={() => setActiveTab('payment')}
+                  disabled={selectedFees.length === 0}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    selectedFees.length === 0
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDark 
+                        ? 'bg-green-900/20 border-green-700 hover:bg-green-900/30 text-green-400' 
+                        : 'bg-green-50 border-green-200 hover:bg-green-100 text-green-600'
+                  }`}
+                >
+                  <CreditCard className="w-6 h-6 mb-2 mx-auto" />
+                  <p className="font-medium">Proceed to Payment</p>
+                  <p className={`text-sm ${textSecondary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Fees Summary */}
+            {selectedFees.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`${cardCls} p-6 rounded-xl border border-green-500 ${isDark ? 'bg-green-900/10' : 'bg-green-50'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className={`text-lg font-semibold ${textPrimary}`}>Selected Fees</h3>
+                    <p className={`text-sm ${textSecondary}`}>{selectedFees.length} fees selected</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
                     <button
-                      key={method.value}
-                      onClick={() => setPaymentMethod(method.value)}
-                      className={`p-3 rounded-lg border transition-colors ${
-                        paymentMethod === method.value
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : cardCls
-                      }`}
+                      onClick={() => setActiveTab('payment')}
+                      className={`px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors`}
                     >
-                      <span className="text-lg mr-2">{method.icon}</span>
-                      <span className={`text-sm ${textPrimary}`}>{method.label}</span>
+                      Proceed to Payment
                     </button>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Discount</label>
-                <div className="flex gap-2">
-                  <select
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value as 'percentage' | 'fixed')}
-                    className={`flex-1 px-3 py-2 rounded-lg border ${inputCls}`}
+        {/* Fees Tab */}
+        {activeTab === 'fees' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Filters */}
+            <div className={`flex flex-wrap gap-4 ${cardCls} p-4 rounded-xl border`}>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className={`px-4 py-2 rounded-lg border ${inputCls}`}
+              >
+                <option value="2024-25">2024-25</option>
+                <option value="2023-24">2023-24</option>
+                <option value="2022-23">2022-23</option>
+              </select>
+              
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className={`px-4 py-2 rounded-lg border ${inputCls}`}
+              >
+                <option value="all">All Categories</option>
+                <option value="academic">Academic</option>
+                <option value="transport">Transport</option>
+                <option value="extracurricular">Extracurricular</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Fee Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredFees.map((fee) => {
+                const isSelected = selectedFees.includes(fee.id);
+                const pendingAmount = fee.amount - fee.paidAmount;
+                
+                return (
+                  <motion.div
+                    key={fee.id}
+                    whileHover={{ scale: 1.02 }}
+                    className={`${cardCls} p-6 rounded-xl border cursor-pointer transition-all ${
+                      isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : ''
+                    }`}
+                    onClick={() => fee.status !== 'paid' && handleFeeSelection(fee.id)}
                   >
-                    <option value="percentage">Percentage</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
-                  <input
-                    type="number"
-                    value={discountAmount}
-                    onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                    placeholder={discountType === 'percentage' ? '0%' : '₹0'}
-                    className={`flex-1 px-3 py-2 rounded-lg border ${inputCls}`}
-                  />
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className={`font-semibold ${textPrimary}`}>{fee.name}</h3>
+                        <p className={`text-sm ${textSecondary}`}>{fee.description}</p>
+                      </div>
+                      {fee.priority && (
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full`}
+                          style={{ backgroundColor: getPriorityColor(fee.priority) + '20', color: getPriorityColor(fee.priority) }}
+                        >
+                          {fee.priority}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${textSecondary}`}>Amount:</span>
+                        <span className={`font-medium ${textPrimary}`}>₹{fee.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${textSecondary}`}>Status:</span>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full`}
+                          style={{ backgroundColor: getStatusColor(fee.status) + '20', color: getStatusColor(fee.status) }}
+                        >
+                          {fee.status}
+                        </span>
+                      </div>
+                      {fee.lateFee && fee.status === 'overdue' && (
+                        <div className="flex justify-between">
+                          <span className={`text-sm ${textSecondary}`}>Late Fee:</span>
+                          <span className="text-red-600 font-medium">+₹{fee.lateFee}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {fee.discountAvailable && (
+                      <div className={`mt-4 p-2 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'}`}>
+                        <p className={`text-xs ${textSecondary}`}>Discount Available</p>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Payment Tab */}
+        {activeTab === 'payment' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto space-y-6"
+          >
+            {/* Payment Methods */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Select Payment Method</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paymentMethods.map((method) => (
+                  <button
+                    key={method.id}
+                    onClick={() => setPaymentMethod(method.id)}
+                    className={`p-4 rounded-lg border transition-all ${
+                      paymentMethod === method.id
+                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                        : cardCls
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="p-2 rounded-lg"
+                        style={{ backgroundColor: method.color + '20' }}
+                      >
+                        {method.icon}
+                      </div>
+                      <div className="text-left">
+                        <p className={`font-medium ${textPrimary}`}>{method.name}</p>
+                        <p className={`text-sm ${textSecondary}`}>{method.description}</p>
+                        {method.fee && (
+                          <p className={`text-xs ${textSecondary}`}>Processing fee: ₹{method.fee}</p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Summary */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Payment Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className={`${textSecondary}`}>Selected Fees:</span>
+                  <span className={`${textPrimary}`}>{selectedFees.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={`${textSecondary}`}>Subtotal:</span>
+                  <span className={`${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={`${textSecondary}`}>Processing Fee:</span>
+                  <span className={`${textPrimary}`}>₹{paymentMethods.find(m => m.id === paymentMethod)?.fee || 0}</span>
+                </div>
+                <div className={`pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="flex justify-between">
+                    <span className={`font-semibold ${textPrimary}`}>Total Amount:</span>
+                    <span className={`font-bold text-xl ${textPrimary}`}>
+                      ₹{(stats.selectedFeesTotal + (paymentMethods.find(m => m.id === paymentMethod)?.fee || 0)).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className={textSecondary}>Selected Fees:</span>
-                <span className={textPrimary}>{selectedFees.length} fees</span>
-              </div>
-              <div className="flex justify-between">
-                <span className={textSecondary}>Total Amount:</span>
-                <span className={`font-medium ${textPrimary}`}>₹{selectedFeesTotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className={textSecondary}>Discount:</span>
-                <span className={`font-medium text-green-600`}>
-                  -{discountType === 'percentage' ? `${discountAmount}%` : `₹${discountAmount.toLocaleString()}`}
-                </span>
-              </div>
-              <div className="flex justify-between pt-3 border-t">
-                <span className={`font-semibold ${textPrimary}`}>Final Amount:</span>
-                <span className={`text-xl font-bold text-blue-600`}>₹{finalAmount.toLocaleString()}</span>
+            {/* Promo Code */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Promo Code</h3>
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Enter promo code"
+                  className={`flex-1 px-4 py-2 rounded-lg border ${inputCls}`}
+                />
+                <button
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  Apply
+                </button>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-3 mt-6">
+            {/* Pay Button */}
             <button
-              onClick={handleCollectFee}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              onClick={handlePayment}
+              disabled={isProcessing || selectedFees.length === 0}
+              className={`w-full py-4 rounded-lg font-medium transition-colors ${
+                isProcessing || selectedFees.length === 0
+                  ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
             >
-              💰 Collect Payment
+              {isProcessing ? 'Processing...' : `Pay ₹${(stats.selectedFeesTotal + (paymentMethods.find(m => m.id === paymentMethod)?.fee || 0)).toLocaleString()}`}
             </button>
-            <button
-              onClick={() => setSelectedFees([])}
-              className={`px-6 py-3 font-medium rounded-lg transition-colors ${cardCls} ${textPrimary}`}
-            >
-              Clear Selection
-            </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Payment History</h3>
+              <div className="space-y-4">
+                {allFeeData
+                  .filter(fee => fee.status === 'paid' || fee.status === 'partial')
+                  .map((fee) => (
+                    <div key={fee.id} className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className={`font-medium ${textPrimary}`}>{fee.name}</h4>
+                          <p className={`text-sm ${textSecondary}`}>{fee.academicYear}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-medium ${textPrimary}`}>₹{fee.paidAmount.toLocaleString()}</p>
+                          <p className={`text-sm ${textSecondary}`}>{fee.dueDate}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
 
       {/* Receipt Modal */}
       <AnimatePresence>
@@ -447,56 +662,25 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={() => setShowReceipt(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-md rounded-xl p-6 ${cardCls}`}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`${cardCls} p-6 rounded-xl max-w-md w-full`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-center mb-6">
-                <div className="text-4xl mb-4">🧾</div>
-                <h3 className={`text-xl font-bold mb-2 ${textPrimary}`}>Payment Receipt</h3>
-                <p className={`${textSecondary}`}>Receipt No: RCP-{Date.now()}</p>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className={textSecondary}>Student:</span>
-                  <span className={textPrimary}>{studentData?.name || 'Student'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={textSecondary}>Class:</span>
-                  <span className={textPrimary}>{studentData?.studentClass || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={textSecondary}>Payment Method:</span>
-                  <span className={textPrimary}>{paymentMethods.find(m => m.value === paymentMethod)?.label}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={textSecondary}>Amount Paid:</span>
-                  <span className={`font-bold text-green-600`}>₹{collectedAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={textSecondary}>Date:</span>
-                  <span className={textPrimary}>{new Date().toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="text-center">
+                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                <h3 className={`text-xl font-bold ${textPrimary} mb-2`}>Payment Successful!</h3>
+                <p className={`${textSecondary} mb-6`}>Your payment has been processed successfully.</p>
                 <button
                   onClick={() => setShowReceipt(false)}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                  className={`w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors`}
                 >
                   Done
-                </button>
-                <button
-                  className={`px-4 py-2 font-medium rounded-lg transition-colors ${cardCls} ${textPrimary}`}
-                >
-                  🖨️ Print
                 </button>
               </div>
             </motion.div>

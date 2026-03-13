@@ -21,7 +21,6 @@ import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } f
 import { useFeeState } from './hooks/useFeeState';
 import { createFeeDataHandlers } from './handlers/feeDataHandlers';
 import { createFeeActionHandlers } from './handlers/feeActionHandlers';
-import FeeCollectionModal from './components/FeeCollectionModal';
 import FeeDashboard from './components/FeeDashboard';
 import FeeFilters from './components/FeeFilters';
 import FeeTabContent from './components/FeeTabContent';
@@ -132,8 +131,7 @@ export default function FeesPage() {
         )}
       </div>
 
-      <FeeCollectionModal collectionForm={collectionForm} feeStructures={feeStructures} handleCollectFee={handleCollectFee} setCollectionForm={setCollectionForm} setShowCollectionModal={setShowCollectionModal} showCollectionModal={showCollectionModal} theme={theme} />
-      <FeeStructureModal feeStructureForm={feeStructureForm} handleCreateFeeStructure={handleCreateFeeStructure} setFeeStructureForm={setFeeStructureForm} setShowFeeStructureModal={setShowFeeStructureModal} showFeeStructureModal={showFeeStructureModal} theme={theme} />
+            <FeeStructureModal feeStructureForm={feeStructureForm} handleCreateFeeStructure={handleCreateFeeStructure} setFeeStructureForm={setFeeStructureForm} setShowFeeStructureModal={setShowFeeStructureModal} showFeeStructureModal={showFeeStructureModal} theme={theme} />
       <FeeColumnSettingsModal 
         columnSettings={columnSettings}
         resetColumns={resetColumns}
