@@ -135,11 +135,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
 
   // Computed values for enhanced UI
   const filteredFees = useMemo(() => {
-    return allFeeData.filter(fee => {
+    const filtered = allFeeData.filter(fee => {
       const yearMatch = selectedYear === 'all' || fee.academicYear === selectedYear;
       const categoryMatch = selectedCategory === 'all' || fee.category === selectedCategory;
       return yearMatch && categoryMatch;
     });
+        return filtered;
   }, [selectedYear, selectedCategory]);
 
   const totalAmount = useMemo(() => {
@@ -184,9 +185,9 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   };
 
   const handleSelectAll = () => {
-    const pendingFees = filteredFees.filter(fee => fee.status === 'pending' || fee.status === 'overdue');
-    const pendingIds = pendingFees.map(fee => fee.id);
-    setSelectedFees(pendingIds);
+    const unpaidFees = filteredFees.filter(fee => fee.status !== 'paid');
+    const unpaidIds = unpaidFees.map(fee => fee.id);
+    setSelectedFees(unpaidIds);
   };
 
   const handleClearSelection = () => {
@@ -242,6 +243,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     }
   };
 
+  
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
@@ -377,60 +379,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
               </div>
             </div>
 
-            {/* Selected Fees Summary */}
-            {selectedFees.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`${cardCls} p-6 rounded-xl border border-green-500 ${isDark ? 'bg-green-900/10' : 'bg-green-50'}`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className={`text-lg font-semibold ${textPrimary}`}>Selected Fees</h3>
-                    <p className={`text-sm ${textSecondary}`}>{selectedFees.length} fees selected</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
-                    <button
-                      onClick={() => setActiveTab('payment')}
-                      className={`px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors`}
-                    >
-                      Proceed to Payment
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Fee breakdown */}
-                <div className="space-y-2 pt-4 border-t border-green-200 dark:border-green-800">
-                  {selectedFees.map(feeId => {
-                    const fee = filteredFees.find(f => f.id === feeId);
-                    if (!fee) return null;
-                    const customAmount = customAmounts[feeId] || fee.amount;
-                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== fee.amount;
-                    
-                    return (
-                      <div key={feeId} className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className={textSecondary}>{fee.name}</span>
-                          {isCustom && (
-                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                              Custom
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isCustom && (
-                            <span className={`line-through ${textSecondary}`}>₹{fee.amount.toLocaleString()}</span>
-                          )}
-                          <span className={`font-medium ${textPrimary}`}>₹{customAmount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
+                      </motion.div>
         )}
 
         {/* Fees Tab */}
@@ -440,29 +389,68 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Filters */}
-            <div className={`flex flex-wrap gap-4 ${cardCls} p-4 rounded-xl border`}>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className={`px-4 py-2 rounded-lg border ${inputCls}`}
-              >
-                <option value="2024-25">2024-25</option>
-                <option value="2023-24">2023-24</option>
-                <option value="2022-23">2022-23</option>
-              </select>
-              
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className={`px-4 py-2 rounded-lg border ${inputCls}`}
-              >
-                <option value="all">All Categories</option>
-                <option value="academic">Academic</option>
-                <option value="transport">Transport</option>
-                <option value="extracurricular">Extracurricular</option>
-                <option value="other">Other</option>
-              </select>
+            {/* Filters and Actions */}
+            <div className={`flex flex-wrap gap-4 items-center justify-between ${cardCls} p-4 rounded-xl border`}>
+              <div className="flex flex-wrap gap-4">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border ${inputCls}`}
+                >
+                  <option value="2024-25">2024-25</option>
+                  <option value="2023-24">2023-24</option>
+                  <option value="2022-23">2022-23</option>
+                </select>
+                
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className={`px-4 py-2 rounded-lg border ${inputCls}`}
+                >
+                  <option value="all">All Categories</option>
+                  <option value="academic">Academic</option>
+                  <option value="transport">Transport</option>
+                  <option value="extracurricular">Extracurricular</option>
+                  <option value="other">Other</option>
+                  <option value="accommodation">Accommodation</option>
+                </select>
+              </div>
+
+              {/* Selection Actions */}
+              <div className="flex gap-2 items-center">
+                {selectedFees.length > 0 && (
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    isDark 
+                      ? 'bg-green-900/30 text-green-400 border border-green-700' 
+                      : 'bg-green-100 text-green-700 border border-green-300'
+                  }`}>
+                    {selectedFees.length} selected
+                  </span>
+                )}
+                <button
+                  onClick={handleSelectAll}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                >
+                  Select All Unpaid
+                </button>
+                <button
+                  onClick={handleClearSelection}
+                  disabled={selectedFees.length === 0}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedFees.length === 0
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDark 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
 
             {/* Fee Cards */}
@@ -475,11 +463,30 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   <motion.div
                     key={fee.id}
                     whileHover={{ scale: 1.02 }}
-                    className={`${cardCls} p-6 rounded-xl border cursor-pointer transition-all ${
-                      isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : ''
+                    className={`${cardCls} p-6 rounded-xl border-2 cursor-pointer transition-all relative ${
+                      isSelected 
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg' 
+                        : fee.status === 'paid'
+                          ? 'border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:shadow-md'
                     }`}
                     onClick={() => fee.status !== 'paid' && handleFeeSelection(fee.id)}
                   >
+                    {/* Selection Indicator */}
+                    {fee.status === 'paid' ? (
+                      <div className="absolute top-3 right-3 w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ) : isSelected && (
+                      <div className="absolute top-3 right-3 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                    
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className={`font-semibold ${textPrimary}`}>{fee.name}</h3>
@@ -559,6 +566,60 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 );
               })}
             </div>
+
+            {/* Selected Fees Summary */}
+            {selectedFees.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`${cardCls} p-6 rounded-xl border border-green-500 ${isDark ? 'bg-green-900/10' : 'bg-green-50'}`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className={`text-lg font-semibold ${textPrimary}`}>Selected Fees</h3>
+                    <p className={`text-sm ${textSecondary}`}>{selectedFees.length} fees selected</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
+                    <button
+                      onClick={() => setActiveTab('payment')}
+                      className={`px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors`}
+                    >
+                      Proceed to Payment
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Fee breakdown */}
+                <div className="space-y-2 pt-4 border-t border-green-200 dark:border-green-800">
+                  {selectedFees.map(feeId => {
+                    const fee = filteredFees.find(f => f.id === feeId);
+                    if (!fee) return null;
+                    const customAmount = customAmounts[feeId] || fee.amount;
+                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== fee.amount;
+                    
+                    return (
+                      <div key={feeId} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className={textSecondary}>{fee.name}</span>
+                          {isCustom && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isCustom && (
+                            <span className={`line-through ${textSecondary}`}>₹{fee.amount.toLocaleString()}</span>
+                          )}
+                          <span className={`font-medium ${textPrimary}`}>₹{customAmount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
 
