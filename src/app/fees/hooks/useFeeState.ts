@@ -101,9 +101,11 @@ export function useFeeState() {
 
   // Search and analytics
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchAnalytics, setSearchAnalytics] = useState({
     totalSearches: 0,
     averageResults: 0,
@@ -120,12 +122,21 @@ export function useFeeState() {
     }));
   };
 
+  // Debounce effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Enhanced filtering with AI search capabilities
   const filteredStudentSummaries = studentFeeSummaries.filter(student => {
     let matchesSearch = true;
     
-    if (searchTerm) {
-      const lowerQuery = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const lowerQuery = debouncedSearchTerm.toLowerCase();
       
       // Basic text matching
       const basicMatch = student.studentName.toLowerCase().includes(lowerQuery) ||
@@ -268,11 +279,13 @@ export function useFeeState() {
     selectedColumns, setSelectedColumns,
     columnSettings, toggleColumn, resetColumns,
     searchTerm, setSearchTerm,
+    debouncedSearchTerm,
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,
     showAISuggestions, setShowAISuggestions,
     handleAISearch,
     searchAnalytics, setSearchAnalytics,
+    isLoading, setIsLoading,
     bulkOperationType, setBulkOperationType,
     bulkOperationData, setBulkOperationData,
     bulkOperationProgress, setBulkOperationProgress,

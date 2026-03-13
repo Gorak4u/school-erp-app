@@ -144,6 +144,28 @@ export default function StudentTable({
                   <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(student.status)}`}>{student.status}</span>
                   <span className={`text-xs font-medium ${getAttendanceColor(student.attendance.percentage)}`}>{student.attendance.percentage}%</span>
                 </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => window.location.href = `/fee-collection?studentId=${student.id}`}
+                    className={`flex-1 px-2 py-1 text-xs rounded-lg transition-colors ${
+                      theme === 'dark' 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-green-500 hover:bg-green-600 text-white'
+                    }`}
+                  >
+                    💰 Fee
+                  </button>
+                  <button
+                    onClick={() => setSelectedStudent(student)}
+                    className={`flex-1 px-2 py-1 text-xs rounded-lg transition-colors ${
+                      theme === 'dark' 
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    👁️ View
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -282,6 +304,13 @@ export default function StudentTable({
                       {visibleColumns.includes('actions') && (
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => window.location.href = `/fee-collection?studentId=${student.id}`}
+                              className="p-1 rounded hover:bg-green-500/10 text-green-500 transition-colors"
+                              title="Collect Fee"
+                            >
+                              💰
+                            </button>
                             <button
                               onClick={() => setSelectedStudent(student)}
                               className="p-1 rounded hover:bg-blue-500/10 text-blue-500 transition-colors"

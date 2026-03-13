@@ -28,6 +28,7 @@ import FeeTabContent from './components/FeeTabContent';
 import FeeStructureModal from './components/FeeStructureModal';
 import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
+import EnhancedFeeCollection from './components/EnhancedFeeCollection';
 import FeeInvoiceManager from './components/FeeInvoiceManager';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
@@ -102,7 +103,7 @@ export default function FeesPage() {
             { id: 'invoices', label: '🧾 Invoices' },
             { id: 'analytics', label: '📉 Analytics' },
             { id: 'notifications', label: '🔔 Notifications' },
-          ].map(tab => (
+                      ].map(tab => (
             <button
               key={tab.id}
               onClick={() => ctx.setActiveTab(tab.id)}

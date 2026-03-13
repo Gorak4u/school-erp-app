@@ -105,6 +105,22 @@ export default function NavigationSidebar({
             <span className="font-medium">Fees</span>
           </Link>
 
+          <Link
+            href="/fee-collection"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPage === 'fee-collection'
+                ? theme === 'dark' 
+                  ? 'bg-green-600/20 text-green-400 border-l-4 border-green-400' 
+                  : 'bg-green-50 text-green-600 border-l-4 border-green-600'
+                : theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <span className="text-lg">💵</span>
+            <span className="font-medium">Fee Collection</span>
+          </Link>
+
           <div className={`text-xs font-semibold uppercase tracking-wider ${
             theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
           } mb-4 mt-6`}>

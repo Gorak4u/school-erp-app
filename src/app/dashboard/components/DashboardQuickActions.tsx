@@ -36,7 +36,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
       title: 'Collect Fee',
       description: 'Process fee payment',
       icon: '💳',
-      link: '/fees?action=collect',
+      link: '/fee-collection',
       color: 'green',
       badge: 'New'
     },
