@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/hooks/useAuth';
 import Toast from './Toast';
 
 interface AppLayoutProps {
@@ -24,6 +25,7 @@ export default function AppLayout({
   onThemeChange
 }: AppLayoutProps) {
   const { theme: globalTheme, setTheme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -144,7 +146,7 @@ export default function AppLayout({
       >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* Header Title */}
+            {/* Header Title + Welcome */}
             <div className="flex items-center gap-4">
               {/* Sidebar Toggle Indicator */}
               <button
@@ -165,9 +167,21 @@ export default function AppLayout({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className={`text-2xl font-bold ${
-                globalTheme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>{title}</h1>
+              <div>
+                <h1 className={`text-2xl font-bold ${
+                  globalTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>{title}</h1>
+                {user && (
+                  <p className={`text-sm ${
+                    globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Welcome back, <span className="font-medium">{user.firstName} {user.lastName}</span>
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      globalTheme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                    }">{user.role}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Right Side Actions */}
@@ -207,7 +221,9 @@ export default function AppLayout({
                   }`}
                 >
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">A</span>
+                    <span className="text-white text-sm font-bold">
+                      {user ? (user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase() : 'U'}
+                    </span>
                   </div>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -220,12 +236,28 @@ export default function AppLayout({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className={`absolute right-0 mt-2 w-48 rounded-lg border shadow-lg ${
+                      className={`absolute right-0 mt-2 w-56 rounded-lg border shadow-lg ${
                         globalTheme === 'dark' 
                           ? 'bg-gray-800 border-gray-700' 
                           : 'bg-white border-gray-200'
                       }`}
                     >
+                      {/* User Info in Dropdown */}
+                      {user && (
+                        <div className={`px-4 py-3 border-b ${
+                          globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                          <p className={`font-medium text-sm ${
+                            globalTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                          }`}>{user.firstName} {user.lastName}</p>
+                          <p className={`text-xs ${
+                            globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>{user.email}</p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs ${
+                            globalTheme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                          }`}>{user.role}</span>
+                        </div>
+                      )}
                       <div className="p-2">
                         <Link
                           href="/profile"
