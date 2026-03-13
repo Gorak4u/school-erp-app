@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavigationSidebar from './NavigationSidebar';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export default function AppLayout({
   theme = 'dark',
   onThemeChange
 }: AppLayoutProps) {
+  const { theme: globalTheme, setTheme, toggleTheme } = useTheme();
   const [isClient, setIsClient] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -75,13 +77,13 @@ export default function AppLayout({
 
   return (
     <div className={`min-h-screen overflow-hidden relative transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-black text-white' : 'bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900'
+      globalTheme === 'dark' ? 'bg-black text-white' : 'bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900'
     }`}>
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         {/* Gradient Mesh */}
         <div className={`absolute inset-0 ${
-          theme === 'dark' 
+          globalTheme === 'dark' 
             ? 'bg-gradient-to-br from-gray-900 via-black to-gray-900' 
             : 'bg-gradient-to-br from-blue-100/50 via-white/50 to-indigo-100/50'
         }`} />
@@ -92,7 +94,7 @@ export default function AppLayout({
             className="absolute inset-0 pointer-events-none"
             style={{
               background: `radial-gradient(600px at ${mousePosition.x}px ${mousePosition.y}px, ${
-                theme === 'dark' 
+                globalTheme === 'dark' 
                   ? 'rgba(59, 130, 246, 0.15)' 
                   : 'rgba(59, 130, 246, 0.08)'
               }, transparent 40%)`,
@@ -129,7 +131,7 @@ export default function AppLayout({
       {/* Header */}
       <motion.header
         className={`relative z-30 backdrop-blur-xl border-b sticky top-0 transition-all duration-300 ${
-          theme === 'dark' 
+          globalTheme === 'dark' 
             ? 'bg-gray-900/80 border-gray-800' 
             : 'bg-white/80 border-gray-200'
         }`}
@@ -146,7 +148,7 @@ export default function AppLayout({
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className={`p-2 rounded-lg transition-all duration-300 ${
-                  theme === 'dark' 
+                  globalTheme === 'dark' 
                     ? 'hover:bg-gray-800 text-gray-400' 
                     : 'hover:bg-gray-200 text-gray-600'
                 }`}
@@ -162,29 +164,27 @@ export default function AppLayout({
                 </svg>
               </button>
               <h1 className={`text-2xl font-bold ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                globalTheme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>{title}</h1>
             </div>
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Theme Toggle */}
-              {onThemeChange && (
-                <button
-                  onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-gray-800 text-gray-300' 
-                      : 'hover:bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {theme === 'dark' ? 'Dark' : 'Light'}
-                </button>
-              )}
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-lg transition-colors ${
+                  globalTheme === 'dark' 
+                    ? 'hover:bg-gray-800 text-gray-300' 
+                    : 'hover:bg-gray-200 text-gray-600'
+                }`}
+              >
+                {globalTheme === 'dark' ? 'Dark' : 'Light'}
+              </button>
 
               {/* Notifications */}
               <button className={`relative p-2 rounded-lg transition-colors ${
-                theme === 'dark' 
+                globalTheme === 'dark' 
                   ? 'hover:bg-gray-800 text-gray-300' 
                   : 'hover:bg-gray-200 text-gray-600'
               }`}>
@@ -199,7 +199,7 @@ export default function AppLayout({
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
-                    theme === 'dark' 
+                    globalTheme === 'dark' 
                       ? 'hover:bg-gray-800 text-gray-300' 
                       : 'hover:bg-gray-200 text-gray-600'
                   }`}
@@ -219,7 +219,7 @@ export default function AppLayout({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
                       className={`absolute right-0 mt-2 w-48 rounded-lg border shadow-lg ${
-                        theme === 'dark' 
+                        globalTheme === 'dark' 
                           ? 'bg-gray-800 border-gray-700' 
                           : 'bg-white border-gray-200'
                       }`}
@@ -228,7 +228,7 @@ export default function AppLayout({
                         <Link
                           href="/profile"
                           className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            theme === 'dark' 
+                            globalTheme === 'dark' 
                               ? 'hover:bg-gray-700 text-gray-300' 
                               : 'hover:bg-gray-100 text-gray-700'
                           }`}
@@ -238,7 +238,7 @@ export default function AppLayout({
                         <Link
                           href="/settings"
                           className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            theme === 'dark' 
+                            globalTheme === 'dark' 
                               ? 'hover:bg-gray-700 text-gray-300' 
                               : 'hover:bg-gray-100 text-gray-700'
                           }`}
@@ -246,11 +246,11 @@ export default function AppLayout({
                           ⚙️ Settings
                         </Link>
                         <hr className={`my-2 ${
-                          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                          globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                         }`} />
                         <button
                           className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                            theme === 'dark' 
+                            globalTheme === 'dark' 
                               ? 'hover:bg-gray-700 text-gray-300' 
                               : 'hover:bg-gray-100 text-gray-700'
                           }`}

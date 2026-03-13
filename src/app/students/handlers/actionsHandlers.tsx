@@ -135,93 +135,436 @@ export function createActionsHandlers(ctx: any) {
     const printContent = `
       <html>
         <head>
-          <title>Student Profile</title>
+          <title>Student Profile Report</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1 { color: #333; text-align: center; }
-            .profile-header { text-align: center; margin-bottom: 30px; }
-            .profile-info { margin-bottom: 20px; }
-            .section { margin-bottom: 25px; }
-            .section h3 { color: #333; border-bottom: 2px solid #333; padding-bottom: 5px; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-            .info-item { margin-bottom: 8px; }
-            .label { font-weight: bold; color: #555; }
-            .date { text-align: right; margin-bottom: 20px; }
+            @page { margin: 0.5in; }
+            * { box-sizing: border-box; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              margin: 0; 
+              padding: 0;
+              line-height: 1.6;
+              color: #1a1a1a;
+              background: #fff;
+            }
+            
+            .report-header {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 2rem;
+              text-align: center;
+              position: relative;
+              overflow: hidden;
+            }
+            
+            .report-header::before {
+              content: '';
+              position: absolute;
+              top: -50%;
+              left: -50%;
+              width: 200%;
+              height: 200%;
+              background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+              background-size: 20px 20px;
+              animation: move 20s linear infinite;
+            }
+            
+            @keyframes move {
+              0% { transform: translate(0, 0); }
+              100% { transform: translate(20px, 20px); }
+            }
+            
+            .report-header h1 {
+              margin: 0;
+              font-size: 2.5rem;
+              font-weight: 700;
+              text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+              position: relative;
+              z-index: 1;
+            }
+            
+            .report-header h2 {
+              margin: 0.5rem 0 0 0;
+              font-size: 1.5rem;
+              font-weight: 300;
+              opacity: 0.95;
+              position: relative;
+              z-index: 1;
+            }
+            
+            .report-meta {
+              background: #f8f9fa;
+              padding: 1rem 2rem;
+              border-bottom: 3px solid #e9ecef;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            
+            .report-id {
+              font-weight: 600;
+              color: #495057;
+            }
+            
+            .report-date {
+              color: #6c757d;
+              font-size: 0.9rem;
+            }
+            
+            .student-photo {
+              width: 120px;
+              height: 120px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 3rem;
+              font-weight: bold;
+              margin: 0 auto 2rem;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            
+            .content-wrapper {
+              padding: 2rem;
+              max-width: 1200px;
+              margin: 0 auto;
+            }
+            
+            .section {
+              margin-bottom: 2.5rem;
+              background: white;
+              border-radius: 12px;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+              overflow: hidden;
+            }
+            
+            .section-header {
+              background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+              padding: 1rem 1.5rem;
+              border-left: 5px solid #667eea;
+              border-bottom: 2px solid #e9ecef;
+            }
+            
+            .section-header h3 {
+              margin: 0;
+              color: #2c3e50;
+              font-size: 1.25rem;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+            }
+            
+            .section-icon {
+              width: 24px;
+              height: 24px;
+              background: #667eea;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 0.8rem;
+            }
+            
+            .section-content {
+              padding: 1.5rem;
+            }
+            
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+              gap: 1.5rem;
+            }
+            
+            .info-item {
+              display: flex;
+              flex-direction: column;
+              gap: 0.25rem;
+            }
+            
+            .info-label {
+              font-weight: 600;
+              color: #6c757d;
+              font-size: 0.85rem;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            
+            .info-value {
+              color: #2c3e50;
+              font-size: 1.05rem;
+              font-weight: 500;
+            }
+            
+            .highlight-box {
+              background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+              border: 2px solid #667eea;
+              border-radius: 8px;
+              padding: 1rem;
+              margin-top: 1rem;
+            }
+            
+            .stats-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 1rem;
+              margin-top: 1rem;
+            }
+            
+            .stat-card {
+              background: white;
+              border-radius: 8px;
+              padding: 1rem;
+              text-align: center;
+              border: 1px solid #e9ecef;
+              transition: transform 0.2s;
+            }
+            
+            .stat-value {
+              font-size: 1.5rem;
+              font-weight: 700;
+              color: #667eea;
+            }
+            
+            .stat-label {
+              font-size: 0.85rem;
+              color: #6c757d;
+              margin-top: 0.25rem;
+            }
+            
+            .footer {
+              background: #2c3e50;
+              color: white;
+              padding: 2rem;
+              text-align: center;
+              margin-top: 3rem;
+            }
+            
+            .footer p {
+              margin: 0;
+              opacity: 0.8;
+            }
+            
+            @media print {
+              .report-header::before { display: none; }
+              body { font-size: 12pt; }
+              .section { page-break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
-          <div class="profile-header">
-            <h1>Student Management System</h1>
-            <h2>Student Profile Report</h2>
-            <div class="date">Generated on: ${new Date().toLocaleDateString()}</div>
+          <div class="report-header">
+            <h1>🎓 Student Profile Report</h1>
+            <h2>Comprehensive Academic Record</h2>
           </div>
           
-          <div class="section">
-            <h3>Basic Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">Name:</span> ${student.name}</div>
-              <div class="info-item"><span class="label">Admission No:</span> ADM${String(student.id).padStart(4, '0')}</div>
-              <div class="info-item"><span class="label">Class:</span> ${student.class}</div>
-              <div class="info-item"><span class="label">Roll No:</span> ${student.rollNo}</div>
-              <div class="info-item"><span class="label">Date of Birth:</span> ${student.dateOfBirth}</div>
-              <div class="info-item"><span class="label">Gender:</span> ${student.gender}</div>
-              <div class="info-item"><span class="label">Blood Group:</span> ${student.bloodGroup}</div>
-              <div class="info-item"><span class="label">Phone:</span> ${student.phone}</div>
-              <div class="info-item"><span class="label">Email:</span> ${student.email}</div>
-              <div class="info-item"><span class="label">Language Medium:</span> ${student.languageMedium}</div>
+          <div class="report-meta">
+            <div class="report-id">Student ID: ADM${String(student.id).padStart(4, '0')}</div>
+            <div class="report-date">Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+          </div>
+          
+          <div class="content-wrapper">
+            <div class="student-photo">${student.name.charAt(0).toUpperCase()}</div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">👤</span> Personal Information</h3>
+              </div>
+              <div class="section-content">
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="info-label">Full Name</span>
+                    <span class="info-value">${student.name}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Admission Number</span>
+                    <span class="info-value">ADM${String(student.id).padStart(4, '0')}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Class & Section</span>
+                    <span class="info-value">${student.class} - Roll No: ${student.rollNo}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Date of Birth</span>
+                    <span class="info-value">${student.dateOfBirth}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Gender</span>
+                    <span class="info-value">${student.gender}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Blood Group</span>
+                    <span class="info-value">${student.bloodGroup}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Contact Number</span>
+                    <span class="info-value">${student.phone}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Email Address</span>
+                    <span class="info-value">${student.email}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Language Medium</span>
+                    <span class="info-value">${student.languageMedium}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">👨‍👩‍👧‍👦</span> Parent/Guardian Information</h3>
+              </div>
+              <div class="section-content">
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="info-label">Father's Name</span>
+                    <span class="info-value">${student.fatherName}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Father's Contact</span>
+                    <span class="info-value">${student.fatherPhone}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Father's Occupation</span>
+                    <span class="info-value">${student.fatherOccupation}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Mother's Name</span>
+                    <span class="info-value">${student.motherName}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Mother's Contact</span>
+                    <span class="info-value">${student.motherPhone}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Mother's Occupation</span>
+                    <span class="info-value">${student.motherOccupation}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">📍</span> Address Information</h3>
+              </div>
+              <div class="section-content">
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="info-label">Street Address</span>
+                    <span class="info-value">${student.address}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">City</span>
+                    <span class="info-value">${student.city}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">State</span>
+                    <span class="info-value">${student.state}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">PIN Code</span>
+                    <span class="info-value">${student.pinCode}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">📚</span> Academic Performance</h3>
+              </div>
+              <div class="section-content">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-value">${student.academics.gpa}</div>
+                    <div class="stat-label">Current GPA</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.academics.rank}</div>
+                    <div class="stat-label">Class Rank</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.academics.totalSubjects}</div>
+                    <div class="stat-label">Total Subjects</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.academics.passedSubjects}</div>
+                    <div class="stat-label">Passed Subjects</div>
+                  </div>
+                </div>
+                <div class="highlight-box">
+                  <strong>Academic Status:</strong> ${student.academics.gpa >= 3.5 ? 'Excellent Performance' : student.academics.gpa >= 3.0 ? 'Good Performance' : 'Needs Improvement'}
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">📊</span> Attendance Records</h3>
+              </div>
+              <div class="section-content">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-value">${student.attendance.present}</div>
+                    <div class="stat-label">Present Days</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.attendance.absent}</div>
+                    <div class="stat-label">Absent Days</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.attendance.late}</div>
+                    <div class="stat-label">Late Arrivals</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${student.attendance.percentage}%</div>
+                    <div class="stat-label">Attendance Rate</div>
+                  </div>
+                </div>
+                <div class="highlight-box">
+                  <strong>Attendance Status:</strong> ${student.attendance.percentage >= 95 ? 'Excellent' : student.attendance.percentage >= 85 ? 'Good' : student.attendance.percentage >= 75 ? 'Satisfactory' : 'Needs Attention'}
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-header">
+                <h3><span class="section-icon">💰</span> Financial Information</h3>
+              </div>
+              <div class="section-content">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-value">₹${student.fees.total.toLocaleString()}</div>
+                    <div class="stat-label">Total Fees</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">₹${student.fees.paid.toLocaleString()}</div>
+                    <div class="stat-label">Paid Amount</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">₹${student.fees.pending.toLocaleString()}</div>
+                    <div class="stat-label">Pending Amount</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-value">${Math.round((student.fees.paid / student.fees.total) * 100)}%</div>
+                    <div class="stat-label">Payment Progress</div>
+                  </div>
+                </div>
+                <div class="highlight-box">
+                  <strong>Last Payment:</strong> ${student.fees.lastPaymentDate || 'No payments recorded'}
+                </div>
+              </div>
             </div>
           </div>
           
-          <div class="section">
-            <h3>Parents Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">Father Name:</span> ${student.fatherName}</div>
-              <div class="info-item"><span class="label">Father Phone:</span> ${student.fatherPhone}</div>
-              <div class="info-item"><span class="label">Father Occupation:</span> ${student.fatherOccupation}</div>
-              <div class="info-item"><span class="label">Mother Name:</span> ${student.motherName}</div>
-              <div class="info-item"><span class="label">Mother Phone:</span> ${student.motherPhone}</div>
-              <div class="info-item"><span class="label">Mother Occupation:</span> ${student.motherOccupation}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h3>Address Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">Address:</span> ${student.address}</div>
-              <div class="info-item"><span class="label">City:</span> ${student.city}</div>
-              <div class="info-item"><span class="label">State:</span> ${student.state}</div>
-              <div class="info-item"><span class="label">Pin Code:</span> ${student.pinCode}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h3>Academic Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">GPA:</span> ${student.academics.gpa}</div>
-              <div class="info-item"><span class="label">Class Rank:</span> ${student.academics.rank}</div>
-              <div class="info-item"><span class="label">Total Subjects:</span> ${student.academics.totalSubjects}</div>
-              <div class="info-item"><span class="label">Passed Subjects:</span> ${student.academics.passedSubjects}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h3>Attendance Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">Present Days:</span> ${student.attendance.present}</div>
-              <div class="info-item"><span class="label">Absent Days:</span> ${student.attendance.absent}</div>
-              <div class="info-item"><span class="label">Late Days:</span> ${student.attendance.late}</div>
-              <div class="info-item"><span class="label">Attendance %:</span> ${student.attendance.percentage}%</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h3>Fee Information</h3>
-            <div class="info-grid">
-              <div class="info-item"><span class="label">Total Fees:</span> ₹${student.fees.total}</div>
-              <div class="info-item"><span class="label">Paid Amount:</span> ₹${student.fees.paid}</div>
-              <div class="info-item"><span class="label">Pending Amount:</span> ₹${student.fees.pending}</div>
-              <div class="info-item"><span class="label">Last Payment:</span> ${student.fees.lastPaymentDate}</div>
-            </div>
+          <div class="footer">
+            <p>© 2024 Student Management System | This document is confidential and intended for authorized use only</p>
           </div>
         </body>
       </html>

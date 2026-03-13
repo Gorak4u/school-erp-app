@@ -65,17 +65,7 @@ export default function StudentDashboard({
           >
             📥 Import
           </button>
-          <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showAdvancedFilters
-                ? 'bg-blue-600 text-white'
-                : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-            }`}
-          >
-            🔍 Advanced Search
-          </button>
-          {selectedStudents.length > 0 && (
+                    {selectedStudents.length > 0 && (
             <button
               onClick={() => setShowBulkOperationModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white transition-colors"

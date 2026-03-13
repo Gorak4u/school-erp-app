@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
-import StudentWorkflows from './StudentWorkflows';
 import StudentMedicalInfo from './StudentMedicalInfo';
 
 interface StudentProfileModalProps {
@@ -23,7 +22,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50]"
             onClick={() => setSelectedStudent(null)}
           >
             <motion.div
@@ -31,7 +30,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 20 }}
-              className={`relative w-full max-w-7xl mx-4 max-h-[95vh] overflow-hidden rounded-2xl border ${
+              className={`relative w-full max-w-7xl h-[90vh] mx-4 overflow-hidden rounded-2xl border ${
                 theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -122,14 +121,13 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {[
                     { id: 'overview', label: '📋 Overview', icon: '📋' },
-                    { id: 'communication', label: '💬 Communication', icon: '💬' },
                     { id: 'academics', label: '📈 Academics', icon: '📈' },
                     { id: 'fees', label: '💰 Fees', icon: '💰' },
                     { id: 'attendance', label: '📊 Attendance', icon: '📊' },
-                    { id: 'parents', label: '👨‍👩‍👧 Parents', icon: '👨‍👩‍👧' },
-                    { id: 'analytics', label: '📉 Analytics', icon: '📉' },
-                    { id: 'workflows', label: '🔄 Workflows', icon: '🔄' },
-                    { id: 'medical', label: '🏥 Medical', icon: '🏥' }
+                    { id: 'analytics', label: '📈 Analytics', icon: '📈' },
+                    { id: 'medical', label: '🏥 Medical', icon: '🏥' },
+                    { id: 'communication', label: '💬 Communication', icon: '💬' },
+                    { id: 'parents', label: '👨‍👩‍👧 Parents', icon: '👨‍👩‍👧' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -152,12 +150,12 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
               {/* Profile Content */}
               <div className="flex-1 overflow-y-auto">
-                <div className="p-6">
+                <div className="p-4 space-y-4">
                   {/* Overview Tab */}
                   {activeTab === 'overview' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {/* Basic Information */}
-                      <div className={`rounded-lg border p-6 ${
+                      <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                       }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${
@@ -216,7 +214,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
 
                       {/* Parents Information */}
-                      <div className={`rounded-lg border p-6 ${
+                      <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                       }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${
@@ -259,7 +257,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
 
                       {/* Address Information */}
-                      <div className={`rounded-lg border p-6 ${
+                      <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                       }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${
@@ -305,7 +303,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
                   {/* Academics Tab */}
                   {activeTab === 'academics' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className={`text-xl font-semibold ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
@@ -323,8 +321,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
                       
                       {/* Academic Summary Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className={`rounded-lg border p-6 ${
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                         }`}>
                           <div className="flex items-center justify-between">
@@ -344,7 +342,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                           </div>
                         </div>
                         
-                        <div className={`rounded-lg border p-6 ${
+                        <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                         }`}>
                           <div className="flex items-center justify-between">
@@ -364,7 +362,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                           </div>
                         </div>
                         
-                        <div className={`rounded-lg border p-6 ${
+                        <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                         }`}>
                           <div className="flex items-center justify-between">
@@ -386,7 +384,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
 
                       {/* Recent Grades */}
-                      <div className={`rounded-lg border p-6 ${
+                      <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                       }`}>
                         <h4 className={`text-lg font-semibold mb-4 ${
@@ -489,14 +487,6 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     <StudentAnalytics
                       theme={theme}
                       students={selectedStudent ? [selectedStudent] : []}
-                      onClose={() => setActiveTab('overview')}
-                    />
-                  )}
-
-                  {/* Workflows Tab */}
-                  {activeTab === 'workflows' && (
-                    <StudentWorkflows
-                      theme={theme}
                       onClose={() => setActiveTab('overview')}
                     />
                   )}

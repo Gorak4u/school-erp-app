@@ -189,6 +189,7 @@ export function useDomainState() {
   const [attendanceTracking, setAttendanceTracking] = useState({
     showAttendanceModal: false,
     selectedDate: new Date().toISOString().split('T')[0],
+    selectedStudent: null as any,
     attendanceRecords: [] as Array<{
       id: string;
       studentId: number;
@@ -745,7 +746,6 @@ export function useDomainState() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDetails, setShowStudentDetails] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isClient, setIsClient] = useState(false);
   
@@ -793,7 +793,6 @@ export function useDomainState() {
     activeTab, setActiveTab,
     selectedStudent, setSelectedStudent,
     showStudentDetails, setShowStudentDetails,
-    theme, setTheme,
     mousePosition, setMousePosition,
     isClient, setIsClient,
     showAdvancedFilters, setShowAdvancedFilters,

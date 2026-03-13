@@ -271,11 +271,8 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <h2 className={`text-xl font-bold ${textPrimary}`}>Student Analytics</h2>
-        <button onClick={onClose} className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-          Close Analytics
-        </button>
       </div>
 
       {/* Tabs */}

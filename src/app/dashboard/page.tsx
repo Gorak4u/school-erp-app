@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
+import { useTheme } from '@/contexts/ThemeContext';
 import DashboardKPICards from './components/DashboardKPICards';
 import DashboardCharts from './components/DashboardCharts';
 import DashboardAnalytics from './components/DashboardAnalytics';
@@ -14,8 +15,8 @@ import DashboardQuickActions from './components/DashboardQuickActions';
 import DashboardAlerts from './components/DashboardAlerts';
 
 export default function DashboardPage() {
+  const { theme, setTheme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('overview');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isClient, setIsClient] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -121,8 +122,6 @@ export default function DashboardPage() {
     <AppLayout 
       currentPage="dashboard" 
       title="Dashboard"
-      theme={theme}
-      onThemeChange={setTheme}
     >
       {/* Dashboard Navigation Tabs */}
       <div className="mb-6">

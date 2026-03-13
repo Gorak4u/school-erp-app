@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { Student } from './types';
 import { useStudentState } from './hooks/useStudentState';
+import { useTheme } from '@/contexts/ThemeContext';
 
 import { createSearchHandlers } from './handlers/searchHandlers';
 import { createActionsHandlers } from './handlers/actionsHandlers';
@@ -31,6 +32,7 @@ import ColumnSettingsModal from './components/ColumnSettingsModal';
 import SaveFilterModal from './components/SaveFilterModal';
 
 export default function StudentsPage() {
+  const { theme, setTheme, toggleTheme } = useTheme();
   const state = useStudentState();
   // Build handler context incrementally so each group can access previous groups
   const ctx: any = { ...state };
@@ -191,7 +193,6 @@ export default function StudentsPage() {
     setSidebarOpen,
     setSortConfig,
     setStudents,
-    setTheme,
     setTotalPages,
     setVisibleColumns,
     shareDocument,
@@ -205,7 +206,6 @@ export default function StudentsPage() {
     sidebarOpen,
     sortConfig,
     students,
-    theme,
     toggleAllStudentsSelection,
     toggleColumn,
     toggleStudentSelection,
@@ -229,10 +229,12 @@ export default function StudentsPage() {
   }, [filteredStudents, pageSize]);
 
   return (
-    <AppLayout currentPage="students" title="Students Management" theme={theme} onThemeChange={setTheme}>
+    <AppLayout currentPage="students" title="Students Management">
+      <div className="space-y-4 pb-6">
         <StudentDashboard dashboardStats={dashboardStats} filteredStudents={filteredStudents} selectedStudents={selectedStudents} setBulkOperations={setBulkOperations} setShowAddModal={setShowAddModal} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowDashboard={setShowDashboard} showAdvancedFilters={showAdvancedFilters} showDashboard={showDashboard} students={students} theme={theme} />
         <StudentFilters advancedFilters={advancedFilters} advancedSearch={advancedSearch} applySavedFilter={applySavedFilter} attendanceFilter={attendanceFilter} clearAdvancedFilters={clearAdvancedFilters} deleteSavedFilter={deleteSavedFilter} exportAllFilteredStudents={exportAllFilteredStudents} exportSelectedStudents={exportSelectedStudents} filteredStudents={filteredStudents} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} performAdvancedSearch={performAdvancedSearch} savedFilters={savedFilters} searchTerm={searchTerm} selectedClass={selectedClass} selectedGender={selectedGender} selectedLanguage={selectedLanguage} selectedStatus={selectedStatus} selectedStudents={selectedStudents} setAdvancedFilters={setAdvancedFilters} setAdvancedSearch={setAdvancedSearch} setAttendanceFilter={setAttendanceFilter} setCurrentPage={setCurrentPage} setMobileView={setMobileView} setPageSize={setPageSize} setSearchTerm={setSearchTerm} setSelectedClass={setSelectedClass} setSelectedGender={setSelectedGender} setSelectedLanguage={setSelectedLanguage} setSelectedStatus={setSelectedStatus} setSelectedStudents={setSelectedStudents} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowColumnSettings={setShowColumnSettings} setShowSaveFilterModal={setShowSaveFilterModal} showAdvancedFilters={showAdvancedFilters} showColumnSettings={showColumnSettings} students={students} theme={theme} />
         <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} />
+      </div>
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {(showAddModal || editingStudent) && (

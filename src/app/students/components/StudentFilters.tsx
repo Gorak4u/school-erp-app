@@ -300,6 +300,9 @@ export default function StudentFilters({
           </select>
 
           <div className="ml-auto flex items-center gap-2">
+            <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${showAdvancedFilters ? 'bg-blue-600 text-white' : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Advanced Search">
+              🔍 Advanced
+            </button>
             <button onClick={() => setShowColumnSettings(true)} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`} title="Column Settings">
               ⚙️
             </button>

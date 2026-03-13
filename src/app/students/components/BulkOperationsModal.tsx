@@ -60,6 +60,8 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                     }`}
                   >
                     <option value="promote">Promote to Next Class</option>
+                    <option value="transfer">Transfer Students</option>
+                    <option value="graduate">Graduate Students</option>
                     <option value="update_status">Update Status</option>
                     <option value="assign_fees">Assign Fees</option>
                     <option value="send_message">Send Message</option>
@@ -67,6 +69,113 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                     <option value="delete">Delete Students</option>
                   </select>
                 </div>
+
+                {bulkOperationType === 'transfer' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Transfer To School
+                      </label>
+                      <input
+                        type="text"
+                        value={bulkOperationData.transferSchool || ''}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, transferSchool: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                        placeholder="Enter destination school name"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Transfer Date
+                      </label>
+                      <input
+                        type="date"
+                        value={bulkOperationData.transferDate || ''}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, transferDate: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Reason for Transfer
+                      </label>
+                      <textarea
+                        value={bulkOperationData.transferReason || ''}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, transferReason: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                        rows={3}
+                        placeholder="Enter reason for transfer"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {bulkOperationType === 'graduate' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Graduation Year
+                      </label>
+                      <input
+                        type="text"
+                        value={bulkOperationData.graduationYear || new Date().getFullYear()}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, graduationYear: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                        placeholder="2026"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Graduation Date
+                      </label>
+                      <input
+                        type="date"
+                        value={bulkOperationData.graduationDate || ''}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, graduationDate: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Certificate Type
+                      </label>
+                      <select
+                        value={bulkOperationData.certificateType || ''}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, certificateType: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      >
+                        <option value="">Select Certificate Type</option>
+                        <option value="high_school">High School Diploma</option>
+                        <option value="secondary">Secondary School Certificate</option>
+                        <option value="completion">Course Completion</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {bulkOperationType === 'update_status' && (
                   <div>

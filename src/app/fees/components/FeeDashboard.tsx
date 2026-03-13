@@ -16,6 +16,34 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
 
   const stats = calculateStatistics();
 
+  // Mock recent activities data
+  const recentActivities = [
+    {
+      id: 1,
+      icon: '💰',
+      message: 'John Doe paid tuition fee - ₹50,000',
+      time: '2 minutes ago'
+    },
+    {
+      id: 2,
+      icon: '📧',
+      message: 'Fee reminder sent to 15 parents',
+      time: '1 hour ago'
+    },
+    {
+      id: 3,
+      icon: '✅',
+      message: 'Monthly fee collection completed',
+      time: '3 hours ago'
+    },
+    {
+      id: 4,
+      icon: '📊',
+      message: 'Fee report generated for Class 10A',
+      time: '5 hours ago'
+    }
+  ];
+
   return (
     <>
         {/* Enhanced Dashboard Section */}
