@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 
 interface PaymentReceiptProps {
   theme: 'dark' | 'light';

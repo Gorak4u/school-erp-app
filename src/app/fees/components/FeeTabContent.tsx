@@ -702,12 +702,35 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       <button
                         onClick={() => {
                           // Generate sample receipt for selected students
+                          if (selectedStudents.length === 0) {
+                            if ((window as any).toast) {
+                              (window as any).toast({
+                                type: 'warning',
+                                title: 'No Students Selected',
+                                message: 'Please select at least one student to generate receipt',
+                                duration: 3000
+                              });
+                            }
+                            return;
+                          }
+                          
                           const samplePayment = {
                             receipt: `RCPT-2024-BULK-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
                             date: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
                             method: 'Bulk Payment',
                             amount: selectedStudents.length * 5000
                           };
+                          
+                          // Show processing toast
+                          if ((window as any).toast) {
+                            (window as any).toast({
+                              type: 'info',
+                              title: 'Generating Bulk Receipt',
+                              message: `Creating receipt for ${selectedStudents.length} students`,
+                              duration: 2000
+                            });
+                          }
+                          
                           if (ctx.setShowDetailedReceipt) {
                             ctx.setSelectedPaymentForReceipt(samplePayment);
                             ctx.setShowDetailedReceipt(true);
@@ -725,6 +748,40 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       <button
                         onClick={() => {
                           // Send reminders logic
+                          if (selectedStudents.length === 0) {
+                            if ((window as any).toast) {
+                              (window as any).toast({
+                                type: 'warning',
+                                title: 'No Students Selected',
+                                message: 'Please select at least one student to send reminders',
+                                duration: 3000
+                              });
+                            }
+                            return;
+                          }
+                          
+                          // Show processing toast
+                          if ((window as any).toast) {
+                            (window as any).toast({
+                              type: 'info',
+                              title: 'Sending Reminders',
+                              message: `Sending payment reminders to ${selectedStudents.length} students`,
+                              duration: 2000
+                            });
+                          }
+                          
+                          // Simulate sending reminders
+                          setTimeout(() => {
+                            if ((window as any).toast) {
+                              (window as any).toast({
+                                type: 'success',
+                                title: 'Reminders Sent',
+                                message: `Payment reminders sent to ${selectedStudents.length} students`,
+                                duration: 3000
+                              });
+                            }
+                          }, 1500);
+                          
                           console.log('Sending reminders to:', selectedStudents);
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${

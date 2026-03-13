@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
+import Toast from './Toast';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -273,6 +274,9 @@ export default function AppLayout({
           {children}
         </div>
       </main>
+
+      {/* Toast Notifications */}
+      <Toast theme={globalTheme} />
     </div>
   );
 }

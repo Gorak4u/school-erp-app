@@ -29,6 +29,7 @@ import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
 import EnhancedFeeCollection from './components/EnhancedFeeCollection';
 import PaymentReceipt from './components/PaymentReceipt';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 import FeeInvoiceManager from './components/FeeInvoiceManager';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
@@ -83,7 +84,7 @@ export default function FeesPage() {
   return (
     <AppLayout currentPage="fees" title="Fees Management">
       <div className="space-y-0 pb-6">
-        {/* Dashboard Section — same pattern as Students page */}
+                {/* Dashboard Section — same pattern as Students page */}
         <FeeDashboard ctx={ctx} />
 
         {/* Filters bar (search + dropdowns + action buttons) */}
@@ -249,7 +250,10 @@ export default function FeesPage() {
               paymentDate={selectedPaymentForReceipt?.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
               paymentMethod={selectedPaymentForReceipt?.method || 'Unknown'}
               onPrint={() => window.print()}
-              onDownload={() => alert('PDF download would be implemented here')}
+              onDownload={() => {
+  const filename = `Receipt_${(selectedPaymentForReceipt?.receipt || 'RCPT-DEFAULT').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+  PDFGenerator.generateFromElement('receipt-print', filename);
+}}
               onClose={() => setShowDetailedReceipt(false)}
             />
           </motion.div>

@@ -18,6 +18,7 @@ import {
   Target 
 } from 'lucide-react';
 import PaymentReceipt from './PaymentReceipt';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 
 interface EnhancedFeeCollectionProps {
   theme: 'dark' | 'light';
@@ -192,22 +193,57 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, selectedFeesTotal]);
 
   const handleFeeSelection = (feeId: string) => {
-    setSelectedFees(prev => 
-      prev.includes(feeId) 
-        ? prev.filter(id => id !== feeId)
-        : [...prev, feeId]
-    );
+    const wasSelected = selectedFees.includes(feeId);
+    const newSelection = wasSelected 
+      ? selectedFees.filter(id => id !== feeId)
+      : [...selectedFees, feeId];
+    
+    setSelectedFees(newSelection);
+    
+    // Show toast for fee selection/deselection
+    if ((window as any).toast) {
+      const fee = filteredFees.find(f => f.id === feeId);
+      if (fee) {
+        (window as any).toast({
+          type: wasSelected ? 'info' : 'success',
+          title: wasSelected ? 'Fee Deselected' : 'Fee Selected',
+          message: `${fee.name} ${wasSelected ? 'removed from' : 'added to'} payment`,
+          duration: 2000
+        });
+      }
+    }
   };
 
   const handleSelectAll = () => {
     const unpaidFees = filteredFees.filter(fee => fee.status !== 'paid');
     const unpaidIds = unpaidFees.map(fee => fee.id);
     setSelectedFees(unpaidIds);
+    
+    // Show toast for select all
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'success',
+        title: 'All Fees Selected',
+        message: `${unpaidIds.length} unpaid fees added to payment`,
+        duration: 2000
+      });
+    }
   };
 
   const handleClearSelection = () => {
+    const count = selectedFees.length;
     setSelectedFees([]);
     setCustomAmounts({});
+    
+    // Show toast for clear selection
+    if ((window as any).toast && count > 0) {
+      (window as any).toast({
+        type: 'info',
+        title: 'Selection Cleared',
+        message: `${count} fees removed from payment`,
+        duration: 2000
+      });
+    }
   };
 
   const handleCustomAmountChange = (feeId: string, amount: number) => {
@@ -232,10 +268,36 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
 
   const handlePayment = async () => {
     setIsProcessing(true);
+    
+    // Show processing toast
+    if ((window as any).toast) {
+      (window as any).toast({
+        type: 'info',
+        title: 'Processing Payment',
+        message: `Processing ₹${stats.selectedFeesTotal.toLocaleString()} payment via ${paymentMethods.find(m => m.id === paymentMethod)?.name}`,
+        duration: 3000
+      });
+    }
+    
     // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    setShowReceipt(true);
+    setTimeout(() => {
+      setIsProcessing(false);
+      
+      // Show success toast
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Payment Successful',
+          message: `Payment of ₹${stats.selectedFeesTotal.toLocaleString()} processed successfully`,
+          action: {
+            label: 'View Receipt',
+            onClick: () => setShowReceipt(true)
+          }
+        });
+      }
+      
+      setShowReceipt(true);
+    }, 2000);
   };
 
   // Enhanced UI helper functions
@@ -905,7 +967,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 paymentDate={new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
                 paymentMethod={paymentMethods.find(m => m.id === paymentMethod)?.name || 'Unknown'}
                 onPrint={() => window.print()}
-                onDownload={() => alert('PDF download would be implemented here')}
+                onDownload={() => {
+  const receiptNum = `RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+  const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+  PDFGenerator.generateFromElement('receipt-print', filename);
+}}
                 onClose={() => setShowDetailedReceipt(false)}
               />
             </motion.div>
