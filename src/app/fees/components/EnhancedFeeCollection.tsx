@@ -3,7 +3,21 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Calendar, DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Zap, Shield, Award, Target } from 'lucide-react';
+import { 
+  CreditCard, 
+  Calendar, 
+  DollarSign, 
+  TrendingUp, 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  Zap, 
+  Shield, 
+  Award, 
+  Target 
+} from 'lucide-react';
+import PaymentReceipt from './PaymentReceipt';
 
 interface EnhancedFeeCollectionProps {
   theme: 'dark' | 'light';
@@ -45,6 +59,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [customAmounts, setCustomAmounts] = useState<{[key: string]: number}>({});
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [promoCode, setPromoCode] = useState('');
@@ -83,23 +98,23 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       name: 'Credit/Debit Card', 
       icon: <CreditCard className="w-5 h-5" />, 
       color: colors.primary,
-      description: 'Secure card payment',
-      fee: 0
+      description: 'Secure card payment (2% processing fee)',
+      fee: 50
     },
     { 
       id: 'upi', 
       name: 'UPI Payment', 
       icon: <Zap className="w-5 h-5" />, 
       color: colors.cyan,
-      description: 'Instant UPI transfer',
-      fee: 0
+      description: 'Instant UPI transfer (1% processing fee)',
+      fee: 25
     },
     { 
       id: 'netbanking', 
       name: 'Net Banking', 
       icon: <Shield className="w-5 h-5" />, 
       color: colors.purple,
-      description: 'Bank transfer',
+      description: 'Bank transfer (₹10 processing fee)',
       fee: 10
     },
     { 
@@ -107,7 +122,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       name: 'Digital Wallet', 
       icon: <Award className="w-5 h-5" />, 
       color: colors.pink,
-      description: 'PayTM, PhonePe etc.',
+      description: 'PayTM, PhonePe etc. (₹5 processing fee)',
       fee: 5
     },
   ];
@@ -782,18 +797,122 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
                 <h3 className={`text-xl font-bold ${textPrimary} mb-2`}>Payment Successful!</h3>
                 <p className={`${textSecondary} mb-6`}>Your payment has been processed successfully.</p>
+                
+                {/* Receipt Actions */}
+                <div className="space-y-3 mb-6">
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                    <p className={`text-sm ${textSecondary} mb-2`}>Receipt Number</p>
+                    <p className={`font-mono font-bold ${textPrimary}`}>RCPT-2024-0313-0847</p>
+                  </div>
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                    <p className={`text-sm ${textSecondary} mb-1`}>Amount Paid</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
+                    <p className={`text-sm ${textSecondary}`}>via {paymentMethods.find(m => m.id === paymentMethod)?.name}</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setShowReceipt(false);
+                        setShowDetailedReceipt(true);
+                      }}
+                      className={`px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      View Detailed Receipt
+                    </button>
+                    <button
+                      onClick={() => {
+                        window.print();
+                        setShowReceipt(false);
+                      }}
+                      className={`px-4 py-3 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} ${textPrimary} rounded-lg font-medium transition-colors flex items-center justify-center gap-2`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Quick Print
+                    </button>
+                  </div>
+                </div>
+                
                 <button
                   onClick={() => setShowReceipt(false)}
-                  className={`w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors`}
+                  className={`w-full mt-3 px-6 py-3 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'} ${textPrimary} rounded-lg font-medium transition-colors`}
                 >
-                  Done
+                  Close
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Detailed Receipt Modal */}
+      <AnimatePresence>
+        {showDetailedReceipt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-xl"
+            >
+              <PaymentReceipt
+                theme={theme}
+                studentData={{
+                  name: 'Rahul Sharma',
+                  studentClass: '10-A',
+                  admissionNo: 'ADM-2023-045',
+                  parentName: 'Mr. Rajesh Sharma',
+                  previousYearPending: {
+                    '2023-24': {
+                      total: 85000,
+                      paid: 75000,
+                      discount: 0,
+                      pending: 10000,
+                      overdueFees: ['Transport Fee', 'Sports Fee'],
+                      lastPaymentDate: '2024-02-15'
+                    }
+                  }
+                }}
+                paymentData={{
+                  currentYearFees: selectedFees.map(feeId => {
+                    const fee = filteredFees.find(f => f.id === feeId);
+                    if (!fee) return null;
+                    return {
+                      name: fee.name,
+                      category: fee.category,
+                      totalAmount: fee.amount,
+                      paidAmount: customAmounts[feeId] || fee.amount,
+                      discount: 0,
+                      balance: 0,
+                      status: 'paid'
+                    };
+                  }).filter(Boolean)
+                }}
+                receiptNumber={`RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`}
+                paymentDate={new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                paymentMethod={paymentMethods.find(m => m.id === paymentMethod)?.name || 'Unknown'}
+                onPrint={() => window.print()}
+                onDownload={() => alert('PDF download would be implemented here')}
+                onClose={() => setShowDetailedReceipt(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   </div>
-  );
+);
 }

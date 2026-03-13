@@ -701,6 +701,29 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       
                       <button
                         onClick={() => {
+                          // Generate sample receipt for selected students
+                          const samplePayment = {
+                            receipt: `RCPT-2024-BULK-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+                            date: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            method: 'Bulk Payment',
+                            amount: selectedStudents.length * 5000
+                          };
+                          if (ctx.setShowDetailedReceipt) {
+                            ctx.setSelectedPaymentForReceipt(samplePayment);
+                            ctx.setShowDetailedReceipt(true);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          theme === 'dark'
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-green-500 hover:bg-green-600 text-white'
+                        }`}
+                      >
+                        🧾 Generate Receipt ({selectedStudents.length})
+                      </button>
+                      
+                      <button
+                        onClick={() => {
                           // Send reminders logic
                           console.log('Sending reminders to:', selectedStudents);
                         }}

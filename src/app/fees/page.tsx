@@ -28,6 +28,7 @@ import FeeStructureModal from './components/FeeStructureModal';
 import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
 import EnhancedFeeCollection from './components/EnhancedFeeCollection';
+import PaymentReceipt from './components/PaymentReceipt';
 import FeeInvoiceManager from './components/FeeInvoiceManager';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
@@ -38,6 +39,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 export default function FeesPage() {
   const { theme } = useTheme();
   const state = useFeeState();
+  const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
+  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<any>(null);
 
   // Build handler context incrementally
   const ctx: any = { ...state, theme };
@@ -47,7 +50,8 @@ export default function FeesPage() {
   // Destructure for JSX
   const {
     activeTab,
-        feeStructureForm,
+    setActiveTab,
+    feeStructureForm,
     feeStructures,
     handleCreateFeeStructure,
     setFeeStructureForm,
@@ -194,6 +198,62 @@ export default function FeesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Detailed Receipt Modal */}
+      {showDetailedReceipt && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowDetailedReceipt(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PaymentReceipt
+              theme={theme}
+              studentData={{
+                name: 'Rahul Sharma',
+                studentClass: '10-A',
+                admissionNo: 'ADM-2023-045',
+                parentName: 'Mr. Rajesh Sharma',
+                previousYearPending: {
+                  '2023-24': {
+                    total: 85000,
+                    paid: 75000,
+                    discount: 0,
+                    pending: 10000,
+                    overdueFees: ['Transport Fee', 'Sports Fee'],
+                    lastPaymentDate: '2024-02-15'
+                  }
+                }
+              }}
+              paymentData={{
+                currentYearFees: [{
+                  name: 'Tuition Fee',
+                  category: 'Academic',
+                  totalAmount: 50000,
+                  paidAmount: 25000,
+                  discount: 0,
+                  balance: 25000,
+                  status: 'partial'
+                }]
+              }}
+              receiptNumber={selectedPaymentForReceipt?.receipt || 'RCPT-2024-DEFAULT'}
+              paymentDate={selectedPaymentForReceipt?.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+              paymentMethod={selectedPaymentForReceipt?.method || 'Unknown'}
+              onPrint={() => window.print()}
+              onDownload={() => alert('PDF download would be implemented here')}
+              onClose={() => setShowDetailedReceipt(false)}
+            />
+          </motion.div>
+        </motion.div>
       )}
     </AppLayout>
   );
