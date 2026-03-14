@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Bump this whenever the schema changes to force a fresh client in dev
-const SCHEMA_VERSION = '8';
+const SCHEMA_VERSION = '9';
 
 function createPrisma() {
   const pool = new Pool({
