@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
@@ -12,7 +16,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
 
-    const where: any = {};
+    const where: any = { ...tenantWhere(ctx) };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -58,8 +62,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    // Check subscription limits (skip for super admins)
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      const user = await (prisma as any).user.findUnique({
+        where: { email: ctx.email },
+        include: { school: { include: { subscription: true } } },
+      });
+      
+      const subscription = user?.school?.subscription;
+      if (subscription) {
+        const currentTeacherCount = await prisma.teacher.count({ where: { schoolId: ctx.schoolId } });
+        if (currentTeacherCount >= subscription.maxTeachers) {
+          return NextResponse.json({ 
+            error: `Teacher limit reached. Your plan allows ${subscription.maxTeachers} teachers. Upgrade your plan to add more.` 
+          }, { status: 403 });
+        }
+      }
+    }
+
     const body = await request.json();
-    const teacher = await prisma.teacher.create({ data: body });
+    const teacher = await prisma.teacher.create({ data: { ...body, schoolId: ctx.schoolId } });
     return NextResponse.json({ teacher }, { status: 201 });
   } catch (error: any) {
     if (error.code === 'P2002') {

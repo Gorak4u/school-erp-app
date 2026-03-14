@@ -1,9 +1,13 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const cls = searchParams.get('class') || '';
@@ -14,7 +18,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
 
-    const where: any = {};
+    const where: any = { ...tenantWhere(ctx) };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -139,8 +143,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { documents, fees, attendance, academics, behavior, transferCertificateNumber, grade, timestamp, isAutoSave, ...data } = body;
+
+    // Check subscription limits (skip for super admins)
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      const user = await (prisma as any).user.findUnique({
+        where: { email: ctx.email },
+        include: { school: { include: { subscription: true } } },
+      });
+      
+      const subscription = user?.school?.subscription;
+      if (subscription) {
+        const currentStudentCount = await prisma.student.count({ where: { schoolId: ctx.schoolId } });
+        if (currentStudentCount >= subscription.maxStudents) {
+          return NextResponse.json({ 
+            error: `Student limit reached. Your plan allows ${subscription.maxStudents} students. Upgrade your plan to add more.` 
+          }, { status: 403 });
+        }
+      }
+    }
 
     // Validate required fields
     const requiredFields = ['name', 'dateOfBirth', 'gender'];
@@ -232,6 +257,7 @@ export async function POST(request: NextRequest) {
     const student = await prisma.student.create({
       data: {
         ...dataWithoutInvalidFields,
+        schoolId: ctx.schoolId,
         admissionNo, // Use the generated/validated admission number
         transferCertificateNo: transferCertificateNumber, // Map the field name
         documents: documents ? JSON.stringify(documents) : null,

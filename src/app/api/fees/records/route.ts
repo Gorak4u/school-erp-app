@@ -1,9 +1,13 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('studentId') || '';
     const status = searchParams.get('status') || '';
@@ -15,6 +19,10 @@ export async function GET(request: NextRequest) {
     if (studentId) where.studentId = studentId;
     if (status) where.status = status;
     if (academicYear) where.academicYear = academicYear;
+    // Tenant isolation via student relation
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      where.student = { schoolId: ctx.schoolId };
+    }
 
     const [records, total] = await Promise.all([
       prisma.feeRecord.findMany({
@@ -40,8 +48,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { studentId, feeStructureId, amount, dueDate, academicYear, discount = 0, remarks } = body;
+
+    // Verify student belongs to this school
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      const student = await prisma.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
+      if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
 
     if (!studentId || !feeStructureId || !amount || !dueDate) {
       return NextResponse.json({ error: 'studentId, feeStructureId, amount, dueDate are required' }, { status: 400 });

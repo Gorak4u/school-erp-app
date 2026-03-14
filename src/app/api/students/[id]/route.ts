@@ -1,12 +1,16 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { id } = await params;
-    const student = await prisma.student.findUnique({
-      where: { id },
+    const student = await prisma.student.findFirst({
+      where: { id, ...tenantWhere(ctx) },
       include: {
         feeRecords: { include: { feeStructure: true, payments: true } },
         attendanceRecords: { orderBy: { date: 'desc' }, take: 90 },
@@ -27,9 +31,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const { documents, fees, attendance, academics, behavior, feeRecords, attendanceRecords, examResults, ...data } = body;
+
+    // Verify ownership before update
+    const existing = await prisma.student.findFirst({ where: { id, ...tenantWhere(ctx) } });
+    if (!existing) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
     const student = await prisma.student.update({
       where: { id },
@@ -54,7 +65,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { id } = await params;
+    // Verify ownership before delete
+    const existing = await prisma.student.findFirst({ where: { id, ...tenantWhere(ctx) } });
+    if (!existing) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
     await prisma.student.delete({ where: { id } });
     return NextResponse.json({ message: 'Student deleted successfully' });
   } catch (error: any) {

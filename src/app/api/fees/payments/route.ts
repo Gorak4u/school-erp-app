@@ -70,6 +70,10 @@ export async function POST(request: NextRequest) {
 // GET /api/fees/payments — list all payments
 export async function GET(request: NextRequest) {
   try {
+    const { getSessionContext } = await import('@/lib/apiAuth');
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const feeRecordId = searchParams.get('feeRecordId');
     const page = parseInt(searchParams.get('page') || '1');
@@ -77,6 +81,10 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     if (feeRecordId) where.feeRecordId = feeRecordId;
+    // Tenant isolation via feeRecord → student
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      where.feeRecord = { student: { schoolId: ctx.schoolId } };
+    }
 
     const [payments, total] = await Promise.all([
       prisma.payment.findMany({

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
@@ -5,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
-const handler = NextAuth({
+export const authOptions: any = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -132,6 +133,7 @@ const handler = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
-});
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

@@ -54,6 +54,7 @@ export default function AdminPlansPage() {
   const [editingPlan, setEditingPlan] = useState<PlanData | null>(null);
   const [editFeatures, setEditFeatures] = useState<string[]>([]);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [isCreating, setIsCreating] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -70,7 +71,28 @@ export default function AdminPlansPage() {
 
   const startEdit = (plan: PlanData) => {
     setEditingPlan({ ...plan });
+    setIsCreating(false);
     try { setEditFeatures(JSON.parse(plan.features) || []); } catch { setEditFeatures([]); }
+  };
+
+  const startCreate = () => {
+    setIsCreating(true);
+    setEditingPlan({
+      id: '',
+      name: '',
+      displayName: '',
+      description: '',
+      priceMonthly: 0,
+      priceYearly: 0,
+      currency: 'INR',
+      maxStudents: 50,
+      maxTeachers: 5,
+      features: '[]',
+      isActive: true,
+      sortOrder: plans.length + 1,
+      trialDays: 14,
+    });
+    setEditFeatures([]);
   };
 
   const savePlan = async () => {
@@ -80,14 +102,15 @@ export default function AdminPlansPage() {
     try {
       const payload = { ...editingPlan, features: JSON.stringify(editFeatures) };
       const res = await fetch('/api/admin/plans', {
-        method: 'PUT',
+        method: isCreating ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: `"${editingPlan.displayName}" updated!` });
+        setMessage({ type: 'success', text: isCreating ? `"${editingPlan.displayName}" created!` : `"${editingPlan.displayName}" updated!` });
         setEditingPlan(null);
+        setIsCreating(false);
         load();
       } else {
         setMessage({ type: 'error', text: data.error });
@@ -118,6 +141,10 @@ export default function AdminPlansPage() {
             Manage plan pricing, limits, and features. Changes apply to new subscriptions immediately.
           </p>
         </div>
+        <button onClick={startCreate}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-orange-500 to-red-500 text-white hover:opacity-90">
+          + Create New Plan
+        </button>
         <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
           <button onClick={() => setBillingCycle('monthly')}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${billingCycle === 'monthly' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -172,6 +199,90 @@ export default function AdminPlansPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Create New Plan Form */}
+          {isCreating && editingPlan && (
+            <div className={`${cardCls} overflow-hidden ring-2 ring-green-500`}>
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">✨</span>
+                  <span className="text-white font-bold text-lg">New Plan</span>
+                </div>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Plan Name (slug)</label>
+                    <input type="text" value={editingPlan.name} onChange={e => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                      placeholder="e.g., premium" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Display Name</label>
+                    <input type="text" value={editingPlan.displayName} onChange={e => setEditingPlan({ ...editingPlan, displayName: e.target.value })}
+                      placeholder="e.g., Premium Plan" className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Description</label>
+                  <input type="text" value={editingPlan.description} onChange={e => setEditingPlan({ ...editingPlan, description: e.target.value })}
+                    placeholder="Short description" className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Monthly Price (₹)</label>
+                    <input type="number" value={editingPlan.priceMonthly} onChange={e => setEditingPlan({ ...editingPlan, priceMonthly: parseFloat(e.target.value) || 0 })}
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Yearly Price (₹)</label>
+                    <input type="number" value={editingPlan.priceYearly} onChange={e => setEditingPlan({ ...editingPlan, priceYearly: parseFloat(e.target.value) || 0 })}
+                      className={inputCls} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelCls}>Max Students</label>
+                    <input type="number" value={editingPlan.maxStudents} onChange={e => setEditingPlan({ ...editingPlan, maxStudents: parseInt(e.target.value) || 0 })}
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Max Teachers</label>
+                    <input type="number" value={editingPlan.maxTeachers} onChange={e => setEditingPlan({ ...editingPlan, maxTeachers: parseInt(e.target.value) || 0 })}
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Trial Days</label>
+                    <input type="number" value={editingPlan.trialDays} onChange={e => setEditingPlan({ ...editingPlan, trialDays: parseInt(e.target.value) || 0 })}
+                      className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Features</label>
+                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                    {ALL_FEATURES.map(f => (
+                      <label key={f} className="flex items-center gap-2 cursor-pointer">
+                        <span onClick={() => toggleFeature(f)}
+                          className={`w-4 h-4 rounded border flex items-center justify-center text-xs ${editFeatures.includes(f) ? 'bg-orange-500 border-orange-500 text-white' : isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                          {editFeatures.includes(f) ? '✓' : ''}
+                        </span>
+                        <span className="text-xs">{FEATURE_LABELS[f]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button onClick={() => { setEditingPlan(null); setIsCreating(false); }}
+                    className={`px-4 py-2 rounded-lg text-sm border ${isDark ? 'border-gray-700 text-gray-400 hover:bg-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                    Cancel
+                  </button>
+                  <button onClick={savePlan} disabled={saving || !editingPlan.name || !editingPlan.displayName}
+                    className="px-4 py-2 rounded-lg text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium hover:opacity-90 disabled:opacity-50">
+                    {saving ? 'Creating...' : '✓ Create Plan'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Existing Plans */}
           {plans.sort((a, b) => a.sortOrder - b.sortOrder).map(plan => {
             const gradient = PLAN_GRADIENTS[plan.name] || 'from-gray-500 to-gray-600';
             const icon = PLAN_ICONS[plan.name] || '📋';

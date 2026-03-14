@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 const INCLUDE_RELATIONS = {
   academicYear: { select: { id: true, name: true, year: true } },
@@ -11,6 +12,9 @@ const INCLUDE_RELATIONS = {
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get('academicYearId');
     const boardId = searchParams.get('boardId');
@@ -20,6 +24,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     const where: any = {};
+    if (!ctx.isSuperAdmin && ctx.schoolId) where.schoolId = ctx.schoolId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     if (mediumId) where.mediumId = mediumId;
@@ -42,6 +47,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
 
     // Handle clone operation: copy all fee structures from one AY to another
@@ -50,9 +58,9 @@ export async function POST(request: NextRequest) {
       if (!sourceAcademicYearId || !targetAcademicYearId) {
         return NextResponse.json({ error: 'sourceAcademicYearId and targetAcademicYearId required' }, { status: 400 });
       }
-      const sourceStructures = await prisma.feeStructure.findMany({
-        where: { academicYearId: sourceAcademicYearId, isActive: true },
-      });
+      const sourceWhere: any = { academicYearId: sourceAcademicYearId, isActive: true };
+      if (!ctx.isSuperAdmin && ctx.schoolId) sourceWhere.schoolId = ctx.schoolId;
+      const sourceStructures = await prisma.feeStructure.findMany({ where: sourceWhere });
       if (sourceStructures.length === 0) {
         return NextResponse.json({ error: 'No fee structures found in source academic year' }, { status: 404 });
       }
@@ -67,6 +75,7 @@ export async function POST(request: NextRequest) {
           description: s.description,
           applicableCategories: s.applicableCategories,
           isActive: true,
+          schoolId: ctx.schoolId,
           academicYearId: targetAcademicYearId,
           boardId: s.boardId,
           mediumId: s.mediumId,
@@ -80,7 +89,7 @@ export async function POST(request: NextRequest) {
     const { id, academicYear, board, medium, class: cls, createdAt, updatedAt, ...data } = body;
 
     const structure = await prisma.feeStructure.create({
-      data,
+      data: { ...data, schoolId: ctx.schoolId },
       include: INCLUDE_RELATIONS,
     });
 

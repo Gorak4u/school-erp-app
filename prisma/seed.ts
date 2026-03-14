@@ -14,6 +14,85 @@ const prisma = new PrismaClient({ adapter } as any);
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // ─── PLANS ───────────────────────────────────────────────────────────────────
+  await (prisma as any).plan.upsert({
+    where: { name: 'trial' },
+    update: {},
+    create: {
+      name: 'trial',
+      displayName: 'Free Trial',
+      description: 'Try all features free for 14 days',
+      priceMonthly: 0,
+      priceYearly: 0,
+      currency: 'INR',
+      maxStudents: 50,
+      maxTeachers: 5,
+      features: JSON.stringify(['Student Management', 'Attendance Tracking', 'Basic Reports', 'Email Support']),
+      trialDays: 14,
+      isActive: true,
+      sortOrder: 1,
+    },
+  });
+
+  await (prisma as any).plan.upsert({
+    where: { name: 'basic' },
+    update: {},
+    create: {
+      name: 'basic',
+      displayName: 'Basic',
+      description: 'Perfect for small schools',
+      priceMonthly: 2999,
+      priceYearly: 29990,
+      currency: 'INR',
+      maxStudents: 200,
+      maxTeachers: 20,
+      features: JSON.stringify(['Up to 200 Students', 'Up to 20 Teachers', 'Student & Teacher Management', 'Attendance Tracking', 'Fee Management', 'Basic Reports', 'Email Support']),
+      trialDays: 14,
+      isActive: true,
+      sortOrder: 2,
+    },
+  });
+
+  await (prisma as any).plan.upsert({
+    where: { name: 'professional' },
+    update: {},
+    create: {
+      name: 'professional',
+      displayName: 'Professional',
+      description: 'For growing schools',
+      priceMonthly: 5999,
+      priceYearly: 59990,
+      currency: 'INR',
+      maxStudents: 500,
+      maxTeachers: 50,
+      features: JSON.stringify(['Up to 500 Students', 'Up to 50 Teachers', 'All Basic Features', 'Exam Management', 'Advanced Reports', 'SMS Notifications', 'Priority Support', 'Custom Branding']),
+      trialDays: 14,
+      isActive: true,
+      sortOrder: 3,
+    },
+  });
+
+  await (prisma as any).plan.upsert({
+    where: { name: 'enterprise' },
+    update: {},
+    create: {
+      name: 'enterprise',
+      displayName: 'Enterprise',
+      description: 'For large institutions',
+      priceMonthly: 14999,
+      priceYearly: 149990,
+      currency: 'INR',
+      maxStudents: 999999,
+      maxTeachers: 999999,
+      features: JSON.stringify(['Unlimited Students', 'Unlimited Teachers', 'All Professional Features', 'Multi-branch Support', 'API Access', 'Custom Integrations', 'Dedicated Account Manager', '24/7 Phone Support']),
+      trialDays: 30,
+      isActive: true,
+      sortOrder: 4,
+    },
+  });
+
+  console.log('✅ Plans created');
+
   // ─── USERS ───────────────────────────────────────────────────────────────────
   const adminPassword = await bcrypt.hash('admin123', 12);
   const teacherPassword = await bcrypt.hash('teacher123', 12);
