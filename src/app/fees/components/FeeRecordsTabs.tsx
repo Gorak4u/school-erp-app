@@ -415,26 +415,6 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
             </motion.div>
           )}
 
-          {activeTab === 'reports' && (
-            <motion.div
-              key="reports"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <div className="text-center py-12">
-                <div className={`text-6xl mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-                  📊
-                </div>
-                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Reports Section
-                </h3>
-                <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Comprehensive fee reports and analytics coming soon
-                </p>
-              </div>
-            </motion.div>
-          )}
-    </>
+              </>
   );
 }

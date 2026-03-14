@@ -58,28 +58,49 @@ export default function FeeReportsTab({ studentFeeSummaries, theme }: FeeReports
     };
   }, [studentFeeSummaries]);
 
-  // Monthly collection trend (simulated data)
-  const monthlyTrendData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        label: 'Collections',
-        data: [45000, 52000, 48000, 61000, 55000, 67000, 72000, 68000, 75000, 82000, 78000, stats.totalCollected / 12],
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: 'Target',
-        data: Array(12).fill(stats.totalFees / 12),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderDash: [5, 5],
-        tension: 0.4
-      }
-    ]
-  };
+  // Monthly collection trend (real data)
+  const monthlyTrendData = useMemo(() => {
+    const monthlyData = Array(12).fill(0);
+    const currentYear = new Date().getFullYear();
+    
+    // Extract real monthly data from payment records
+    studentFeeSummaries?.forEach(student => {
+      student.feeRecords?.forEach(record => {
+        record.payments?.forEach(payment => {
+          const paymentDate = payment.paidDate || payment.date || payment.createdAt;
+          if (paymentDate) {
+            const date = new Date(paymentDate);
+            if (date.getFullYear() === currentYear) {
+              const month = date.getMonth();
+              monthlyData[month] += payment.amount || 0;
+            }
+          }
+        });
+      });
+    });
+
+    return {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      datasets: [
+        {
+          label: 'Collections',
+          data: monthlyData,
+          borderColor: 'rgb(34, 197, 94)',
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          tension: 0.4,
+          fill: true
+        },
+        {
+          label: 'Target',
+          data: Array(12).fill(stats.totalFees / 12),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderDash: [5, 5],
+          tension: 0.4
+        }
+      ]
+    };
+  }, [studentFeeSummaries, stats.totalFees]);
 
   // Payment status distribution
   const paymentStatusData = {
