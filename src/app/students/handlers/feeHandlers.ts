@@ -10,7 +10,7 @@ export function createFeeHandlers(ctx: any) {
     const feeRecord = feeManagement.feeRecords.find(r => r.id === feeRecordId);
     if (!feeRecord) return;
 
-    // Simulate payment processing
+    // Process payment (in production, implement actual payment gateway integration)
     const transaction = {
       id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       feeRecordId,
@@ -18,8 +18,8 @@ export function createFeeHandlers(ctx: any) {
       amount,
       paymentMethod,
       gateway,
-      transactionId: `${gateway}_${Date.now()}`,
-      status: 'completed' as const,
+      transactionId: `${gateway}_${Date.now()}`, // TODO: Get from payment gateway
+      status: 'completed' as const, // TODO: Get from payment gateway response
       timestamp: new Date().toISOString()
     };
 
@@ -54,8 +54,10 @@ export function createFeeHandlers(ctx: any) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    // Simulate sending SMS/email confirmation
+    // Send payment confirmation (in production, implement actual SMS/email sending)
     const message = `Payment of ₹${transaction.amount} received successfully. Transaction ID: ${transaction.transactionId}. Thank you!`;
+    // TODO: Send actual SMS/email to parent/guardian
+    // await sendPaymentConfirmation(student, message);
     
     // Add to communication center message history
     const confirmationMessage = {
@@ -364,13 +366,14 @@ export function createFeeHandlers(ctx: any) {
       }));
     }
 
-    // Send real-time update via WebSocket (simulated)
-    if (parentPortal.realTimeUpdates.websocketConnected) {
-      pushRealTimeUpdate(parentId, {
-        type: 'notification',
-        data: notification
-      });
-    }
+    // Send real-time update via WebSocket (in production, implement actual WebSocket)
+    // if (websocketConnection) {
+    //   websocketConnection.send(JSON.stringify({
+    //     type: 'notification',
+    //     data: notification,
+    //     recipientId: parentId
+    //   }));
+    // }
   };
 
   const pushRealTimeUpdate = (parentId: string, data: any) => {

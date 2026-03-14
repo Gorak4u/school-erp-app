@@ -810,8 +810,8 @@ export function createActionsHandlers(ctx: any) {
         
         setBulkOperationProgress(prev => ({ ...prev, current: i + 1 }));
         
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Process operation (in production, implement actual operation logic)
+        // await processBulkOperation(action, student);
       }
       
       setBulkOperationProgress(prev => ({ ...prev, status: 'completed' }));

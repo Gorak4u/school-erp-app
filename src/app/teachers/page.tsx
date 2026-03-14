@@ -262,7 +262,37 @@ export default function TeachersPage() {
                   try {
                     await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
-                  } catch (err: any) { setFormError(err.message || 'Failed to create teacher'); }
+                  } catch (err: any) { 
+                    // Check for subscription limit errors
+                    if (err.message.includes('limit reached') || err.message.includes('quota') || err.message.includes('upgrade')) {
+                      setFormError(err.message || 'Teacher limit reached. Please upgrade your plan to add more teachers.');
+                      // Show upgrade prompt toast
+                      if ((window as any).toast) {
+                        (window as any).toast({
+                          type: 'warning',
+                          title: 'Teacher Limit Reached',
+                          message: err.message || 'Teacher limit reached. Please upgrade your plan to add more teachers.',
+                          duration: 6000,
+                          actions: [
+                            {
+                              label: 'View Subscription',
+                              action: () => {
+                                window.location.href = '/subscription';
+                              }
+                            },
+                            {
+                              label: 'Upgrade Plan',
+                              action: () => {
+                                window.location.href = '/billing';
+                              }
+                            }
+                          ]
+                        });
+                      }
+                    } else {
+                      setFormError(err.message || 'Failed to create teacher');
+                    }
+                  }
                   finally { setSaving(false); }
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"

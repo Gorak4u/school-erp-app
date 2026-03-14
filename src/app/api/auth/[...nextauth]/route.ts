@@ -5,6 +5,7 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
+import { resolvePermissions } from '@/lib/permissions';
 
 export const authOptions: any = {
   adapter: PrismaAdapter(prisma),
@@ -26,6 +27,7 @@ export const authOptions: any = {
             school: {
               include: { subscription: true },
             },
+            customRole: true,
           },
         });
 
@@ -33,8 +35,10 @@ export const authOptions: any = {
           throw new Error('No account found with this email');
         }
 
+        // Allow pending_payment users to log in (they need to access billing to pay)
+        // Only block truly inactive accounts
         if (!user.isActive) {
-          throw new Error('Your account has been deactivated');
+          throw new Error('Your account has been deactivated. Please contact support.');
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
@@ -64,16 +68,26 @@ export const authOptions: any = {
           } else if (sub.status === 'active') {
             const periodEnd = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
             subscriptionStatus = periodEnd && periodEnd < now ? 'expired' : 'active';
+          } else if (sub.status === 'pending_payment') {
+            subscriptionStatus = 'pending_payment'; // Allow login but restrict features
           } else {
             subscriptionStatus = sub.status; // expired, cancelled, past_due
           }
         }
+
+        // Resolve effective permissions (custom role overrides built-in defaults)
+        const permissions = isSuperAdmin(user.email)
+          ? [] // super admins bypass all permission checks
+          : resolvePermissions(user.role, user.customRole?.permissions ?? null);
 
         return {
           id: user.id,
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
           role: user.role as 'student' | 'teacher' | 'parent' | 'admin',
+          customRoleId: user.customRoleId ?? null,
+          customRoleName: user.customRole?.name ?? null,
+          permissions,
           firstName: user.firstName,
           lastName: user.lastName,
           image: user.avatar,
@@ -94,6 +108,9 @@ export const authOptions: any = {
     async jwt({ token, user }) {
       if (user) {
         token.role = (user as any).role;
+        token.customRoleId = (user as any).customRoleId;
+        token.customRoleName = (user as any).customRoleName;
+        token.permissions = (user as any).permissions;
         token.firstName = (user as any).firstName;
         token.lastName = (user as any).lastName;
         token.userId = user.id;
@@ -115,6 +132,9 @@ export const authOptions: any = {
     async session({ session, token }) {
       if (token) {
         (session.user as any).role = token.role;
+        (session.user as any).customRoleId = token.customRoleId;
+        (session.user as any).customRoleName = token.customRoleName;
+        (session.user as any).permissions = token.permissions;
         (session.user as any).firstName = token.firstName;
         (session.user as any).lastName = token.lastName;
         (session.user as any).id = token.userId;

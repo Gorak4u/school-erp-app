@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const cls = searchParams.get('class') || '';
@@ -15,7 +19,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
 
-    const where: any = {};
+    const where: any = { ...tenantWhere(ctx) };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -65,8 +69,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
-    const exam = await prisma.exam.create({ data: body });
+    const exam = await prisma.exam.create({ data: { ...body, schoolId: ctx.schoolId } });
     return NextResponse.json({ exam }, { status: 201 });
   } catch (error) {
     console.error('POST /api/exams:', error);

@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 export default function SubscriptionRequiredPage() {
+  // Check URL params to see if this is a pending payment case
+  const isPendingPayment = typeof window !== 'undefined' && 
+    window.location.search.includes('pending=true');
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
@@ -16,25 +19,38 @@ export default function SubscriptionRequiredPage() {
         transition={{ duration: 0.8 }}
       >
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl p-10 shadow-2xl">
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 ${
+            isPendingPayment 
+              ? 'bg-gradient-to-br from-yellow-500 to-orange-500' 
+              : 'bg-gradient-to-br from-purple-500 to-pink-500'
+          }`}>
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              {isPendingPayment ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              )}
             </svg>
           </div>
 
-          <h1 className="text-3xl font-bold mb-3">Subscription Required</h1>
+          <h1 className="text-3xl font-bold mb-3">
+            {isPendingPayment ? 'Payment Required' : 'Subscription Required'}
+          </h1>
           <p className="text-gray-400 mb-8 leading-relaxed">
-            Your subscription has expired or been cancelled. Please renew or upgrade your plan to continue using the platform.
+            {isPendingPayment 
+              ? 'Your payment is pending. Please complete the payment to activate your account and start using the platform.'
+              : 'Your subscription has expired or been cancelled. Please renew or upgrade your plan to continue using the platform.'
+            }
           </p>
 
           <div className="space-y-3">
-            <Link href="/pricing">
+            <Link href={isPendingPayment ? "/billing" : "/pricing"}>
               <motion.button
                 className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                Choose a Plan
+                {isPendingPayment ? 'Complete Payment' : 'Choose a Plan'}
               </motion.button>
             </Link>
 

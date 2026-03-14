@@ -8,7 +8,7 @@ import { getToken } from 'next-auth/jwt';
 // Routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required'];
 
-// Routes that require specific roles
+// Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {
   '/admin': ['admin'],
   '/teacher': ['admin', 'teacher'],
@@ -24,11 +24,26 @@ const roleBasedRoutes: Record<string, string[]> = {
   '/fees': ['admin'],
 };
 
+// Routes that require specific permissions (used when user has a custom role)
+const permissionBasedRoutes: Record<string, string> = {
+  '/students': 'view_students',
+  '/teachers': 'view_teachers',
+  '/attendance': 'view_attendance',
+  '/fees': 'view_fees',
+  '/reports': 'view_reports',
+  '/settings': 'view_settings',
+};
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    return NextResponse.next();
+  }
+
+  // Allow billing page for all authenticated users (including expired trials)
+  if (pathname === '/billing') {
     return NextResponse.next();
   }
 
@@ -74,13 +89,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Check role-based access (school-level)
+  // Handle pending_payment users - restrict access to billing pages only
+  if (effectiveStatus === 'pending_payment') {
+    // Allow API routes for payment processing
+    if (pathname.startsWith('/api/')) return NextResponse.next();
+    
+    // Allow billing and payment pages
+    const allowedRoutes = ['/settings', '/subscription-required', '/profile', '/billing'];
+    const isAllowed = allowedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
+    
+    if (!isAllowed) {
+      const billingUrl = new URL('/subscription-required?pending=true', request.url);
+      return NextResponse.redirect(billingUrl);
+    }
+    return NextResponse.next();
+  }
+
+  // Check access: permission-based first (if user has custom role), then role-based fallback
   const userRole = token.role as string;
+  const userCustomRoleId = token.customRoleId as string | undefined;
+  const userPermissions: string[] = (token.permissions as string[]) || [];
 
   for (const [route, requiredRoles] of Object.entries(roleBasedRoutes)) {
-    if (pathname.startsWith(route) && !requiredRoles.includes(userRole)) {
-      const dashboardUrl = new URL('/dashboard', request.url);
-      return NextResponse.redirect(dashboardUrl);
+    if (!pathname.startsWith(route)) continue;
+
+    // If user has a custom role, check permissions instead of built-in role
+    if (userCustomRoleId) {
+      const requiredPermission = permissionBasedRoutes[route];
+      if (requiredPermission && !userPermissions.includes(requiredPermission)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    } else {
+      // Fallback: built-in role check
+      if (!requiredRoles.includes(userRole)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
     }
   }
 

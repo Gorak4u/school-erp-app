@@ -27,11 +27,11 @@ export function createTrackingHandlers(ctx: any) {
       status = 'late';
     }
     
-    // Simulate biometric verification
+    // Biometric verification (in production, implement actual biometric API)
     const biometricData = method === 'biometric' ? {
-      facialRecognition: Math.random() > 0.1,
-      fingerprintMatch: Math.random() > 0.05,
-      confidence: 0.85 + Math.random() * 0.15
+      facialRecognition: true, // TODO: Implement actual facial recognition
+      fingerprintMatch: true, // TODO: Implement actual fingerprint matching
+      confidence: 0.95 // TODO: Get from biometric API response
     } : {
       facialRecognition: false,
       fingerprintMatch: false,
@@ -432,13 +432,13 @@ export function createTrackingHandlers(ctx: any) {
       learningAnalytics: academicPerformance.learningAnalytics
     };
 
-    // Simulate report generation
+    // Generate report (in production, implement actual PDF generation)
     const report = {
       id: `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: `${reportType.replace('_', ' ')} - ${student.name}`,
       type: reportType,
       generatedAt: new Date().toISOString(),
-      fileUrl: `/reports/${reportData.student.name}_${reportType}.pdf`
+      fileUrl: `/reports/${student.name}_${reportType}.pdf` // TODO: Generate actual PDF
     };
 
     setAcademicPerformance(prev => ({

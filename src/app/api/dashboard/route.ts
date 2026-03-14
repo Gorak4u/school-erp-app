@@ -1,9 +1,25 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET() {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    // Build school-scoped where clauses
+    const schoolFilter = (!ctx.isSuperAdmin && ctx.schoolId) ? { schoolId: ctx.schoolId } : {};
+    const studentFilter = { ...schoolFilter };
+    const teacherFilter = { ...schoolFilter };
+    const examFilter = { ...schoolFilter };
+    const feeRecordFilter = (!ctx.isSuperAdmin && ctx.schoolId)
+      ? { student: { schoolId: ctx.schoolId } } : {};
+    const attendanceFilter = (!ctx.isSuperAdmin && ctx.schoolId)
+      ? { student: { schoolId: ctx.schoolId } } : {};
+    const paymentFilter = (!ctx.isSuperAdmin && ctx.schoolId)
+      ? { feeRecord: { student: { schoolId: ctx.schoolId } } } : {};
+
     const today = new Date().toISOString().slice(0, 10);
 
     const [
@@ -18,24 +34,26 @@ export async function GET() {
       classDistribution,
       feesByStructure,
     ] = await Promise.all([
-      prisma.student.count(),
-      prisma.student.count({ where: { status: 'active' } }),
-      prisma.teacher.count(),
-      prisma.teacher.count({ where: { status: 'active' } }),
+      prisma.student.count({ where: studentFilter }),
+      prisma.student.count({ where: { ...studentFilter, status: 'active' } }),
+      prisma.teacher.count({ where: teacherFilter }),
+      prisma.teacher.count({ where: { ...teacherFilter, status: 'active' } }),
       prisma.feeRecord.aggregate({
+        where: feeRecordFilter,
         _sum: { amount: true, paidAmount: true, pendingAmount: true },
       }),
       prisma.attendanceRecord.groupBy({
         by: ['status'],
-        where: { date: today },
+        where: { date: today, ...attendanceFilter },
         _count: { status: true },
       }),
       prisma.exam.findMany({
-        where: { date: { gte: today }, status: 'scheduled' },
+        where: { ...examFilter, date: { gte: today }, status: 'scheduled' },
         orderBy: { date: 'asc' },
         take: 5,
       }),
       prisma.payment.findMany({
+        where: paymentFilter,
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
@@ -44,8 +62,8 @@ export async function GET() {
           },
         },
       }),
-      prisma.student.groupBy({ by: ['class'], _count: { class: true }, orderBy: { class: 'asc' } }),
-      prisma.feeRecord.groupBy({ by: ['feeStructureId'], _sum: { amount: true, paidAmount: true }, _count: { id: true } }),
+      prisma.student.groupBy({ by: ['class'], where: studentFilter, _count: { class: true }, orderBy: { class: 'asc' } }),
+      prisma.feeRecord.groupBy({ by: ['feeStructureId'], where: feeRecordFilter, _sum: { amount: true, paidAmount: true }, _count: { id: true } }),
     ]);
 
     const attendanceMap: Record<string, number> = {};

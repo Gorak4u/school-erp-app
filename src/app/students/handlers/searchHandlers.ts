@@ -57,8 +57,8 @@ export function createSearchHandlers(ctx: any) {
   const performAdvancedSearch = async (query: string) => {
     setAdvancedSearch(prev => ({ ...prev, isSearching: true, query }));
     
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // AI-powered search (in production, implement actual AI search API)
+    // const aiResults = await performAISearch(query);
     
     // Update search analytics
     setAdvancedSearch(prev => ({
@@ -416,9 +416,15 @@ export function createSearchHandlers(ctx: any) {
     } catch (err: any) {
       console.error('Failed to add student:', err);
       let errorMessage = 'Something went wrong';
+      let isLimitError = false;
       
+      // Check for subscription limit errors
+      if (err.message.includes('limit reached') || err.message.includes('quota') || err.message.includes('upgrade')) {
+        isLimitError = true;
+        errorMessage = err.message || 'Student limit reached. Please upgrade your plan to add more students.';
+      }
       // Provide more specific error messages
-      if (err.message.includes('Admission number')) {
+      else if (err.message.includes('Admission number')) {
         errorMessage = 'Admission number conflict. Please try again.';
       } else if (err.message.includes('required')) {
         errorMessage = 'Please fill in all required fields.';
@@ -430,10 +436,26 @@ export function createSearchHandlers(ctx: any) {
       
       if ((window as any).toast) {
         (window as any).toast({
-          type: 'error',
-          title: 'Failed to Add Student',
+          type: isLimitError ? 'warning' : 'error',
+          title: isLimitError ? 'Student Limit Reached' : 'Failed to Add Student',
           message: errorMessage,
-          duration: 4000
+          duration: isLimitError ? 6000 : 4000,
+          ...(isLimitError && {
+            actions: [
+              {
+                label: 'View Subscription',
+                action: () => {
+                  window.location.href = '/subscription';
+                }
+              },
+              {
+                label: 'Upgrade Plan',
+                action: () => {
+                  window.location.href = '/billing';
+                }
+              }
+            ]
+          })
         });
       }
     }

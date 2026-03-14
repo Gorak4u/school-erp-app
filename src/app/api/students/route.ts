@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -149,23 +149,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { documents, fees, attendance, academics, behavior, transferCertificateNumber, grade, timestamp, isAutoSave, ...data } = body;
 
-    // Check subscription limits (skip for super admins)
-    if (!ctx.isSuperAdmin && ctx.schoolId) {
-      const user = await (prisma as any).user.findUnique({
-        where: { email: ctx.email },
-        include: { school: { include: { subscription: true } } },
-      });
-      
-      const subscription = user?.school?.subscription;
-      if (subscription) {
-        const currentStudentCount = await prisma.student.count({ where: { schoolId: ctx.schoolId } });
-        if (currentStudentCount >= subscription.maxStudents) {
-          return NextResponse.json({ 
-            error: `Student limit reached. Your plan allows ${subscription.maxStudents} students. Upgrade your plan to add more.` 
-          }, { status: 403 });
-        }
-      }
-    }
+    // Check subscription limits
+    const limitError = await checkSubscriptionLimit(ctx, 'students', prisma);
+    if (limitError) return limitError;
 
     // Validate required fields
     const requiredFields = ['name', 'dateOfBirth', 'gender'];

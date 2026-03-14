@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -30,6 +31,8 @@ const TABS = [
   { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
   { id: 'access', label: 'Access Rights', icon: '🔒' },
   { id: 'app', label: 'App Settings', icon: '⚙️' },
+  { id: 'roles', label: 'Custom Roles', icon: '🎭', href: '/settings/roles' },
+  { id: 'users', label: 'Users & Access', icon: '👥', href: '/settings/users' },
 ];
 
 export default function SettingsPage() {
@@ -139,20 +142,153 @@ export default function SettingsPage() {
     try {
       const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi, section: sectionsApi, timing: schoolTimingsApi };
       const api = apiMap[modalEntity];
+      
       if (editingItem) {
         await api.update({ id: editingItem.id, ...formData });
         showToast({ type: 'success', title: `${modalEntity} updated` });
       } else {
-        await api.create(formData);
-        showToast({ type: 'success', title: `${modalEntity} created` });
+        // Special handling for academic year creation
+        if (modalEntity === 'academicYear') {
+          // Check if there are previous academic years
+          const previousYears = academicYears.filter((ay: any) => ay.isActive && ay.id !== formData.id);
+          
+          if (previousYears.length > 0) {
+            // Show confirmation dialog for copying data
+            const shouldCopy = window.confirm(
+              `Previous academic year found: ${previousYears[0].name}\n\n` +
+              `Would you like to copy the medium, class, section & fee structure from the previous year?` +
+              `\n\nClick OK to copy, or Cancel to create fresh.`
+            );
+            
+            if (shouldCopy) {
+              // Create academic year first
+              const newAcademicYear = await api.create(formData);
+              
+              // Then copy data from previous year
+              await copyDataFromPreviousYear(previousYears[0].id, newAcademicYear.id);
+              
+              showToast({ 
+                type: 'success', 
+                title: 'Academic Year Created', 
+                message: 'Successfully created and copied data from previous year' 
+              });
+            } else {
+              await api.create(formData);
+              showToast({ type: 'success', title: 'Academic Year created' });
+            }
+          } else {
+            await api.create(formData);
+            showToast({ type: 'success', title: 'Academic Year created' });
+          }
+        } else {
+          await api.create(formData);
+          showToast({ type: 'success', title: `${modalEntity} created` });
+        }
       }
       setShowModal(false);
       fetchAll();
-      refreshSchoolConfig();
-    } catch (e: any) {
-      showToast({ type: 'error', title: 'Save failed', message: e.message });
+    } catch (err: any) {
+      showToast({ type: 'error', title: 'Failed', message: err.message || 'Something went wrong' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Function to copy data from previous academic year
+  const copyDataFromPreviousYear = async (previousYearId: string, newYearId: string) => {
+    try {
+      console.log(`🔄 Copying data from academic year ${previousYearId} to ${newYearId}`);
+      
+      // 1. Copy mediums
+      console.log('📖 Copying mediums...');
+      const mediums = await mediumsApi.list({ academicYearId: previousYearId });
+      const mediumMapping: { [key: string]: string } = {};
+      
+      for (const medium of mediums) {
+        const newMedium = await mediumsApi.create({
+          code: `${medium.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          name: medium.name,
+          description: medium.description,
+          isActive: medium.isActive,
+          academicYearId: newYearId
+        });
+        mediumMapping[medium.id] = newMedium.id;
+        console.log(`  ✅ Copied medium: ${medium.name}`);
+      }
+
+      // 2. Copy classes
+      console.log('📚 Copying classes...');
+      const classes = await classesApi.list({ academicYearId: previousYearId });
+      const classMapping: { [key: string]: string } = {};
+      
+      for (const cls of classes) {
+        // Find corresponding medium in new year
+        const newMediumId = mediumMapping[cls.mediumId];
+        
+        const newClass = await classesApi.create({
+          code: `${cls.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          name: cls.name,
+          level: cls.level,
+          isActive: cls.isActive,
+          academicYearId: newYearId,
+          mediumId: newMediumId || ''
+        });
+        classMapping[cls.id] = newClass.id;
+        console.log(`  ✅ Copied class: ${cls.name}`);
+      }
+
+      // 3. Copy sections
+      console.log('📝 Copying sections...');
+      const sections = await sectionsApi.list({ academicYearId: previousYearId });
+      
+      for (const section of sections) {
+        // Find corresponding class in new year
+        const newClassId = classMapping[section.classId];
+        
+        await sectionsApi.create({
+          code: `${section.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          name: section.name,
+          capacity: section.capacity,
+          roomNumber: section.roomNumber,
+          isActive: section.isActive,
+          classId: newClassId || '',
+          academicYearId: newYearId
+        });
+        console.log(`  ✅ Copied section: ${section.name}`);
+      }
+
+      // 4. Copy fee structures
+      console.log('💰 Copying fee structures...');
+      const feeStructures = await feeStructuresApi.list({ academicYearId: previousYearId });
+      
+      for (const fee of feeStructures) {
+        // Find corresponding entities in new year
+        const newMediumId = fee.mediumId ? mediumMapping[fee.mediumId] : undefined;
+        const newClassId = fee.classId ? classMapping[fee.classId] : undefined;
+        
+        await feeStructuresApi.create({
+          name: fee.name,
+          category: fee.category,
+          amount: fee.amount,
+          frequency: fee.frequency,
+          dueDate: fee.dueDate,
+          lateFee: fee.lateFee,
+          description: fee.description,
+          applicableCategories: fee.applicableCategories,
+          isActive: fee.isActive,
+          academicYearId: newYearId,
+          boardId: fee.boardId,
+          mediumId: newMediumId,
+          classId: newClassId
+        });
+        console.log(`  ✅ Copied fee structure: ${fee.name}`);
+      }
+
+      console.log('🎉 Copy process completed successfully!');
+      
+    } catch (error) {
+      console.error('Failed to copy data from previous year:', error);
+      throw error;
     }
   };
 
@@ -867,17 +1003,27 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
           {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              <span>{tab.icon}</span> {tab.label}
-            </button>
+            tab.href ? (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                <span>{tab.icon}</span> {tab.label}
+              </Link>
+            ) : (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <span>{tab.icon}</span> {tab.label}
+              </button>
+            )
           ))}
         </div>
 

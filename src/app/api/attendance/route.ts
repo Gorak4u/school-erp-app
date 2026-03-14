@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('studentId') || '';
     const cls = searchParams.get('class') || '';
@@ -15,6 +19,8 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
 
     const where: any = {};
+    // Tenant isolation via student relation
+    if (!ctx.isSuperAdmin && ctx.schoolId) where.student = { schoolId: ctx.schoolId };
     if (studentId) where.studentId = studentId;
     if (cls) where.class = cls;
     if (section) where.section = section;
@@ -55,6 +61,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
 
     // Support bulk attendance (array) or single record

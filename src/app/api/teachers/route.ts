@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,23 +65,9 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    // Check subscription limits (skip for super admins)
-    if (!ctx.isSuperAdmin && ctx.schoolId) {
-      const user = await (prisma as any).user.findUnique({
-        where: { email: ctx.email },
-        include: { school: { include: { subscription: true } } },
-      });
-      
-      const subscription = user?.school?.subscription;
-      if (subscription) {
-        const currentTeacherCount = await prisma.teacher.count({ where: { schoolId: ctx.schoolId } });
-        if (currentTeacherCount >= subscription.maxTeachers) {
-          return NextResponse.json({ 
-            error: `Teacher limit reached. Your plan allows ${subscription.maxTeachers} teachers. Upgrade your plan to add more.` 
-          }, { status: 403 });
-        }
-      }
-    }
+    // Check subscription limits
+    const limitError = await checkSubscriptionLimit(ctx, 'teachers', prisma);
+    if (limitError) return limitError;
 
     const body = await request.json();
     const teacher = await prisma.teacher.create({ data: { ...body, schoolId: ctx.schoolId } });

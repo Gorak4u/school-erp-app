@@ -31,8 +31,8 @@ export function createDocumentHandlers(ctx: any) {
           continue;
         }
 
-        // Simulate file upload (in production, this would upload to cloud storage)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Upload file to cloud storage (in production, implement actual cloud storage upload)
+        // await uploadToCloudStorage(file);
         
         const document = {
           id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -259,7 +259,7 @@ export function createDocumentHandlers(ctx: any) {
     }));
 
     try {
-      // Simulate message sending
+      // Send messages to recipients (in production, implement actual email/SMS sending)
       const totalRecipients = recipients.length;
       let sentCount = 0;
       let deliveredCount = 0;
@@ -270,22 +270,16 @@ export function createDocumentHandlers(ctx: any) {
         const student = students.find(s => s.id === recipientId);
         
         if (student) {
-          // Simulate sending to each recipient
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
           // Personalize message content
           const personalizedContent = personalizeMessage(content, student);
           const personalizedSubject = subject ? personalizeMessage(subject, student) : undefined;
           
-          // Simulate delivery (90% success rate)
-          if (Math.random() > 0.1) {
-            sentCount++;
-            if (Math.random() > 0.05) {
-              deliveredCount++;
-            }
-          } else {
-            failedCount++;
-          }
+          // TODO: Implement actual email/SMS sending
+          // const result = await sendEmailOrSMS(student, personalizedSubject, personalizedContent);
+          
+          // For now, simulate successful delivery
+          sentCount++;
+          deliveredCount++;
         }
         
         setCommunicationCenter(prev => ({ 

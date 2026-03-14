@@ -40,60 +40,22 @@ export interface AuthActions {
 
 export type AuthStore = AuthState & AuthActions;
 
-// Mock API functions (replace with real API calls)
-const mockApi = {
+// Real API functions
+const api = {
   login: async (email: string, password: string): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock validation
-    if (email === 'admin@schoolerp.com' && password === 'admin123') {
-      return {
-        id: '1',
-        email: 'admin@schoolerp.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        role: 'admin',
-        schoolId: 'school1',
-      };
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
     }
-    
-    if (email === 'teacher@schoolerp.com' && password === 'teacher123') {
-      return {
-        id: '2',
-        email: 'teacher@schoolerp.com',
-        firstName: 'Teacher',
-        lastName: 'User',
-        role: 'teacher',
-        schoolId: 'school1',
-      };
-    }
-    
-    if (email === 'student@schoolerp.com' && password === 'student123') {
-      return {
-        id: '3',
-        email: 'student@schoolerp.com',
-        firstName: 'Student',
-        lastName: 'User',
-        role: 'student',
-        schoolId: 'school1',
-        classId: 'class1',
-        grade: '10',
-      };
-    }
-    
-    if (email === 'parent@schoolerp.com' && password === 'parent123') {
-      return {
-        id: '4',
-        email: 'parent@schoolerp.com',
-        firstName: 'Parent',
-        lastName: 'User',
-        role: 'parent',
-        schoolId: 'school1',
-      };
-    }
-    
-    throw new Error('Invalid email or password');
+
+    const data = await response.json();
+    return data.user;
   },
 
   register: async (userData: {
@@ -103,25 +65,19 @@ const mockApi = {
     password: string;
     role: 'student' | 'teacher' | 'parent' | 'admin';
   }): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock user creation - use deterministic ID for hydration
-    const timestamp = Date.now();
-    const hash = btoa(userData.email + timestamp).replace(/[^a-zA-Z0-9]/g, '').substr(0, 9);
-    
-    return {
-      id: hash || 'user_' + timestamp,
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role,
-      schoolId: 'school1',
-      ...(userData.role === 'student' && {
-        classId: 'class1',
-        grade: '10',
-      }),
-    };
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Registration failed');
+    }
+
+    const data = await response.json();
+    return data.user;
   },
 };
 
@@ -140,7 +96,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ loading: true, error: null });
         
         try {
-          const user = await mockApi.login(email, password);
+          const user = await api.login(email, password);
           set({
             user,
             isAuthenticated: true,
@@ -169,7 +125,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ loading: true, error: null });
         
         try {
-          const user = await mockApi.register(userData);
+          const user = await api.register(userData);
           set({
             user,
             isAuthenticated: true,

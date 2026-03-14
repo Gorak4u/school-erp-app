@@ -42,3 +42,37 @@ export function tenantWhere(ctx: SessionContext): Record<string, any> {
   if (ctx.isSuperAdmin || !ctx.schoolId) return {};
   return { schoolId: ctx.schoolId };
 }
+
+/**
+ * Checks if the school has reached its subscription limit for a resource.
+ * Returns an error NextResponse if limit is reached, null otherwise.
+ */
+export async function checkSubscriptionLimit(
+  ctx: SessionContext,
+  resourceType: 'students' | 'teachers',
+  prisma: any
+): Promise<NextResponse | null> {
+  if (ctx.isSuperAdmin || !ctx.schoolId) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { email: ctx.email },
+    include: { school: { include: { subscription: true } } },
+  });
+
+  const subscription = user?.school?.subscription;
+  if (!subscription) return null;
+
+  const maxLimit = resourceType === 'students' ? subscription.maxStudents : subscription.maxTeachers;
+  const modelName = resourceType === 'students' ? 'student' : 'teacher';
+  const currentCount = await prisma[modelName].count({ where: { schoolId: ctx.schoolId } });
+
+  if (currentCount >= maxLimit) {
+    const resourceName = resourceType === 'students' ? 'Student' : 'Teacher';
+    return NextResponse.json(
+      { error: `${resourceName} limit reached. Your plan allows ${maxLimit} ${resourceType}. Upgrade your plan to add more.` },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}

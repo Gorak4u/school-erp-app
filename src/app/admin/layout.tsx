@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/plans', label: 'Plans & Pricing', icon: '💰' },
   { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
   { href: '/admin/payments', label: 'Payment Config', icon: '💳' },
+  { href: '/admin/reminder-settings', label: 'Reminder Settings', icon: '🔔' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: '🔍' },
   { href: '/admin/settings', label: 'Platform Settings', icon: '⚙️' },
 ];

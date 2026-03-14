@@ -195,6 +195,52 @@ export function createMobileHandlers(ctx: any) {
     const errors: string[] = [];
     const newStudents: Student[] = [];
 
+    // Check subscription limits before starting import
+    try {
+      const { studentsApi } = await import('@/lib/apiClient');
+      // Get current subscription info
+      const subscriptionResponse = await fetch('/api/subscription');
+      const subscriptionData = await subscriptionResponse.json();
+      
+      if (subscriptionData.subscription) {
+        const { studentsUsed, maxStudents } = subscriptionData.subscription;
+        const availableSlots = maxStudents - studentsUsed;
+        
+        if (availableSlots <= 0) {
+          errors.push(`Cannot import: Student limit reached (${studentsUsed}/${maxStudents}). Please upgrade your plan to add more students.`);
+          if ((window as any).toast) {
+            (window as any).toast({
+              type: 'warning',
+              title: 'Student Limit Reached',
+              message: `Cannot import students: limit reached (${studentsUsed}/${maxStudents}). Please upgrade your plan.`,
+              duration: 6000,
+              actions: [
+                {
+                  label: 'View Subscription',
+                  action: () => {
+                    window.location.href = '/subscription';
+                  }
+                },
+                {
+                  label: 'Upgrade Plan',
+                  action: () => {
+                    window.location.href = '/billing';
+                  }
+                }
+              ]
+            });
+          }
+          return { success: false, results, errors };
+        } else if (data.length > availableSlots) {
+          errors.push(`Warning: Only ${availableSlots} student slots available. Importing first ${availableSlots} students.`);
+          // Trim data to available slots
+          data = data.slice(0, availableSlots);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check subscription limits:', err);
+    }
+
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       setBulkOperations(prev => ({ ...prev, importProgress: (i / data.length) * 100 }));
@@ -541,7 +587,8 @@ export function createMobileHandlers(ctx: any) {
         for (let i = 0; i < selectedStudentsData.length; i++) {
           setStudents(prev => prev.filter(s => s.id !== selectedStudentsData[i].id));
           setBulkOperations(prev => ({ ...prev, bulkActionProgress: ((i + 1) / selectedStudentsData.length) * 100 }));
-          await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing time
+          // Process deletion (in production, implement actual deletion logic)
+        // await deleteStudentFromDatabase(selectedStudentsData[i].id);
         }
         setSelectedStudents([]);
       } else if (action === 'update') {

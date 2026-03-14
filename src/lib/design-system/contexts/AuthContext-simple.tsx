@@ -108,87 +108,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   }
 };
 
-// Mock API functions (replace with real API calls)
-const mockApi = {
-  login: async (email: string, password: string): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock validation
-    if (email === 'admin@schoolerp.com' && password === 'admin123') {
-      return {
-        id: '1',
-        email: 'admin@schoolerp.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        role: 'admin',
-        schoolId: 'school1',
-      };
-    }
-    
-    if (email === 'teacher@schoolerp.com' && password === 'teacher123') {
-      return {
-        id: '2',
-        email: 'teacher@schoolerp.com',
-        firstName: 'Teacher',
-        lastName: 'User',
-        role: 'teacher',
-        schoolId: 'school1',
-      };
-    }
-    
-    if (email === 'student@schoolerp.com' && password === 'student123') {
-      return {
-        id: '3',
-        email: 'student@schoolerp.com',
-        firstName: 'Student',
-        lastName: 'User',
-        role: 'student',
-        schoolId: 'school1',
-        classId: 'class1',
-        grade: '10',
-      };
-    }
-    
-    if (email === 'parent@schoolerp.com' && password === 'parent123') {
-      return {
-        id: '4',
-        email: 'parent@schoolerp.com',
-        firstName: 'Parent',
-        lastName: 'User',
-        role: 'parent',
-        schoolId: 'school1',
-      };
-    }
-    
-    throw new Error('Invalid email or password');
-  },
-
-  register: async (userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: 'student' | 'teacher' | 'parent' | 'admin';
-  }): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock user creation
-    return {
-      id: Math.random().toString(36).substr(2, 9),
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role,
-      schoolId: 'school1',
-      ...(userData.role === 'student' && {
-        classId: 'class1',
-        grade: '10',
-      }),
-    };
-  },
-};
+// Real API functions - using NextAuth for authentication
+// This context is deprecated in favor of NextAuth - kept for compatibility
 
 // Auth Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -215,9 +136,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      const user = await mockApi.login(email, password);
-      localStorage.setItem('authUser', JSON.stringify(user));
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      // Redirect to actual login page - this context is deprecated
+      window.location.href = '/login';
+      throw new Error('Please use the login page for authentication');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
@@ -236,9 +157,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'REGISTER_START' });
     
     try {
-      const user = await mockApi.register(userData);
-      localStorage.setItem('authUser', JSON.stringify(user));
-      dispatch({ type: 'REGISTER_SUCCESS', payload: user });
+      // Redirect to actual register page - this context is deprecated
+      window.location.href = '/register';
+      throw new Error('Please use the register page for authentication');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       dispatch({ type: 'REGISTER_FAILURE', payload: errorMessage });

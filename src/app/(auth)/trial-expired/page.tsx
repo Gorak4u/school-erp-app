@@ -29,13 +29,13 @@ export default function TrialExpiredPage() {
           </p>
 
           <div className="space-y-3">
-            <Link href="/pricing">
+            <Link href="/billing">
               <motion.button
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-medium transition-all"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                View Plans & Upgrade
+                Upgrade Now
               </motion.button>
             </Link>
 

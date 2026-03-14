@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { sendWelcomeEmail } from '@/lib/welcome-email';
 
 export async function POST(req: Request) {
   try {
@@ -94,14 +95,15 @@ export async function POST(req: Request) {
         subscriptionData.status = 'trial';
         subscriptionData.trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
       } else {
-        subscriptionData.status = 'active';
-        subscriptionData.currentPeriodStart = now;
-        subscriptionData.currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Paid plans start as pending_payment until payment is verified
+        subscriptionData.status = 'pending_payment';
+        subscriptionData.currentPeriodStart = null;
+        subscriptionData.currentPeriodEnd = null;
       }
 
       const subscription = await tx.subscription.create({ data: subscriptionData });
 
-      // 3. Create Admin User
+      // 3. Create Admin User (inactive for paid plans until payment confirmed)
       const user = await tx.user.create({
         data: {
           email: adminEmail,
@@ -110,7 +112,7 @@ export async function POST(req: Request) {
           lastName: adminLastName,
           role: 'admin',
           schoolId: school.id,
-          isActive: true,
+          isActive: true, // Allow all users to log in (middleware will restrict access)
         },
       });
 
@@ -125,6 +127,11 @@ export async function POST(req: Request) {
       });
 
       return { school, subscription, user };
+    });
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(result.user, result.school, result.subscription).catch(error => {
+      console.error('Welcome email failed:', error);
     });
 
     return NextResponse.json({
