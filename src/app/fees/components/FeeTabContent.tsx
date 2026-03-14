@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
@@ -12,6 +12,20 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
   const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
+
+  // State for date range filtering
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
+  // Set default date range to this week
+  useEffect(() => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay()); // Start of current week (Sunday)
+    
+    setFromDate(startOfWeek.toISOString().split('T')[0]);
+    setToDate(today.toISOString().split('T')[0]);
+  }, []);
 
   return (
     <>
@@ -1156,45 +1170,174 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                   💵 Fee Collections Summary
                 </h3>
                 
+                {/* Date Range Filter */}
+                <div className={`p-4 rounded-lg border mb-6 ${
+                  theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        From Date
+                      </label>
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        className={`px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-600 border-gray-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        To Date
+                      </label>
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        className={`px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-600 border-gray-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <button className={`px-4 py-2 rounded-lg font-medium ${
+                      theme === 'dark'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}>
+                      Apply Filter
+                    </button>
+                    <button className={`px-4 py-2 rounded-lg font-medium ${
+                      theme === 'dark'
+                        ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      {studentFeeSummaries?.length || 0}
+                      {(() => {
+                        let totalCollected = 0;
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              // Apply same date filtering
+                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                
+                                if (fromDateTime && date < fromDateTime) return;
+                                if (toDateTime && date > toDateTime) return;
+                              }
+                              totalCollected += payment.amount || 0;
+                            });
+                          });
+                        });
+                        return totalCollected.toLocaleString();
+                      })()}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Students
+                      Total Collected
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-green-500`}>
-                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0}
+                      {(() => {
+                        const collectors = new Set();
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              // Apply same date filtering
+                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                
+                                if (fromDateTime && date < fromDateTime) return;
+                                if (toDateTime && date > toDateTime) return;
+                              }
+                              if (payment.collectedBy) {
+                                collectors.add(payment.collectedBy);
+                              }
+                            });
+                          });
+                        });
+                        return collectors.size || 0;
+                      })()}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Fully Paid
+                      Active Collectors
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-orange-500`}>
-                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'partially_paid').length || 0}
+                      {(() => {
+                        let totalCollections = 0;
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              // Apply same date filtering
+                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                
+                                if (fromDateTime && date < fromDateTime) return;
+                                if (toDateTime && date > toDateTime) return;
+                              }
+                              totalCollections += 1;
+                            });
+                          });
+                        });
+                        return totalCollections || 0;
+                      })()}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Partially Paid
+                      Collections Made
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
-                    <div className={`text-2xl font-bold text-red-500`}>
-                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'overdue' || s.paymentStatus === 'no_payment').length || 0}
+                    <div className={`text-2xl font-bold text-blue-500`}>
+                      {(() => {
+                        const collectors = new Set();
+                        let totalCollected = 0;
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              if (payment.collectedBy) {
+                                collectors.add(payment.collectedBy);
+                              }
+                              totalCollected += payment.amount || 0;
+                            });
+                          });
+                        });
+                        const collectorCount = collectors.size || 1;
+                        return Math.round(totalCollected / collectorCount).toLocaleString();
+                      })()}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Pending/Overdue
+                      Avg per Collector
                     </div>
                   </div>
                 </div>
@@ -1207,75 +1350,227 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       <tr>
                         <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Student Name</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Class</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Roll No</th>
+                        }`}>Collector Name</th>
                         <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Total Fees</th>
+                        }`}>Total Collected</th>
                         <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Paid</th>
+                        }`}>Collections</th>
                         <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Status</th>
+                        }`}>Payment Method</th>
+                        <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Collection Date</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${
                       theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
                     }`}>
-                      {studentFeeSummaries?.map((student) => (
-                        <tr key={student.studentId || student.id} className={`${
-                          theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                        } transition-colors`}>
-                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {student.name || student.studentName || 'N/A'}
-                          </td>
-                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                            {student.class || student.studentClass || 'N/A'}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {student.rollNo || student.admissionNo || 'N/A'}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-medium text-green-500`}>
-                            {student.totalFees ? `₹${student.totalFees.toLocaleString()}` : 'N/A'}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-medium text-orange-500`}>
-                            {student.totalPaid ? `₹${student.totalPaid.toLocaleString()}` : 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              student.paymentStatus === 'fully_paid'
-                                ? 'bg-green-100 text-green-800'
-                                : student.paymentStatus === 'partially_paid'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : student.paymentStatus === 'no_payment'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {student.paymentStatus?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
-                            </span>
-                          </td>
-                        </tr>
-                      )) || (
+                      {(() => {
+                        // Group by collectedBy + paymentMethod with date filtering
+                        const groupedByCollectorAndMethod = {};
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              // Apply date filtering
+                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                
+                                // Skip if payment is outside date range
+                                if (fromDateTime && date < fromDateTime) return;
+                                if (toDateTime && date > toDateTime) return;
+                              }
+                              
+                              const collector = payment.collectedBy || record.collectedBy || 'Unknown';
+                              const paymentMethod = payment.paymentMethod || record.paymentMethod || 'Unknown';
+                              const key = `${collector}-${paymentMethod}`;
+                              
+                              if (!groupedByCollectorAndMethod[key]) {
+                                groupedByCollectorAndMethod[key] = {
+                                  collector: collector,
+                                  paymentMethod: paymentMethod,
+                                  totalCollected: 0,
+                                  collections: 0,
+                                  students: new Set(),
+                                  latestCollectionDate: null
+                                };
+                              }
+                              groupedByCollectorAndMethod[key].totalCollected += payment.amount || 0;
+                              groupedByCollectorAndMethod[key].collections += 1;
+                              groupedByCollectorAndMethod[key].students.add(student.studentId);
+                              
+                              // Track latest collection date
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                if (!groupedByCollectorAndMethod[key].latestCollectionDate || date > groupedByCollectorAndMethod[key].latestCollectionDate) {
+                                  groupedByCollectorAndMethod[key].latestCollectionDate = date;
+                                }
+                              }
+                            });
+                          });
+                        });
+
+                        return Object.entries(groupedByCollectorAndMethod).map(([key, data]) => {
+                          return (
+                            <tr key={key} className={`${
+                              theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                            } transition-colors`}>
+                              <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{data.collector}</span>
+                                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {data.students.size} students
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-right font-medium text-green-500`}>
+                                ₹{data.totalCollected.toLocaleString()}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                {data.collections}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  data.paymentMethod.toUpperCase() === 'CASH'
+                                    ? 'bg-green-100 text-green-800'
+                                    : data.paymentMethod.toUpperCase() === 'UPI'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : data.paymentMethod.toUpperCase() === 'BANK'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : data.paymentMethod.toUpperCase() === 'CARD'
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {data.paymentMethod.toUpperCase()}
+                                </span>
+                              </td>
+                              <td className={`px-4 py-3 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {data.latestCollectionDate 
+                                  ? data.latestCollectionDate.toLocaleDateString()
+                                  : 'N/A'
+                                }
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })() || (
                         <tr>
-                          <td colSpan={6} className={`px-4 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            No student data available
+                          <td colSpan={5} className={`px-4 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            No collection data available
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
+                  
+                  {/* Pagination */}
+                  <div className={`flex items-center justify-between px-4 py-3 border-t ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {(() => {
+                        // Calculate actual filtered results
+                        const groupedByCollectorAndMethod = {};
+                        studentFeeSummaries?.forEach(student => {
+                          student.feeRecords?.forEach(record => {
+                            record.payments?.forEach(payment => {
+                              // Apply same date filtering
+                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                              if (paymentDate) {
+                                const date = new Date(paymentDate);
+                                const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                
+                                if (fromDateTime && date < fromDateTime) return;
+                                if (toDateTime && date > toDateTime) return;
+                              }
+                              
+                              const collector = payment.collectedBy || record.collectedBy || 'Unknown';
+                              const paymentMethod = payment.paymentMethod || record.paymentMethod || 'Unknown';
+                              const key = `${collector}-${paymentMethod}`;
+                              
+                              if (!groupedByCollectorAndMethod[key]) {
+                                groupedByCollectorAndMethod[key] = {
+                                  collector: collector,
+                                  paymentMethod: paymentMethod,
+                                  totalCollected: 0,
+                                  collections: 0,
+                                  students: new Set(),
+                                  latestCollectionDate: null
+                                };
+                              }
+                              groupedByCollectorAndMethod[key].totalCollected += payment.amount || 0;
+                              groupedByCollectorAndMethod[key].collections += 1;
+                              groupedByCollectorAndMethod[key].students.add(student.studentId);
+                            });
+                          });
+                        });
+                        
+                        const totalResults = Object.keys(groupedByCollectorAndMethod).length;
+                        const pageSize = 10;
+                        const currentPage = 1;
+                        const start = (currentPage - 1) * pageSize + 1;
+                        const end = Math.min(currentPage * pageSize, totalResults);
+                        
+                        return totalResults > 0 ? (
+                          <>Showing <span className="font-medium">{start}</span> to <span className="font-medium">{end}</span> of{' '}
+                          <span className="font-medium">{totalResults}</span> results</>
+                        ) : (
+                          <>No results found</>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button className={`px-3 py-1 rounded ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`} disabled>
+                        Previous
+                      </button>
+                      <div className="flex gap-1">
+                        <button className={`px-3 py-1 rounded ${
+                          theme === 'dark'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-blue-500 text-white'
+                        }`}>1</button>
+                        <button className={`px-3 py-1 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}>2</button>
+                        <button className={`px-3 py-1 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}>3</button>
+                        <span className={`px-3 py-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>...</span>
+                        <button className={`px-3 py-1 rounded ${
+                          theme === 'dark'
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}>10</button>
+                      </div>
+                      <button className={`px-3 py-1 rounded ${
+                        theme === 'dark'
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}>
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
           )}
 
-          <FeeRecordsTabs ctx={ctx} />
+          {activeTab !== 'collections' && <FeeRecordsTabs ctx={ctx} />}
         </AnimatePresence>
 
         {/* Receipt Modal */}
