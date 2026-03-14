@@ -1534,27 +1534,70 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                         Previous
                       </button>
                       <div className="flex gap-1">
-                        <button className={`px-3 py-1 rounded ${
-                          theme === 'dark'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-blue-500 text-white'
-                        }`}>1</button>
-                        <button className={`px-3 py-1 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}>2</button>
-                        <button className={`px-3 py-1 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}>3</button>
-                        <span className={`px-3 py-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>...</span>
-                        <button className={`px-3 py-1 rounded ${
-                          theme === 'dark'
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}>10</button>
+                        {(() => {
+                          // Calculate actual filtered results for pagination
+                          const groupedByCollectorAndMethod = {};
+                          studentFeeSummaries?.forEach(student => {
+                            student.feeRecords?.forEach(record => {
+                              record.payments?.forEach(payment => {
+                                // Apply same date filtering
+                                const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
+                                if (paymentDate) {
+                                  const date = new Date(paymentDate);
+                                  const fromDateTime = fromDate ? new Date(fromDate) : null;
+                                  const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
+                                  
+                                  if (fromDateTime && date < fromDateTime) return;
+                                  if (toDateTime && date > toDateTime) return;
+                                }
+                                
+                                const collector = payment.collectedBy || record.collectedBy || 'Unknown';
+                                const paymentMethod = payment.paymentMethod || record.paymentMethod || 'Unknown';
+                                const key = `${collector}-${paymentMethod}`;
+                                
+                                if (!groupedByCollectorAndMethod[key]) {
+                                  groupedByCollectorAndMethod[key] = true;
+                                }
+                              });
+                            });
+                          });
+                          
+                          const totalResults = Object.keys(groupedByCollectorAndMethod).length;
+                          const pageSize = 10;
+                          const totalPages = Math.ceil(totalResults / pageSize);
+                          const currentPage = 1;
+                          
+                          if (totalPages === 0) return null;
+                          
+                          // Show page numbers
+                          const pages = [];
+                          const maxVisible = 5;
+                          
+                          for (let i = 1; i <= Math.min(totalPages, maxVisible); i++) {
+                            pages.push(
+                              <button key={i} className={`px-3 py-1 rounded ${
+                                i === currentPage
+                                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                                  : theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}>
+                                {i}
+                              </button>
+                            );
+                          }
+                          
+                          if (totalPages > maxVisible) {
+                            pages.push(<span key="ellipsis" className={`px-3 py-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>...</span>);
+                            pages.push(
+                              <button key={totalPages} className={`px-3 py-1 rounded ${
+                                theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}>
+                                {totalPages}
+                              </button>
+                            );
+                          }
+                          
+                          return pages;
+                        })()}
                       </div>
                       <button className={`px-3 py-1 rounded ${
                         theme === 'dark'
