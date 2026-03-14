@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
+import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,96 +40,35 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login form submitted'); // Debug log
-    console.log('Form data:', formData); // Debug log
     
     setIsLoading(true);
     setError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      
-      console.log('Checking credentials...'); // Debug log
-      
-      if (formData.email === 'admin@schoolerp.in' && formData.password === 'admin123') {
-        console.log('Admin login successful'); // Debug log
-        
-        // Create auth token for middleware
-        const tokenPayload = {
-          email: formData.email,
-          role: 'admin',
-          exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-        };
-        const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-        document.cookie = `auth-token=${token}; path=/; max-age=86400`;
-        
-        setIsLoading(false); // Set loading to false before navigation
-        // Use both router.push and window.location for robust navigation
-        router.push('/dashboard');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
-      } else if (formData.email === 'teacher@schoolerp.in' && formData.password === 'teacher123') {
-        console.log('Teacher login successful'); // Debug log
-        
-        // Create auth token for middleware
-        const tokenPayload = {
-          email: formData.email,
-          role: 'teacher',
-          exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-        };
-        const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-        document.cookie = `auth-token=${token}; path=/; max-age=86400`;
-        
-        setIsLoading(false); // Set loading to false before navigation
-        router.push('/dashboard');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
-      } else if (formData.email === 'student@schoolerp.in' && formData.password === 'student123') {
-        console.log('Student login successful'); // Debug log
-        
-        // Create auth token for middleware
-        const tokenPayload = {
-          email: formData.email,
-          role: 'student',
-          exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-        };
-        const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-        document.cookie = `auth-token=${token}; path=/; max-age=86400`;
-        
-        setIsLoading(false); // Set loading to false before navigation
-        router.push('/dashboard');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
-      } else if (formData.email === 'parent@schoolerp.in' && formData.password === 'parent123') {
-        console.log('Parent login successful'); // Debug log
-        
-        // Create auth token for middleware
-        const tokenPayload = {
-          email: formData.email,
-          role: 'parent',
-          exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-        };
-        const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-        document.cookie = `auth-token=${token}; path=/; max-age=86400`;
-        
-        setIsLoading(false); // Set loading to false before navigation
-        router.push('/dashboard');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
-      } else {
-        console.log('Invalid credentials'); // Debug log
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
         setError('Invalid credentials. Please check your email and password.');
-        setIsLoading(false); // Set loading to false for error case
+      } else if (result?.ok) {
+        // Check if user is super admin → redirect to /admin
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        if (session?.user?.isSuperAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        setError('An error occurred. Please try again.');
       }
     } catch (err) {
-      console.log('Login error:', err); // Debug log
       setError('An error occurred. Please try again.');
-      setIsLoading(false); // Set loading to false for error case
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -142,35 +82,11 @@ export default function LoginPage() {
   const demoCredentials = [
     {
       role: 'Administrator',
-      email: 'admin@schoolerp.in',
+      email: 'admin@yourschool.com',
       password: 'admin123',
       icon: '👨‍💼',
       color: 'from-blue-500 to-cyan-500',
       description: 'Full system access and control'
-    },
-    {
-      role: 'Teacher',
-      email: 'teacher@schoolerp.in',
-      password: 'teacher123',
-      icon: '👩‍🏫',
-      color: 'from-emerald-500 to-teal-500',
-      description: 'Class management and grading'
-    },
-    {
-      role: 'Student',
-      email: 'student@schoolerp.in',
-      password: 'student123',
-      icon: '👨‍🎓',
-      color: 'from-purple-500 to-pink-500',
-      description: 'Access to learning materials'
-    },
-    {
-      role: 'Parent',
-      email: 'parent@schoolerp.in',
-      password: 'parent123',
-      icon: '👨‍👩‍👧‍👦',
-      color: 'from-orange-500 to-red-500',
-      description: 'Monitor student progress'
     }
   ];
 
@@ -483,6 +399,13 @@ export default function LoginPage() {
                     </div>
                   </motion.div>
 
+                  {/* Forgot Password */}
+                  <div className="flex justify-end -mt-2">
+                    <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                      Forgot your password?
+                    </Link>
+                  </div>
+
                   {/* Error Message */}
                   <AnimatePresence>
                     {error && (
@@ -562,24 +485,29 @@ export default function LoginPage() {
 
                 {/* Footer Links */}
                 <motion.div
-                  className="mt-8 text-center space-y-2"
+                  className="mt-8 text-center space-y-3"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 1.3 }}
                 >
-                  <Link
-                    href="/register"
-                    className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                  >
-                    Don't have an account? Sign up
-                  </Link>
-                  <div>
+                  <div className="flex items-center gap-4 justify-center">
                     <Link
-                      href="/forgot-password"
-                      className="text-gray-400 hover:text-gray-300 text-sm transition-colors"
+                      href="/register?plan=trial"
+                      className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-sm rounded-lg font-medium transition-all"
                     >
-                      Forgot your password?
+                      Start Free Trial
                     </Link>
+                    <Link
+                      href="/pricing"
+                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm rounded-lg font-medium transition-all"
+                    >
+                      View Plans
+                    </Link>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <Link href="/register" className="text-blue-400 hover:text-blue-300">Create new school account</Link>
+                    {' | '}
+                    <Link href="/forgot-password" className="text-gray-400 hover:text-gray-300">Forgot password?</Link>
                   </div>
                 </motion.div>
               </div>

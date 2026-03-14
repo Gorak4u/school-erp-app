@@ -10,6 +10,47 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [saved, setSaved] = useState(false);
 
+  // Change Password state
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showPwForm, setShowPwForm] = useState(false);
+
+  const isDark = theme === 'dark';
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMsg(null);
+    if (pwForm.newPw !== pwForm.confirm) {
+      setPwMsg({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+    if (pwForm.newPw.length < 6) {
+      setPwMsg({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.newPw }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPwMsg({ type: 'success', text: 'Password changed successfully!' });
+        setPwForm({ current: '', newPw: '', confirm: '' });
+        setShowPwForm(false);
+      } else {
+        setPwMsg({ type: 'error', text: data.error || 'Failed to change password' });
+      }
+    } catch {
+      setPwMsg({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
   const firstName = (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '';
   const lastName = (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '';
   const email = user?.email || '';
@@ -145,22 +186,108 @@ export default function ProfilePage() {
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 mt-6">
               <button className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                theme === 'dark'
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               }`}>
                 Cancel
               </button>
               <button
                 onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                theme === 'dark'
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
+                isDark ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
               }`}>
                 {saved ? '✅ Saved!' : '💾 Save Changes'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Change Password Card */}
+        <div className={`rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Password & Security</h3>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Update your password to keep your account secure</p>
+              </div>
+              <button
+                onClick={() => { setShowPwForm(!showPwForm); setPwMsg(null); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isDark ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                }`}>
+                {showPwForm ? 'Cancel' : '🔑 Change Password'}
+              </button>
+            </div>
+
+            {pwMsg && (
+              <div className={`p-3 rounded-lg text-sm mb-4 ${
+                pwMsg.type === 'success'
+                  ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
+                  : isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-700'
+              }`}>{pwMsg.text}</div>
+            )}
+
+            {showPwForm && (
+              <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
+                <div>
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Current Password</label>
+                  <input
+                    type="password"
+                    value={pwForm.current}
+                    onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))}
+                    required
+                    placeholder="Enter your current password"
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>New Password</label>
+                    <input
+                      type="password"
+                      value={pwForm.newPw}
+                      onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))}
+                      required
+                      placeholder="Min. 6 characters"
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm ${
+                        isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={pwForm.confirm}
+                      onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
+                      required
+                      placeholder="Repeat new password"
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm ${
+                        isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'
+                      } ${pwForm.confirm && pwForm.confirm !== pwForm.newPw ? 'border-red-500' : ''}`}
+                    />
+                    {pwForm.confirm && pwForm.confirm !== pwForm.newPw && (
+                      <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" disabled={pwLoading}
+                    className={`px-6 py-2 rounded-lg font-medium text-sm transition-all ${
+                      pwLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    } ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                    {pwLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {!showPwForm && !pwMsg && (
+              <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Last changed: unknown · <a href="/forgot-password" className="text-blue-400 hover:underline">Forgot your password?</a>
+              </p>
+            )}
           </div>
         </div>
       </div>

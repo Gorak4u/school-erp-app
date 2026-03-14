@@ -14,6 +14,7 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [devResetUrl, setDevResetUrl] = useState('');
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isClient, setIsClient] = useState(false);
 
@@ -37,14 +38,17 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simulate email validation
-      if (email && email.includes('@')) {
-        setIsSubmitted(true);
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'An error occurred. Please try again.');
       } else {
-        setError('Please enter a valid email address');
+        setIsSubmitted(true);
+        if (data.devResetUrl) setDevResetUrl(data.devResetUrl);
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -279,6 +283,13 @@ export default function ForgotPasswordPage() {
                           <p className="text-sm text-gray-400 mb-1">Sent to:</p>
                           <p className="text-white font-medium">{email}</p>
                         </div>
+                        {devResetUrl && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                            <p className="text-xs text-yellow-400 font-semibold mb-2">⚠️ Dev Mode — No SMTP configured</p>
+                            <p className="text-xs text-gray-400 mb-2">Use this link to reset your password:</p>
+                            <a href={devResetUrl} className="text-xs text-blue-400 break-all underline">{devResetUrl}</a>
+                          </div>
+                        )}
                         <Link
                           href="/login"
                           className="block w-full px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-all duration-300 text-center"

@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { isSuperAdmin } from '@/lib/superAdmin';
 
 const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -18,8 +19,13 @@ const handler = NextAuth({
           throw new Error('Email and password are required');
         }
 
-        const user = await prisma.user.findUnique({
+        const user = await (prisma as any).user.findUnique({
           where: { email: credentials.email },
+          include: {
+            school: {
+              include: { subscription: true },
+            },
+          },
         });
 
         if (!user) {
@@ -35,6 +41,33 @@ const handler = NextAuth({
           throw new Error('Invalid password');
         }
 
+        // Build subscription info for JWT
+        const sub = user.school?.subscription;
+        let subscriptionStatus = 'none';
+        let subscriptionPlan = 'none';
+        let trialEndsAt: string | null = null;
+        let schoolId: string | null = user.schoolId;
+
+        // Super admin always has active enterprise subscription
+        if (isSuperAdmin(user.email)) {
+          subscriptionStatus = 'active';
+          subscriptionPlan = 'enterprise';
+          trialEndsAt = null;
+        } else if (sub) {
+          subscriptionPlan = sub.plan;
+          const now = new Date();
+          if (sub.status === 'trial') {
+            const trialEnd = sub.trialEndsAt ? new Date(sub.trialEndsAt) : null;
+            trialEndsAt = sub.trialEndsAt?.toISOString() || null;
+            subscriptionStatus = trialEnd && trialEnd < now ? 'expired' : 'trial';
+          } else if (sub.status === 'active') {
+            const periodEnd = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
+            subscriptionStatus = periodEnd && periodEnd < now ? 'expired' : 'active';
+          } else {
+            subscriptionStatus = sub.status; // expired, cancelled, past_due
+          }
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -43,6 +76,11 @@ const handler = NextAuth({
           firstName: user.firstName,
           lastName: user.lastName,
           image: user.avatar,
+          subscriptionStatus,
+          subscriptionPlan,
+          trialEndsAt,
+          schoolId,
+          isSuperAdmin: isSuperAdmin(user.email),
         };
       },
     }),
@@ -58,6 +96,18 @@ const handler = NextAuth({
         token.firstName = (user as any).firstName;
         token.lastName = (user as any).lastName;
         token.userId = user.id;
+        token.subscriptionStatus = (user as any).subscriptionStatus;
+        token.subscriptionPlan = (user as any).subscriptionPlan;
+        token.trialEndsAt = (user as any).trialEndsAt;
+        token.schoolId = (user as any).schoolId;
+        token.isSuperAdmin = (user as any).isSuperAdmin;
+      }
+      // Re-check trial expiry on every token refresh
+      if (token.subscriptionStatus === 'trial' && token.trialEndsAt) {
+        const trialEnd = new Date(token.trialEndsAt as string);
+        if (trialEnd < new Date()) {
+          token.subscriptionStatus = 'expired';
+        }
       }
       return token;
     },
@@ -67,6 +117,11 @@ const handler = NextAuth({
         (session.user as any).firstName = token.firstName;
         (session.user as any).lastName = token.lastName;
         (session.user as any).id = token.userId;
+        (session.user as any).subscriptionStatus = token.subscriptionStatus;
+        (session.user as any).subscriptionPlan = token.subscriptionPlan;
+        (session.user as any).trialEndsAt = token.trialEndsAt;
+        (session.user as any).schoolId = token.schoolId;
+        (session.user as any).isSuperAdmin = token.isSuperAdmin;
       }
       return session;
     },

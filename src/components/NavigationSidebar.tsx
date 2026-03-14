@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 
 interface NavigationSidebarProps {
   theme: 'dark' | 'light';
@@ -20,6 +21,8 @@ export default function NavigationSidebar({
   onMouseLeave
 }: NavigationSidebarProps) {
   const [isClient, setIsClient] = useState(false);
+  const { data: session } = useSession();
+  const userIsSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
 
   useEffect(() => {
     setIsClient(true);
@@ -196,6 +199,24 @@ export default function NavigationSidebar({
             <span className="text-lg">🏫</span>
             <span className="font-medium">School Structure</span>
           </Link>
+
+          {userIsSuperAdmin && (
+            <Link
+              href="/admin/saas"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                currentPage === 'saas-settings'
+                  ? theme === 'dark' 
+                    ? 'bg-orange-600/20 text-orange-400 border-l-4 border-orange-400' 
+                    : 'bg-orange-50 text-orange-600 border-l-4 border-orange-600'
+                  : theme === 'dark' 
+                    ? 'hover:bg-gray-800 text-orange-300' 
+                    : 'hover:bg-gray-100 text-orange-700'
+              }`}
+            >
+              <span className="text-lg">�</span>
+              <span className="font-medium">SaaS Admin</span>
+            </Link>
+          )}
 
           <Link
             href="/reports"

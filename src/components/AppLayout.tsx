@@ -8,6 +8,7 @@ import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import Toast from './Toast';
+import TrialBanner from './TrialBanner';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -301,6 +302,11 @@ export default function AppLayout({
           </div>
         </div>
       </motion.header>
+
+      {/* Trial/Subscription Banner */}
+      <div className="relative z-20 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
+        <TrialBanner />
+      </div>
 
       {/* Main Content */}
       <main className="relative z-10 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>

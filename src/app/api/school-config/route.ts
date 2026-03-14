@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 
 // Single endpoint that returns ALL school configuration data
 // Used by SchoolConfigContext to populate dropdowns across the entire app
 export async function GET() {
+  // Require authentication — never expose school data to unauthenticated requests
+  const session = await getServerSession();
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const [
       academicYears,

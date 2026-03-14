@@ -6,6 +6,105 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Multi-Tenant School & Subscription ───
+
+model School {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique // URL-friendly identifier
+  domain         String?       @unique // optional custom domain
+  email          String
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  pinCode        String?
+  logo           String?
+  isActive       Boolean       @default(true)
+  isDemo         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  subscription   Subscription?
+  users          User[]
+  students       Student[]
+  teachers       Teacher[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([isDemo])
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  schoolId          String   @unique
+  plan              String   @default("trial") // trial, basic, professional, enterprise
+  status            String   @default("trial") // trial, active, past_due, expired, cancelled
+  trialEndsAt       DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  maxStudents       Int      @default(50)
+  maxTeachers       Int      @default(5)
+  features          String   @default("[]") // JSON array of enabled feature keys
+  billingEmail      String?
+  paymentMethod     String?  // razorpay, stripe, manual
+  paymentId         String?  // external payment provider ID
+  cancelledAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invoices          Invoice[]
+
+  @@index([plan])
+  @@index([status])
+  @@index([trialEndsAt])
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  amount          Float
+  currency        String   @default("INR")
+  status          String   @default("pending") // pending, paid, failed, refunded
+  description     String?
+  paymentMethod   String?
+  transactionId   String?
+  paidAt          DateTime?
+  dueDate         DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  name            String   @unique // trial, basic, professional, enterprise
+  displayName     String
+  description     String?
+  priceMonthly    Float    @default(0)
+  priceYearly     Float    @default(0)
+  currency        String   @default("INR")
+  maxStudents     Int      @default(50)
+  maxTeachers     Int      @default(5)
+  features        String   @default("[]") // JSON array of feature keys
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  trialDays       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
+
+// ─── User ───
+
 model User {
   id        String    @id @default(cuid())
   email     String    @unique
@@ -15,11 +114,16 @@ model User {
   role      String    @default("admin")
   avatar    String?
   isActive  Boolean   @default(true)
+  schoolId  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  school    School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   accounts  Account[]
   sessions  Session[]
   teacher   Teacher?
+
+  @@index([schoolId])
 }
 
 model Account {
@@ -56,6 +160,31 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// Platform-level SaaS settings (SMTP, payment gateway, branding)
+// Completely separate from per-school SchoolSetting
+model SaasSetting {
+  id        String   @id @default(cuid())
+  group     String   // saas_smtp, saas_payment, saas_general
+  key       String
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@unique([group, key])
+  @@index([group])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
 model Student {
   id                    String             @id @default(cuid())
   admissionNo           String             @unique
@@ -68,6 +197,7 @@ model Student {
   gender                String
   dateOfBirth           String
   status                String             @default("active")
+  schoolId              String?
   phone                 String?
   address               String?
   city                  String?
@@ -132,10 +262,12 @@ model Student {
   academicYear         String             @default("2024-25")
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
+  school                School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   attendanceRecords     AttendanceRecord[]
   examResults           ExamResult[]
   feeRecords            FeeRecord[]
 
+  @@index([schoolId])
   @@index([class])
   @@index([status])
   @@index([gender])
@@ -159,6 +291,7 @@ model Teacher {
   qualification     String?
   experience        Int?               @default(0)
   status            String             @default("active")
+  schoolId          String?
   address           String?
   photo             String?
   joiningDate       String?
@@ -176,9 +309,11 @@ model Teacher {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   userId            String?            @unique
+  school            School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   attendanceRecords AttendanceRecord[]
   user              User?              @relation(fields: [userId], references: [id])
 
+  @@index([schoolId])
   @@index([status])
   @@index([department])
   @@index([name])

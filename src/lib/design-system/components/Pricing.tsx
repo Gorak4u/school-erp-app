@@ -3,113 +3,44 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, Badge, ButtonAdvanced } from '../index';
 
-interface PricingPlan {
-  id: number;
+interface PlanFromDB {
   name: string;
+  displayName: string;
   description: string;
-  price: string;
-  period: string;
-  features: string[];
-  highlighted?: boolean;
-  icon: string;
-  color: 'blue' | 'green' | 'purple';
-  cta: string;
-  limitations?: string[];
+  priceMonthly: number;
+  priceYearly: number;
+  currency: string;
+  maxStudents: number;
+  maxTeachers: number;
+  features: string;
+  trialDays: number;
+  isActive: boolean;
+  sortOrder: number;
 }
 
 const Pricing: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [hoveredPlan, setHoveredPlan] = useState<number | null>(null);
+  const [plans, setPlans] = useState<PlanFromDB[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plans: PricingPlan[] = [
-    {
-      id: 1,
-      name: "Starter",
-      description: "Perfect for small schools and coaching centers",
-      price: billingCycle === 'monthly' ? "₹4,999" : "₹3,999",
-      period: "/month",
-      icon: "🌱",
-      color: 'blue',
-      cta: "Start Free Trial",
-      features: [
-        "Up to 100 students",
-        "Basic analytics",
-        "Email support",
-        "Mobile app access",
-        "5GB storage",
-        "Standard reports",
-        "Parent portal",
-        "CBSE/ICSE compliance"
-      ],
-      limitations: [
-        "Limited to 5 teachers",
-        "Basic features only",
-        "No API access"
-      ]
-    },
-    {
-      id: 2,
-      name: "Professional",
-      description: "Ideal for growing schools and institutions",
-      price: billingCycle === 'monthly' ? "₹12,999" : "₹10,399",
-      period: "/month",
-      icon: "🚀",
-      color: 'green',
-      highlighted: true,
-      cta: "Most Popular Choice",
-      features: [
-        "Up to 500 students",
-        "Advanced analytics",
-        "Priority support",
-        "Mobile app access",
-        "50GB storage",
-        "Custom reports",
-        "Parent portal",
-        "Teacher collaboration tools",
-        "Automated workflows",
-        "Integration with LMS",
-        "JEE/NEET preparation modules",
-        "Board exam analytics"
-      ],
-      limitations: [
-        "Limited to 20 teachers",
-        "No dedicated account manager"
-      ]
-    },
-    {
-      id: 3,
-      name: "Enterprise",
-      description: "Complete solution for large institutions",
-      price: billingCycle === 'monthly' ? "₹39,999" : "₹31,999",
-      period: "/month",
-      icon: "🏢",
-      color: 'purple',
-      cta: "Contact Sales",
-      features: [
-        "Unlimited students",
-        "AI-powered analytics",
-        "24/7 phone support",
-        "Mobile app access",
-        "Unlimited storage",
-        "Custom reports",
-        "Parent portal",
-        "Teacher collaboration tools",
-        "Automated workflows",
-        "LMS integration",
-        "API access",
-        "Custom branding",
-        "Dedicated account manager",
-        "On-site training",
-        "SLA guarantee",
-        "Multiple board support",
-        "Regional language support"
-      ]
-    }
-  ];
+  // Fetch plans from database
+  useEffect(() => {
+    fetch('/api/admin/plans')
+      .then(res => res.json())
+      .then(data => {
+        setPlans((data.plans || []).filter((p: PlanFromDB) => p.isActive));
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch plans:', err);
+        setLoading(false);
+      });
+  }, []);
 
   const colorGradients = {
     blue: 'from-blue-500 to-cyan-500',
@@ -173,124 +104,162 @@ const Pricing: React.FC = () => {
         </motion.div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan, index) => (
-            <motion.div
-              key={plan.id}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              onMouseEnter={() => setHoveredPlan(plan.id)}
-              onMouseLeave={() => setHoveredPlan(null)}
-            >
-              <Card
-                variant={plan.highlighted ? "elevated" : "default"}
-                className={`relative h-full transform transition-all duration-300 ${
-                  plan.highlighted 
-                    ? 'scale-105 shadow-2xl ring-2 ring-green-500 ring-offset-2' 
-                    : 'hover:scale-105 hover:shadow-xl'
-                }`}
-              >
-                {/* Popular Badge */}
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge variant="success" className="bg-green-500 text-white px-4 py-1 text-sm font-semibold">
-                      ⭐ MOST POPULAR
-                    </Badge>
-                  </div>
-                )}
-
-                <CardContent className="p-8">
-                  {/* Header */}
-                  <div className="text-center mb-8">
-                    <div className={`w-16 h-16 bg-gradient-to-br ${colorGradients[plan.color]} rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg`}>
-                      {plan.icon}
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                    <p className="text-gray-600 mb-4">{plan.description}</p>
-                    
-                    {/* Price */}
-                    <div className="mb-6">
-                      <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                        <span className="text-gray-500">{plan.period}</span>
-                      </div>
-                      {billingCycle === 'annual' && (
-                        <p className="text-sm text-green-600 mt-1">
-                          Billed annually (save 20%)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <div className="space-y-4 mb-8">
-                    {plan.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-3">
-                        <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-700">{feature}</span>
-                      </div>
-                    ))}
-                    {plan.limitations?.map((limitation, idx) => (
-                      <div key={idx} className="flex items-start gap-3 opacity-60">
-                        <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-500 text-sm">{limitation}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* CTA Button */}
-                  <ButtonAdvanced
-                    variant={plan.highlighted ? "primary" : "outline"}
-                    size="lg"
-                    className={`w-full ${
-                      plan.highlighted
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-transparent'
-                        : `border-${colorBorders[plan.color]} hover:bg-gray-50`
+        {loading ? (
+          <div className="text-center py-16 text-gray-500">Loading plans...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {plans.map((plan, index) => {
+              let featuresList: string[] = [];
+              try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
+              
+              const isPopular = plan.name === 'professional';
+              const price = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
+              const isEnterprise = plan.name === 'enterprise';
+              const isTrial = plan.name === 'trial';
+              
+              const planColor = plan.name === 'trial' ? 'blue' :
+                              plan.name === 'basic' ? 'blue' :
+                              plan.name === 'professional' ? 'green' :
+                              'purple';
+              
+              const planIcon = plan.name === 'trial' ? '🌱' :
+                              plan.name === 'basic' ? '📚' :
+                              plan.name === 'professional' ? '🚀' :
+                              '🏢';
+              
+              return (
+                <motion.div
+                  key={plan.name}
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  onMouseEnter={() => setHoveredPlan(index)}
+                  onMouseLeave={() => setHoveredPlan(null)}
+                >
+                  <Card
+                    variant={isPopular ? "elevated" : "default"}
+                    className={`relative h-full transform transition-all duration-300 ${
+                      isPopular 
+                        ? 'scale-105 shadow-2xl ring-2 ring-green-500 ring-offset-2' 
+                        : 'hover:scale-105 hover:shadow-xl'
                     }`}
                   >
-                    {plan.cta}
-                  </ButtonAdvanced>
-                </CardContent>
-              </Card>
-
-              {/* Hover Overlay */}
-              <AnimatePresence>
-                {hoveredPlan === plan.id && (
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-br from-blue-600/95 to-indigo-600/95 rounded-2xl p-8 flex items-center justify-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="text-white text-center">
-                      <div className="text-4xl mb-4">{plan.icon}</div>
-                      <h4 className="text-2xl font-bold mb-2">{plan.name}</h4>
-                      <p className="text-white/90 mb-4">{plan.description}</p>
-                      <div className="text-3xl font-bold mb-4">
-                        {plan.price}
-                        <span className="text-lg font-normal text-white/80">{plan.period}</span>
+                    {/* Popular Badge */}
+                    {isPopular && (
+                      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                        <Badge variant="success" className="bg-green-500 text-white px-4 py-1 text-sm font-semibold">
+                          ⭐ MOST POPULAR
+                        </Badge>
                       </div>
-                      <button className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                        Get Started
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
-        </div>
+                    )}
+
+                    <CardContent className="p-8">
+                      {/* Header */}
+                      <div className="text-center mb-8">
+                        <div className={`w-16 h-16 bg-gradient-to-br ${colorGradients[planColor]} rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg`}>
+                          {planIcon}
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.displayName}</h3>
+                        <p className="text-gray-600 mb-4">{plan.description}</p>
+                        
+                        {/* Price */}
+                        <div className="mb-6">
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-4xl font-bold text-gray-900">
+                              {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
+                            </span>
+                            <span className="text-gray-500">
+                              {isTrial && <span className="text-sm text-gray-400 ml-1">{plan.trialDays} days</span>}
+                              {!isTrial && price > 0 && <span>/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>}
+                            </span>
+                          </div>
+                          {billingCycle === 'annual' && !isTrial && price > 0 && (
+                            <p className="text-sm text-green-600 mt-1">
+                              Billed annually (save 20%)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      <div className="space-y-4 mb-8">
+                        {featuresList.map((feature, idx) => (
+                          <div key={idx} className="flex items-start gap-3">
+                            <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <span className="text-gray-700">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* CTA Button */}
+                      <ButtonAdvanced
+                        variant={isPopular ? "primary" : "outline"}
+                        size="lg"
+                        className={`w-full ${
+                          isPopular
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-transparent'
+                            : `border-${colorBorders[planColor]} hover:bg-gray-50`
+                        }`}
+                        onClick={() => {
+                          if (isEnterprise) {
+                            window.location.href = 'mailto:sales@schoolerp.com?subject=Enterprise%20Plan%20Inquiry';
+                          } else {
+                            window.location.href = `/register?plan=${plan.name}`;
+                          }
+                        }}
+                      >
+                        {isEnterprise ? 'Contact Sales' : isTrial ? 'Start Free Trial' : 'Get Started'}
+                      </ButtonAdvanced>
+                    </CardContent>
+                  </Card>
+
+                  {/* Hover Overlay */}
+                  <AnimatePresence>
+                    {hoveredPlan === index && (
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-br from-blue-600/95 to-indigo-600/95 rounded-2xl p-8 flex items-center justify-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className="text-white text-center">
+                          <div className="text-4xl mb-4">{planIcon}</div>
+                          <h4 className="text-2xl font-bold mb-2">{plan.displayName}</h4>
+                          <p className="text-white/90 mb-4">{plan.description}</p>
+                          <div className="text-3xl font-bold mb-4">
+                            {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
+                            <span className="text-lg font-normal text-white/80">
+                              {isTrial && ` ${plan.trialDays} days`}
+                              {!isTrial && price > 0 && `/${billingCycle === 'monthly' ? 'mo' : 'yr'}`}
+                            </span>
+                          </div>
+                          <button 
+                            className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                              if (isEnterprise) {
+                                window.location.href = 'mailto:sales@schoolerp.com?subject=Enterprise%20Plan%20Inquiry';
+                              } else {
+                                window.location.href = `/register?plan=${plan.name}`;
+                              }
+                            }}
+                          >
+                            {isEnterprise ? 'Contact Sales' : 'Get Started'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Additional Info */}
         <motion.div

@@ -146,6 +146,8 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
       setLoading(true);
       setError(null);
       const res = await fetch('/api/school-config');
+      // 401 = unauthenticated (public page like /login) — skip silently
+      if (res.status === 401) { setLoading(false); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
