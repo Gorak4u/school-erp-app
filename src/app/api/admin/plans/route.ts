@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function GET() {
   try {
-    const plans = await (prisma as any).plan.findMany({
+    const plans = await (saasPrisma as any).plan.findMany({
       orderBy: { sortOrder: 'asc' },
     });
     return NextResponse.json({ plans });
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'name and displayName are required' }, { status: 400 });
     }
 
-    const plan = await (prisma as any).plan.create({
+    const plan = await (saasPrisma as any).plan.create({
       data: {
         name,
         displayName,
@@ -78,7 +78,7 @@ export async function PUT(req: Request) {
       data.features = JSON.stringify(data.features);
     }
 
-    const plan = await (prisma as any).plan.update({
+    const plan = await (saasPrisma as any).plan.update({
       where: { id },
       data,
     });

@@ -1,19 +1,11 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { saasPrisma, schoolPrisma } from '../src/lib/prisma';
 import { getReminderConfig, shouldSendReminderToday } from '../src/lib/reminder-config';
 import { sendTrialExpiryEmail } from '../src/lib/trial-expiry-email';
 import { sendSubscriptionRenewalEmail } from '../src/lib/subscription-renewal-email';
 import { sendPaymentFailedEmail } from '../src/lib/payment-failed-email';
 import { sendServiceSuspensionEmail } from '../src/lib/service-suspension-email';
 import { sendQuotaLimitExceededEmail } from '../src/lib/quota-limit-exceeded-email';
-
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
-const prisma = new PrismaClient({ adapter });
 
 interface ReminderResult {
   type: string;
@@ -41,7 +33,7 @@ async function sendTrialExpiryReminders(): Promise<ReminderResult> {
       return result;
     }
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
 
     // Get all active trial subscriptions
     const trialSubscriptions = await p.subscription.findMany({
@@ -130,7 +122,7 @@ async function sendSubscriptionRenewalReminders(): Promise<ReminderResult> {
       return result;
     }
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
 
     // Get all active subscriptions with current period end dates
     const activeSubscriptions = await p.subscription.findMany({
@@ -231,7 +223,7 @@ async function sendPaymentFailedReminders(): Promise<ReminderResult> {
     }
 
     // Get failed payment records from SubscriptionPayment table
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const failedPayments = await p.subscriptionPayment.findMany({
       where: {
         status: 'failed',
@@ -321,7 +313,7 @@ async function sendServiceSuspensionReminders(): Promise<ReminderResult> {
       return result;
     }
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
 
     // Get all expired/cancelled subscriptions
     const expiredSubscriptions = await p.subscription.findMany({
@@ -420,7 +412,7 @@ async function sendQuotaLimitExceededReminders(): Promise<ReminderResult> {
       return result;
     }
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
 
     // Get all active subscriptions
     const subscriptions = await p.subscription.findMany({
@@ -574,7 +566,7 @@ async function main() {
     console.error('🚨 Reminder service failed:', error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    await (saasPrisma as any).$disconnect();
   }
 }
 

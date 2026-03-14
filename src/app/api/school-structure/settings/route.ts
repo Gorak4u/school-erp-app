@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     const where = group ? { group } : {};
 
-    const settings = await prisma.schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
+    const settings = await (schoolPrisma as any).schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
 
     // Convert to a grouped object for easy consumption
     const grouped: Record<string, Record<string, string>> = {};
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     const { group, key, value } = await request.json();
 
-    const setting = await prisma.schoolSetting.upsert({
+    const setting = await (schoolPrisma as any).schoolSetting.upsert({
       where: { group_key: { group, key } },
       update: { value },
       create: { group, key, value },
@@ -48,14 +48,14 @@ export async function PUT(request: NextRequest) {
     const { group, settings } = await request.json() as { group: string; settings: Record<string, string> };
 
     const ops = Object.entries(settings).map(([key, value]) =>
-      prisma.schoolSetting.upsert({
+      (schoolPrisma as any).schoolSetting.upsert({
         where: { group_key: { group, key } },
         update: { value },
         create: { group, key, value },
       })
     );
 
-    await prisma.$transaction(ops);
+    await (schoolPrisma as any).$transaction(ops);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

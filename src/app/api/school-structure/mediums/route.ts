@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     const where = academicYearId ? { academicYearId } : {};
 
-    const mediums = await prisma.medium.findMany({
+    const mediums = await (schoolPrisma as any).medium.findMany({
       where,
       orderBy: { name: 'asc' },
       include: {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { code, name, description, isActive, academicYearId } = body;
 
-    const medium = await prisma.medium.create({
+    const medium = await (schoolPrisma as any).medium.create({
       data: {
         code,
         name,
@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, code, name, description, isActive } = body;
 
-    const medium = await prisma.medium.update({
+    const medium = await (schoolPrisma as any).medium.update({
       where: { id },
       data: {
         code,
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Medium ID is required' }, { status: 400 });
     }
 
-    await prisma.medium.delete({
+    await (schoolPrisma as any).medium.delete({
       where: { id }
     });
 

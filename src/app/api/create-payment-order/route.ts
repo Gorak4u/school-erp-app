@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 // Get SaaS payment settings from database
 async function getSaasPaymentConfig() {
-  const p = prisma as any;
+  const p = saasPrisma as any;
   const settings = await p.saasSetting.findMany({
     where: { group: 'saas_payment' },
   });
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Get user's subscription
-    const subscription = await prisma.subscription.findFirst({
+    const subscription = await saasPrisma.subscription.findFirst({
       where: {
         schoolId: ctx.schoolId!,
       },
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Store subscription payment order details
-    const p = prisma as any;
+    const p = saasPrisma as any;
     await p.subscriptionPayment.create({
       data: {
         subscriptionId: subscription.id,

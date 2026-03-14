@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["saas", "school"]
 }
 
 model School {
@@ -22,43 +23,45 @@ model School {
   isDemo       Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  subscription Subscription?
   customRoles  CustomRole[]
   students     Student[]
-  subscription Subscription?
   teachers     Teacher[]
-  users        User[]
+  User         school_User[]
 
   @@index([slug])
   @@index([isActive])
   @@index([isDemo])
+  @@schema("saas")
 }
 
 model Subscription {
-  id                 String    @id @default(cuid())
-  schoolId           String    @unique
-  plan               String    @default("trial")
-  status             String    @default("trial")
-  trialEndsAt        DateTime?
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  maxStudents        Int       @default(50)
-  maxTeachers        Int       @default(5)
-  features           String    @default("[]")
-  billingEmail       String?
-  paymentMethod      String?
-  paymentId          String?
-  cancelledAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  razorpayOrderId    String?
-  razorpayPaymentId  String?
-  invoices           Invoice[]
+  id                   String                @id @default(cuid())
+  schoolId             String                @unique
+  plan                 String                @default("trial")
+  status               String                @default("trial")
+  trialEndsAt          DateTime?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  maxStudents          Int                   @default(50)
+  maxTeachers          Int                   @default(5)
+  features             String                @default("[]")
+  billingEmail         String?
+  paymentMethod        String?
+  paymentId            String?
+  cancelledAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  razorpayOrderId      String?
+  razorpayPaymentId    String?
+  invoices             Invoice[]
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   subscriptionPayments SubscriptionPayment[]
-  school             School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([plan])
   @@index([status])
   @@index([trialEndsAt])
+  @@schema("saas")
 }
 
 model Invoice {
@@ -79,6 +82,7 @@ model Invoice {
   @@index([subscriptionId])
   @@index([status])
   @@index([dueDate])
+  @@schema("saas")
 }
 
 model Plan {
@@ -100,79 +104,51 @@ model Plan {
 
   @@index([name])
   @@index([isActive])
+  @@schema("saas")
 }
 
 model CustomRole {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
-  permissions String   @default("[]")
+  permissions String        @default("[]")
   schoolId    String?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  school      School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  users       User[]
+  isDefault   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  school      School?       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  User        school_User[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
+  @@schema("school")
 }
 
 model User {
-  id           String      @id @default(cuid())
-  email        String      @unique
+  id           String    @id @default(dbgenerated("gen_random_uuid()"))
+  email        String    @unique
+  name         String
   password     String
-  firstName    String
-  lastName     String
-  role         String      @default("admin")
-  avatar       String?
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  schoolId     String?
-  customRoleId String?
-  accounts     Account[]
-  sessions     Session[]
-  teacher      Teacher?
-  customRole   CustomRole? @relation(fields: [customRoleId], references: [id])
-  school       School?     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  role         String    @default("super_admin")
+  isActive     Boolean?  @default(true)
+  isSuperAdmin Boolean?  @default(false)
+  createdAt    DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @updatedAt @db.Timestamp(6)
 
-  @@index([schoolId])
-  @@index([customRoleId])
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([email])
+  @@index([role])
+  @@schema("saas")
 }
 
 model VerificationToken {
   identifier String
-  token      String   @unique
-  expires    DateTime
+  token      String    @unique
+  expires    DateTime  @db.Timestamp(6)
+  createdAt  DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime? @default(now()) @db.Timestamp(6)
 
   @@unique([identifier, token])
+  @@schema("saas")
 }
 
 model SaasSetting {
@@ -184,6 +160,7 @@ model SaasSetting {
 
   @@unique([group, key])
   @@index([group])
+  @@schema("saas")
 }
 
 model AuditLog {
@@ -199,6 +176,7 @@ model AuditLog {
   @@index([actorEmail])
   @@index([action])
   @@index([createdAt])
+  @@schema("saas")
 }
 
 model SaasAnnouncement {
@@ -215,6 +193,7 @@ model SaasAnnouncement {
 
   @@index([isActive])
   @@index([createdAt])
+  @@schema("saas")
 }
 
 model PasswordResetToken {
@@ -227,6 +206,7 @@ model PasswordResetToken {
 
   @@index([email])
   @@index([token])
+  @@schema("saas")
 }
 
 model Student {
@@ -321,6 +301,7 @@ model Student {
   @@index([createdAt])
   @@index([parentName])
   @@index([academicYear])
+  @@schema("school")
 }
 
 model Teacher {
@@ -355,13 +336,14 @@ model Teacher {
   schoolId          String?
   attendanceRecords AttendanceRecord[]
   school            School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user              User?              @relation(fields: [userId], references: [id])
+  user              school_User?       @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
   @@index([status])
   @@index([department])
   @@index([name])
   @@index([createdAt])
+  @@schema("school")
 }
 
 model FeeStructure {
@@ -395,6 +377,7 @@ model FeeStructure {
   @@index([classId])
   @@index([isActive])
   @@index([academicYearId, boardId, mediumId, classId])
+  @@schema("school")
 }
 
 model FeeRecord {
@@ -426,6 +409,7 @@ model FeeRecord {
   @@index([dueDate])
   @@index([studentId, status])
   @@index([createdAt])
+  @@schema("school")
 }
 
 model Payment {
@@ -440,26 +424,29 @@ model Payment {
   remarks       String?
   createdAt     DateTime  @default(now())
   feeRecord     FeeRecord @relation(fields: [feeRecordId], references: [id], onDelete: Cascade)
+
+  @@schema("school")
 }
 
 model SubscriptionPayment {
-  id            String   @id @default(cuid())
+  id             String       @id @default(cuid())
   subscriptionId String
-  orderId       String
-  paymentId     String?
-  amount        Float
-  currency      String   @default("INR")
-  status        String   @default("pending")
-  paymentMethod String   @default("razorpay")
-  receiptNumber String
-  paymentDate   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  orderId        String
+  paymentId      String?
+  amount         Float
+  currency       String       @default("INR")
+  status         String       @default("pending")
+  paymentMethod  String       @default("razorpay")
+  receiptNumber  String
+  paymentDate    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId])
   @@index([orderId])
   @@index([paymentId])
+  @@schema("saas")
 }
 
 model Discount {
@@ -479,6 +466,7 @@ model Discount {
   schoolId             String?
 
   @@index([schoolId])
+  @@schema("school")
 }
 
 model AttendanceRecord {
@@ -502,6 +490,7 @@ model AttendanceRecord {
   @@index([studentId])
   @@index([class, date])
   @@index([status])
+  @@schema("school")
 }
 
 model Exam {
@@ -530,6 +519,7 @@ model Exam {
   @@index([academicYear])
   @@index([date])
   @@index([class, academicYear])
+  @@schema("school")
 }
 
 model ExamResult {
@@ -546,6 +536,7 @@ model ExamResult {
   student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([examId, studentId])
+  @@schema("school")
 }
 
 model Announcement {
@@ -560,6 +551,8 @@ model Announcement {
   createdBy   String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@schema("school")
 }
 
 model AcademicYear {
@@ -572,12 +565,13 @@ model AcademicYear {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   classes       Class[]
-  sections      Section[]
   feeStructures FeeStructure[]
   mediums       Medium[]
+  sections      Section[]
 
   @@index([year])
   @@index([isActive])
+  @@schema("school")
 }
 
 model Medium {
@@ -596,6 +590,7 @@ model Medium {
   @@index([code])
   @@index([isActive])
   @@index([academicYearId])
+  @@schema("school")
 }
 
 model Class {
@@ -618,26 +613,28 @@ model Class {
   @@index([isActive])
   @@index([mediumId])
   @@index([academicYearId])
+  @@schema("school")
 }
 
 model Section {
-  id             String   @id @default(cuid())
-  code           String   @unique
+  id             String       @id @default(cuid())
+  code           String       @unique
   name           String
   classId        String
-  academicYearId String
   capacity       Int
   roomNumber     String?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([code])
   @@index([isActive])
   @@index([classId])
   @@index([academicYearId])
+  @@schema("school")
 }
 
 model SchoolSetting {
@@ -650,6 +647,7 @@ model SchoolSetting {
 
   @@unique([group, key])
   @@index([group])
+  @@schema("school")
 }
 
 model Board {
@@ -664,6 +662,7 @@ model Board {
 
   @@index([code])
   @@index([isActive])
+  @@schema("school")
 }
 
 model SchoolTiming {
@@ -681,4 +680,69 @@ model SchoolTiming {
   @@index([type])
   @@index([dayOfWeek])
   @@index([sortOrder])
+  @@schema("school")
+}
+
+model Account {
+  id                String      @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              school_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@schema("school")
+}
+
+model Session {
+  id           String      @id
+  sessionToken String      @unique
+  userId       String
+  expires      DateTime
+  User         school_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("school")
+}
+
+model school_User {
+  id           String      @id
+  email        String      @unique
+  password     String
+  firstName    String
+  lastName     String
+  role         String      @default("admin")
+  avatar       String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime
+  customRoleId String?
+  schoolId     String?
+  Account      Account[]
+  Session      Session[]
+  teacher      Teacher?
+  CustomRole   CustomRole? @relation(fields: [customRoleId], references: [id])
+  School       School?     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([customRoleId])
+  @@index([schoolId])
+  @@map("User")
+  @@schema("school")
+}
+
+model school_VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("VerificationToken")
+  @@schema("school")
 }

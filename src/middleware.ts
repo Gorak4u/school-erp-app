@@ -71,7 +71,9 @@ export async function middleware(request: NextRequest) {
   // ── Super Admin routes (/admin/*) — platform owner only ──
   if (pathname.startsWith('/admin')) {
     const tokenIsSuperAdmin = token.isSuperAdmin as boolean | undefined;
-    if (!tokenIsSuperAdmin) {
+    const superAdminEmailsAdmin = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+    const isAdminUser = tokenIsSuperAdmin || superAdminEmailsAdmin.includes((token.email as string || '').toLowerCase());
+    if (!isAdminUser) {
       const dashboardUrl = new URL('/dashboard', request.url);
       return NextResponse.redirect(dashboardUrl);
     }
@@ -102,6 +104,15 @@ export async function middleware(request: NextRequest) {
       const billingUrl = new URL('/subscription-required?pending=true', request.url);
       return NextResponse.redirect(billingUrl);
     }
+    return NextResponse.next();
+  }
+
+  // Super admins bypass all role-based route checks — they can access everything
+  const tokenIsSuperAdmin = token.isSuperAdmin as boolean | undefined;
+  const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+  const isEffectivelySuperAdmin = tokenIsSuperAdmin || superAdminEmails.includes((token.email as string || '').toLowerCase());
+
+  if (isEffectivelySuperAdmin) {
     return NextResponse.next();
   }
 

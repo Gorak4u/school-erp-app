@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 // POST /api/fees/payments — process a payment against a fee record
 export async function POST(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'feeRecordId, amount, paymentMethod are required' }, { status: 400 });
     }
 
-    const record = await prisma.feeRecord.findUnique({ where: { id: feeRecordId } });
+    const record = await (schoolPrisma as any).feeRecord.findUnique({ where: { id: feeRecordId } });
     if (!record) return NextResponse.json({ error: 'Fee record not found' }, { status: 404 });
 
     const maxPayable = record.pendingAmount;
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     const newStatus = newPendingAmount <= 0 ? 'paid' : 'partial';
 
     // Transaction: create payment + update fee record atomically
-    const [payment, updatedRecord] = await prisma.$transaction([
-      prisma.payment.create({
+    const [payment, updatedRecord] = await (schoolPrisma as any).$transaction([
+      (schoolPrisma as any).payment.create({
         data: {
           feeRecordId,
           amount,
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
           remarks,
         },
       }),
-      prisma.feeRecord.update({
+      (schoolPrisma as any).feeRecord.update({
         where: { id: feeRecordId },
         data: {
           paidAmount: newPaidAmount,
@@ -87,14 +87,14 @@ export async function GET(request: NextRequest) {
     }
 
     const [payments, total] = await Promise.all([
-      prisma.payment.findMany({
+      (schoolPrisma as any).payment.findMany({
         where,
         include: { feeRecord: { include: { student: { select: { id: true, name: true, class: true } } } } },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.payment.count({ where }),
+      (schoolPrisma as any).payment.count({ where }),
     ]);
 
     return NextResponse.json({ payments, total });

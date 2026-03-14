@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (!ctx.isSuperAdmin && ctx.schoolId) where.schoolId = ctx.schoolId;
 
-    const discounts = await prisma.discount.findMany({ where, orderBy: { createdAt: 'desc' } });
+    const discounts = await (schoolPrisma as any).discount.findMany({ where, orderBy: { createdAt: 'desc' } });
     return NextResponse.json({
       discounts: discounts.map(d => ({
         ...d,
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const { applicableClasses, applicableCategories, ...data } = await request.json();
-    const discount = await prisma.discount.create({
+    const discount = await (schoolPrisma as any).discount.create({
       data: {
         ...data,
         schoolId: ctx.schoolId,

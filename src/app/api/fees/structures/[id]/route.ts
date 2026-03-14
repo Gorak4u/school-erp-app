@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 const INCLUDE_RELATIONS = {
   academicYear: { select: { id: true, name: true, year: true } },
@@ -12,7 +12,7 @@ const INCLUDE_RELATIONS = {
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const structure = await prisma.feeStructure.findUnique({ where: { id }, include: INCLUDE_RELATIONS });
+    const structure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id }, include: INCLUDE_RELATIONS });
     if (!structure) return NextResponse.json({ error: 'Fee structure not found' }, { status: 404 });
     return NextResponse.json(structure);
   } catch (error) {
@@ -24,7 +24,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const { id: _id, academicYear, board, medium, class: cls, createdAt, updatedAt, feeRecords, ...data } = await request.json();
-    const structure = await prisma.feeStructure.update({
+    const structure = await (schoolPrisma as any).feeStructure.update({
       where: { id },
       data,
       include: INCLUDE_RELATIONS,
@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await prisma.feeStructure.delete({ where: { id } });
+    await (schoolPrisma as any).feeStructure.delete({ where: { id } });
     return NextResponse.json({ message: 'Fee structure deleted' });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });

@@ -16,6 +16,7 @@ export interface ReminderSchedule {
   subscriptionRenewal: ReminderConfig;
   paymentFailed: ReminderConfig;
   serviceSuspension: ReminderConfig;
+  quotaLimitExceeded: ReminderConfig;
 }
 
 export const DEFAULT_REMINDER_CONFIG: ReminderSchedule = {
@@ -50,6 +51,14 @@ export const DEFAULT_REMINDER_CONFIG: ReminderSchedule = {
     timezone: 'Asia/Kolkata',
     subject: 'Service Suspended - {{schoolName}}',
     template: 'service_suspension',
+  },
+  quotaLimitExceeded: {
+    enabled: true,
+    daysBefore: [0], // Send immediately when quota is exceeded
+    timeOfDay: '09:00',
+    timezone: 'Asia/Kolkata',
+    subject: '⚠️ Quota Limit Exceeded - {{schoolName}}',
+    template: 'quota_limit_exceeded',
   },
 };
 

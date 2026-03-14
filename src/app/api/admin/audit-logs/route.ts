@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function GET(req: Request) {
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     if (action) where.action = { contains: action, mode: 'insensitive' };
     if (actor) where.actorEmail = { contains: actor, mode: 'insensitive' };
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const [logs, total] = await Promise.all([
       p.auditLog.findMany({
         where,

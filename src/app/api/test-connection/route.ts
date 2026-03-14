@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
     // Test database connection and get provider info
-    const result = await prisma.$queryRaw`SELECT version() as version`;
+    const result = await (schoolPrisma as any).$queryRaw`SELECT version() as version`;
     
     // Count students
-    const studentCount = await prisma.student.count();
+    const studentCount = await (schoolPrisma as any).student.count();
     
     // Get database info
-    const dbInfo = await prisma.$queryRaw`SELECT current_database() as database, current_user as user`;
+    const dbInfo = await (schoolPrisma as any).$queryRaw`SELECT current_database() as database, current_user as user`;
     
     return NextResponse.json({
       success: true,
@@ -23,7 +23,7 @@ export async function GET() {
   } catch (error: any) {
     // If PostgreSQL fails, try to check if it's using SQLite
     try {
-      const studentCount = await prisma.student.count();
+      const studentCount = await (schoolPrisma as any).student.count();
       return NextResponse.json({
         success: false,
         error: error.message,

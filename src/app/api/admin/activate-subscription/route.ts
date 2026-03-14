@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function POST() {
@@ -11,7 +11,7 @@ export async function POST() {
     }
 
     // Get the super admin's school and convert subscription to active
-    const user = await (prisma as any).user.findUnique({
+    const user = await (saasPrisma as any).user.findUnique({
       where: { email: session.user.email },
       include: { school: { include: { subscription: true } } },
     });
@@ -21,7 +21,7 @@ export async function POST() {
     }
 
     // Update subscription to active with enterprise plan
-    await (prisma as any).subscription.update({
+    await (saasPrisma as any).subscription.update({
       where: { schoolId: user.school.id },
       data: {
         plan: 'enterprise',

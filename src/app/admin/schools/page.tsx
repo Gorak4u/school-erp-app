@@ -54,6 +54,7 @@ export default function AdminSchoolsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState('');
   const [bulkPlan, setBulkPlan] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -70,6 +71,14 @@ export default function AdminSchoolsPage() {
   useEffect(() => { load(); }, []);
 
   const doAction = async (schoolId: string, action: string, extra?: any) => {
+    if (action === 'delete') {
+      // Show confirmation for individual delete
+      setSelected(new Set([schoolId]));
+      setBulkAction('delete');
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
     setActionLoading(schoolId);
     setMessage(null);
     try {
@@ -90,6 +99,17 @@ export default function AdminSchoolsPage() {
 
   const doBulkAction = async () => {
     if (!bulkAction || selected.size === 0) return;
+    
+    // Show confirmation for delete action
+    if (bulkAction === 'delete') {
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
+    executeBulkAction();
+  };
+
+  const executeBulkAction = async () => {
     const ids = Array.from(selected);
     setActionLoading('bulk');
     setMessage(null);
@@ -103,7 +123,7 @@ export default function AdminSchoolsPage() {
       });
       const data = await res.json();
       setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
-      if (res.ok) { setSelected(new Set()); setBulkAction(''); load(); }
+      if (res.ok) { setSelected(new Set()); setBulkAction(''); setShowDeleteConfirm(false); load(); }
     } catch {
       setMessage({ type: 'error', text: 'Network error' });
     } finally {
@@ -204,6 +224,7 @@ export default function AdminSchoolsPage() {
             <option value="block">Block All</option>
             <option value="unblock">Unblock All</option>
             <option value="change_plan">Change Plan</option>
+            <option value="delete" style={{color: '#ef4444'}}>🗑️ Delete All (Permanent)</option>
           </select>
           {bulkAction === 'change_plan' && (
             <select className={`${inputCls} text-xs`} value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
@@ -318,6 +339,10 @@ export default function AdminSchoolsPage() {
                             Unblock
                           </button>
                         )}
+                        <button onClick={() => doAction(school.id, 'delete')} disabled={actionLoading === school.id}
+                          className={btnCls('bg-red-600 text-white hover:bg-red-700')}>
+                          🗑️ Delete
+                        </button>
 
                         {(school.subscription?.status === 'trial' || school.subscription?.status === 'expired') && (
                           <div className="flex items-center gap-1">
@@ -353,6 +378,42 @@ export default function AdminSchoolsPage() {
             )}
           </div>
         </>
+      )}
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className={`${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} border rounded-xl p-6 max-w-md mx-4`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              ⚠️ Delete Schools Permanently?
+            </h3>
+            <div className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              <p className="mb-2">You are about to delete <strong>{selected.size}</strong> school(s) and ALL their related data:</p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-4">
+                <li>All students and their records</li>
+                <li>All teachers and their records</li>
+                <li>All user accounts</li>
+                <li>All subscriptions and payments</li>
+                <li>All school data and settings</li>
+              </ul>
+              <p className="mt-3 text-red-500 font-medium">This action cannot be undone!</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className={`px-4 py-2 rounded-lg border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeBulkAction}
+                disabled={actionLoading === 'bulk'}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading === 'bulk' ? 'Deleting...' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

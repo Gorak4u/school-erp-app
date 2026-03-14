@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma, saasPrisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendWelcomeEmail } from '@/lib/welcome-email';
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     // Check if admin email already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await (schoolPrisma as any).school_User.findUnique({
       where: { email: adminEmail },
     });
     if (existingUser) {
@@ -47,13 +47,13 @@ export async function POST(req: Request) {
       .replace(/^-|-$/g, '');
     let slug = baseSlug;
     let slugSuffix = 1;
-    while (await prisma.school.findUnique({ where: { slug } })) {
+    while (await (schoolPrisma as any).school.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${slugSuffix}`;
       slugSuffix++;
     }
 
     // Look up the plan config
-    const planConfig = await prisma.plan.findUnique({ where: { name: plan } });
+    const planConfig = await (saasPrisma as any).plan.findUnique({ where: { name: plan } });
 
     const trialDays = planConfig?.trialDays ?? 30;
     const maxStudents = planConfig?.maxStudents ?? 50;
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     // Create school + subscription + admin user in one transaction
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       // 1. Create School
       const school = await tx.school.create({
         data: {
@@ -103,9 +103,10 @@ export async function POST(req: Request) {
 
       const subscription = await tx.subscription.create({ data: subscriptionData });
 
-      // 3. Create Admin User (inactive for paid plans until payment confirmed)
-      const user = await tx.user.create({
+      // 3. Create Admin school_User (inactive for paid plans until payment confirmed)
+      const user = await (tx as any).school_User.create({
         data: {
+          id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           email: adminEmail,
           password: hashedPassword,
           firstName: adminFirstName,
@@ -113,12 +114,15 @@ export async function POST(req: Request) {
           role: 'admin',
           schoolId: school.id,
           isActive: true, // Allow all users to log in (middleware will restrict access)
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       });
 
       // 4. Create NextAuth Account record
-      await tx.account.create({
+      await (tx as any).account.create({
         data: {
+          id: `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           userId: user.id,
           type: 'credentials',
           provider: 'credentials',

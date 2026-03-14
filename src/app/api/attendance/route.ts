@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [records, total] = await Promise.all([
-      prisma.attendanceRecord.findMany({
+      (schoolPrisma as any).attendanceRecord.findMany({
         where,
         include: {
           student: { select: { id: true, name: true, class: true, section: true, rollNo: true } },
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.attendanceRecord.count({ where }),
+      (schoolPrisma as any).attendanceRecord.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(body)) {
       const results = await Promise.allSettled(
         body.map(rec =>
-          prisma.attendanceRecord.upsert({
+          (schoolPrisma as any).attendanceRecord.upsert({
             where: {
               studentId_date_subject: {
                 studentId: rec.studentId,
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'studentId, date, status are required' }, { status: 400 });
     }
 
-    const record = await prisma.attendanceRecord.upsert({
+    const record = await (schoolPrisma as any).attendanceRecord.upsert({
       where: { studentId_date_subject: { studentId, date, subject } },
       update: { status, remarks, teacherId },
       create: { studentId, date, status, subject, class: cls, section, teacherId, remarks },

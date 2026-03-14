@@ -1,11 +1,10 @@
 import nodemailer from 'nodemailer';
-import { prisma } from './prisma';
+import { saasPrisma, schoolPrisma } from './prisma';
 
 // Reads SaaS-level SMTP from SaasSetting (group: saas_smtp)
 // This is SEPARATE from school-level SMTP in SchoolSetting (group: smtp)
 export async function getSaasSmtpConfig() {
-  const p = prisma as any;
-  const settings = await p.saasSetting.findMany({
+  const settings = await (saasPrisma as any).SaasSetting.findMany({
     where: { group: 'saas_smtp' },
   });
   const config: Record<string, string> = {};
@@ -16,8 +15,7 @@ export async function getSaasSmtpConfig() {
 // Reads school-level SMTP from SchoolSetting (group: smtp)
 // Used for: fee receipts, school notifications, admissions, reminders
 export async function getSchoolSmtpConfig() {
-  const p = prisma as any;
-  const settings = await p.schoolSetting.findMany({
+  const settings = await (schoolPrisma as any).SchoolSetting.findMany({
     where: { group: 'smtp' },
   });
   const config: Record<string, string> = {};

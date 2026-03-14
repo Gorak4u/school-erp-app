@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,14 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await (schoolPrisma as any).school_User.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
+    const user = await (schoolPrisma as any).school_User.create({
       data: { email, password: hashedPassword, firstName, lastName, role },
       select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
     });

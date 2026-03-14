@@ -1,16 +1,14 @@
 // @ts-nocheck
 import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 import { resolvePermissions } from '@/lib/permissions';
 
-export const authOptions: any = {
-  adapter: PrismaAdapter(prisma),
+export const authOptions = {
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -18,27 +16,41 @@ export const authOptions: any = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Email and password are required');
+          return null;
         }
 
-        const user = await (prisma as any).user.findUnique({
-          where: { email: credentials.email },
-          include: {
-            school: {
-              include: { subscription: true },
+        // Try SaaS first (for super admin), then school
+        let user = null;
+        
+        try {
+          // Try SaaS schema with raw SQL
+          const saasUser = await (saasPrisma as any).$queryRaw`
+            SELECT id, email, name, password, role, "isActive", "isSuperAdmin", 
+                   'saas' as schema, null as "schoolId", null as "customRoleId"
+            FROM saas."User" 
+            WHERE email = ${credentials.email}
+          `;
+          
+          if (saasUser.length > 0) {
+            user = saasUser[0];
+          }
+        } catch (error) {
+          // If SaaS query fails, continue to school schema
+          console.log('SaaS user lookup failed, trying school schema');
+        }
+
+        if (!user) {
+          // Try school schema
+          user = await (schoolPrisma as any).school_User.findUnique({
+            where: { email: credentials.email },
+            include: {
+              CustomRole: true,
             },
-            customRole: true,
-          },
-        });
+          });
+        }
 
         if (!user) {
           throw new Error('No account found with this email');
-        }
-
-        // Allow pending_payment users to log in (they need to access billing to pay)
-        // Only block truly inactive accounts
-        if (!user.isActive) {
-          throw new Error('Your account has been deactivated. Please contact support.');
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
@@ -46,114 +58,85 @@ export const authOptions: any = {
           throw new Error('Invalid password');
         }
 
-        // Build subscription info for JWT
-        const sub = user.school?.subscription;
-        let subscriptionStatus = 'none';
-        let subscriptionPlan = 'none';
-        let trialEndsAt: string | null = null;
-        let schoolId: string | null = user.schoolId;
-
-        // Super admin always has active enterprise subscription
-        if (isSuperAdmin(user.email)) {
-          subscriptionStatus = 'active';
-          subscriptionPlan = 'enterprise';
-          trialEndsAt = null;
-        } else if (sub) {
-          subscriptionPlan = sub.plan;
-          const now = new Date();
-          if (sub.status === 'trial') {
-            const trialEnd = sub.trialEndsAt ? new Date(sub.trialEndsAt) : null;
-            trialEndsAt = sub.trialEndsAt?.toISOString() || null;
-            subscriptionStatus = trialEnd && trialEnd < now ? 'expired' : 'trial';
-          } else if (sub.status === 'active') {
-            const periodEnd = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
-            subscriptionStatus = periodEnd && periodEnd < now ? 'expired' : 'active';
-          } else if (sub.status === 'pending_payment') {
-            subscriptionStatus = 'pending_payment'; // Allow login but restrict features
-          } else {
-            subscriptionStatus = sub.status; // expired, cancelled, past_due
-          }
+        if (!user.isActive) {
+          throw new Error('Account is inactive');
         }
 
-        // Resolve effective permissions (custom role overrides built-in defaults)
-        const permissions = isSuperAdmin(user.email)
-          ? [] // super admins bypass all permission checks
-          : resolvePermissions(user.role, user.customRole?.permissions ?? null);
+        // Get permissions
+        let permissions = [];
+        if (user.CustomRole) {
+          permissions = resolvePermissions(user.CustomRole.permissions || '[]');
+        } else if (user.role === 'admin') {
+          permissions = resolvePermissions('[]');
+        }
+
+        // Build user object with proper name field
+        let userName = user.name;
+        if (!userName && user.firstName) {
+          userName = `${user.firstName} ${user.lastName || ''}`.trim();
+        }
+
+        // Check if user is super admin from DB field OR from SUPER_ADMIN_EMAILS env var
+        const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+        const isSuperAdmin = !!(user.isSuperAdmin) || superAdminEmails.includes((user.email || '').toLowerCase());
 
         return {
           id: user.id,
           email: user.email,
-          name: `${user.firstName} ${user.lastName}`,
-          role: user.role as 'student' | 'teacher' | 'parent' | 'admin',
+          name: userName,
+          role: user.role as 'student' | 'teacher' | 'parent' | 'admin' | 'super_admin',
           customRoleId: user.customRoleId ?? null,
-          customRoleName: user.customRole?.name ?? null,
+          customRoleName: user.CustomRole?.name ?? null,
           permissions,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          image: user.avatar,
-          subscriptionStatus,
-          subscriptionPlan,
-          trialEndsAt,
-          schoolId,
-          isSuperAdmin: isSuperAdmin(user.email),
+          firstName: user.firstName || null,
+          lastName: user.lastName || null,
+          schema: user.schema || 'school',
+          schoolId: user.schoolId || null,
+          isSuperAdmin,
         };
       },
     }),
   ],
+  pages: {
+    signIn: '/login',
+    error: '/login',
+  },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role;
-        token.customRoleId = (user as any).customRoleId;
-        token.customRoleName = (user as any).customRoleName;
-        token.permissions = (user as any).permissions;
-        token.firstName = (user as any).firstName;
-        token.lastName = (user as any).lastName;
-        token.userId = user.id;
-        token.subscriptionStatus = (user as any).subscriptionStatus;
-        token.subscriptionPlan = (user as any).subscriptionPlan;
-        token.trialEndsAt = (user as any).trialEndsAt;
-        token.schoolId = (user as any).schoolId;
-        token.isSuperAdmin = (user as any).isSuperAdmin;
-      }
-      // Re-check trial expiry on every token refresh
-      if (token.subscriptionStatus === 'trial' && token.trialEndsAt) {
-        const trialEnd = new Date(token.trialEndsAt as string);
-        if (trialEnd < new Date()) {
-          token.subscriptionStatus = 'expired';
-        }
+        token.role = user.role;
+        token.schoolId = user.schoolId;
+        token.customRoleId = user.customRoleId;
+        token.customRoleName = user.customRoleName;
+        token.permissions = user.permissions;
+        token.firstName = user.firstName;
+        token.lastName = user.lastName;
+        token.schema = user.schema;
+        token.isSuperAdmin = (user as any).isSuperAdmin ?? (user.role === 'super_admin');
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
-        (session.user as any).role = token.role;
-        (session.user as any).customRoleId = token.customRoleId;
-        (session.user as any).customRoleName = token.customRoleName;
-        (session.user as any).permissions = token.permissions;
-        (session.user as any).firstName = token.firstName;
-        (session.user as any).lastName = token.lastName;
-        (session.user as any).id = token.userId;
-        (session.user as any).subscriptionStatus = token.subscriptionStatus;
-        (session.user as any).subscriptionPlan = token.subscriptionPlan;
-        (session.user as any).trialEndsAt = token.trialEndsAt;
-        (session.user as any).schoolId = token.schoolId;
-        (session.user as any).isSuperAdmin = token.isSuperAdmin;
+        session.user.id = token.sub;
+        session.user.role = token.role;
+        session.user.schoolId = token.schoolId;
+        session.user.customRoleId = token.customRoleId;
+        session.user.customRoleName = token.customRoleName;
+        session.user.permissions = token.permissions;
+        session.user.firstName = token.firstName;
+        session.user.lastName = token.lastName;
+        session.user.schema = token.schema;
+        session.user.isSuperAdmin = token.isSuperAdmin;
       }
       return session;
     },
   },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);
+
 export { handler as GET, handler as POST };

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const existing = await (prisma as any).customRole.findFirst({
+    const existing = await (schoolPrisma as any).CustomRole.findFirst({
       where: { id, ...tenantWhere(ctx) },
     });
     if (!existing) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { name, description, permissions, isDefault } = body;
 
-    const role = await (prisma as any).customRole.update({
+    const role = await (schoolPrisma as any).CustomRole.update({
       where: { id },
       data: {
         ...(name && { name }),
@@ -52,9 +52,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const existing = await (prisma as any).customRole.findFirst({
+    const existing = await (schoolPrisma as any).CustomRole.findFirst({
       where: { id, ...tenantWhere(ctx) },
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { User: true } } },
     });
     if (!existing) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
 
@@ -65,7 +65,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    await (prisma as any).customRole.delete({ where: { id } });
+    await (schoolPrisma as any).CustomRole.delete({ where: { id } });
     return NextResponse.json({ message: 'Role deleted' });
   } catch (err: any) {
     console.error('DELETE /api/roles/[id]:', err);

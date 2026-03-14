@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET() {
@@ -7,9 +7,9 @@ export async function GET() {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const roles = await (prisma as any).customRole.findMany({
+    const roles = await (schoolPrisma as any).CustomRole.findMany({
       where: tenantWhere(ctx),
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { User: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Role name is required' }, { status: 400 });
     }
 
-    const role = await (prisma as any).customRole.create({
+    const role = await (schoolPrisma as any).CustomRole.create({
       data: {
         name,
         description: description || '',

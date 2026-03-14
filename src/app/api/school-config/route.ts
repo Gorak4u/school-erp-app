@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 // Single endpoint that returns ALL school configuration data
 // Used by SchoolConfigContext to populate dropdowns across the entire app
@@ -21,25 +21,25 @@ export async function GET() {
       timings,
       settingsRaw,
     ] = await Promise.all([
-      prisma.academicYear.findMany({ orderBy: { year: 'desc' } }),
-      prisma.board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-      prisma.medium.findMany({
+      (schoolPrisma as any).academicYear.findMany({ orderBy: { year: 'desc' } }),
+      (schoolPrisma as any).board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      (schoolPrisma as any).medium.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' },
         include: { academicYear: true },
       }),
-      prisma.class.findMany({
+      (schoolPrisma as any).class.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' },
         include: { medium: true, academicYear: true, sections: { where: { isActive: true }, orderBy: { name: 'asc' } } },
       }),
-      prisma.section.findMany({
+      (schoolPrisma as any).section.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' },
         include: { class: { include: { medium: true } } },
       }),
-      prisma.schoolTiming.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
-      prisma.schoolSetting.findMany(),
+      (schoolPrisma as any).schoolTiming.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
+      (schoolPrisma as any).schoolSetting.findMany(),
     ]);
 
     // Group settings into a nested object

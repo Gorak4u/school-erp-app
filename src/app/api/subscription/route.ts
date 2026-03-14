@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function GET() {
@@ -10,26 +10,47 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await (prisma as any).user.findUnique({
+    const user = await (schoolPrisma as any).school_User.findUnique({
       where: { email: session.user.email },
-      include: {
-        school: {
-          include: {
-            subscription: true,
-            _count: { select: { students: true, teachers: true } },
-          },
-        },
-      },
     });
 
+    
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'school_User not found' }, { status: 404 });
+    }
+
+    // Get school and subscription separately since they're in different schemas
+    let school = null;
+    let studentsUsed = 0;
+    let teachersUsed = 0;
+    
+    if (user?.schoolId) {
+      // Get school and subscription from SaaS schema
+      school = await (saasPrisma as any).school.findUnique({
+        where: { id: user.schoolId },
+        include: {
+          subscription: true,
+        },
+      });
+
+      // Count students and teachers from school schema separately
+      const [studentCount, teacherCount] = await Promise.all([
+        (schoolPrisma as any).student.count({ where: { schoolId: user.schoolId } }),
+        (schoolPrisma as any).teacher.count({ where: { schoolId: user.schoolId } }),
+      ]);
+      
+      studentsUsed = studentCount;
+      teachersUsed = teacherCount;
+    }
+
+    if (!school) {
+      return NextResponse.json({ error: 'School not found' }, { status: 404 });
     }
 
     // Super admin always has active enterprise — no trial banner
     if (isSuperAdmin(session.user.email)) {
       return NextResponse.json({
-        hasSchool: !!user.school,
+        hasSchool: !!school,
         subscription: {
           plan: 'enterprise',
           status: 'active',
@@ -40,16 +61,16 @@ export async function GET() {
           trialEndsAt: null,
           maxStudents: 999999,
           maxTeachers: 999999,
-          studentsUsed: user.school?._count?.students || 0,
-          teachersUsed: user.school?._count?.teachers || 0,
+          studentsUsed: studentsUsed,
+          teachersUsed: teachersUsed,
           features: ['all'],
           currentPeriodEnd: null,
         },
       });
     }
 
-    // User without school (legacy)
-    if (!user.school) {
+    // school_User without school (legacy)
+    if (!school) {
       return NextResponse.json({
         hasSchool: false,
         subscription: null,
@@ -57,7 +78,7 @@ export async function GET() {
       });
     }
 
-    const sub = user.school.subscription;
+    const sub = school.subscription;
     if (!sub) {
       return NextResponse.json({
         hasSchool: true,
@@ -90,15 +111,15 @@ export async function GET() {
         trialEndsAt: sub.trialEndsAt,
         maxStudents: sub.maxStudents,
         maxTeachers: sub.maxTeachers,
-        studentsUsed: user.school._count.students,
-        teachersUsed: user.school._count.teachers,
+        studentsUsed: studentsUsed,
+        teachersUsed: teachersUsed,
         features: JSON.parse(sub.features || '[]'),
         currentPeriodEnd: sub.currentPeriodEnd,
       },
       school: {
-        id: user.school.id,
-        name: user.school.name,
-        slug: user.school.slug,
+        id: school.id,
+        name: school.name,
+        slug: school.slug,
       },
     });
   } catch (error: any) {

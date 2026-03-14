@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 import { logAuditAction } from '@/lib/auditLog';
 
@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get('active') === 'true';
     const where: any = activeOnly ? { isActive: true } : {};
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     if (!title || !message) {
       return NextResponse.json({ error: 'title and message are required' }, { status: 400 });
     }
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const announcement = await p.saasAnnouncement.create({
       data: {
         title,
@@ -67,7 +67,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { id, ...data } = body;
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const announcement = await p.saasAnnouncement.update({
       where: { id },
       data: {
@@ -97,7 +97,7 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-    const p = prisma as any;
+    const p = saasPrisma as any;
     await p.saasAnnouncement.delete({ where: { id } });
     await logAuditAction({
       actorEmail: session.user.email,

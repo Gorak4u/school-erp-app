@@ -52,6 +52,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -64,14 +65,22 @@ export default function AdminUsersPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const doAction = async (userId: string, action: string, extra?: any) => {
-    setActionLoading(userId);
+  const doAction = async (id: string, action: string, extra?: any) => {
+    if (action === 'delete') {
+      // Show confirmation for individual delete
+      setSelected(new Set([id]));
+      setBulkAction('delete');
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
+    setActionLoading(id);
     setMessage(null);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: userId, action, ...extra }),
+        body: JSON.stringify({ id, action, ...extra }),
       });
       const data = await res.json();
       setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
@@ -86,19 +95,45 @@ export default function AdminUsersPage() {
 
   const doBulk = async () => {
     if (!bulkAction || selected.size === 0) return;
+    
+    // Show confirmation for delete action
+    if (bulkAction === 'delete') {
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
+    executeBulkAction();
+  };
+
+  const executeBulkAction = async () => {
     setActionLoading('bulk');
     const ids = Array.from(selected);
-    for (const id of ids) {
-      await fetch('/api/admin/users', {
+    
+    if (bulkAction === 'delete') {
+      // Handle bulk delete
+      const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: bulkAction }),
+        body: JSON.stringify({ id: ids[0], action: 'bulk_delete', ids }),
       });
+      const data = await res.json();
+      setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
+    } else {
+      // Handle other bulk actions
+      for (const id of ids) {
+        await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action: bulkAction }),
+        });
+      }
+      setMessage({ type: 'success', text: `Bulk action applied to ${ids.length} users` });
     }
+    
     setActionLoading(null);
     setSelected(new Set());
     setBulkAction('');
-    setMessage({ type: 'success', text: `Bulk action applied to ${ids.length} users` });
+    setShowDeleteConfirm(false);
     load();
   };
 
@@ -211,6 +246,7 @@ export default function AdminUsersPage() {
             <option value="">Bulk action...</option>
             <option value="block">Block All</option>
             <option value="unblock">Unblock All</option>
+            <option value="delete" style={{color: '#ef4444'}}>🗑️ Delete All (Permanent)</option>
           </select>
           <button onClick={doBulk} disabled={!bulkAction || actionLoading === 'bulk'}
             className={btnCls('bg-blue-600 text-white hover:bg-blue-700')}>
@@ -305,6 +341,10 @@ export default function AdminUsersPage() {
                           className={btnCls(isDark ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100')}>
                           🔑 Reset
                         </button>
+                        <button onClick={() => doAction(user.id, 'delete')} disabled={actionLoading === user.id}
+                          className={btnCls('bg-red-600 text-white hover:bg-red-700')}>
+                          🗑️ Delete
+                        </button>
                         <select className={`${inputCls} text-xs py-1`} defaultValue=""
                           onChange={e => { if (e.target.value) doAction(user.id, 'change_role', { role: e.target.value }); e.target.value = ''; }}>
                           <option value="" disabled>Role…</option>
@@ -389,6 +429,41 @@ export default function AdminUsersPage() {
                 disabled={!newPassword || actionLoading === resetModal.id}
                 className="px-4 py-2 rounded-lg text-sm bg-yellow-600 hover:bg-yellow-500 text-white font-medium disabled:opacity-50">
                 {actionLoading === resetModal.id ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className={`${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} border rounded-xl p-6 max-w-md mx-4`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              ⚠️ Delete Users Permanently?
+            </h3>
+            <div className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              <p className="mb-2">You are about to delete <strong>{selected.size}</strong> user(s) permanently:</p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-4">
+                <li>All user accounts and login access</li>
+                <li>User data and associated records</li>
+                <li>Any personal information and settings</li>
+              </ul>
+              <p className="mt-3 text-red-500 font-medium">This action cannot be undone!</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className={`px-4 py-2 rounded-lg border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeBulkAction}
+                disabled={actionLoading === 'bulk'}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading === 'bulk' ? 'Deleting...' : 'Delete Forever'}
               </button>
             </div>
           </div>

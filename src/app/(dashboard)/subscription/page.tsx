@@ -42,35 +42,14 @@ interface PlanFromDB {
 export default function SubscriptionPage() {
   const { data: session } = useSession();
   const { theme } = useTheme();
-
-  // Admin-only access check
-  if (!session || session.user?.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-gray-400">Only administrators can access subscription management.</p>
-        </div>
-      </div>
-    );
-  }
+  
+  // Move ALL hooks to the top before any conditional logic
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
 
-  const isDark = theme === 'dark';
-  const card = 'bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl';
-  const heading = 'text-2xl font-bold text-white';
-  const subtext = 'text-sm text-gray-400';
-  const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
-  const btnSecondary = 'w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
-
-  useEffect(() => {
-    fetchSubscriptionData();
-    fetchPlans();
-  }, []);
-
+  // Define functions before useEffect that uses them
   const fetchSubscriptionData = async () => {
     try {
       const response = await fetch('/api/subscription');
@@ -96,6 +75,34 @@ export default function SubscriptionPage() {
       console.error('Failed to fetch plans:', error);
     }
   };
+
+  useEffect(() => {
+    // Only fetch data if user is admin
+    if (session?.user?.role === 'admin') {
+      fetchSubscriptionData();
+      fetchPlans();
+    }
+  }, [session]);
+
+  // Define style variables before any early returns
+  const isDark = theme === 'dark';
+  const card = 'bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl';
+  const heading = 'text-2xl font-bold text-white';
+  const subtext = 'text-sm text-gray-400';
+  const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
+  const btnSecondary = 'w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
+
+  // Admin-only access check
+  if (!session || session.user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
+          <p className="text-gray-400">Only administrators can access subscription management.</p>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

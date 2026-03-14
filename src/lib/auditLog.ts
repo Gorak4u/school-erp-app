@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+import { saasPrisma } from './prisma';
 
 export async function logAuditAction({
   actorEmail,
@@ -16,7 +16,7 @@ export async function logAuditAction({
   ipAddress?: string;
 }) {
   try {
-    await (prisma as any).auditLog.create({
+    await (saasPrisma as any).auditLog.create({
       data: {
         actorEmail,
         action,

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 
@@ -14,10 +14,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const existing = await prisma.user.findFirst({
+    const existing = await (schoolPrisma as any).school_User.findFirst({
       where: { id, ...tenantWhere(ctx) },
     });
-    if (!existing) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!existing) return NextResponse.json({ error: 'school_User not found' }, { status: 404 });
 
     const body = await request.json();
     const { password, customRoleId, ...rest } = body;
@@ -26,13 +26,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (password) updateData.password = await bcrypt.hash(password, 10);
     if (customRoleId !== undefined) updateData.customRoleId = customRoleId || null;
 
-    const user = await prisma.user.update({
+    const user = await (schoolPrisma as any).school_User.update({
       where: { id },
       data: updateData,
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, customRoleId: true, isActive: true,
-        customRole: { select: { id: true, name: true } },
+        CustomRole: { select: { id: true, name: true } },
       },
     });
 
@@ -58,13 +58,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 });
     }
 
-    const existing = await prisma.user.findFirst({
+    const existing = await (schoolPrisma as any).school_User.findFirst({
       where: { id, ...tenantWhere(ctx) },
     });
-    if (!existing) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!existing) return NextResponse.json({ error: 'school_User not found' }, { status: 404 });
 
-    await prisma.user.delete({ where: { id } });
-    return NextResponse.json({ message: 'User deleted' });
+    await (schoolPrisma as any).school_User.delete({ where: { id } });
+    return NextResponse.json({ message: 'school_User deleted' });
   } catch (err: any) {
     console.error('DELETE /api/users/[id]:', err);
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     const where = classId ? { classId } : {};
 
-    const sections = await prisma.section.findMany({
+    const sections = await schoolPrisma.section.findMany({
       where,
       orderBy: { name: 'asc' },
       include: {
@@ -35,15 +35,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { code, name, classId, capacity, roomNumber, isActive } = body;
 
-    const section = await prisma.section.create({
+    const section = await schoolPrisma.section.create({
       data: {
         code,
         name,
         classId,
         capacity,
         roomNumber,
-        isActive: isActive ?? true
-      },
+        isActive: isActive ?? true,
+        academicYear: '2024-25' // Default academic year
+      } as any,
       include: {
         class: true
       }
@@ -64,7 +65,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, code, name, capacity, roomNumber, isActive } = body;
 
-    const section = await prisma.section.update({
+    const section = await schoolPrisma.section.update({
       where: { id },
       data: {
         code,
@@ -97,7 +98,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Section ID is required' }, { status: 400 });
     }
 
-    await prisma.section.delete({
+    await schoolPrisma.section.delete({
       where: { id }
     });
 

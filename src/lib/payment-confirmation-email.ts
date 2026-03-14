@@ -56,7 +56,7 @@ export function generatePaymentConfirmationEmail(data: PaymentConfirmationEmailD
             <h2>🏫 Account Details</h2>
             <p><strong>School Name:</strong> ${school.name}</p>
             <p><strong>Account Email:</strong> ${user.email}</p>
-            <p><strong>Admin Name:</strong> ${user.firstName} ${user.lastName}</p>
+            <p><strong>Admin Name:</strong> ${(user as any).firstName && (user as any).lastName ? `${(user as any).firstName} ${(user as any).lastName}` : (user as any).name || 'Admin'}</p>
         </div>
 
         <div class="card">

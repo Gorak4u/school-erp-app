@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       : { date: 'desc' };
 
     const [exams, total] = await Promise.all([
-      prisma.exam.findMany({
+      (schoolPrisma as any).exam.findMany({
         where,
         orderBy,
         skip: (page - 1) * pageSize,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           _count: { select: { results: true } },
         },
       }),
-      prisma.exam.count({ where }),
+      (schoolPrisma as any).exam.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const exam = await prisma.exam.create({ data: { ...body, schoolId: ctx.schoolId } });
+    const exam = await (schoolPrisma as any).exam.create({ data: { ...body, schoolId: ctx.schoolId } });
     return NextResponse.json({ exam }, { status: 201 });
   } catch (error) {
     console.error('POST /api/exams:', error);

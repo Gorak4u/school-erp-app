@@ -1,11 +1,11 @@
-import { prisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 
 export type PlanName = string; // Dynamic from database
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'expired' | 'cancelled';
 
 // Fetch plan limits from database
 export async function getPlanLimits(planName: string): Promise<{ maxStudents: number; maxTeachers: number }> {
-  const plan = await (prisma as any).plan.findUnique({
+  const plan = await (saasPrisma as any).plan.findUnique({
     where: { name: planName },
     select: { maxStudents: true, maxTeachers: true }
   });
@@ -23,7 +23,7 @@ export async function getPlanLimits(planName: string): Promise<{ maxStudents: nu
 
 // Fetch plan features from database
 export async function getPlanFeatures(planName: string): Promise<string[]> {
-  const plan = await (prisma as any).plan.findUnique({
+  const plan = await (saasPrisma as any).plan.findUnique({
     where: { name: planName },
     select: { features: true }
   });
@@ -42,7 +42,7 @@ export async function getPlanFeatures(planName: string): Promise<string[]> {
 
 // Get all active plans from database
 export async function getActivePlans() {
-  const plans = await (prisma as any).plan.findMany({
+  const plans = await (saasPrisma as any).plan.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: 'asc' }
   });
@@ -65,22 +65,26 @@ export interface SubscriptionInfo {
 
 export async function getSubscriptionInfo(userId: string): Promise<SubscriptionInfo | null> {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await (schoolPrisma as any).school_User.findUnique({
       where: { id: userId },
       include: {
-        school: {
-          include: {
-            subscription: true,
-          },
-        },
+        CustomRole: true,
       },
     });
 
-    if (!user?.school?.subscription) {
-      return null;
+    // Get school and subscription separately since they're in different schemas
+    let sub = null;
+    if (user?.schoolId) {
+      const school = await (saasPrisma as any).school.findUnique({
+        where: { id: user.schoolId },
+        include: { subscription: true },
+      });
+      sub = school?.subscription;
     }
 
-    const sub = user.school.subscription;
+    if (!sub) {
+      return null;
+    }
     const now = new Date();
 
     const isTrial = sub.status === 'trial';
@@ -137,16 +141,11 @@ export async function checkUserLimits(schoolId: string): Promise<{
   canAddStudent: boolean;
   canAddTeacher: boolean;
 }> {
-  const school = await prisma.school.findUnique({
+  // Get school and subscription from SaaS schema
+  const school = await (saasPrisma as any).school.findUnique({
     where: { id: schoolId },
     include: {
       subscription: true,
-      _count: {
-        select: {
-          students: true,
-          teachers: true,
-        },
-      },
     },
   });
 
@@ -161,12 +160,18 @@ export async function checkUserLimits(schoolId: string): Promise<{
     };
   }
 
+  // Count students and teachers from school schema separately
+  const [studentCount, teacherCount] = await Promise.all([
+    (schoolPrisma as any).student.count({ where: { schoolId } }),
+    (schoolPrisma as any).teacher.count({ where: { schoolId } }),
+  ]);
+
   return {
-    studentsUsed: school._count.students,
+    studentsUsed: studentCount,
     studentsMax: school.subscription.maxStudents,
-    teachersUsed: school._count.teachers,
+    teachersUsed: teacherCount,
     teachersMax: school.subscription.maxTeachers,
-    canAddStudent: school._count.students < school.subscription.maxStudents,
-    canAddTeacher: school._count.teachers < school.subscription.maxTeachers,
+    canAddStudent: studentCount < school.subscription.maxStudents,
+    canAddTeacher: teacherCount < school.subscription.maxTeachers,
   };
 }

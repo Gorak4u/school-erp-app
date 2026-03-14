@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (academicYearId) where.academicYearId = academicYearId;
     if (mediumId) where.mediumId = mediumId;
 
-    const classes = await prisma.class.findMany({
+    const classes = await (schoolPrisma as any).class.findMany({
       where,
       orderBy: { name: 'asc' },
       include: {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { code, name, level, mediumId, academicYearId, isActive } = body;
 
     // Check if class code already exists
-    const existingClass = await prisma.class.findFirst({
+    const existingClass = await (schoolPrisma as any).class.findFirst({
       where: { code }
     });
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const classData = await prisma.class.create({
+    const classData = await (schoolPrisma as any).class.create({
       data: {
         code,
         name,
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
     const { id, code, name, level, mediumId, isActive } = body;
 
     // Check if class code already exists (excluding current class)
-    const existingClass = await prisma.class.findFirst({
+    const existingClass = await (schoolPrisma as any).class.findFirst({
       where: { 
         code,
         id: { not: id }
@@ -102,7 +102,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const classData = await prisma.class.update({
+    const classData = await (schoolPrisma as any).class.update({
       where: { id },
       data: {
         code,
@@ -145,7 +145,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
-    await prisma.class.delete({
+    await (schoolPrisma as any).class.delete({
       where: { id }
     });
 

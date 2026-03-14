@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [records, total] = await Promise.all([
-      prisma.feeRecord.findMany({
+      (schoolPrisma as any).feeRecord.findMany({
         where,
         include: {
           student: { select: { id: true, name: true, class: true, section: true, rollNo: true } },
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.feeRecord.count({ where }),
+      (schoolPrisma as any).feeRecord.count({ where }),
     ]);
 
     return NextResponse.json({ records, total, page, pageSize });
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Verify student belongs to this school
     if (!ctx.isSuperAdmin && ctx.schoolId) {
-      const student = await prisma.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
+      const student = await (schoolPrisma as any).student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
       if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pendingAmount = amount - discount;
-    const record = await prisma.feeRecord.create({
+    const record = await (schoolPrisma as any).feeRecord.create({
       data: {
         studentId,
         feeStructureId,

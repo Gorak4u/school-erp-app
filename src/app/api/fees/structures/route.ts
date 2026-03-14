@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 const INCLUDE_RELATIONS = {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
 
-    const structures = await prisma.feeStructure.findMany({
+    const structures = await (schoolPrisma as any).feeStructure.findMany({
       where,
       include: INCLUDE_RELATIONS,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
       }
       const sourceWhere: any = { academicYearId: sourceAcademicYearId, isActive: true };
       if (!ctx.isSuperAdmin && ctx.schoolId) sourceWhere.schoolId = ctx.schoolId;
-      const sourceStructures = await prisma.feeStructure.findMany({ where: sourceWhere });
+      const sourceStructures = await (schoolPrisma as any).feeStructure.findMany({ where: sourceWhere });
       if (sourceStructures.length === 0) {
         return NextResponse.json({ error: 'No fee structures found in source academic year' }, { status: 404 });
       }
-      const created = await prisma.feeStructure.createMany({
+      const created = await (schoolPrisma as any).feeStructure.createMany({
         data: sourceStructures.map(s => ({
           name: s.name,
           category: s.category,
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Normal create
     const { id, academicYear, board, medium, class: cls, createdAt, updatedAt, ...data } = body;
 
-    const structure = await prisma.feeStructure.create({
+    const structure = await (schoolPrisma as any).feeStructure.create({
       data: { ...data, schoolId: ctx.schoolId },
       include: INCLUDE_RELATIONS,
     });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
       : { createdAt: 'desc' };
 
     const [teachers, total] = await Promise.all([
-      prisma.teacher.findMany({
+      (schoolPrisma as any).teacher.findMany({
         where,
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.teacher.count({ where }),
+      (schoolPrisma as any).teacher.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -66,11 +66,11 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     // Check subscription limits
-    const limitError = await checkSubscriptionLimit(ctx, 'teachers', prisma);
+    const limitError = await checkSubscriptionLimit(ctx, 'teachers', schoolPrisma);
     if (limitError) return limitError;
 
     const body = await request.json();
-    const teacher = await prisma.teacher.create({ data: { ...body, schoolId: ctx.schoolId } });
+    const teacher = await (schoolPrisma as any).teacher.create({ data: { ...body, schoolId: ctx.schoolId } });
     return NextResponse.json({ teacher }, { status: 201 });
   } catch (error: any) {
     if (error.code === 'P2002') {

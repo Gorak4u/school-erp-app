@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 
 export interface QuotaLimitExceededEmailData {
   adminUser: any;

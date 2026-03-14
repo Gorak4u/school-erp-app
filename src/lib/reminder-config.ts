@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 
 export interface ReminderConfig {
   enabled: boolean;
@@ -62,7 +62,7 @@ export const DEFAULT_REMINDER_CONFIG: ReminderSchedule = {
 
 export async function getReminderConfig(): Promise<ReminderSchedule> {
   try {
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const settings = await p.saasSetting.findMany({
       where: { group: 'reminder_schedule' },
     });
@@ -94,7 +94,7 @@ export async function getReminderConfig(): Promise<ReminderSchedule> {
 
 export async function updateReminderConfig(config: Partial<ReminderSchedule>): Promise<void> {
   try {
-    const p = prisma as any;
+    const p = saasPrisma as any;
     
     // Update each configuration section
     for (const [key, value] of Object.entries(config)) {

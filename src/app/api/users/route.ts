@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 
@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
+    const users = await (schoolPrisma as any).school_User.findMany({
       where: tenantWhere(ctx),
       select: {
         id: true,
@@ -24,7 +24,7 @@ export async function GET() {
         customRoleId: true,
         isActive: true,
         createdAt: true,
-        customRole: { select: { id: true, name: true } },
+        CustomRole: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -52,13 +52,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'email, firstName, lastName, password are required' }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await (schoolPrisma as any).school_User.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
+    const user = await (schoolPrisma as any).school_User.create({
       data: {
         email,
         firstName,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, customRoleId: true, isActive: true, createdAt: true,
-        customRole: { select: { id: true, name: true } },
+        CustomRole: { select: { id: true, name: true } },
       },
     });
 

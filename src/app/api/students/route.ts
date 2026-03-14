@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Fetch the page of students (no heavy includes)
     const [students, total] = await Promise.all([
-      prisma.student.findMany({
+      schoolPrisma.student.findMany({
         where,
         orderBy,
         skip: (page - 1) * pageSize,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           createdAt: true, updatedAt: true,
         },
       }),
-      prisma.student.count({ where }),
+      schoolPrisma.student.count({ where }),
     ]);
 
     if (students.length === 0) {
@@ -71,20 +71,20 @@ export async function GET(request: NextRequest) {
 
     const [feeAgg, feeLastPayment, attendanceAgg] = await Promise.all([
       // Sum fees per student
-      prisma.feeRecord.groupBy({
+      schoolPrisma.feeRecord.groupBy({
         by: ['studentId'],
         where: { studentId: { in: studentIds } },
         _sum: { amount: true, paidAmount: true },
       }),
       // Last payment date per student
-      prisma.feeRecord.findMany({
+      schoolPrisma.feeRecord.findMany({
         where: { studentId: { in: studentIds }, paidDate: { not: null } },
         select: { studentId: true, paidDate: true },
         orderBy: { paidDate: 'desc' },
         distinct: ['studentId'],
       }),
       // Attendance counts per student per status
-      prisma.attendanceRecord.groupBy({
+      schoolPrisma.attendanceRecord.groupBy({
         by: ['studentId', 'status'],
         where: { studentId: { in: studentIds } },
         _count: { status: true },
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     const { documents, fees, attendance, academics, behavior, transferCertificateNumber, grade, timestamp, isAutoSave, ...data } = body;
 
     // Check subscription limits
-    const limitError = await checkSubscriptionLimit(ctx, 'students', prisma);
+    const limitError = await checkSubscriptionLimit(ctx, 'students', schoolPrisma);
     if (limitError) return limitError;
 
     // Validate required fields
@@ -202,12 +202,12 @@ export async function POST(request: NextRequest) {
     const maxAttempts = 10;
     
     do {
-      const count = await prisma.student.count({
+      const count = await schoolPrisma.student.count({
         where: { admissionNo: { startsWith: currentYear.toString() } }
       });
       admissionNo = `${currentYear}${String(count + attempts + 1).padStart(4, '0')}`;
       
-      const existing = await prisma.student.findUnique({
+      const existing = await schoolPrisma.student.findUnique({
         where: { admissionNo }
       });
       
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     // Provide default rollNo if not provided
     if (!data.rollNo) {
-      const classRollCount = await prisma.student.count({
+      const classRollCount = await schoolPrisma.student.count({
         where: { class: data.class, section: data.section }
       });
       data.rollNo = String(classRollCount + 1);
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
       ...dataWithoutInvalidFields 
     } = data;
     
-    const student = await prisma.student.create({
+    const student = await schoolPrisma.student.create({
       data: {
         ...dataWithoutInvalidFields,
         schoolId: ctx.schoolId,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     // Auto-apply fee structures based on student's class, category, and medium
     try {
       // Find fee structures matching the student's class (by classId or no class restriction)
-      const feeStructures = await prisma.feeStructure.findMany({
+      const feeStructures = await schoolPrisma.feeStructure.findMany({
         where: { isActive: true },
         include: { class: true },
       });
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
         if (classMatch && categoryMatch) {
           const dueDate = new Date(currentYear, 3, structure.dueDate); // April or as set
           
-          await prisma.feeRecord.create({
+          await schoolPrisma.feeRecord.create({
             data: {
               studentId: student.id,
               feeStructureId: structure.id,

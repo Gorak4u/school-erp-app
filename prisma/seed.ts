@@ -97,17 +97,18 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 12);
   const teacherPassword = await bcrypt.hash('teacher123', 12);
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@schoolerp.com' },
-    update: {},
-    create: { email: 'admin@schoolerp.com', password: adminPassword, firstName: 'Admin', lastName: 'User', role: 'admin' },
-  });
+  // Skip SaaS user creation in seed - these should be created via registration
+  // const admin = await prisma.user.upsert({
+  //   where: { email: 'admin@schoolerp.com' },
+  //   update: {},
+  //   create: { email: 'admin@schoolerp.com', password: adminPassword, name: 'Admin User', role: 'admin' },
+  // });
 
-  const teacherUser = await prisma.user.upsert({
-    where: { email: 'teacher@schoolerp.com' },
-    update: {},
-    create: { email: 'teacher@schoolerp.com', password: teacherPassword, firstName: 'Priya', lastName: 'Sharma', role: 'teacher' },
-  });
+  // const teacherUser = await prisma.user.upsert({
+  //   where: { email: 'teacher@schoolerp.com' },
+  //   update: {},
+  //   create: { email: 'teacher@schoolerp.com', password: teacherPassword, name: 'Priya Sharma', role: 'teacher' },
+  // });
 
   console.log('✅ Users created');
 
@@ -121,7 +122,7 @@ async function main() {
       subject: 'Mathematics', qualification: 'M.Sc Mathematics', experience: 10,
       status: 'active', joiningDate: '2015-06-01', salary: 55000,
       department: 'Science', designation: 'Senior Teacher', bloodGroup: 'B+',
-      userId: teacherUser.id,
+      // userId: teacherUser.id, // Commented out since teacherUser is not created
     },
   });
 

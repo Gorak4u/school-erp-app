@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (error) return error;
 
     const { id } = await params;
-    const student = await prisma.student.findFirst({
+    const student = await (schoolPrisma as any).student.findFirst({
       where: { id, ...tenantWhere(ctx) },
       include: {
         feeRecords: { include: { feeStructure: true, payments: true } },
@@ -39,10 +39,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { documents, fees, attendance, academics, behavior, feeRecords, attendanceRecords, examResults, ...data } = body;
 
     // Verify ownership before update
-    const existing = await prisma.student.findFirst({ where: { id, ...tenantWhere(ctx) } });
+    const existing = await (schoolPrisma as any).student.findFirst({ where: { id, ...tenantWhere(ctx) } });
     if (!existing) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-    const student = await prisma.student.update({
+    const student = await (schoolPrisma as any).student.update({
       where: { id },
       data: {
         ...data,
@@ -70,10 +70,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     // Verify ownership before delete
-    const existing = await prisma.student.findFirst({ where: { id, ...tenantWhere(ctx) } });
+    const existing = await (schoolPrisma as any).student.findFirst({ where: { id, ...tenantWhere(ctx) } });
     if (!existing) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-    await prisma.student.delete({ where: { id } });
+    await (schoolPrisma as any).student.delete({ where: { id } });
     return NextResponse.json({ message: 'Student deleted successfully' });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Student not found' }, { status: 404 });

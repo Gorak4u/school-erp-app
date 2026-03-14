@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -50,7 +50,7 @@ export async function GET() {
           status: 'trial',
           trialEndsAt: { gte: now, lte: trialExpirySoon },
         },
-        include: { school: { select: { name: true, id: true } } },
+        include: {  },
         orderBy: { trialEndsAt: 'asc' },
         take: 10,
       }),

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 // SaaS SMTP keys (used for platform emails: password reset, welcome, notifications)
@@ -48,7 +48,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden: Super admin access required' }, { status: 403 });
     }
 
-    const settings = await (prisma as any).saasSetting.findMany({
+    const settings = await (saasPrisma as any).saasSetting.findMany({
       where: { group: { in: ['saas_smtp', 'saas_payment'] } },
     });
 
@@ -101,7 +101,7 @@ export async function PUT(req: Request) {
 
       const group = SAAS_SMTP_KEYS.includes(key) ? 'saas_smtp' : 'saas_payment';
 
-      await (prisma as any).saasSetting.upsert({
+      await (saasPrisma as any).saasSetting.upsert({
         where: { group_key: { group, key } },
         update: { value: String(value) },
         create: { group, key, value: String(value) },

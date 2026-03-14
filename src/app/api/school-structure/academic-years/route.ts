@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const academicYears = await prisma.academicYear.findMany({
+    const academicYears = await (schoolPrisma as any).academicYear.findMany({
       orderBy: { year: 'desc' },
       include: {
         mediums: true,
@@ -28,13 +28,13 @@ export async function POST(request: NextRequest) {
 
     // If this is set as active, deactivate all others
     if (isActive) {
-      await prisma.academicYear.updateMany({
+      await (schoolPrisma as any).academicYear.updateMany({
         where: { isActive: true },
         data: { isActive: false }
       });
     }
 
-    const academicYear = await prisma.academicYear.create({
+    const academicYear = await (schoolPrisma as any).academicYear.create({
       data: {
         year,
         name,
@@ -61,13 +61,13 @@ export async function PUT(request: NextRequest) {
 
     // If this is set as active, deactivate all others
     if (isActive) {
-      await prisma.academicYear.updateMany({
+      await (schoolPrisma as any).academicYear.updateMany({
         where: { isActive: true, id: { not: id } },
         data: { isActive: false }
       });
     }
 
-    const academicYear = await prisma.academicYear.update({
+    const academicYear = await (schoolPrisma as any).academicYear.update({
       where: { id },
       data: {
         year,
@@ -97,7 +97,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
-    await prisma.academicYear.delete({
+    await (schoolPrisma as any).academicYear.delete({
       where: { id }
     });
 

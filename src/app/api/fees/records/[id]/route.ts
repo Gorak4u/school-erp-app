@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const record = await prisma.feeRecord.findUnique({
+    const record = await (schoolPrisma as any).feeRecord.findUnique({
       where: { id },
       include: {
         student: true,
@@ -24,7 +24,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const body = await request.json();
-    const record = await prisma.feeRecord.update({ where: { id }, data: body });
+    const record = await (schoolPrisma as any).feeRecord.update({ where: { id }, data: body });
     return NextResponse.json({ record });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await prisma.feeRecord.delete({ where: { id } });
+    await (schoolPrisma as any).feeRecord.delete({ where: { id } });
     return NextResponse.json({ message: 'Fee record deleted' });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });

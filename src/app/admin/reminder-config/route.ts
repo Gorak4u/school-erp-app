@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Validate configuration structure
-    const allowedKeys = ['trialExpiry', 'subscriptionRenewal', 'paymentFailed', 'serviceSuspension'];
+    const allowedKeys = ['trialExpiry', 'subscriptionRenewal', 'paymentFailed', 'serviceSuspension', 'quotaLimitExceeded'];
     const configKeys = Object.keys(config);
     
     for (const key of configKeys) {

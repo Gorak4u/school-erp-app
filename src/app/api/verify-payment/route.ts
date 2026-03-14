@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { sendPaymentConfirmationEmail } from '@/lib/payment-confirmation-email';
 
 export async function POST(req: Request) {
@@ -25,11 +25,11 @@ export async function POST(req: Request) {
     // }
 
     // Update subscription and user in transaction
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await (saasPrisma as any).$transaction(async (tx: any) => {
       // 1. Find school and subscription
       const school = await tx.school.findUnique({
         where: { id: schoolId },
-        include: { subscription: true, users: true },
+        include: { subscription: true, User: true },
       });
 
       if (!school || !school.subscription) {
@@ -59,8 +59,8 @@ export async function POST(req: Request) {
         },
       });
 
-      // 4. Activate all users for this school
-      await tx.user.updateMany({
+      // 4. Activate all users for this school (need to use schoolPrisma since school_User is in school schema)
+      await (schoolPrisma as any).school_User.updateMany({
         where: { schoolId: school.id },
         data: { isActive: true },
       });
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     // 5. Send payment confirmation email (non-blocking)
     // Get payment details from SubscriptionPayment
-    const p = prisma as any;
+    const p = saasPrisma as any;
     const paymentRecord = await p.subscriptionPayment.findFirst({
       where: { orderId: orderId },
     });
