@@ -11,7 +11,7 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
 
   return (
     <>
@@ -1128,15 +1128,22 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
           )}
 
           {activeTab === 'reports' && (
-            <FeeReportsTab 
-              studentFeeSummaries={studentFeeSummaries}
-              theme={theme}
-            />
+            <motion.div
+              key="tab-reports"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <FeeReportsTab 
+                studentFeeSummaries={studentFeeSummaries}
+                theme={theme}
+              />
+            </motion.div>
           )}
 
           {activeTab === 'collections' && (
             <motion.div
-              key="collections"
+              key="tab-collections"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -1154,40 +1161,40 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0).toLocaleString()}
+                      {studentFeeSummaries?.length || 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Fees
+                      Total Students
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-green-500`}>
-                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0).toLocaleString()}
+                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Collected
+                      Fully Paid
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-orange-500`}>
-                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0).toLocaleString()}
+                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'partially_paid').length || 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Pending
+                      Partially Paid
                     </div>
                   </div>
                   <div className={`p-4 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-red-500`}>
-                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalOverdue || 0), 0).toLocaleString()}
+                      {studentFeeSummaries?.filter(s => s.paymentStatus === 'overdue' || s.paymentStatus === 'no_payment').length || 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Overdue
+                      Pending/Overdue
                     </div>
                   </div>
                 </div>
@@ -1200,19 +1207,19 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       <tr>
                         <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Student</th>
+                        }`}>Student Name</th>
                         <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Class</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Roll No</th>
                         <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Total</th>
+                        }`}>Total Fees</th>
                         <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Paid</th>
-                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Pending</th>
                         <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Status</th>
@@ -1221,24 +1228,24 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                     <tbody className={`divide-y ${
                       theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
                     }`}>
-                      {studentFeeSummaries.map((student) => (
-                        <tr key={student.studentId} className={`${
+                      {studentFeeSummaries?.map((student) => (
+                        <tr key={student.studentId || student.id} className={`${
                           theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
                         } transition-colors`}>
                           <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {student.studentName}
+                            {student.name || student.studentName || 'N/A'}
                           </td>
                           <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                            {student.studentClass}
+                            {student.class || student.studentClass || 'N/A'}
                           </td>
                           <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            ₹{(student.totalFees || 0).toLocaleString()}
+                            {student.rollNo || student.admissionNo || 'N/A'}
                           </td>
                           <td className={`px-4 py-3 text-right font-medium text-green-500`}>
-                            ₹{(student.totalPaid || 0).toLocaleString()}
+                            {student.totalFees ? `₹${student.totalFees.toLocaleString()}` : 'N/A'}
                           </td>
                           <td className={`px-4 py-3 text-right font-medium text-orange-500`}>
-                            ₹{(student.totalPending || 0).toLocaleString()}
+                            {student.totalPaid ? `₹${student.totalPaid.toLocaleString()}` : 'N/A'}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1246,13 +1253,21 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                                 ? 'bg-green-100 text-green-800'
                                 : student.paymentStatus === 'partially_paid'
                                 ? 'bg-yellow-100 text-yellow-800'
+                                : student.paymentStatus === 'no_payment'
+                                ? 'bg-gray-100 text-gray-800'
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {student.paymentStatus?.replace('_', ' ').toUpperCase()}
+                              {student.paymentStatus?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                             </span>
                           </td>
                         </tr>
-                      ))}
+                      )) || (
+                        <tr>
+                          <td colSpan={6} className={`px-4 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            No student data available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1262,6 +1277,52 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
 
           <FeeRecordsTabs ctx={ctx} />
         </AnimatePresence>
+
+        {/* Receipt Modal */}
+        {showReceiptModal && selectedFeeRecord && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fee Receipt</h3>
+                <button
+                  onClick={() => {
+                    setShowReceiptModal(false);
+                    setSelectedFeeRecord(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <PaymentReceipt
+                theme={theme}
+                studentData={{
+                  studentName: selectedFeeRecord.student?.name || 'N/A',
+                  studentClass: selectedFeeRecord.student?.class || 'N/A',
+                  admissionNo: selectedFeeRecord.student?.admissionNo || 'N/A',
+                  rollNo: selectedFeeRecord.student?.rollNo || selectedFeeRecord.student?.admissionNo || 'N/A',
+                  fatherName: selectedFeeRecord.student?.fatherName || 'Parent',
+                  parentName: selectedFeeRecord.student?.parentName || selectedFeeRecord.student?.fatherName || 'Parent',
+                  collectedBy: selectedFeeRecord.collectedBy || selectedFeeRecord.payments?.[0]?.collectedBy || 'Accounts Department',
+                }}
+                paymentData={{
+                  currentYearFees: [{
+                    ...selectedFeeRecord,
+                    totalAmount: selectedFeeRecord.amount || 0,
+                    name: selectedFeeRecord.feeStructure?.name || 'Fee',
+                    category: selectedFeeRecord.feeStructure?.category || 'General',
+                    academicYear: new Date().getFullYear().toString(),
+                  }]
+                }}
+                receiptNumber={selectedFeeRecord.receiptNumber || `FEE-${Date.now()}`}
+                paymentDate={selectedFeeRecord.paidDate || new Date().toISOString().split('T')[0]}
+                paymentMethod={selectedFeeRecord.paymentMethod || 'cash'}
+              />
+            </div>
+          </div>
+        )}
     </>
   );
 }
