@@ -127,11 +127,25 @@ export function useStudentState() {
     direction: 'asc' | 'desc';
   } | null>(null);
   
-  // Column Customization State
-  const [visibleColumns, setVisibleColumns] = useState([
-    'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
-    'class', 'attendance', 'status', 'actions'
-  ]);
+  // Column Customization State with localStorage persistence
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    if (typeof window === 'undefined') return [
+      'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
+      'class', 'attendance', 'status', 'actions'
+    ];
+    try {
+      const saved = localStorage.getItem('students-page-visibleColumns');
+      return saved ? JSON.parse(saved) : [
+        'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
+        'class', 'attendance', 'status', 'actions'
+      ];
+    } catch {
+      return [
+        'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
+        'class', 'attendance', 'status', 'actions'
+      ];
+    }
+  });
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [columnSettings, setColumnSettings] = useState({
     availableColumns: [
@@ -260,6 +274,16 @@ export function useStudentState() {
     loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender);
   }, [currentPage, pageSize]);
 
+  // Persist visibleColumns to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('students-page-visibleColumns', JSON.stringify(visibleColumns));
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+  }, [visibleColumns]);
 
   return {
     ...domainState,

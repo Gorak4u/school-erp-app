@@ -90,14 +90,43 @@ export async function GET() {
     const now = new Date();
     const isTrial = sub.status === 'trial';
     const trialEndsAt = sub.trialEndsAt ? new Date(sub.trialEndsAt) : null;
-    const trialDaysLeft = trialEndsAt
-      ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-      : null;
+    
+    // Only calculate trial info if trial is actually active
+    let trialDaysLeft = null;
+    let trialStartedAt = null;
+    
+    if (isTrial && trialEndsAt) {
+      // Check if trial has ended
+      if (trialEndsAt >= now) {
+        trialDaysLeft = Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate trial start date (assuming 14-day trial period)
+        const trialDurationDays = 14;
+        trialStartedAt = new Date(trialEndsAt.getTime() - (trialDurationDays * 24 * 60 * 60 * 1000));
+      }
+    }
+    
     const isTrialExpired = isTrial && trialEndsAt && trialEndsAt < now;
     const periodEnd = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
     const isPeriodExpired = periodEnd && periodEnd < now && sub.status !== 'trial';
     const isExpired = isTrialExpired || isPeriodExpired || sub.status === 'expired' || sub.status === 'cancelled';
     const isActive = !isExpired;
+
+    // Calculate subscription dates for users who upgraded during trial
+    let subscriptionStartDate = now;
+    let subscriptionEndDate = null;
+    let nextBillingDate = null;
+    
+    if (!isTrial && trialEndsAt && trialEndsAt >= now) {
+      // User upgraded during trial - calculate subscription dates
+      subscriptionStartDate = now; // Subscription starts now
+      subscriptionEndDate = trialEndsAt; // Use trial end as first billing date
+      nextBillingDate = trialEndsAt; // Next billing when trial would have ended
+    } else if (sub.currentPeriodEnd) {
+      // Regular subscription with existing period
+      subscriptionEndDate = new Date(sub.currentPeriodEnd);
+      nextBillingDate = new Date(sub.currentPeriodEnd);
+    }
 
     return NextResponse.json({
       hasSchool: true,
@@ -108,13 +137,19 @@ export async function GET() {
         isTrial,
         isExpired: !!isExpired,
         trialDaysLeft,
-        trialEndsAt: sub.trialEndsAt,
+        trialEndsAt: sub.trialEndsAt, // Keep trial data for users who upgraded during trial
+        trialStartedAt: trialStartedAt?.toISOString(),
         maxStudents: sub.maxStudents,
         maxTeachers: sub.maxTeachers,
         studentsUsed: studentsUsed,
         teachersUsed: teachersUsed,
         features: JSON.parse(sub.features || '[]'),
-        currentPeriodEnd: sub.currentPeriodEnd,
+        currentPeriodEnd: subscriptionEndDate?.toISOString(),
+        nextBillingDate: nextBillingDate?.toISOString(),
+        amount: sub.amount || null,
+        billingCycle: sub.billingCycle || 'monthly',
+        upgradedFromTrial: !isTrial && trialEndsAt && trialEndsAt >= now, // Flag for users who upgraded during active trial
+        subscriptionStartDate: subscriptionStartDate.toISOString(), // When subscription actually started
       },
       school: {
         id: school.id,

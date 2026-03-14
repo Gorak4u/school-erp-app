@@ -125,6 +125,24 @@ export function createMobileHandlers(ctx: any) {
     );
   };
 
+  const reorderColumns = (newOrder: string[]) => {
+    setVisibleColumns(newOrder);
+  };
+
+  const moveColumn = (columnKey: string, direction: 'up' | 'down') => {
+    setVisibleColumns(prev => {
+      const idx = prev.indexOf(columnKey);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      if (direction === 'up' && idx > 0) {
+        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      } else if (direction === 'down' && idx < next.length - 1) {
+        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      }
+      return next;
+    });
+  };
+
   const resetColumns = () => {
     setVisibleColumns([
       'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
@@ -615,5 +633,5 @@ export function createMobileHandlers(ctx: any) {
   };
 
 
-  return { downloadTemplate, exportStudents, handleFileImport, handleSort, performBulkAction, renderMobileGridView, renderMobileListView, renderMobileStudentCard, resetColumns, toggleColumn, validateAndImportData };
+  return { downloadTemplate, exportStudents, handleFileImport, handleSort, performBulkAction, renderMobileGridView, renderMobileListView, renderMobileStudentCard, resetColumns, toggleColumn, moveColumn, reorderColumns, validateAndImportData };
 }

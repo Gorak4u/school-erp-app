@@ -67,10 +67,13 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   // Build currentStudentData from prop or computed defaults
   const currentStudentData = studentData ? {
     ...studentData,
+    name: studentData.name || studentData.studentName || 'Unknown Student',
+    studentClass: studentData.studentClass || studentData.class || 'N/A',
+    admissionNo: studentData.admissionNo || studentData.rollNo || 'N/A',
     totalFees: studentData.totalFees ?? totalFees,
     paid: studentData.paid ?? totalPaid,
     pending: studentData.pending ?? totalPending,
-    discount: studentData.discount ?? 0,
+    discount: studentData.discount ?? studentData.discountApplied ?? 0,
     riskLevel: studentData.riskLevel ?? (totalPending > totalFees * 0.5 ? 'high' : totalPending > 0 ? 'medium' : 'low'),
   } : {
     name: 'Select a student', studentClass: '-', admissionNo: '-', parentName: '-', contact: '-', email: '-',

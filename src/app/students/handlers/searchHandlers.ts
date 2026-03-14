@@ -504,14 +504,10 @@ export function createSearchHandlers(ctx: any) {
       const { studentsApi } = await import('@/lib/apiClient');
       await studentsApi.delete(id);
       setStudents(students.filter(s => s.id !== id));
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'success',
-          title: 'Student Deleted',
-          message: 'Student has been deleted successfully',
-          duration: 3000
-        });
-      }
+      
+      // Use centralized toast utility
+      const { showSuccessToast } = await import('@/lib/toastUtils');
+      showSuccessToast('Student Deleted', 'Student has been deleted successfully');
     } catch (err: any) {
       console.error('Failed to delete student:', err);
       let errorMessage = 'Something went wrong';
@@ -522,14 +518,9 @@ export function createSearchHandlers(ctx: any) {
         errorMessage = 'Cannot delete student with existing records (fees, attendance, etc.).';
       }
       
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'error',
-          title: 'Failed to Delete Student',
-          message: errorMessage,
-          duration: 3000
-        });
-      }
+      // Use centralized toast utility
+      const { showErrorToast } = await import('@/lib/toastUtils');
+      showErrorToast('Failed to Delete Student', errorMessage);
     }
   };
 

@@ -49,11 +49,25 @@ export function useFeeState() {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkOperations, setShowBulkOperations] = useState(false);
 
-  // Column settings
-  const [selectedColumns, setSelectedColumns] = useState([
-    'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
-    'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
-  ]);
+  // Column settings with localStorage persistence
+  const [selectedColumns, setSelectedColumns] = useState(() => {
+    if (typeof window === 'undefined') return [
+      'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
+      'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
+    ];
+    try {
+      const saved = localStorage.getItem('fees-page-selectedColumns');
+      return saved ? JSON.parse(saved) : [
+        'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
+        'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
+      ];
+    } catch {
+      return [
+        'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
+        'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
+      ];
+    }
+  });
   
   const columnSettings = {
     availableColumns: [
@@ -89,6 +103,24 @@ export function useFeeState() {
     );
   };
 
+  const reorderColumns = (newOrder: string[]) => {
+    setSelectedColumns(newOrder);
+  };
+
+  const moveColumn = (columnKey: string, direction: 'up' | 'down') => {
+    setSelectedColumns(prev => {
+      const idx = prev.indexOf(columnKey);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      if (direction === 'up' && idx > 0) {
+        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      } else if (direction === 'down' && idx < next.length - 1) {
+        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      }
+      return next;
+    });
+  };
+
   const resetColumns = () => {
     setSelectedColumns([
       'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
@@ -98,6 +130,7 @@ export function useFeeState() {
   const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
     const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [selectedFeeRecord, setSelectedFeeRecord] = useState<any>(null);
   const [showBulkCollectionModal, setShowBulkCollectionModal] = useState(false);
   const [showBulkDiscountModal, setShowBulkDiscountModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -137,9 +170,19 @@ export function useFeeState() {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 300);
-    
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Persist selectedColumns to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('fees-page-selectedColumns', JSON.stringify(selectedColumns));
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+  }, [selectedColumns]);
 
   // Live statistics derived from studentFeeSummaries (always fresh)
   const calculateStatistics = () => {
@@ -383,6 +426,7 @@ export function useFeeState() {
     showFeeStructureModal, setShowFeeStructureModal,
         showDiscountModal, setShowDiscountModal,
     showReceiptModal, setShowReceiptModal,
+    selectedFeeRecord, setSelectedFeeRecord,
     showBulkCollectionModal, setShowBulkCollectionModal,
     showBulkDiscountModal, setShowBulkDiscountModal,
     showImportModal, setShowImportModal,
@@ -392,7 +436,7 @@ export function useFeeState() {
     mobileView, setMobileView,
     isMobile, setIsMobile,
     selectedColumns, setSelectedColumns,
-    columnSettings, toggleColumn, resetColumns,
+    columnSettings, toggleColumn, resetColumns, moveColumn, reorderColumns,
     searchTerm, setSearchTerm,
     debouncedSearchTerm,
     selectedClass, setSelectedClass,

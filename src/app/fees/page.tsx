@@ -75,7 +75,9 @@ export default function FeesPage() {
     selectedColumns,
     toggleColumn,
     resetColumns,
+    moveColumn,
     setShowColumnSettings,
+    reorderColumns,
     isClient,
     setIsClient,
     selectedStudents,
@@ -169,6 +171,8 @@ export default function FeesPage() {
         theme={theme}
         toggleColumn={toggleColumn}
         visibleColumns={selectedColumns}
+        moveColumn={moveColumn}
+        reorderColumns={reorderColumns}
       />
       
       {/* Student Profile Modal */}

@@ -10,7 +10,8 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
   const {
     activeTab, theme, searchTerm, setSearchTerm, selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus, feeRecords, filteredFeeRecords, feeStructures, feeCollections,
-    discounts, setShowFeeStructureModal,     prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
+    discounts, setShowFeeStructureModal, setShowReceiptModal, selectedFeeRecord, setSelectedFeeRecord,
+    prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
   } = ctx;
   const { dropdowns } = useSchoolConfig();
 
@@ -112,24 +113,24 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>
                             <div>
-                              <div className="font-medium">{record.studentName}</div>
+                              <div className="font-medium">{record.student?.name || 'N/A'}</div>
                               <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {record.studentClass}
+                                {record.student?.class || 'N/A'}
                               </div>
                             </div>
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>{record.feeStructureName}</td>
+                          }`}>{record.feeStructure?.name || 'N/A'}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{record.amount.toLocaleString()}</td>
+                          }`}>₹{(record.amount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{record.paidAmount.toLocaleString()}</td>
+                          }`}>₹{(record.paidAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{record.pendingAmount.toLocaleString()}</td>
+                          }`}>₹{(record.pendingAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>{record.dueDate}</td>
@@ -148,7 +149,10 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap`}>
                             <button
-                              onClick={() => setShowReceiptModal(true)}
+                              onClick={() => {
+                              setSelectedFeeRecord(record);
+                              setShowReceiptModal(true);
+                            }}
                               className={`text-blue-600 hover:text-blue-800 ${
                                 theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
                               }`}
@@ -192,45 +196,83 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                         {structure.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
+                    {/* AY / Medium / Class / Board tags */}
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {structure.academicYear && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          theme === 'dark' ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'
+                        }`}>
+                          📅 {structure.academicYear.name || structure.academicYear.year}
+                        </span>
+                      )}
+                      {structure.medium && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          theme === 'dark' ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-50 text-purple-700'
+                        }`}>
+                          🗣️ {structure.medium.name}
+                        </span>
+                      )}
+                      {structure.class && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          theme === 'dark' ? 'bg-green-900/40 text-green-300' : 'bg-green-50 text-green-700'
+                        }`}>
+                          🏫 {structure.class.name}
+                        </span>
+                      )}
+                      {structure.board && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          theme === 'dark' ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-50 text-orange-700'
+                        }`}>
+                          📋 {structure.board.name}
+                        </span>
+                      )}
+                      {structure.applicableCategories && structure.applicableCategories !== 'all' && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {structure.applicableCategories}
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Amount
-                        </span>
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Amount</span>
                         <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           ₹{structure.amount.toLocaleString()}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Frequency
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Category</span>
+                        <span className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {structure.category || '-'}
                         </span>
-                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Frequency</span>
+                        <span className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {structure.frequency}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Due Date
-                        </span>
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Due Date</span>
                         <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {structure.dueDate}{structure.frequency === 'monthly' ? 'st of each month' : ''}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Late Fee
-                        </span>
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Late Fee</span>
                         <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{structure.lateFee}
+                          ₹{structure.lateFee || 0}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {structure.description}
-                      </p>
-                    </div>
+                    {structure.description && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {structure.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -275,19 +317,25 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                       <div>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total</p>
                         <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{collection.totalAmount.toLocaleString()}
+                          ₹{(collection.totalAmount || 0).toLocaleString()}
                         </p>
                       </div>
                       <div>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Cash</p>
                         <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{collection.cashAmount.toLocaleString()}
+                          ₹{(collection.cashAmount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Cheque</p>
+                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          ₹{(collection.chequeAmount || 0).toLocaleString()}
                         </p>
                       </div>
                       <div>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Online</p>
                         <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{collection.onlineAmount.toLocaleString()}
+                          ₹{(collection.onlineAmount || 0).toLocaleString()}
                         </p>
                       </div>
                       <div>

@@ -79,6 +79,20 @@ export default function FeeCollectionPage() {
 
   if (!isClient) return null;
 
+  // Show loading state while data is being fetched
+  if (feeState.isLoading) {
+    return (
+      <AppLayout currentPage="fee-collection" title="Fee Collection">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Loading fee data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout currentPage="fee-collection" title="Fee Collection">
       <div className="space-y-6 pb-6">

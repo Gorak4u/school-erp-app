@@ -29,7 +29,13 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ users });
+    // Filter out super admins from school user list
+    const filteredUsers = users.filter(user => {
+      const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+      return !superAdminEmails.includes(user.email.toLowerCase());
+    });
+
+    return NextResponse.json({ users: filteredUsers });
   } catch (err: any) {
     console.error('GET /api/users:', err);
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });

@@ -11,6 +11,8 @@ import {
   academicYearsApi, boardsApi, mediumsApi, classesApi, sectionsApi,
   schoolSettingsApi, schoolTimingsApi, feeStructuresApi,
 } from '@/lib/apiClient';
+import RolesManagement from '@/components/settings/RolesManagement';
+import UsersManagement from '@/components/settings/UsersManagement';
 
 const showToast = (t: any) => { if ((window as any).toast) (window as any).toast(t); };
 
@@ -31,8 +33,8 @@ const TABS = [
   { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
   { id: 'access', label: 'Access Rights', icon: '🔒' },
   { id: 'app', label: 'App Settings', icon: '⚙️' },
-  { id: 'roles', label: 'Custom Roles', icon: '🎭', href: '/settings/roles' },
-  { id: 'users', label: 'Users & Access', icon: '👥', href: '/settings/users' },
+  { id: 'roles', label: 'Custom Roles', icon: '🎭' },
+  { id: 'users', label: 'Users & Access', icon: '👥' },
 ];
 
 export default function SettingsPage() {
@@ -1003,27 +1005,17 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
           {TABS.map(tab => (
-            tab.href ? (
-              <Link
-                key={tab.id}
-                href={tab.href}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                <span>{tab.icon}</span> {tab.label}
-              </Link>
-            ) : (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <span>{tab.icon}</span> {tab.label}
-              </button>
-            )
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>{tab.icon}</span> {tab.label}
+            </button>
           ))}
         </div>
 
@@ -1041,6 +1033,8 @@ export default function SettingsPage() {
             {activeTab === 'integrations' && <IntegrationsTab />}
             {activeTab === 'access' && <AccessTab />}
             {activeTab === 'app' && <AppSettingsTab />}
+            {activeTab === 'roles' && <RolesManagement theme={theme} isDark={isDark} />}
+            {activeTab === 'users' && <UsersManagement theme={theme} isDark={isDark} />}
           </motion.div>
         )}
       </div>

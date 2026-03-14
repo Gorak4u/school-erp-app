@@ -5,6 +5,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
+import PaymentReceipt from './PaymentReceipt';
+import FeeReportsTab from './FeeReportsTab';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
@@ -17,7 +19,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
         <AnimatePresence mode="wait">
           {activeTab === 'all-students' && (
             <motion.div
-              key="all-students"
+              key="tab-all-students"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -1120,6 +1122,139 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                   >
                     Next
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'reports' && (
+            <FeeReportsTab 
+              studentFeeSummaries={studentFeeSummaries}
+              theme={theme}
+            />
+          )}
+
+          {activeTab === 'collections' && (
+            <motion.div
+              key="collections"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <div className={`rounded-xl border p-6 ${
+                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  💵 Fee Collections Summary
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className={`p-4 rounded-lg border ${
+                    theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0).toLocaleString()}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Total Fees
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-lg border ${
+                    theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className={`text-2xl font-bold text-green-500`}>
+                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0).toLocaleString()}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Total Collected
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-lg border ${
+                    theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className={`text-2xl font-bold text-orange-500`}>
+                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0).toLocaleString()}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Total Pending
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-lg border ${
+                    theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className={`text-2xl font-bold text-red-500`}>
+                      ₹{studentFeeSummaries.reduce((sum, s) => sum + (s.totalOverdue || 0), 0).toLocaleString()}
+                    </div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Total Overdue
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className={`${
+                      theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                    } border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
+                      <tr>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Student</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Class</th>
+                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Total</th>
+                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Paid</th>
+                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Pending</th>
+                        <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                        }`}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${
+                      theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
+                    }`}>
+                      {studentFeeSummaries.map((student) => (
+                        <tr key={student.studentId} className={`${
+                          theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                        } transition-colors`}>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {student.studentName}
+                          </td>
+                          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {student.studentClass}
+                          </td>
+                          <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            ₹{(student.totalFees || 0).toLocaleString()}
+                          </td>
+                          <td className={`px-4 py-3 text-right font-medium text-green-500`}>
+                            ₹{(student.totalPaid || 0).toLocaleString()}
+                          </td>
+                          <td className={`px-4 py-3 text-right font-medium text-orange-500`}>
+                            ₹{(student.totalPending || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              student.paymentStatus === 'fully_paid'
+                                ? 'bg-green-100 text-green-800'
+                                : student.paymentStatus === 'partially_paid'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {student.paymentStatus?.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </motion.div>

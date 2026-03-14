@@ -1,4 +1,5 @@
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { NextResponse } from 'next/server';
 import { schoolPrisma, saasPrisma } from '@/lib/prisma';
 
@@ -17,34 +18,18 @@ export interface SessionContext {
 export async function getSessionContext(): Promise<
   { ctx: SessionContext; error: null } | { ctx: null; error: NextResponse }
 > {
-  const session = await getServerSession() as any;
+  const session = await getServerSession(authOptions) as any;
   if (!session?.user?.email) {
     return { ctx: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
   const u = session.user as any;
   
   // Check if user is a super admin from environment variables
-  // This is more reliable than JWT token for super admin detection
   const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isSuperAdmin = superAdminEmails.includes(u.email?.toLowerCase());
   
-  // For super admins, fetch the latest schoolId from school schema
-  // This handles the case where super admin switched schools
+  // Use schoolId from the JWT session
   let schoolId = u.schoolId || null;
-  if (isSuperAdmin) {
-    try {
-      const schoolUser = await (schoolPrisma as any).school_User.findUnique({
-        where: { email: u.email },
-        select: { schoolId: true }
-      });
-      if (schoolUser?.schoolId) {
-        schoolId = schoolUser.schoolId;
-      }
-    } catch (error) {
-      // If school user doesn't exist, use session schoolId (or null)
-      console.log('School user not found for super admin, using session schoolId');
-    }
-  }
   
   return {
     ctx: {
@@ -60,10 +45,10 @@ export async function getSessionContext(): Promise<
 
 /**
  * Returns a Prisma `where` clause fragment that scopes queries to the tenant.
- * Super admins get no restriction (see all data).
+ * Super admins are scoped to their currently selected school.
  */
 export function tenantWhere(ctx: SessionContext): Record<string, any> {
-  if (ctx.isSuperAdmin || !ctx.schoolId) return {};
+  if (!ctx.schoolId) return {};
   return { schoolId: ctx.schoolId };
 }
 
@@ -76,20 +61,19 @@ export async function checkSubscriptionLimit(
   resourceType: 'students' | 'teachers',
   prisma: any
 ): Promise<NextResponse | null> {
-  if (ctx.isSuperAdmin || !ctx.schoolId) return null;
-
-  const user = await (schoolPrisma as any).school_User.findUnique({
-    where: { email: ctx.email },
-  });
+  if (!ctx.schoolId) return null;
 
   // Get school and subscription separately since they're in different schemas
   let subscription = null;
-  if (user?.schoolId) {
+  try {
     const school = await (saasPrisma as any).school.findUnique({
-      where: { id: user.schoolId },
+      where: { id: ctx.schoolId },
       include: { subscription: true },
     });
     subscription = school?.subscription;
+  } catch (error) {
+    console.error('Error fetching school for subscription check:', error);
+    return null;
   }
   if (!subscription) return null;
 

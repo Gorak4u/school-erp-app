@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { 
   CreditCard, 
   Calendar, 
@@ -53,14 +54,18 @@ interface PaymentMethod {
 }
 
 export default function EnhancedFeeCollection({ theme, onClose, studentId, studentData }: EnhancedFeeCollectionProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
-  const [selectedYear, setSelectedYear] = useState('2024-25');
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [historySearch, setHistorySearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [customAmounts, setCustomAmounts] = useState<{[key: string]: number}>({});
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<any>(null);
+  const [showHistoryReceipt, setShowHistoryReceipt] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [promoCode, setPromoCode] = useState('');
@@ -159,7 +164,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       return yearMatch && categoryMatch;
     });
         return filtered;
-  }, [selectedYear, selectedCategory]);
+  }, [allFeeData, selectedYear, selectedCategory]);
 
   const totalAmount = useMemo(() => {
     return filteredFees.reduce((sum, fee) => sum + fee.amount, 0);
@@ -337,6 +342,21 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      <button
+        onClick={() => router.push('/fees')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          isDark 
+            ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700' 
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border border-gray-300'
+        }`}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Fees
+      </button>
+      
       {/* Tab Navigation */}
       <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
         <div className={`flex gap-1 p-2 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100 bg-gray-50'}`}>
@@ -825,29 +845,186 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-4"
           >
-            <div className={`${cardCls} p-6 rounded-xl border`}>
-              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Payment History</h3>
-              <div className="space-y-4">
-                {allFeeData
-                  .filter(fee => fee.status === 'paid' || fee.status === 'partial')
-                  .map((fee) => (
-                    <div key={fee.id} className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className={`font-medium ${textPrimary}`}>{fee.name}</h4>
-                          <p className={`text-sm ${textSecondary}`}>{fee.academicYear}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-medium ${textPrimary}`}>₹{fee.paidAmount.toLocaleString()}</p>
-                          <p className={`text-sm ${textSecondary}`}>{fee.dueDate}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Search + Print All */}
+            <div className={`flex flex-wrap gap-3 items-center justify-between ${cardCls} p-4 rounded-xl border`}>
+              <div className="flex-1 min-w-[200px]">
+                <input
+                  type="text"
+                  placeholder="Search by fee name, receipt no, method..."
+                  value={historySearch}
+                  onChange={e => setHistorySearch(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg border text-sm ${inputCls}`}
+                />
               </div>
+              <button
+                onClick={() => window.print()}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                  isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                }`}
+              >
+                🖨️ Print All
+              </button>
             </div>
+
+            {/* Payment history entries */}
+            {(() => {
+              // Flatten all payment transactions from feeRecords
+              const rawRecords: any[] = studentData?.feeRecords || [];
+              const entries: any[] = [];
+
+              rawRecords.forEach((record: any) => {
+                const feeName = record.feeStructure?.name || record.feeStructureName || 'Fee';
+                const academicYear = record.academicYear || '';
+
+                // If record has individual payment transactions
+                if (Array.isArray(record.payments) && record.payments.length > 0) {
+                  record.payments.forEach((pmt: any, pmtIndex: number) => {
+                    // Calculate cumulative paid amount up to this payment
+                    const cumulativePaid = record.payments
+                      .slice(0, pmtIndex + 1)
+                      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                    
+                    entries.push({
+                      id: pmt.id || `${record.id}-pmt`,
+                      feeRecordId: record.id,
+                      feeName,
+                      academicYear,
+                      amount: pmt.amount || 0, // This payment amount
+                      totalAmount: record.amount || 0, // Original fee total
+                      cumulativePaid, // Total paid up to this point
+                      paymentMethod: pmt.paymentMethod || record.paymentMethod || 'cash',
+                      paidDate: pmt.paidDate || pmt.createdAt || record.paidDate || '',
+                      receiptNumber: pmt.receiptNumber || record.receiptNumber || `RCP-${record.id?.slice(-6).toUpperCase()}`,
+                      collectedBy: pmt.collectedBy || record.collectedBy || 'Staff',
+                      transactionId: pmt.transactionId || record.transactionId || '',
+                      remarks: pmt.remarks || record.remarks || '',
+                      status: record.status,
+                    });
+                  });
+                } else if (record.status === 'paid' || record.status === 'partial') {
+                  // No payments sub-records, use the fee record itself
+                  entries.push({
+                    id: record.id,
+                    feeRecordId: record.id,
+                    feeName,
+                    academicYear,
+                    amount: record.paidAmount || 0,
+                    totalAmount: record.amount || 0, // Original fee total
+                    cumulativePaid: record.paidAmount || 0,
+                    paymentMethod: record.paymentMethod || 'cash',
+                    paidDate: record.paidDate || record.updatedAt || record.createdAt || '',
+                    receiptNumber: record.receiptNumber || `RCP-${record.id?.slice(-6).toUpperCase()}`,
+                    collectedBy: record.collectedBy || 'Staff',
+                    transactionId: record.transactionId || '',
+                    remarks: record.remarks || '',
+                    status: record.status,
+                  });
+                }
+              });
+
+              const filteredEntries = entries
+                .filter(e => {
+                  const q = historySearch.toLowerCase();
+                  return !q || e.feeName.toLowerCase().includes(q)
+                    || e.receiptNumber.toLowerCase().includes(q)
+                    || (e.paymentMethod || '').toLowerCase().includes(q)
+                    || (e.collectedBy || '').toLowerCase().includes(q);
+                })
+                .sort((a, b) => {
+                  // Sort by date descending (newest first)
+                  const dateA = new Date(a.paidDate || 0).getTime();
+                  const dateB = new Date(b.paidDate || 0).getTime();
+                  return dateB - dateA;
+                });
+
+              if (filteredEntries.length === 0) {
+                return (
+                  <div className={`${cardCls} p-10 rounded-xl border text-center`}>
+                    <p className={`text-4xl mb-3`}>📭</p>
+                    <p className={`${textPrimary} font-medium`}>No payment history found</p>
+                    <p className={`text-sm ${textSecondary} mt-1`}>{historySearch ? 'Try a different search term' : 'No paid fees yet'}</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className={`${cardCls} rounded-xl border overflow-hidden`}>
+                  <table className="w-full text-sm">
+                    <thead className={`${isDark ? 'bg-gray-800' : 'bg-gray-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <tr>
+                        {['Receipt No.', 'Fee Name', 'AY', 'Amount', 'Method', 'Received By', 'Date', 'Action'].map(h => (
+                          <th key={h} className={`px-4 py-3 text-left font-semibold text-xs uppercase tracking-wide ${textSecondary}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {filteredEntries.map((entry, i) => (
+                        <tr key={entry.id} className={`${
+                          i % 2 === 0 ? (isDark ? 'bg-gray-900' : 'bg-white') : (isDark ? 'bg-gray-800/50' : 'bg-gray-50/50')
+                        } hover:${isDark ? 'bg-gray-700' : 'bg-blue-50/30'} transition-colors`}>
+                          <td className="px-4 py-3">
+                            <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                              {entry.receiptNumber}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 font-medium ${textPrimary}`}>
+                            {entry.feeName}
+                            {entry.academicYear && <span className={`block text-xs ${textSecondary}`}>{entry.academicYear}</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${textSecondary}`}>{entry.academicYear || '-'}</td>
+                          <td className={`px-4 py-3 font-semibold text-green-600`}>₹{Number(entry.amount).toLocaleString()}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full capitalize ${
+                              entry.paymentMethod === 'cash'
+                                ? isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700'
+                                : entry.paymentMethod === 'online'
+                                  ? isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                  : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {entry.paymentMethod || 'cash'}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 ${textSecondary}`}>
+                            <div className="flex items-center gap-1">
+                              <span>👤</span>
+                              <span>{entry.collectedBy || 'Staff'}</span>
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 ${textSecondary} text-xs`}>
+                            {entry.paidDate
+                              ? new Date(entry.paidDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : '-'}
+                            {entry.paidDate && (
+                              <span className="block opacity-60">
+                                {new Date(entry.paidDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => {
+                                setSelectedHistoryEntry(entry);
+                                setShowHistoryReceipt(true);
+                              }}
+                              title="View Receipt"
+                              className={`p-1.5 rounded-lg text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                            >
+                              �️
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'} text-sm ${textSecondary}`}>
+                    {filteredEntries.length} transaction{filteredEntries.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
+                    Total paid: <span className="font-semibold text-green-600">₹{filteredEntries.reduce((s, e) => s + Number(e.amount), 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </div>
@@ -944,50 +1121,157 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-xl"
             >
-              <PaymentReceipt
-                theme={theme}
-                studentData={{
-                  name: 'Rahul Sharma',
-                  studentClass: '10-A',
-                  admissionNo: 'ADM-2023-045',
-                  parentName: 'Mr. Rajesh Sharma',
-                  previousYearPending: {
-                    '2023-24': {
-                      total: 85000,
-                      paid: 75000,
-                      discount: 0,
-                      pending: 10000,
-                      overdueFees: ['Transport Fee', 'Sports Fee'],
-                      lastPaymentDate: '2024-02-15'
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fee Receipt</h3>
+                  <button
+                    onClick={() => setShowDetailedReceipt(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <PaymentReceipt
+                  theme={theme}
+                  studentData={{
+                    studentName: studentData?.name || studentData?.studentName || 'N/A',
+                    studentClass: studentData?.class || studentData?.studentClass || 'N/A',
+                    admissionNo: studentData?.admissionNo || studentData?.rollNo || 'N/A',
+                    rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
+                    fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
+                    parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
+                    collectedBy: studentData?.collectedBy || 'Admin'
+                  }}
+                  paymentData={{
+                    currentYearFees: selectedFees.map(feeId => {
+                      const fee = filteredFees.find(f => f.id === feeId);
+                      if (!fee) return null;
+                      return {
+                        name: fee.name,
+                        category: fee.category,
+                        academicYear: fee.academicYear || new Date().getFullYear().toString(),
+                        totalAmount: fee.amount,
+                        paidAmount: customAmounts[feeId] || fee.amount,
+                        discount: 0,
+                        balance: 0,
+                        status: 'paid'
+                      };
+                    }).filter(Boolean)
+                  }}
+                  receiptNumber={`RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`}
+                  paymentDate={new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  paymentMethod={paymentMethods.find(m => m.id === paymentMethod)?.name || 'Unknown'}
+                  onPrint={() => window.print()}
+                  onDownload={() => {
+                    const receiptNum = `RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+                    const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                    PDFGenerator.generateFromElement('receipt-print', filename);
+                  }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* History Receipt Modal */}
+      <AnimatePresence>
+        {showHistoryReceipt && selectedHistoryEntry && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-[900px] max-h-[90vh] overflow-hidden bg-white rounded-xl"
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-0 w-full max-w-[900px] max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center p-4 border-b">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment Receipt</h3>
+                  <button
+                    onClick={() => setShowHistoryReceipt(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <PaymentReceipt
+                  theme={theme}
+                  studentData={{
+                    studentName: studentData?.name || studentData?.studentName || 'N/A',
+                    studentClass: studentData?.class || studentData?.studentClass || 'N/A',
+                    admissionNo: studentData?.admissionNo || studentData?.rollNo || 'N/A',
+                    rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
+                    fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
+                    parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
+                    collectedBy: selectedHistoryEntry.collectedBy || 'Accounts Department'
+                  }}
+                  paymentData={{
+                    currentYearFees: (studentData?.feeRecords || []).map((record: any) => {
+                      // Find if this fee record matches the selected history entry
+                      const isSelectedFee = record.id === selectedHistoryEntry.feeRecordId;
+                      
+                      return {
+                        name: record.feeStructure?.name || record.feeStructureName || 'Fee',
+                        category: record.feeStructure?.category || 'General',
+                        academicYear: record.academicYear || new Date().getFullYear().toString(),
+                        totalAmount: record.amount || 0,
+                        // Use cumulative paid if this is the selected fee, otherwise use current paidAmount
+                        paidAmount: isSelectedFee ? (selectedHistoryEntry.cumulativePaid || 0) : (record.paidAmount || 0),
+                        discount: record.discount || 0,
+                        status: record.status || 'pending'
+                      };
+                    })
+                  }}
+                  receiptNumber={selectedHistoryEntry.receiptNumber}
+                  paymentDate={selectedHistoryEntry.paidDate}
+                  paymentMethod={selectedHistoryEntry.paymentMethod}
+                  onPrint={() => {
+                    // Create a clean print version
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      const receiptContent = document.querySelector('#receipt-print')?.innerHTML;
+                      if (receiptContent) {
+                        printWindow.document.write(`
+                          <html>
+                            <head>
+                              <title>Receipt ${selectedHistoryEntry.receiptNumber}</title>
+                              <style>
+                                @page { margin: 10mm; size: A4; }
+                                body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+                                #receipt-print { width: 100%; max-width: 800px; margin: 0 auto; }
+                                @media print { 
+                                  body { margin: 0; padding: 0; }
+                                  #receipt-print { width: 100%; max-width: 100%; margin: 0; }
+                                }
+                              </style>
+                            </head>
+                            <body>${receiptContent}</body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        printWindow.print();
+                        printWindow.close();
+                      }
                     }
-                  }
-                }}
-                paymentData={{
-                  currentYearFees: selectedFees.map(feeId => {
-                    const fee = filteredFees.find(f => f.id === feeId);
-                    if (!fee) return null;
-                    return {
-                      name: fee.name,
-                      category: fee.category,
-                      totalAmount: fee.amount,
-                      paidAmount: customAmounts[feeId] || fee.amount,
-                      discount: 0,
-                      balance: 0,
-                      status: 'paid'
-                    };
-                  }).filter(Boolean)
-                }}
-                receiptNumber={`RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`}
-                paymentDate={new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
-                paymentMethod={paymentMethods.find(m => m.id === paymentMethod)?.name || 'Unknown'}
-                onPrint={() => window.print()}
-                onDownload={() => {
-  const receiptNum = `RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-  const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-  PDFGenerator.generateFromElement('receipt-print', filename);
-}}
-                onClose={() => setShowDetailedReceipt(false)}
-              />
+                  }}
+                  onDownload={() => {
+                    const receiptNum = selectedHistoryEntry.receiptNumber;
+                    const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                    // PDFGenerator.generateFromElement('receipt-print', filename);
+                    alert('PDF download would be implemented here');
+                  }}
+                />
+              </div>
             </motion.div>
           </motion.div>
         )}

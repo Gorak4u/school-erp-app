@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     const where: any = {};
-    if (!ctx.isSuperAdmin && ctx.schoolId) where.schoolId = ctx.schoolId;
+    if (ctx.schoolId) where.schoolId = ctx.schoolId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     if (mediumId) where.mediumId = mediumId;

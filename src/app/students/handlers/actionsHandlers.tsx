@@ -792,14 +792,12 @@ export function createActionsHandlers(ctx: any) {
             
           case 'delete':
             // Delete students (with confirmation)
-            if ((window as any).toast) {
-                (window as any).toast({
-                  type: 'warning',
-                  title: 'Student Deleted',
-                  message: `${student.name} has been removed from the system`,
-                  duration: 3000
-                });
-              }
+            try {
+              const { showWarningToast } = await import('@/lib/toastUtils');
+              showWarningToast('Student Deleted', `${student.name} has been removed from the system`);
+            } catch (error) {
+              console.error('Toast error:', error);
+            }
             break;
             
           case 'export':

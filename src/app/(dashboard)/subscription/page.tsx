@@ -14,6 +14,7 @@ interface SubscriptionData {
   isExpired: boolean;
   trialDaysLeft: number | null;
   trialEndsAt: string | null;
+  trialStartedAt: string | null;
   maxStudents: number;
   maxTeachers: number;
   studentsUsed: number;
@@ -23,6 +24,8 @@ interface SubscriptionData {
   billingCycle?: 'monthly' | 'yearly';
   nextBillingDate?: string;
   amount?: number;
+  upgradedFromTrial?: boolean;
+  subscriptionStartDate?: string;
 }
 
 interface PlanFromDB {
@@ -92,8 +95,15 @@ export default function SubscriptionPage() {
   const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
   const btnSecondary = 'w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
 
-  // Admin-only access check
-  if (!session || session.user?.role !== 'admin') {
+  // Admin and Super Admin access check
+  const userRole = session?.user?.role;
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin;
+  
+  // Additional check using environment variables for super admin detection
+  const superAdminEmails = process.env.SUPER_ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  const isEffectivelySuperAdmin = isSuperAdmin || superAdminEmails.includes(session?.user?.email?.toLowerCase() || '');
+  
+  if (!session || (userRole !== 'admin' && !isEffectivelySuperAdmin)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
@@ -431,21 +441,157 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
-          {subscription.isTrial && subscription.trialDaysLeft !== null && (
-            <div className={`mt-6 p-4 rounded-lg ${subscription.trialDaysLeft <= 3 ? 'bg-red-500/20 border border-red-500/30' : 'bg-blue-500/20 border border-blue-500/30'}`}>
+          {/* Subscription Period Information Section */}
+          {subscription && (
+            <div className={`mt-6 p-4 rounded-lg border ${
+              subscription.isTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft <= 3 
+                ? 'bg-red-500/20 border-red-500/30' 
+                : subscription.isTrial 
+                  ? 'bg-blue-500/20 border-blue-500/30'
+                  : subscription.status === 'active'
+                    ? 'bg-green-500/20 border-green-500/30'
+                    : 'bg-gray-500/20 border-gray-500/30'
+            }`}>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white font-semibold">
-                    Trial Period - {subscription.trialDaysLeft} days left
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-lg mb-2">
+                    {subscription.isTrial ? '🎯 Trial Period Information' : '💳 Subscription Period Information'}
                   </p>
-                  <p className={`${subtext} text-sm`}>
-                    Trial ends on {subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : 'N/A'}
-                  </p>
+                  <div className="space-y-1">
+                    {subscription.isTrial ? (
+                      // Trial-specific information (show when any trial data exists)
+                      <>
+                        {subscription.trialStartedAt && (
+                          <p className={`${subtext} text-sm`}>
+                            <span className="font-medium">Trial Started:</span> {new Date(subscription.trialStartedAt).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        )}
+                        {subscription.trialDaysLeft !== null && (
+                          <p className="text-white">
+                            <span className="font-medium">Days Remaining:</span> {subscription.trialDaysLeft} days
+                          </p>
+                        )}
+                        {subscription.trialEndsAt && (
+                          <>
+                            <p className={`${subtext} text-sm`}>
+                              <span className="font-medium">Trial End Date:</span> {new Date(subscription.trialEndsAt).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                            <p className={`${subtext} text-sm`}>
+                              <span className="font-medium">Trial End Time:</span> {new Date(subscription.trialEndsAt).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </>
+                        )}
+                        {subscription.trialDaysLeft !== null && (
+                          <p className={`${subtext} text-xs mt-2`}>
+                            {subscription.trialDaysLeft <= 3 
+                              ? '⚠️ Trial ending soon! Upgrade to continue service.' 
+                              : subscription.trialDaysLeft <= 7 
+                              ? '📅 Trial ending this week.' 
+                              : '✅ Trial period active.'
+                            }
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      // Regular subscription information
+                      <>
+                        {/* Always show subscription status and basic info */}
+                        <p className="text-white">
+                          <span className="font-medium">Status:</span> {getStatusText(subscription.status)}
+                        </p>
+                        
+                        {/* Show subscription start date */}
+                        {subscription.subscriptionStartDate && (
+                          <p className={`${subtext} text-sm`}>
+                            <span className="font-medium">Subscription Started:</span> {new Date(subscription.subscriptionStartDate).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        )}
+                        
+                        {/* Show next billing date if available */}
+                        {subscription.nextBillingDate && (
+                          <p className={`${subtext} text-sm`}>
+                            <span className="font-medium">Next Billing Date:</span> {new Date(subscription.nextBillingDate).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        )}
+                        
+                        {/* Show current period end if available */}
+                        {subscription.currentPeriodEnd && (
+                          <p className={`${subtext} text-sm`}>
+                            <span className="font-medium">Current Period Ends:</span> {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        )}
+                        
+                        {/* Show billing amount if available */}
+                        {subscription.amount && (
+                          <p className="text-white">
+                            <span className="font-medium">Billing Amount:</span> ₹{subscription.amount.toLocaleString()}
+                          </p>
+                        )}
+                        
+                        {/* Show billing cycle if available */}
+                        {subscription.billingCycle && (
+                          <p className={`${subtext} text-sm`}>
+                            <span className="font-medium">Billing Cycle:</span> {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
+                          </p>
+                        )}
+                        
+                        <p className={`${subtext} text-xs mt-2`}>
+                          {subscription.status === 'active' 
+                            ? subscription.upgradedFromTrial
+                              ? '🚀 Upgraded from trial - Active subscription'
+                              : '✅ Active subscription - Auto-renewal enabled'
+                            : subscription.status === 'expired'
+                            ? '❌ Subscription expired - Renew to continue'
+                            : subscription.status === 'cancelled'
+                            ? '⚠️ Subscription cancelled'
+                            : '📋 Subscription status: ' + subscription.status
+                          }
+                        </p>
+                        
+                        {/* Show remaining trial benefits for users who upgraded during trial */}
+                        {subscription.upgradedFromTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft > 0 && (
+                          <p className={`${subtext} text-xs mt-1 text-blue-400`}>
+                            💡 You still have {subscription.trialDaysLeft} days of trial benefits remaining
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-                {subscription.trialDaysLeft <= 3 && (
-                  <Link href="/billing" className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-all">
-                    Upgrade Now
-                  </Link>
+                {subscription.isTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft <= 3 && (
+                  <div className="ml-4">
+                    <Link href="/billing" className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-all">
+                      Upgrade Now
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>
