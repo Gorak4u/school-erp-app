@@ -1163,9 +1163,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              <div className={`rounded-xl border p-6 ${
-                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
+              <div>
                 <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   💵 Fee Collections Summary
                 </h3>
@@ -1348,19 +1346,19 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
                     } border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                       <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Collector Name</th>
-                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Total Collected</th>
-                        <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Collections</th>
-                        <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Payment Method</th>
-                        <th className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
                           theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                         }`}>Collection Date</th>
                       </tr>
@@ -1420,7 +1418,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                             <tr key={key} className={`${
                               theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
                             } transition-colors`}>
-                              <td className={`px-4 py-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <td className={`px-6 py-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{data.collector}</span>
                                   <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -1428,13 +1426,13 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                                   </span>
                                 </div>
                               </td>
-                              <td className={`px-4 py-3 text-right font-medium text-green-500`}>
+                              <td className={`px-6 py-4 text-right font-medium text-green-500`}>
                                 ₹{data.totalCollected.toLocaleString()}
                               </td>
-                              <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              <td className={`px-6 py-4 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                 {data.collections}
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-6 py-4 text-center">
                                 <span className={`px-2 py-1 text-xs rounded-full ${
                                   data.paymentMethod.toUpperCase() === 'CASH'
                                     ? 'bg-green-100 text-green-800'
@@ -1449,7 +1447,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                                   {data.paymentMethod.toUpperCase()}
                                 </span>
                               </td>
-                              <td className={`px-4 py-3 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                              <td className={`px-6 py-4 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                                 {data.latestCollectionDate 
                                   ? data.latestCollectionDate.toLocaleDateString()
                                   : 'N/A'
@@ -1460,7 +1458,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                         });
                       })() || (
                         <tr>
-                          <td colSpan={5} className={`px-4 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <td colSpan={5} className={`px-6 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             No collection data available
                           </td>
                         </tr>
@@ -1469,7 +1467,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                   </table>
                   
                   {/* Pagination */}
-                  <div className={`flex items-center justify-between px-4 py-3 border-t ${
+                  <div className={`flex items-center justify-between px-6 py-3 border-t ${
                     theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                   }`}>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
