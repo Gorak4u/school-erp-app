@@ -1,9 +1,8 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { feeRecordsApi, feeStructuresApi } from '@/lib/apiClient';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,8 +28,6 @@ interface FeeFinancialAnalyticsProps {
 }
 
 export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAnalyticsProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'quarter' | 'year'>('year');
-
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
@@ -54,63 +51,234 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
     plugins: { legend: { position: 'right' as const, labels: { color: chartTextColor } } }
   };
 
-  const [records, setRecords] = useState<any[]>([]);
-  const [structures, setStructures] = useState<any[]>([]);
+  const [statisticsData, setStatisticsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('yearly');
+  
+  // Additional filtering state
+  const [academicYear, setAcademicYear] = useState('all');
+  const [studentClass, setStudentClass] = useState('all');
+  
+  // Dynamic dropdown data
+  const [academicYears, setAcademicYears] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(true);
+
+  // Calculate date range based on selected period
+  const calculateDateRange = useCallback(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    
+    if (selectedPeriod === 'daily') {
+      // Today
+      return {
+        fromDate: today.toISOString().split('T')[0],
+        toDate: today.toISOString().split('T')[0]
+      };
+    } else if (selectedPeriod === 'weekly') {
+      // Current week (Sunday to Saturday)
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      return {
+        fromDate: startOfWeek.toISOString().split('T')[0],
+        toDate: endOfWeek.toISOString().split('T')[0]
+      };
+    } else if (selectedPeriod === 'monthly') {
+      // Current month
+      return {
+        fromDate: `${currentYear}-${String(today.getMonth() + 1).padStart(2, '0')}-01`,
+        toDate: `${currentYear}-${String(today.getMonth() + 1).padStart(2, '0')}-31`
+      };
+    } else if (selectedPeriod === 'quarterly') {
+      // Current quarter
+      const quarter = Math.floor(today.getMonth() / 3);
+      const startMonth = quarter * 3 + 1;
+      const endMonth = startMonth + 2;
+      return {
+        fromDate: `${currentYear}-${String(startMonth).padStart(2, '0')}-01`,
+        toDate: `${currentYear}-${String(endMonth).padStart(2, '0')}-31`
+      };
+    } else if (selectedPeriod === 'yearly') {
+      // Current year
+      return {
+        fromDate: `${currentYear}-01-01`,
+        toDate: `${currentYear}-12-31`
+      };
+    }
+    
+    // Default to current year
+    return {
+      fromDate: `${currentYear}-01-01`,
+      toDate: `${currentYear}-12-31`
+    };
+  }, [selectedPeriod]);
 
   useEffect(() => {
     (async () => {
       try {
-        const [recData, strData] = await Promise.all([
-          feeRecordsApi.list({ pageSize: 500 }),
-          feeStructuresApi.list(),
-        ]);
-        setRecords(recData.records || recData.feeRecords || []);
-        setStructures(strData.feeStructures || []);
-      } catch (e) { console.error('Failed to load analytics data', e); }
-      finally { setLoading(false); }
+        // Build API parameters for date range filtering
+        const params = new URLSearchParams();
+        
+        if (academicYear !== 'all') {
+          params.append('academicYear', academicYear);
+        }
+        
+        if (studentClass !== 'all') {
+          params.append('class', studentClass);
+        }
+        
+        // Use calculated date range from period selector
+        const dateRange = calculateDateRange();
+        params.append('fromDate', dateRange.fromDate);
+        params.append('toDate', dateRange.toDate);
+        
+        const response = await fetch(`/api/fees/statistics?${params}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          setStatisticsData(result.data);
+        } else {
+          console.error('Failed to load statistics data:', result.error);
+        }
+      } catch (e) { 
+        console.error('Failed to load analytics data', e); 
+      }
+      finally { 
+        setLoading(false); 
+      }
     })();
+  }, [academicYear, studentClass, selectedPeriod, calculateDateRange]);
+
+  // Load dropdown data from existing APIs
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        setLoadingDropdowns(true);
+        
+        // Load academic years
+        const academicYearsResponse = await fetch('/api/school-structure/academic-years');
+        const academicYearsData = await academicYearsResponse.json();
+        
+        // Load classes
+        const classesResponse = await fetch('/api/school-structure/classes');
+        const classesData = await classesResponse.json();
+        
+        setAcademicYears(academicYearsData.academicYears || []);
+        setClasses(classesData.classes || []);
+      } catch (error) {
+        console.error('Failed to load dropdown data:', error);
+      } finally {
+        setLoadingDropdowns(false);
+      }
+    };
+
+    loadDropdownData();
   }, []);
 
-  // Compute aggregates from real data
-  const totalBilled = useMemo(() => records.reduce((s, r) => s + (r.amount || 0), 0), [records]);
-  const totalCollected = useMemo(() => records.reduce((s, r) => s + (r.paidAmount || 0), 0), [records]);
-  const totalPending = totalBilled - totalCollected;
-  const collectionRate = totalBilled > 0 ? ((totalCollected / totalBilled) * 100).toFixed(1) : '0';
+  // Use statistics API data or fall back to zeros
+  const totalBilled = useMemo(() => statisticsData?.totalFees || 0, [statisticsData]);
+  const totalCollected = useMemo(() => statisticsData?.totalCollected || 0, [statisticsData]);
+  const totalPending = useMemo(() => statisticsData?.totalPending || 0, [statisticsData]);
+  const collectionRate = useMemo(() => {
+    if (totalBilled > 0) {
+      return ((totalCollected / totalBilled) * 100).toFixed(1);
+    }
+    return '0';
+  }, [totalBilled, totalCollected]);
 
-  // Monthly collection trend (keyed by month index from createdAt or dueDate)
-  const monthLabels = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-  const monthlyCollected = useMemo(() => {
-    const m = new Array(12).fill(0);
-    records.forEach(r => {
-      if (r.paidAmount > 0) {
-        const d = new Date(r.updatedAt || r.dueDate);
-        // Fiscal month index: Apr=0 .. Mar=11
-        const fiscal = (d.getMonth() + 9) % 12;
-        m[fiscal] += r.paidAmount;
+  // Dynamic chart data based on selected period
+  const chartData = useMemo(() => {
+    if (!statisticsData) {
+      return { labels: [], datasets: [{ data: [] }] };
+    }
+
+    const today = new Date();
+    let labels: string[] = [];
+    let data: number[] = [];
+
+    if (selectedPeriod === 'daily') {
+      // Show today's data
+      labels = ['Today'];
+      data = [statisticsData.totalCollected || 0];
+    } else if (selectedPeriod === 'weekly') {
+      // Show weekly breakdown (simplified - distribute weekly total)
+      const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const weeklyTotal = statisticsData.totalCollected || 0;
+      const dailyAverage = weeklyTotal / 7;
+      labels = weekDays;
+      data = Array(7).fill(dailyAverage);
+    } else if (selectedPeriod === 'monthly') {
+      // Show monthly breakdown (simplified - distribute monthly total)
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthlyTotal = statisticsData.totalCollected || 0;
+      const dailyAverage = monthlyTotal / daysInMonth;
+      labels = Array.from({ length: Math.min(daysInMonth, 30) }, (_, i) => `${i + 1}`);
+      data = Array(Math.min(daysInMonth, 30)).fill(dailyAverage);
+    } else if (selectedPeriod === 'quarterly') {
+      // Show quarterly breakdown (use monthlyTrend if available, otherwise distribute)
+      const quarter = Math.floor(today.getMonth() / 3);
+      const quarterMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const quarterLabels = quarterMonths.slice(quarter * 3, quarter * 3 + 3);
+      
+      if (statisticsData.monthlyTrend && statisticsData.monthlyTrend.length > 0) {
+        // Use actual monthly trend data
+        data = quarterLabels.map((_, i) => {
+          const monthIndex = quarter * 3 + i + 1;
+          const monthData = statisticsData.monthlyTrend.find((item: any) => item.month === monthIndex);
+          return monthData?.amount || 0;
+        });
+      } else {
+        // Distribute quarterly total evenly
+        const quarterlyTotal = statisticsData.totalCollected || 0;
+        data = Array(3).fill(quarterlyTotal / 3);
       }
-    });
-    return m;
-  }, [records]);
+      labels = quarterLabels;
+    } else {
+      // Yearly - show all 12 months
+      const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      if (statisticsData.monthlyTrend && statisticsData.monthlyTrend.length > 0) {
+        // Use actual monthly trend data
+        data = monthLabels.map((_, i) => {
+          const monthData = statisticsData.monthlyTrend.find((item: any) => item.month === i + 1);
+          return monthData?.amount || 0;
+        });
+      } else {
+        // Distribute yearly total evenly
+        const yearlyTotal = statisticsData.totalCollected || 0;
+        data = Array(12).fill(yearlyTotal / 12);
+      }
+      labels = monthLabels;
+    }
 
-  const revenueData = {
-    labels: monthLabels,
-    datasets: [
-      { label: 'Collected', data: monthlyCollected, borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4 },
-    ]
-  };
+    return {
+      labels,
+      datasets: [
+        { 
+          label: 'Collected', 
+          data, 
+          borderColor: 'rgb(34, 197, 94)', 
+          backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+          tension: 0.4 
+        },
+      ]
+    };
+  }, [statisticsData, selectedPeriod]);
 
-  // Collection by payment method
+  // Collection by payment method from API data
   const methodCounts = useMemo(() => {
-    const mc: Record<string, number> = {};
-    records.forEach(r => {
-      if (r.paidAmount > 0) {
-        const m = r.paymentMethod || 'Other';
-        mc[m] = (mc[m] || 0) + r.paidAmount;
-      }
-    });
-    return mc;
-  }, [records]);
+    if (statisticsData?.paymentMethodBreakdown) {
+      const mc: Record<string, number> = {};
+      statisticsData.paymentMethodBreakdown.forEach((item: any) => {
+        mc[item.paymentMethod || 'Other'] = item.totalAmount || 0;
+      });
+      return mc;
+    }
+    return {};
+  }, [statisticsData]);
+  
   const collectionByMethod = {
     labels: Object.keys(methodCounts).length ? Object.keys(methodCounts) : ['No data'],
     datasets: [{
@@ -119,23 +287,27 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
     }]
   };
 
-  // Collection by fee category
+  // Collection by fee category from API data (using classBreakdown)
   const categoryCounts = useMemo(() => {
-    const cc: Record<string, { collected: number; pending: number }> = {};
-    records.forEach(r => {
-      const cat = r.feeStructure?.category || 'other';
-      if (!cc[cat]) cc[cat] = { collected: 0, pending: 0 };
-      cc[cat].collected += r.paidAmount || 0;
-      cc[cat].pending += r.pendingAmount || 0;
-    });
-    return cc;
-  }, [records]);
+    if (statisticsData?.classBreakdown) {
+      const cc: Record<string, { collected: number; pending: number }> = {};
+      statisticsData.classBreakdown.forEach((item: any) => {
+        cc[item.class || 'other'] = {
+          collected: item.totalPaid || 0,
+          pending: item.totalPending || 0
+        };
+      });
+      return cc;
+    }
+    return {};
+  }, [statisticsData]);
+  
   const catLabels = Object.keys(categoryCounts).length ? Object.keys(categoryCounts) : ['No data'];
   const feeTypeRevenue = {
     labels: catLabels,
     datasets: [{
-      label: 'Collected (Rs)',
-      data: Object.keys(categoryCounts).length ? Object.values(categoryCounts).map(c => c.collected) : [0],
+      label: 'Collected (in Lakhs)',
+      data: Object.keys(categoryCounts).length ? Object.values(categoryCounts).map(c => c.collected / 100000) : [0], // Convert to lakhs
       backgroundColor: 'rgba(59, 130, 246, 0.8)'
     }]
   };
@@ -150,10 +322,15 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
 
   // Status breakdown for doughnut
   const statusCounts = useMemo(() => {
-    const sc: Record<string, number> = {};
-    records.forEach(r => { const s = r.status || 'pending'; sc[s] = (sc[s] || 0) + 1; });
-    return sc;
-  }, [records]);
+    if (statisticsData?.paymentStatusBreakdown) {
+      const sc: Record<string, number> = {};
+      statisticsData.paymentStatusBreakdown.forEach((item: any) => {
+        sc[item.status || 'unknown'] = item.count || 0;
+      });
+      return sc;
+    }
+    return {};
+  }, [statisticsData]);
   const expenseBreakdown = {
     labels: Object.keys(statusCounts).length ? Object.keys(statusCounts).map(s => s.charAt(0).toUpperCase() + s.slice(1)) : ['No data'],
     datasets: [{
@@ -162,12 +339,20 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
     }]
   };
 
-  const cashFlowData = {
-    labels: monthLabels,
-    datasets: [
-      { label: 'Collections', data: monthlyCollected, backgroundColor: 'rgba(34, 197, 94, 0.8)' },
-    ]
-  };
+  // Cash flow data in thousands (as indicated by the chart title)
+  const cashFlowData = useMemo(() => {
+    const cashFlowInThousands = chartData.datasets[0]?.data?.map((amount: number) => amount / 1000) || [];
+    return {
+      labels: chartData.labels,
+      datasets: [
+        { 
+          label: 'Collections (in thousands)', 
+          data: cashFlowInThousands,
+          backgroundColor: 'rgba(34, 197, 94, 0.8)' 
+        },
+      ]
+    };
+  }, [chartData]);
 
   const MetricCard = ({ title, value, subtitle, color, trend }: { title: string; value: string; subtitle: string; color: string; trend?: string }) => (
     <div className={`p-4 rounded-lg border ${cardCls}`}>
@@ -186,7 +371,7 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className={`text-xl font-bold ${textPrimary}`}>Financial Analytics</h2>
         <div className="flex items-center space-x-2">
-          {(['month', 'quarter', 'year'] as const).map(period => (
+          {(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const).map(period => (
             <button
               key={period}
               onClick={() => setSelectedPeriod(period)}
@@ -207,7 +392,65 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Additional Filters */}
+      <div className={`mt-4 p-4 rounded-lg border ${cardCls}`}>
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex gap-4 items-center">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Academic Year</label>
+              <select
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+                disabled={loadingDropdowns}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} ${loadingDropdowns ? 'opacity-50' : ''}`}
+              >
+                <option value="all">All Years</option>
+                {academicYears.map((year: any) => (
+                  <option key={year.id} value={year.year}>
+                    {year.year} {year.isActive && '(Active)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Class</label>
+              <select
+                value={studentClass}
+                onChange={(e) => setStudentClass(e.target.value)}
+                disabled={loadingDropdowns}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} ${loadingDropdowns ? 'opacity-50' : ''}`}
+              >
+                <option value="all">All Classes</option>
+                {classes.map((cls: any) => (
+                  <option key={cls.id} value={cls.name}>
+                    {cls.name} {cls.level && `(Level ${cls.level})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setAcademicYear('all');
+                setStudentClass('all');
+                setSelectedPeriod('yearly');
+              }}
+              className={`px-4 py-2 rounded text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+        
+        <div className={`mt-3 text-sm ${textSecondary}`}>
+          {statisticsData ? `Analytics for ${statisticsData.totalStudents} students` : 'Loading data...'}
+          <span className="ml-2">({selectedPeriod})</span>
+        </div>
+      </div>
+
+      {/* Metric Cards */}
       {loading ? (
         <div className={`text-center py-8 ${textSecondary}`}>Loading analytics...</div>
       ) : (
@@ -222,8 +465,8 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
       {/* Revenue vs Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`p-6 rounded-xl border ${cardCls}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Revenue vs Expenses Trend</h3>
-          <div className="h-64"><Line data={revenueData} options={chartOptions} /></div>
+          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Collection Trend ({selectedPeriod})</h3>
+          <div className="h-64"><Line data={chartData} options={chartOptions} /></div>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`p-6 rounded-xl border ${cardCls}`}>

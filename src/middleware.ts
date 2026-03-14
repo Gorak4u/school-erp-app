@@ -42,6 +42,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Add caching headers for fee-related APIs
+  if (pathname.startsWith('/api/fees/structures') ||
+      pathname.startsWith('/api/fees/discounts')) {
+    // Cache fee structures and discounts for 5 minutes
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+    return response;
+  } else if (pathname.startsWith('/api/fees/statistics') ||
+             pathname.startsWith('/api/fees/collections/summary')) {
+    // Cache aggregated reports for 2 minutes
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=30');
+    return response;
+  } else if (pathname.startsWith('/api/fees/students') ||
+             pathname.startsWith('/api/fees/records')) {
+    // Cache student data for 1 minute
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=15');
+    return response;
+  }
+
   // Allow billing page for all authenticated users (including expired trials)
   if (pathname === '/billing') {
     return NextResponse.next();

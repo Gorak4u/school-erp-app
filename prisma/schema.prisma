@@ -301,6 +301,11 @@ model Student {
   @@index([createdAt])
   @@index([parentName])
   @@index([academicYear])
+  @@index([class, academicYear])
+  @@index([status, academicYear])
+  @@index([name, class])
+  @@index([rollNo])
+  @@index([email])
   @@schema("school")
 }
 
@@ -408,7 +413,11 @@ model FeeRecord {
   @@index([academicYear])
   @@index([dueDate])
   @@index([studentId, status])
+  @@index([studentId, academicYear])
+  @@index([status, academicYear])
+  @@index([dueDate, status])
   @@index([createdAt])
+  @@index([paymentMethod])
   @@schema("school")
 }
 
@@ -425,6 +434,13 @@ model Payment {
   createdAt     DateTime  @default(now())
   feeRecord     FeeRecord @relation(fields: [feeRecordId], references: [id], onDelete: Cascade)
 
+  @@index([paymentDate])
+  @@index([collectedBy])
+  @@index([paymentMethod])
+  @@index([collectedBy, paymentMethod])
+  @@index([paymentDate, amount])
+  @@index([feeRecordId])
+  @@index([createdAt])
   @@schema("school")
 }
 

@@ -50,7 +50,7 @@ export default function FeesPage() {
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
 
   // Build handler context incrementally
-  const ctx: any = { ...state, theme };
+  const ctx: any = { ...state, theme, feeCollections: state.feeCollections };
   Object.assign(ctx, createFeeDataHandlers(ctx));
   Object.assign(ctx, createFeeActionHandlers(ctx));
 
@@ -64,6 +64,7 @@ export default function FeesPage() {
     setFeeRecords,
     setDiscounts,
     setFeeCollections,
+    feeCollections,
     setStudentFeeSummaries,
     calculateStudentFeeSummaries,
     handleCreateFeeStructure,

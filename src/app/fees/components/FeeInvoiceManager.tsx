@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
-import { feeRecordsApi } from '@/lib/apiClient';
 
 interface Invoice {
   id: string;
@@ -33,8 +32,12 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
 
+  // Pagination state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -43,27 +46,73 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
   const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await feeRecordsApi.list({ pageSize: 200 });
-        const records = data.records || data.feeRecords || [];
+    loadInvoices();
+  }, [currentPage, pageSize, activeTab]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page when searching
+      loadInvoices();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const loadInvoices = async () => {
+    try {
+      setLoading(true);
+      
+      // Build API parameters
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+      });
+
+      // Add status filter if not 'all'
+      if (activeTab !== 'all') {
+        params.append('status', activeTab);
+      }
+
+      // Add search filter
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
+      const response = await fetch(`/api/fees/records?${params}`);
+      const result = await response.json();
+      
+      // Handle both old and new API response structures
+      if (result.success || result.records) {
+        // New API structure: {success: true, data: {records: [...], pagination: {...}}}
+        // Old API structure: {records: [...], total: 1, page: 1, pageSize: 50}
+        const records = result.data?.records || result.records || [];
+        const total = result.data?.pagination?.total || result.total || 0;
+        
         setInvoices(records.map((r: any) => ({
           id: r.id,
           invoiceNo: r.receiptNumber || `INV-${r.id.slice(-6)}`,
           studentName: r.student?.name || 'Unknown',
-          class: r.student?.class ? `${r.student.class}-${r.student.section || ''}` : '—',
-          feeType: r.feeStructure?.name || r.remarks || 'Fee',
+          class: r.student?.class || 'Unknown',
+          feeType: r.feeStructure?.name || 'General Fee',
           amount: r.amount || 0,
-          dueDate: r.dueDate || '',
+          dueDate: r.dueDate || '2026-04-15',
           status: r.status || 'pending',
-          generatedDate: r.createdAt?.split('T')[0] || '',
+          generatedDate: r.createdAt || new Date().toISOString().split('T')[0],
           paidAmount: r.paidAmount || 0,
-          paymentMethod: r.paymentMethod || undefined,
+          paymentMethod: r.paymentMethod || 'cash'
         })));
-      } catch (e) { console.error('Failed to load invoices', e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+        setTotalRecords(total);
+      } else {
+        console.error('Failed to load invoices:', result?.error || 'Unknown error');
+        console.error('Full response:', result);
+      }
+    } catch (e) { 
+      console.error('Failed to load invoices', e); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
 
   const getStatusStyle = (status: Invoice['status']) => {
     const map = {
@@ -76,14 +125,11 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
     return map[status];
   };
 
-  const filteredInvoices = invoices.filter(inv => {
-    if (activeTab !== 'all' && inv.status !== activeTab) return false;
-    if (searchQuery && !inv.studentName.toLowerCase().includes(searchQuery.toLowerCase()) && !inv.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  // Since we're doing server-side filtering, invoices are already filtered
+  const filteredInvoices = invoices;
 
   const stats = {
-    total: invoices.length,
+    total: totalRecords,
     totalAmount: invoices.reduce((sum, i) => sum + i.amount, 0),
     collected: invoices.reduce((sum, i) => sum + i.paidAmount, 0),
     pending: invoices.filter(i => i.status === 'pending').length,
@@ -230,6 +276,54 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`text-sm ${textSecondary}`}>
+          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} invoices
+        </div>
+        <div className="flex items-center space-x-2">
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1 rounded border text-sm ${inputCls}`}
+          >
+            <option value={10}>10 per page</option>
+            <option value={25}>25 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+          </select>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm ${currentPage === 1 
+              ? isDark ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Previous
+          </button>
+          
+          <span className={`px-3 py-1 text-sm ${textPrimary}`}>
+            {currentPage} of {Math.ceil(totalRecords / pageSize)}
+          </span>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalRecords / pageSize), prev + 1))}
+            disabled={currentPage >= Math.ceil(totalRecords / pageSize)}
+            className={`px-3 py-1 rounded text-sm ${currentPage >= Math.ceil(totalRecords / pageSize)
+              ? isDark ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Next
+          </button>
         </div>
       </div>
 

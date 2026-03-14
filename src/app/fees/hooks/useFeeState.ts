@@ -290,107 +290,159 @@ export function useFeeState() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load fee data from API
+  // Tab-specific API loaders with DB aggregation
+  const loadAllStudentsData = async (page = 1, limit = 100) => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      
+      const response = await fetch(`/api/fees/students?${params}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setStudentFeeSummaries(data.data.students);
+        return data.data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error loading students data:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCollectionsData = async (page = 1, limit = 50) => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      
+      const response = await fetch(`/api/fees/collections/summary?${params}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setFeeCollections(data.data.groupedCollections);
+        return data.data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error loading collections data:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadReportsData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/fees/statistics');
+      const data = await response.json();
+      
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error loading reports data:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadFeeRecordsData = async (page = 1, limit = 50) => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: limit.toString()
+      });
+      
+      const response = await fetch(`/api/fees/records?${params}`);
+      const data = await response.json();
+      
+      if (data.success !== false) {
+        setFeeRecords(data.records || []);
+        return data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error loading fee records data:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Tab-based data loading
   useEffect(() => {
-    const loadFeeData = async () => {
+    const loadTabData = async () => {
       try {
         setIsLoading(true);
         
-        // Load all data in parallel
-        const [feeStructuresResponse, feeRecordsResponse, discountsResponse, studentsResponse, paymentsResponse] = await Promise.all([
+        // Load common data (structures, discounts)
+        const [feeStructuresResponse, discountsResponse] = await Promise.all([
           feeStructuresApi.list(),
-          feeRecordsApi.list(),
-          discountsApi.list(),
-          studentsApi.list({ pageSize: 1000 }),
-          paymentsApi.list()
+          discountsApi.list()
         ]);
         
-        // Extract arrays from API responses
-        const feeStructuresData = feeStructuresResponse?.structures || [];
-        const feeRecordsData = feeRecordsResponse?.records || [];
-        const discountsData = discountsResponse?.discounts || discountsResponse || [];
-        const studentsData = studentsResponse?.students || [];
+        setFeeStructures(feeStructuresResponse?.structures || []);
+        setDiscounts(discountsResponse?.discounts || discountsResponse || []);
         
-        setFeeStructures(feeStructuresData);
-        setFeeRecords(feeRecordsData);
-        setDiscounts(discountsData);
-        
-        // Set fee collections from payments data
-        const paymentsData = paymentsResponse?.payments || [];
-        setFeeCollections(paymentsData);
-        
-        // Calculate student fee summaries using pre-aggregated fee data from students API
-        if (studentsData.length > 0) {
-          const summaries = studentsData.map((student: any) => {
-            const fees = student.fees || {};
-            const totalFees = fees.total || 0;
-            const totalPaid = fees.paid || 0;
-            const totalPending = fees.pending || 0;
-            const lastPaymentDate = fees.lastPaymentDate || '';
-
-            // Also compute overdue from raw fee records if available
-            const studentRecords = feeRecordsData.filter((r: any) => r.studentId === student.id);
-            const totalOverdue = studentRecords
-              .filter((r: any) => r.status === 'overdue')
-              .reduce((sum: number, r: any) => sum + (r.pendingAmount || 0), 0);
-
-            let paymentStatus: 'fully_paid' | 'partially_paid' | 'no_payment' | 'overdue';
-            if (totalOverdue > 0) {
-              paymentStatus = 'overdue';
-            } else if (totalPaid === 0) {
-              paymentStatus = 'no_payment';
-            } else if (totalPaid >= totalFees) {
-              paymentStatus = 'fully_paid';
-            } else {
-              paymentStatus = 'partially_paid';
-            }
-
-            return {
-              studentId: student.id,
-              studentName: student.name,
-              studentClass: student.class,
-              section: student.section || '',
-              rollNo: student.rollNo || '',
-              totalFees,
-              totalPaid,
-              totalPending,
-              totalOverdue,
-              feeRecords: studentRecords,
-              lastPaymentDate,
-              paymentStatus,
-              discountApplied: 0,
-              netPayable: totalFees,
-              concession: 0,
-              medium: student.languageMedium || '',
-              parentName: student.fatherName || student.motherName || '',
-              parentPhone: student.fatherPhone || student.motherPhone || '',
-              admissionNo: student.admissionNo || '',
-              dueDate: studentRecords[0]?.dueDate || '',
-              paymentMode: studentRecords.find((r: any) => r.paidDate)?.paymentMethod || '',
-              receiptNo: studentRecords.find((r: any) => r.paidDate)?.receiptNumber || '',
-              fineAmount: 0
-            } as StudentFeeSummary;
-          });
-
-          setStudentFeeSummaries(summaries);
+        // Load tab-specific data
+        switch (activeTab) {
+          case 'all-students':
+            await loadAllStudentsData();
+            break;
+          case 'collections':
+            await loadCollectionsData();
+            break;
+          case 'reports':
+            await loadReportsData();
+            break;
+          case 'fee-records':
+            await loadFeeRecordsData();
+            break;
+          default:
+            // Default to loading students data for other tabs
+            await loadAllStudentsData();
         }
         
         setIsClient(true);
       } catch (error) {
-        console.error('Error loading fee data:', error);
+        console.error('Error loading tab data:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    loadFeeData();
-  }, []);
+    loadTabData();
+  }, [activeTab]); // Reload data when tab changes
 
-  
+  // Legacy data loading (DISABLED - using new tab-specific loaders)
+  // useEffect(() => {
+  //   const loadFeeData = async () => {
+  //     // Legacy code disabled to avoid conflicts with new tab-specific loaders
+  //   };
+  //   loadFeeData();
+  // }, []);
+
   // Filter states
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
+  // ... (rest of the code remains the same)
   // Form states
   const [feeStructureForm, setFeeStructureForm] = useState<Partial<FeeStructure>>({
     name: '',
@@ -454,5 +506,10 @@ export function useFeeState() {
     selectedMonth, setSelectedMonth,
     selectedYear, setSelectedYear,
     feeStructureForm, setFeeStructureForm,
+    // New tab-specific loaders
+    loadAllStudentsData,
+    loadCollectionsData,
+    loadReportsData,
+    loadFeeRecordsData,
       };
 }

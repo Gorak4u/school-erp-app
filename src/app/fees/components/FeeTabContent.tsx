@@ -11,8 +11,9 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections } = ctx;
 
+  
   // State for date range filtering
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -30,7 +31,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
   return (
     <>
         {/* Tab Content */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {activeTab === 'all-students' && (
             <motion.div
               key="tab-all-students"
@@ -58,7 +59,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-green-500`}>
-                      {studentFeeSummaries.filter(s => s.paymentStatus === 'fully_paid').length}
+                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'fully_paid').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Fully Paid
@@ -70,7 +71,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-yellow-500`}>
-                      {studentFeeSummaries.filter(s => s.paymentStatus === 'partially_paid').length}
+                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'partially_paid').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Partially Paid
@@ -82,7 +83,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-red-500`}>
-                      {studentFeeSummaries.filter(s => s.paymentStatus === 'overdue').length}
+                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'overdue').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Overdue
@@ -650,7 +651,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                             student.totalPaid,
                             student.totalPending,
                             student.totalOverdue,
-                            student.paymentStatus,
+                            student.calculatedPaymentStatus,
                             student.lastPaymentDate || 'N/A'
                           ])
                         ].map(row => row.join(',')).join('\n');
@@ -832,7 +833,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                               student.totalPaid,
                               student.totalPending,
                               student.totalOverdue,
-                              student.paymentStatus
+                              student.calculatedPaymentStatus
                             ])
                           ].map(row => row.join(',')).join('\n');
 
@@ -993,15 +994,15 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap`}>
                             <span className={`px-2 py-1 text-xs rounded-full ${
-                              student.paymentStatus === 'fully_paid'
+                              student.calculatedPaymentStatus === 'fully_paid'
                                 ? 'bg-green-100 text-green-800'
-                                : student.paymentStatus === 'partially_paid'
+                                : student.calculatedPaymentStatus === 'partially_paid'
                                 ? 'bg-yellow-100 text-yellow-800'
-                                : student.paymentStatus === 'no_payment'
+                                : student.calculatedPaymentStatus === 'no_payment'
                                 ? 'bg-gray-100 text-gray-800'
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {student.paymentStatus.replace('_', ' ').toUpperCase()}
+                              {student.calculatedPaymentStatus?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                             </span>
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
@@ -1287,27 +1288,9 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-orange-500`}>
-                      {(() => {
-                        let totalCollections = 0;
-                        studentFeeSummaries?.forEach(student => {
-                          student.feeRecords?.forEach(record => {
-                            record.payments?.forEach(payment => {
-                              // Apply same date filtering
-                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
-                              if (paymentDate) {
-                                const date = new Date(paymentDate);
-                                const fromDateTime = fromDate ? new Date(fromDate) : null;
-                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
-                                
-                                if (fromDateTime && date < fromDateTime) return;
-                                if (toDateTime && date > toDateTime) return;
-                              }
-                              totalCollections += 1;
-                            });
-                          });
-                        });
-                        return totalCollections || 0;
-                      })()}
+                      {(typeof feeCollections !== 'undefined' && feeCollections) 
+                        ? feeCollections.reduce((sum, collection) => sum + (collection.collections || 0), 0)
+                        : 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Collections Made
@@ -1317,25 +1300,12 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                     theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className={`text-2xl font-bold text-blue-500`}>
-                      {(() => {
-                        const collectors = new Set();
-                        let totalCollected = 0;
-                        studentFeeSummaries?.forEach(student => {
-                          student.feeRecords?.forEach(record => {
-                            record.payments?.forEach(payment => {
-                              if (payment.collectedBy) {
-                                collectors.add(payment.collectedBy);
-                              }
-                              totalCollected += payment.amount || 0;
-                            });
-                          });
-                        });
-                        const collectorCount = collectors.size || 1;
-                        return Math.round(totalCollected / collectorCount).toLocaleString();
-                      })()}
+                      {(typeof feeCollections !== 'undefined' && feeCollections) 
+                        ? feeCollections.reduce((sum, collection) => sum + (collection.totalCollected || 0), 0)
+                        : 0}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Avg per Collector
+                      Total Collected
                     </div>
                   </div>
                 </div>
@@ -1366,100 +1336,56 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                     <tbody className={`divide-y ${
                       theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
                     }`}>
-                      {(() => {
-                        // Group by collectedBy + paymentMethod with date filtering
-                        const groupedByCollectorAndMethod = {};
-                        studentFeeSummaries?.forEach(student => {
-                          student.feeRecords?.forEach(record => {
-                            record.payments?.forEach(payment => {
-                              // Apply date filtering
-                              const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
-                              if (paymentDate) {
-                                const date = new Date(paymentDate);
-                                const fromDateTime = fromDate ? new Date(fromDate) : null;
-                                const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
-                                
-                                // Skip if payment is outside date range
-                                if (fromDateTime && date < fromDateTime) return;
-                                if (toDateTime && date > toDateTime) return;
-                              }
-                              
-                              const collector = payment.collectedBy || record.collectedBy || 'Unknown';
-                              const paymentMethod = payment.paymentMethod || record.paymentMethod || 'Unknown';
-                              const key = `${collector}-${paymentMethod}`;
-                              
-                              if (!groupedByCollectorAndMethod[key]) {
-                                groupedByCollectorAndMethod[key] = {
-                                  collector: collector,
-                                  paymentMethod: paymentMethod,
-                                  totalCollected: 0,
-                                  collections: 0,
-                                  students: new Set(),
-                                  latestCollectionDate: null
-                                };
-                              }
-                              groupedByCollectorAndMethod[key].totalCollected += payment.amount || 0;
-                              groupedByCollectorAndMethod[key].collections += 1;
-                              groupedByCollectorAndMethod[key].students.add(student.studentId);
-                              
-                              // Track latest collection date
-                              if (paymentDate) {
-                                const date = new Date(paymentDate);
-                                if (!groupedByCollectorAndMethod[key].latestCollectionDate || date > groupedByCollectorAndMethod[key].latestCollectionDate) {
-                                  groupedByCollectorAndMethod[key].latestCollectionDate = date;
-                                }
-                              }
-                            });
-                          });
-                        });
-
-                        return Object.entries(groupedByCollectorAndMethod).map(([key, data]) => {
-                          return (
-                            <tr key={key} className={`${
-                              theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                            } transition-colors`}>
-                              <td className={`px-6 py-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{data.collector}</span>
-                                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {data.students.size} students
-                                  </span>
-                                </div>
-                              </td>
-                              <td className={`px-6 py-4 text-right font-medium text-green-500`}>
-                                ₹{data.totalCollected.toLocaleString()}
-                              </td>
-                              <td className={`px-6 py-4 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                {data.collections}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  data.paymentMethod.toUpperCase() === 'CASH'
-                                    ? 'bg-green-100 text-green-800'
-                                    : data.paymentMethod.toUpperCase() === 'UPI'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : data.paymentMethod.toUpperCase() === 'BANK'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : data.paymentMethod.toUpperCase() === 'CARD'
-                                    ? 'bg-orange-100 text-orange-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {data.paymentMethod.toUpperCase()}
-                                </span>
-                              </td>
-                              <td className={`px-6 py-4 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                {data.latestCollectionDate 
-                                  ? data.latestCollectionDate.toLocaleDateString()
-                                  : 'N/A'
-                                }
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })() || (
+                      {(typeof feeCollections !== 'undefined' && feeCollections) ? feeCollections.map((collection, index) => (
+                        <tr key={index} className={`${
+                          theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                        } transition-colors`}>
+                          <td className={`px-6 py-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{collection.collector}</span>
+                              <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {collection.uniqueStudents || 0} students
+                              </span>
+                            </div>
+                          </td>
+                          <td className={`px-6 py-4 text-right font-medium text-green-500`}>
+                            ₹{(collection.totalCollected || 0).toLocaleString()}
+                          </td>
+                          <td className={`px-6 py-4 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {collection.collections || 0}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              (collection.paymentMethod || '').toUpperCase() === 'CASH'
+                                ? 'bg-green-100 text-green-800'
+                                : (collection.paymentMethod || '').toUpperCase() === 'UPI'
+                                ? 'bg-blue-100 text-blue-800'
+                                : (collection.paymentMethod || '').toUpperCase() === 'BANK'
+                                ? 'bg-purple-100 text-purple-800'
+                                : (collection.paymentMethod || '').toUpperCase() === 'CARD'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {(collection.paymentMethod || 'Unknown').toUpperCase()}
+                            </span>
+                          </td>
+                          <td className={`px-6 py-4 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {collection.latestCollectionDate 
+                              ? new Date(collection.latestCollectionDate).toLocaleDateString()
+                              : 'N/A'
+                            }
+                          </td>
+                        </tr>
+                      )) : (
                         <tr>
                           <td colSpan={5} className={`px-6 py-8 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            No collection data available
+                            <div className="text-6xl mb-4">💰</div>
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              No Collections Found
+                            </h3>
+                            <p className="mt-2">
+                              No payment collections have been recorded yet.
+                            </p>
                           </td>
                         </tr>
                       )}
@@ -1532,70 +1458,11 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                         Previous
                       </button>
                       <div className="flex gap-1">
-                        {(() => {
-                          // Calculate actual filtered results for pagination
-                          const groupedByCollectorAndMethod = {};
-                          studentFeeSummaries?.forEach(student => {
-                            student.feeRecords?.forEach(record => {
-                              record.payments?.forEach(payment => {
-                                // Apply same date filtering
-                                const paymentDate = payment.paidDate || payment.date || payment.createdAt || payment.paidAt;
-                                if (paymentDate) {
-                                  const date = new Date(paymentDate);
-                                  const fromDateTime = fromDate ? new Date(fromDate) : null;
-                                  const toDateTime = toDate ? new Date(toDate + 'T23:59:59') : null;
-                                  
-                                  if (fromDateTime && date < fromDateTime) return;
-                                  if (toDateTime && date > toDateTime) return;
-                                }
-                                
-                                const collector = payment.collectedBy || record.collectedBy || 'Unknown';
-                                const paymentMethod = payment.paymentMethod || record.paymentMethod || 'Unknown';
-                                const key = `${collector}-${paymentMethod}`;
-                                
-                                if (!groupedByCollectorAndMethod[key]) {
-                                  groupedByCollectorAndMethod[key] = true;
-                                }
-                              });
-                            });
-                          });
-                          
-                          const totalResults = Object.keys(groupedByCollectorAndMethod).length;
-                          const pageSize = 10;
-                          const totalPages = Math.ceil(totalResults / pageSize);
-                          const currentPage = 1;
-                          
-                          if (totalPages === 0) return null;
-                          
-                          // Show page numbers
-                          const pages = [];
-                          const maxVisible = 5;
-                          
-                          for (let i = 1; i <= Math.min(totalPages, maxVisible); i++) {
-                            pages.push(
-                              <button key={i} className={`px-3 py-1 rounded ${
-                                i === currentPage
-                                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                                  : theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}>
-                                {i}
-                              </button>
-                            );
-                          }
-                          
-                          if (totalPages > maxVisible) {
-                            pages.push(<span key="ellipsis" className={`px-3 py-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>...</span>);
-                            pages.push(
-                              <button key={totalPages} className={`px-3 py-1 rounded ${
-                                theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}>
-                                {totalPages}
-                              </button>
-                            );
-                          }
-                          
-                          return pages;
-                        })()}
+                        <span className={`px-3 py-1 rounded ${
+                          theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          Page 1
+                        </span>
                       </div>
                       <button className={`px-3 py-1 rounded ${
                         theme === 'dark'

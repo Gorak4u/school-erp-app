@@ -1,23 +1,149 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 
 interface FeeReportsTabProps {
   studentFeeSummaries: any[];
   theme: 'dark' | 'light';
+  onClose: () => void;
 }
 
-export default function FeeReportsTab({ studentFeeSummaries, theme }: FeeReportsTabProps) {
+export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: FeeReportsTabProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [reportsData, setReportsData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
+  // Date range filtering state
+  const [academicYear, setAcademicYear] = useState('all');
+  const [studentClass, setStudentClass] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const isDark = theme === 'dark';
 
-  // Calculate comprehensive statistics
+  // Calculate date range based on selected period and year
+  const calculateDateRange = useCallback(() => {
+    const year = parseInt(selectedYear);
+    const currentYear = new Date().getFullYear();
+    
+    if (selectedPeriod === 'daily') {
+      // Today
+      const today = new Date();
+      return {
+        fromDate: today.toISOString().split('T')[0],
+        toDate: today.toISOString().split('T')[0]
+      };
+    } else if (selectedPeriod === 'weekly') {
+      // Current week
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      return {
+        fromDate: startOfWeek.toISOString().split('T')[0],
+        toDate: endOfWeek.toISOString().split('T')[0]
+      };
+    } else if (selectedPeriod === 'monthly') {
+      // Selected month of selected year
+      return {
+        fromDate: `${year}-01-01`,
+        toDate: `${year}-12-31`
+      };
+    } else if (selectedPeriod === 'yearly') {
+      // Selected year only
+      return {
+        fromDate: `${year}-01-01`,
+        toDate: `${year}-12-31`
+      };
+    }
+    
+    // Default to current year
+    return {
+      fromDate: `${currentYear}-01-01`,
+      toDate: `${currentYear}-12-31`
+    };
+  }, [selectedPeriod, selectedYear]);
+
+  // Load reports data from API
+  useEffect(() => {
+    const loadReportsData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Build API parameters for date range filtering
+        const params = new URLSearchParams();
+        
+        if (academicYear !== 'all') {
+          params.append('academicYear', academicYear);
+        }
+        
+        if (studentClass !== 'all') {
+          params.append('class', studentClass);
+        }
+        
+        // Use calculated date range from period/year selectors
+        const dateRange = calculateDateRange();
+        const effectiveFromDate = fromDate || dateRange.fromDate;
+        const effectiveToDate = toDate || dateRange.toDate;
+        
+        if (effectiveFromDate) {
+          params.append('fromDate', effectiveFromDate);
+        }
+        
+        if (effectiveToDate) {
+          params.append('toDate', effectiveToDate);
+        }
+        
+        const response = await fetch(`/api/fees/statistics?${params}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          setReportsData(result.data);
+        } else {
+          console.error('Failed to load reports data:', result.error);
+        }
+      } catch (error) {
+        console.error('Error loading reports data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadReportsData();
+  }, [academicYear, studentClass, fromDate, toDate, selectedPeriod, selectedYear, calculateDateRange]);
+
+  // Use API data or fall back to client-side calculations for compatibility
   const stats = useMemo(() => {
+    if (reportsData) {
+      return {
+        totalStudents: reportsData.totalStudents,
+        totalFees: reportsData.totalFees,
+        totalCollected: reportsData.totalCollected,
+        totalPending: reportsData.totalPending,
+        totalOverdue: reportsData.paymentStatusBreakdown?.find((s: any) => s.status === 'overdue')?.count || 0,
+        collectionRate: reportsData.collectionRate,
+        fullyPaid: reportsData.paymentStatusBreakdown?.find((s: any) => s.status === 'fully_paid')?.count || 0,
+        partiallyPaid: reportsData.paymentStatusBreakdown?.find((s: any) => s.status === 'partially_paid')?.count || 0,
+        noPayment: reportsData.paymentStatusBreakdown?.find((s: any) => s.status === 'no_payment')?.count || 0,
+        overdue: reportsData.paymentStatusBreakdown?.find((s: any) => s.status === 'overdue')?.count || 0,
+        classwiseData: reportsData.classBreakdown?.reduce((acc: any, item: any) => {
+          acc[item.class] = {
+            total: item.totalFees,
+            collected: item.totalPaid,
+            pending: item.totalPending,
+            students: item.studentCount
+          };
+          return acc;
+        }, {}) || {}
+      };
+    }
+
+    // Fallback to client-side calculations
     const totalStudents = studentFeeSummaries.length;
     const totalFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0);
     const totalCollected = studentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
@@ -56,10 +182,38 @@ export default function FeeReportsTab({ studentFeeSummaries, theme }: FeeReports
       overdue,
       classwiseData
     };
-  }, [studentFeeSummaries]);
+  }, [reportsData, studentFeeSummaries]);
 
-  // Monthly collection trend (real data)
+  // Monthly collection trend (API data with fallback)
   const monthlyTrendData = useMemo(() => {
+    // Use API data if available
+    if (reportsData?.monthlyTrend) {
+      const monthlyData = reportsData.monthlyTrend.map((item: any) => item.amount || 0);
+      
+      return {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [
+          {
+            label: 'Collections',
+            data: monthlyData,
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            tension: 0.4,
+            fill: true
+          },
+          {
+            label: 'Target',
+            data: Array(12).fill(stats.totalFees / 12),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderDash: [5, 5],
+            tension: 0.4
+          }
+        ]
+      };
+    }
+
+    // Fallback to client-side processing
     const monthlyData = Array(12).fill(0);
     const currentYear = new Date().getFullYear();
     
@@ -100,7 +254,16 @@ export default function FeeReportsTab({ studentFeeSummaries, theme }: FeeReports
         }
       ]
     };
-  }, [studentFeeSummaries, stats.totalFees]);
+  }, [reportsData, studentFeeSummaries, stats.totalFees]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="ml-4 text-gray-600 dark:text-gray-400">Loading reports...</span>
+      </div>
+    );
+  }
 
   // Payment status distribution
   const paymentStatusData = {
@@ -582,6 +745,88 @@ export default function FeeReportsTab({ studentFeeSummaries, theme }: FeeReports
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Date Range Filters */}
+      <div className={`mt-6 p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex gap-4 items-center">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Academic Year</label>
+              <select
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              >
+                <option value="all">All Years</option>
+                <option value="2024-25">2024-25</option>
+                <option value="2023-24">2023-24</option>
+                <option value="2022-23">2022-23</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Class</label>
+              <select
+                value={studentClass}
+                onChange={(e) => setStudentClass(e.target.value)}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              >
+                <option value="all">All Classes</option>
+                <option value="1">Class 1</option>
+                <option value="2">Class 2</option>
+                <option value="3">Class 3</option>
+                <option value="4">Class 4</option>
+                <option value="5">Class 5</option>
+                <option value="6">Class 6</option>
+                <option value="7">Class 7</option>
+                <option value="8">Class 8</option>
+                <option value="9">Class 9</option>
+                <option value="10">Class 10</option>
+                <option value="11">Class 11</option>
+                <option value="12">Class 12</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>From Date</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>To Date</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className={`px-3 py-2 rounded border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setFromDate('');
+                setToDate('');
+                setAcademicYear('all');
+                setStudentClass('all');
+                setSelectedPeriod('monthly');
+                setSelectedYear(new Date().getFullYear().toString());
+              }}
+              className={`px-4 py-2 rounded text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+        
+        <div className={`mt-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {reportsData ? `Showing data for ${reportsData.totalStudents} students` : 'Loading data...'}
+          {(fromDate || toDate) && ` from ${fromDate || 'start'} to ${toDate || 'end'}`}
         </div>
       </div>
     </motion.div>
