@@ -130,7 +130,7 @@ export function useStudentState() {
   // Column Customization State
   const [visibleColumns, setVisibleColumns] = useState([
     'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
-    'class', 'address', 'attendance', 'grade', 'status', 'actions'
+    'class', 'attendance', 'status', 'actions'
   ]);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [columnSettings, setColumnSettings] = useState({
@@ -138,15 +138,34 @@ export function useStudentState() {
       { key: 'select', label: 'Select', fixed: true },
       { key: 'photo', label: 'Photo', fixed: false },
       { key: 'admissionNo', label: 'Admission No', fixed: false },
+      { key: 'admissionDate', label: 'Admission Date', fixed: false },
       { key: 'rollNo', label: 'Roll No', fixed: false },
       { key: 'name', label: 'Name', fixed: true },
+      { key: 'dateOfBirth', label: 'Date of Birth', fixed: false },
+      { key: 'gender', label: 'Gender', fixed: false },
+      { key: 'bloodGroup', label: 'Blood Group', fixed: false },
+      { key: 'category', label: 'Category', fixed: false },
+      { key: 'religion', label: 'Religion', fixed: false },
       { key: 'parents', label: 'Parents Details', fixed: false },
-      { key: 'class', label: 'Class', fixed: false },
+      { key: 'fatherPhone', label: "Father's Phone", fixed: false },
+      { key: 'motherPhone', label: "Mother's Phone", fixed: false },
+      { key: 'class', label: 'Class / Section', fixed: false },
+      { key: 'medium', label: 'Medium', fixed: false },
+      { key: 'board', label: 'Board', fixed: false },
+      { key: 'phone', label: 'Student Phone', fixed: false },
+      { key: 'email', label: 'Email', fixed: false },
       { key: 'address', label: 'Address', fixed: false },
+      { key: 'city', label: 'City', fixed: false },
+      { key: 'state', label: 'State', fixed: false },
+      { key: 'aadharNumber', label: 'Aadhar No', fixed: false },
+      { key: 'stsId', label: 'STS ID', fixed: false },
+      { key: 'transport', label: 'Transport', fixed: false },
+      { key: 'hostel', label: 'Hostel', fixed: false },
       { key: 'attendance', label: 'Attendance', fixed: false },
-      { key: 'grade', label: 'Grade', fixed: false },
+      { key: 'fees', label: 'Fee Status', fixed: false },
+      { key: 'grade', label: 'Grade / GPA', fixed: false },
       { key: 'status', label: 'Status', fixed: false },
-      { key: 'actions', label: 'Actions', fixed: true }
+      { key: 'actions', label: 'Actions', fixed: true },
     ]
   });
   

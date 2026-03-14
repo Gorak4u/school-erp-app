@@ -17,7 +17,7 @@ interface StudentFormExtendedProps {
 export default function StudentFormExtended({
   formData, setFormData, theme, student, onCancel, clearAutoSave
 }: StudentFormExtendedProps) {
-  const { dropdowns } = useSchoolConfig();
+  const { dropdowns, mediums, classes, sections } = useSchoolConfig();
   return (
     <>
         {/* Academic Information */}
@@ -77,32 +77,47 @@ export default function StudentFormExtended({
             <SchoolStructureSelector
               theme={theme}
               onMediumChange={(mediumId) => {
-                const mediumName = mediumId ? mediumId.charAt(0).toUpperCase() + mediumId.slice(1) : '';
-                setFormData({ ...formData, languageMedium: mediumName });
+                const medium = mediums.find(m => m.id === mediumId);
+                setFormData({ 
+                  ...formData, 
+                  languageMedium: medium?.name || '',
+                  _mediumId: mediumId
+                });
               }}
               onClassChange={(classId) => {
-                setFormData({ ...formData, class: classId });
+                const cls = classes.find(c => c.id === classId);
+                setFormData({ 
+                  ...formData, 
+                  class: classId,
+                  className: cls?.name || '',
+                  _classId: classId
+                });
               }}
               onSectionChange={(sectionId) => {
+                const section = sections.find(s => s.id === sectionId);
                 // Extract section letter from section ID (e.g., "1-a" -> "A")
-                const sectionLetter = sectionId ? sectionId.split('-')[1]?.toUpperCase() : '';
-                setFormData({ ...formData, section: sectionLetter });
+                const sectionLetter = section?.name || '';
+                setFormData({ 
+                  ...formData, 
+                  section: sectionLetter,
+                  _sectionId: sectionId
+                });
               }}
-              selectedMedium={formData.languageMedium?.toLowerCase()}
-              selectedClass={formData.class}
-              selectedSection={formData.section ? `${formData.class}-${formData.section.toLowerCase()}` : ''}
+              selectedMedium={formData._mediumId || ''}
+              selectedClass={formData._classId || ''}
+              selectedSection={formData._sectionId || ''}
               showAll={true}
             />
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${
                 theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>Roll Number *</label>
+              }`}>Roll Number</label>
               <input
                 type="text"
-                required
                 value={formData.rollNo}
                 onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
+                placeholder="Optional: Enter roll number"
                 className={`w-full px-4 py-2 rounded-lg border ${
                   theme === 'dark'
                     ? 'bg-gray-800 border-gray-700 text-white'
@@ -317,6 +332,110 @@ export default function StudentFormExtended({
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Emergency Contact */}
+        <div className={`border-2 rounded-xl p-6 ${
+          theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
+        }`}>
+          <h3 className={`text-xl font-bold mb-6 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>🚨 Emergency Contact</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>Emergency Contact Number *</label>
+              <div className="flex space-x-2">
+                <input
+                  type="tel"
+                  required
+                  value={formData.emergencyContact}
+                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                  className={`flex-1 px-6 py-4 text-lg rounded-xl border-2 transition-all duration-300 ${
+                    theme === 'dark'
+                      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ 
+                      ...formData, 
+                      emergencyContact: formData.fatherPhone,
+                      emergencyRelation: 'Father'
+                    });
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  👨 Father
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ 
+                      ...formData, 
+                      emergencyContact: formData.motherPhone || formData.fatherPhone,
+                      emergencyRelation: 'Mother'
+                    });
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  }`}
+                >
+                  👩 Mother
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ 
+                      ...formData, 
+                      emergencyContact: '',
+                      emergencyRelation: 'Custom'
+                    });
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                      : 'bg-gray-500 hover:bg-gray-600 text-white'
+                  }`}
+                >
+                  ✏️ Custom
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>Emergency Contact Relation *</label>
+              <select
+                value={formData.emergencyRelation}
+                onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                <option value="">Select Relation</option>
+                <option value="Father">Father</option>
+                <option value="Mother">Mother</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Grandparent">Grandparent</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
           </div>
         </div>
@@ -702,7 +821,13 @@ export default function StudentFormExtended({
         <div className="flex justify-between items-center pt-8 border-t-2 border-gray-200 dark:border-gray-700">
           <button
             type="button"
-            onClick={clearAutoSave}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (typeof clearAutoSave === 'function') {
+                clearAutoSave();
+              }
+            }}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
               theme === 'dark'
                 ? 'bg-orange-600 hover:bg-orange-700 text-white'

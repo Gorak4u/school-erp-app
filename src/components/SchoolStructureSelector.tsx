@@ -27,7 +27,7 @@ export default function SchoolStructureSelector({
   showAll = false,
   disabled = false
 }: SchoolStructureSelectorProps) {
-  const { mediums, classes, sections, getClassesByMedium, getSectionsByClass, getMediumById, getClassById } = useSchoolConfig();
+  const { mediums, classes, sections, getClassesByMedium, getSectionsByClass, getMediumById, getClassById, loading } = useSchoolConfig();
 
   const filteredClasses = selectedMedium ? getClassesByMedium(selectedMedium) : classes;
   const filteredSections = selectedClass ? getSectionsByClass(selectedClass) : [];
@@ -65,11 +65,11 @@ export default function SchoolStructureSelector({
         <select
           value={selectedMedium || ''}
           onChange={(e) => handleMediumChange(e.target.value)}
-          disabled={disabled}
+          disabled={disabled || loading}
           className={inputClass}
         >
-          <option value="">Select Medium</option>
-          {mediums.map((medium) => (
+          <option value="">{loading ? 'Loading...' : 'Select Medium'}</option>
+          {!loading && mediums.map((medium) => (
             <option key={medium.id} value={medium.id}>
               {medium.name} ({medium.code})
             </option>
@@ -90,11 +90,11 @@ export default function SchoolStructureSelector({
         <select
           value={selectedClass || ''}
           onChange={(e) => handleClassChange(e.target.value)}
-          disabled={disabled || !selectedMedium}
+          disabled={disabled || !selectedMedium || loading}
           className={inputClass}
         >
-          <option value="">Select Class</option>
-          {filteredClasses.map((cls) => (
+          <option value="">{loading ? 'Loading...' : 'Select Class'}</option>
+          {!loading && filteredClasses.map((cls) => (
             <option key={cls.id} value={cls.id}>
               {cls.name} - {(cls.level || '').replace('_', ' ')}
             </option>
@@ -110,21 +110,26 @@ export default function SchoolStructureSelector({
       {/* Section Selection */}
       <div>
         <label className={labelClass}>
-          Section {showAll && <span className="text-red-500">*</span>}
+          Section {showAll && filteredSections.length > 0 && <span className="text-red-500">*</span>}
         </label>
         <select
           value={selectedSection || ''}
           onChange={(e) => onSectionChange?.(e.target.value)}
-          disabled={disabled || !selectedClass}
+          disabled={disabled || !selectedClass || loading}
           className={inputClass}
         >
-          <option value="">Select Section</option>
-          {filteredSections.map((section) => (
+          <option value="">{loading ? 'Loading...' : 'Select Section'}</option>
+          {!loading && filteredSections.map((section) => (
             <option key={section.id} value={section.id}>
               Section {section.name} (Cap: {section.capacity})
             </option>
           ))}
         </select>
+        {selectedClass && filteredSections.length === 0 && (
+          <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+            No sections available for this class
+          </p>
+        )}
         {selectedSection && (
           <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
             Room: {filteredSections.find(s => s.id === selectedSection)?.roomNumber || 'TBA'}

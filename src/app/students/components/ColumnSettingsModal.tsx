@@ -19,14 +19,14 @@ export default function ColumnSettingsModal({ columnSettings, resetColumns, setS
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             onClick={() => setShowColumnSettings(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-md rounded-2xl border p-6 ${
+              className={`w-full max-w-lg rounded-2xl border p-6 max-h-[80vh] flex flex-col ${
                 theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -45,7 +45,7 @@ export default function ColumnSettingsModal({ columnSettings, resetColumns, setS
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="overflow-y-auto flex-1 space-y-2 pr-1 my-2">
                 {columnSettings.availableColumns.map(column => (
                   <div key={column.key} className="flex items-center justify-between">
                     <label className={`flex items-center gap-3 cursor-pointer ${

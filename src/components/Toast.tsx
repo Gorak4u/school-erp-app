@@ -104,7 +104,7 @@ export default function Toast({ theme }: ToastProps) {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+    <div className="fixed top-4 right-4 z-[99999] space-y-2 pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => {
           const styles = getStyles(toast.type);

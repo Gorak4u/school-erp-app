@@ -309,7 +309,7 @@ export default function AppLayout({
       </div>
 
       {/* Main Content */}
-      <main className="relative z-10 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
+      <main className="relative transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>

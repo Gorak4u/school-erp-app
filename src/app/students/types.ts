@@ -84,6 +84,11 @@ export interface Student {
   // Language Medium
   languageMedium: string;
   
+  // Hidden ID fields for form handling
+  _mediumId?: string;
+  _classId?: string;
+  _sectionId?: string;
+  
   // Bank details
   bankName?: string;
   bankAccountNumber?: string;

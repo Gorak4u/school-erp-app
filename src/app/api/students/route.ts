@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     const { documents, fees, attendance, academics, behavior, transferCertificateNumber, grade, timestamp, isAutoSave, ...data } = body;
 
     // Validate required fields
-    const requiredFields = ['name', 'dateOfBirth', 'gender', 'class', 'section'];
+    const requiredFields = ['name', 'dateOfBirth', 'gender'];
     const missingFields = requiredFields.filter(field => !data[field]);
     
     if (missingFields.length > 0) {
@@ -152,11 +152,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate email format if provided
-    if (data.email && data.email.trim() && !data.email.includes('@')) {
-      return NextResponse.json({ 
-        error: 'Invalid email format' 
-      }, { status: 400 });
+    // Validate email format if provided (relaxed validation)
+    if (data.email && data.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.email.trim())) {
+        return NextResponse.json({ 
+          error: 'Invalid email format' 
+        }, { status: 400 });
+      }
     }
 
     // Validate phone format if provided
@@ -213,12 +216,22 @@ export async function POST(request: NextRequest) {
       data.rollNo = String(classRollCount + 1);
     }
 
-    // Remove grade field from data as it doesn't exist in schema
-    const { grade: _, ...dataWithoutGrade } = data;
+    // Remove fields that don't exist in schema
+    const { 
+      grade: _, 
+      mediumId, 
+      classId, 
+      sectionId, 
+      _ts, 
+      _mediumId, 
+      _classId, 
+      _sectionId,
+      ...dataWithoutInvalidFields 
+    } = data;
     
     const student = await prisma.student.create({
       data: {
-        ...dataWithoutGrade,
+        ...dataWithoutInvalidFields,
         admissionNo, // Use the generated/validated admission number
         transferCertificateNo: transferCertificateNumber, // Map the field name
         documents: documents ? JSON.stringify(documents) : null,

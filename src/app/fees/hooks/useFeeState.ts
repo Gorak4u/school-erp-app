@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from '../types';
+import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi } from '@/lib/apiClient';
 
 export function useFeeState() {
   const router = useRouter();
@@ -58,14 +59,24 @@ export function useFeeState() {
     availableColumns: [
       { key: 'select', label: 'Select', fixed: true },
       { key: 'studentName', label: 'Student Name', fixed: true },
+      { key: 'admissionNo', label: 'Admission No', fixed: false },
       { key: 'rollNo', label: 'Roll No', fixed: false },
-      { key: 'studentClass', label: 'Class', fixed: false },
+      { key: 'studentClass', label: 'Class / Section', fixed: false },
+      { key: 'medium', label: 'Medium', fixed: false },
+      { key: 'parentName', label: 'Parent Name', fixed: false },
+      { key: 'parentPhone', label: 'Parent Phone', fixed: false },
       { key: 'totalFees', label: 'Total Fees', fixed: false },
       { key: 'totalPaid', label: 'Paid Amount', fixed: false },
       { key: 'totalPending', label: 'Pending Amount', fixed: false },
       { key: 'totalOverdue', label: 'Overdue Amount', fixed: false },
+      { key: 'discount', label: 'Discount', fixed: false },
+      { key: 'fineAmount', label: 'Fine / Late Fee', fixed: false },
       { key: 'paymentStatus', label: 'Payment Status', fixed: false },
+      { key: 'dueDate', label: 'Due Date', fixed: false },
       { key: 'lastPaymentDate', label: 'Last Payment Date', fixed: false },
+      { key: 'paymentMode', label: 'Payment Mode', fixed: false },
+      { key: 'receiptNo', label: 'Receipt No', fixed: false },
+      { key: 'concession', label: 'Concession', fixed: false },
       { key: 'actions', label: 'Actions', fixed: true },
     ]
   };
@@ -129,6 +140,29 @@ export function useFeeState() {
     
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Live statistics derived from studentFeeSummaries (always fresh)
+  const calculateStatistics = () => {
+    const totalFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0);
+    const collectedFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
+    const pendingFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0);
+    const overdueFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalOverdue || 0), 0);
+    return {
+      totalFees,
+      collectedFees,
+      pendingFees,
+      overdueFees,
+      collectionRate: totalFees > 0 ? (collectedFees / totalFees) * 100 : 0,
+    };
+  };
+
+  // Filter fee records based on current filters
+  const filteredFeeRecords = feeRecords.filter(record => {
+    if (selectedClass !== 'all' && record.student?.class !== selectedClass) return false;
+    if (selectedStatus !== 'all' && record.status !== selectedStatus) return false;
+    if (debouncedSearchTerm && !record.student?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) return false;
+    return true;
+  });
 
   // Enhanced filtering with AI search capabilities
   const filteredStudentSummaries = studentFeeSummaries.filter(student => {
@@ -213,6 +247,102 @@ export function useFeeState() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Load fee data from API
+  useEffect(() => {
+    const loadFeeData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load all data in parallel
+        const [feeStructuresResponse, feeRecordsResponse, discountsResponse, studentsResponse, paymentsResponse] = await Promise.all([
+          feeStructuresApi.list(),
+          feeRecordsApi.list(),
+          discountsApi.list(),
+          studentsApi.list({ pageSize: 1000 }),
+          paymentsApi.list()
+        ]);
+        
+        // Extract arrays from API responses
+        const feeStructuresData = feeStructuresResponse?.structures || [];
+        const feeRecordsData = feeRecordsResponse?.records || [];
+        const discountsData = discountsResponse?.discounts || discountsResponse || [];
+        const studentsData = studentsResponse?.students || [];
+        
+        setFeeStructures(feeStructuresData);
+        setFeeRecords(feeRecordsData);
+        setDiscounts(discountsData);
+        
+        // Set fee collections from payments data
+        const paymentsData = paymentsResponse?.payments || [];
+        setFeeCollections(paymentsData);
+        
+        // Calculate student fee summaries using pre-aggregated fee data from students API
+        if (studentsData.length > 0) {
+          const summaries = studentsData.map((student: any) => {
+            const fees = student.fees || {};
+            const totalFees = fees.total || 0;
+            const totalPaid = fees.paid || 0;
+            const totalPending = fees.pending || 0;
+            const lastPaymentDate = fees.lastPaymentDate || '';
+
+            // Also compute overdue from raw fee records if available
+            const studentRecords = feeRecordsData.filter((r: any) => r.studentId === student.id);
+            const totalOverdue = studentRecords
+              .filter((r: any) => r.status === 'overdue')
+              .reduce((sum: number, r: any) => sum + (r.pendingAmount || 0), 0);
+
+            let paymentStatus: 'fully_paid' | 'partially_paid' | 'no_payment' | 'overdue';
+            if (totalOverdue > 0) {
+              paymentStatus = 'overdue';
+            } else if (totalPaid === 0) {
+              paymentStatus = 'no_payment';
+            } else if (totalPaid >= totalFees) {
+              paymentStatus = 'fully_paid';
+            } else {
+              paymentStatus = 'partially_paid';
+            }
+
+            return {
+              studentId: student.id,
+              studentName: student.name,
+              studentClass: student.class,
+              section: student.section || '',
+              rollNo: student.rollNo || '',
+              totalFees,
+              totalPaid,
+              totalPending,
+              totalOverdue,
+              feeRecords: studentRecords,
+              lastPaymentDate,
+              paymentStatus,
+              discountApplied: 0,
+              netPayable: totalFees,
+              concession: 0,
+              medium: student.languageMedium || '',
+              parentName: student.fatherName || student.motherName || '',
+              parentPhone: student.fatherPhone || student.motherPhone || '',
+              admissionNo: student.admissionNo || '',
+              dueDate: studentRecords[0]?.dueDate || '',
+              paymentMode: studentRecords.find((r: any) => r.paidDate)?.paymentMethod || '',
+              receiptNo: studentRecords.find((r: any) => r.paidDate)?.receiptNumber || '',
+              fineAmount: 0
+            } as StudentFeeSummary;
+          });
+
+          setStudentFeeSummaries(summaries);
+        }
+        
+        setIsClient(true);
+      } catch (error) {
+        console.error('Error loading fee data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadFeeData();
+  }, []);
+
   
   // Filter states
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -244,6 +374,8 @@ export function useFeeState() {
     selectedStudents, setSelectedStudents,
     studentFeeSummaries, setStudentFeeSummaries,
     filteredStudentSummaries,
+    filteredFeeRecords,
+    calculateStatistics,
     showAdvancedFilters, setShowAdvancedFilters,
     advancedFilters, setAdvancedFilters,
     showColumnSettings, setShowColumnSettings,

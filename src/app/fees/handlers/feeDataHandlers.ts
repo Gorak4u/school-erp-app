@@ -129,5 +129,5 @@ export function createFeeDataHandlers(ctx: any) {
     };
   };
 
-  return { calculateStatistics, calculateStudentFeeSummaries, prepareFeeCategoryData, prepareMonthlyCollectionData, preparePaymentMethodData, stats };
+  return { calculateStudentFeeSummaries, prepareFeeCategoryData, prepareMonthlyCollectionData, preparePaymentMethodData, stats };
 }

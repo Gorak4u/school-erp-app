@@ -82,35 +82,10 @@ export default function FeesPage() {
     studentFeeSummaries,
   } = ctx;
 
-  // Initialize data
+  // Initialize client-side rendering
   useEffect(() => {
     setIsClient(true);
-    loadRealData();
   }, []);
-
-  const loadRealData = async () => {
-    try {
-      const [structuresData, recordsData, paymentsData, discountsData, studentsData] = await Promise.all([
-        feeStructuresApi.list(),
-        feeRecordsApi.list(),
-        paymentsApi.list(),
-        discountsApi.list(),
-        studentsApi.list(),
-      ]);
-
-      setFeeStructures(structuresData.structures || []);
-      setFeeRecords(recordsData.records || []);
-      setDiscounts(discountsData.discounts || []);
-      // TODO: Convert payments to collections format
-      setFeeCollections([]);
-      
-      // Calculate student fee summaries
-      const summaries = calculateStudentFeeSummaries(studentsData.students || [], recordsData.records || []);
-      setStudentFeeSummaries(summaries);
-    } catch (error) {
-      console.error('Failed to load fees data:', error);
-    }
-  };
 
   if (!isClient) {
     return <div>Loading...</div>;
@@ -198,7 +173,7 @@ export default function FeesPage() {
       
       {/* Student Profile Modal */}
       {activeTab === 'student-profile' && selectedStudents.length === 1 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
             theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
           }`}>
@@ -228,7 +203,7 @@ export default function FeesPage() {
       
       {/* Student Workflows Modal */}
       {activeTab === 'workflows' && selectedStudents.length === 1 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
             theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
           }`}>

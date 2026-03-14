@@ -36,6 +36,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { code, name, level, mediumId, academicYearId, isActive } = body;
 
+    // Check if class code already exists
+    const existingClass = await prisma.class.findFirst({
+      where: { code }
+    });
+
+    if (existingClass) {
+      return NextResponse.json(
+        { error: 'Class code already exists', details: `A class with code "${code}" already exists. Please use a different code.` },
+        { status: 409 }
+      );
+    }
+
     const classData = await prisma.class.create({
       data: {
         code,
@@ -54,6 +66,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ class: classData }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating class:', error);
+    
+    // Handle unique constraint error
+    if (error.code === 'P2002' && error.meta?.target?.includes('code')) {
+      return NextResponse.json(
+        { error: 'Class code already exists', details: 'A class with this code already exists. Please use a different code.' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create class', details: error.message },
       { status: 500 }
@@ -65,6 +86,21 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, code, name, level, mediumId, isActive } = body;
+
+    // Check if class code already exists (excluding current class)
+    const existingClass = await prisma.class.findFirst({
+      where: { 
+        code,
+        id: { not: id }
+      }
+    });
+
+    if (existingClass) {
+      return NextResponse.json(
+        { error: 'Class code already exists', details: `A class with code "${code}" already exists. Please use a different code.` },
+        { status: 409 }
+      );
+    }
 
     const classData = await prisma.class.update({
       where: { id },
@@ -84,6 +120,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ class: classData });
   } catch (error: any) {
     console.error('Error updating class:', error);
+    
+    // Handle unique constraint error
+    if (error.code === 'P2002' && error.meta?.target?.includes('code')) {
+      return NextResponse.json(
+        { error: 'Class code already exists', details: 'A class with this code already exists. Please use a different code.' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to update class', details: error.message },
       { status: 500 }
