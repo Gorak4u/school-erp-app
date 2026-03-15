@@ -93,7 +93,15 @@ export async function sendSchoolEmail({
   html: string;
   schoolId?: string;
 }) {
+  console.log('sendSchoolEmail called with:', { to, subject, schoolId });
+  
   const smtp = await getSchoolSmtpConfig(schoolId);
+  console.log('SMTP config retrieved:', { 
+    hasHost: !!smtp.smtp_host, 
+    hasUser: !!smtp.smtp_username, 
+    hasPass: !!smtp.smtp_password,
+    configKeys: Object.keys(smtp)
+  });
 
   // Fallback: use environment variables if no school SMTP config
   const host = smtp.smtp_host || process.env.SMTP_HOST;
@@ -101,6 +109,14 @@ export async function sendSchoolEmail({
   const user = smtp.smtp_username || process.env.SMTP_USER;
   const pass = smtp.smtp_password || process.env.SMTP_PASS;
   const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
+
+  console.log('Final SMTP settings:', { 
+    host: host ? 'SET' : 'NOT SET', 
+    port, 
+    user: user ? 'SET' : 'NOT SET',
+    pass: pass ? 'SET' : 'NOT SET',
+    from
+  });
 
   if (!host || !user || !pass) {
     // No SMTP configured — log the email for development

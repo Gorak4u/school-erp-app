@@ -655,13 +655,15 @@ model Section {
 
 model SchoolSetting {
   id        String   @id @default(cuid())
+  schoolId  String
   group     String
   key       String
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([group, key])
+  @@unique([schoolId, group, key])
+  @@index([schoolId])
   @@index([group])
   @@schema("school")
 }
