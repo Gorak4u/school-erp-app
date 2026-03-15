@@ -134,6 +134,7 @@ function RegisterContent() {
           adminEmail: formData.email,
           adminPassword: formData.password,
           plan: selectedPlan,
+          billingCycle: billingCycle,
         }),
       });
 

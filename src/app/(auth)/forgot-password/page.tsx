@@ -57,13 +57,6 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const demoEmails = [
-    { email: 'admin@schoolerp.in', label: 'Administrator' },
-    { email: 'teacher@schoolerp.in', label: 'Teacher' },
-    { email: 'student@schoolerp.in', label: 'Student' },
-    { email: 'parent@schoolerp.in', label: 'Parent' },
-  ];
-
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative">
       {/* Dynamic Background */}

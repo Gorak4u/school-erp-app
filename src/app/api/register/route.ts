@@ -19,6 +19,7 @@ export async function POST(req: Request) {
       adminEmail,
       adminPassword,
       plan = 'trial',
+      billingCycle = 'monthly',
     } = body;
 
     // Validate required fields
@@ -83,6 +84,11 @@ export async function POST(req: Request) {
     const maxStudents = planConfig?.maxStudents ?? 50;
     const maxTeachers = planConfig?.maxTeachers ?? 5;
     const features = planConfig?.features ?? '["student-management","attendance-tracking","fee-management","basic-reports"]';
+    
+    // Calculate price based on billing cycle
+    const price = billingCycle === 'yearly' 
+      ? (planConfig?.priceYearly || planConfig?.priceMonthly || 0)
+      : (planConfig?.priceMonthly || 0);
 
     // Hash admin password
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
@@ -113,6 +119,8 @@ export async function POST(req: Request) {
         maxTeachers,
         features,
         billingEmail: adminEmail,
+        billingCycle,
+        price,
       };
 
       if (plan === 'trial') {

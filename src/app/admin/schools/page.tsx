@@ -246,6 +246,7 @@ export default function AdminSchoolsPage() {
     expired: 'bg-red-500/20 text-red-400',
     cancelled: 'bg-gray-500/20 text-gray-400',
     past_due: 'bg-yellow-500/20 text-yellow-400',
+    pending_payment: 'bg-red-500/20 text-red-500 font-bold',
   };
 
   const cardCls = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
