@@ -55,20 +55,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized. Only existing super admins can recreate accounts.' }, { status: 403 });
     }
 
-    // Check if user already exists
-    const existingUser = await (schoolPrisma as any).school_User.findUnique({
+    // Check if user already exists in both tables
+    const existingSaaSUser = await (saasPrisma as any).user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    if (existingUser) {
+    const existingSchoolUser = await (schoolPrisma as any).school_User.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (existingSaaSUser || existingSchoolUser) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create super admin user
-    const superAdmin = await (schoolPrisma as any).school_User.create({
+    // Create super admin user in SaaS User table
+    const saasSuperAdmin = await (saasPrisma as any).user.create({
+      data: {
+        email: email.toLowerCase(),
+        name: 'Super Admin',
+        password: hashedPassword,
+        role: 'super_admin',
+        isActive: true,
+        isSuperAdmin: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    // Store password in school_User table for authentication
+    const schoolSuperAdmin = await (schoolPrisma as any).school_User.create({
       data: {
         id: 'super-admin-' + Date.now(),
         email: email.toLowerCase(),
@@ -84,17 +102,17 @@ export async function POST(req: Request) {
 
     console.log('🔧 Super admin recreated via API');
     console.log(`📧 Email: ${email}`);
-    console.log(`🆔 User ID: ${superAdmin.id}`);
+    console.log(`🆔 SaaS User ID: ${saasSuperAdmin.id}`);
+    console.log(`🆔 School User ID: ${schoolSuperAdmin.id}`);
 
     return NextResponse.json({
       success: true,
       message: 'Super admin created successfully',
       user: {
-        id: superAdmin.id,
-        email: superAdmin.email,
-        firstName: superAdmin.firstName,
-        lastName: superAdmin.lastName,
-        role: superAdmin.role,
+        id: saasSuperAdmin.id,
+        email: saasSuperAdmin.email,
+        name: saasSuperAdmin.name,
+        role: saasSuperAdmin.role,
       }
     });
 
@@ -112,20 +130,21 @@ export async function GET() {
     
     for (const adminEmail of superAdminEmails) {
       if (adminEmail) {
-        const existingUser = await (schoolPrisma as any).school_User.findUnique({
+        // Check in SaaS User table (correct location for super admin)
+        const existingSaaSUser = await (saasPrisma as any).user.findUnique({
           where: { email: adminEmail },
           select: {
             id: true,
             email: true,
-            firstName: true,
-            lastName: true,
+            name: true,
             role: true,
             isActive: true,
             createdAt: true,
           }
         });
-        if (existingUser) {
-          existingSuperAdmins.push(existingUser);
+        
+        if (existingSaaSUser) {
+          existingSuperAdmins.push(existingSaaSUser);
         }
       }
     }
