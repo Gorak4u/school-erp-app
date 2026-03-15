@@ -16,7 +16,6 @@ const PLAN_CTA: Record<string, string> = {
   trial: 'Start Free Trial',
   basic: 'Get Started',
   professional: 'Get Started',
-  enterprise: 'Contact Sales',
 };
 
 interface PlanFromDB {
@@ -49,10 +48,6 @@ export default function PricingPage() {
   }, []);
 
   const handleSelectPlan = (planName: string) => {
-    if (planName === 'enterprise') {
-      window.location.href = 'mailto:sales@schoolerp.com?subject=Enterprise%20Plan%20Inquiry';
-      return;
-    }
     router.push(`/register?plan=${planName}&billing=${billing}`);
   };
 

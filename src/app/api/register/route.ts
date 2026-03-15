@@ -32,8 +32,26 @@ export async function POST(req: Request) {
     // Check if admin email already exists
     const existingUser = await (schoolPrisma as any).school_User.findUnique({
       where: { email: adminEmail },
+      include: { 
+        School: { 
+          include: { 
+            subscription: true 
+          } 
+        } 
+      },
     });
+    
     if (existingUser) {
+      // Check if user has pending payment subscription
+      if (existingUser.School?.subscription?.status === 'pending_payment') {
+        return NextResponse.json({
+          error: 'ACCOUNT_PENDING_PAYMENT',
+          message: 'You have an incomplete registration. Please complete your payment to continue.',
+          schoolId: existingUser.schoolId,
+          redirectUrl: '/subscription-required?pending=true'
+        }, { status: 409 });
+      }
+      
       return NextResponse.json(
         { error: 'An account with this email already exists' },
         { status: 409 }

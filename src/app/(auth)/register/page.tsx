@@ -42,9 +42,7 @@ function RegisterContent() {
     fetch('/api/admin/plans?cache=true')
       .then(res => res.json())
       .then(data => {
-        console.log('All plans from API:', data.plans);
         const activePlans = (data.plans || []).filter((p: PlanFromDB) => p.isActive);
-        console.log('Active plans:', activePlans);
         setPlans(activePlans);
         setLoading(false);
       })
@@ -141,6 +139,14 @@ function RegisterContent() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.error === 'ACCOUNT_PENDING_PAYMENT') {
+          // User has pending payment, redirect to payment screen
+          setError(data.message);
+          setTimeout(() => {
+            router.push(data.redirectUrl || '/subscription-required?pending=true');
+          }, 2000);
+          return;
+        }
         setError(data.error || 'Registration failed.');
         return;
       }
@@ -203,6 +209,14 @@ function RegisterContent() {
 
       const registerData = await registerRes.json();
       if (!registerRes.ok) {
+        if (registerData.error === 'ACCOUNT_PENDING_PAYMENT') {
+          // User has pending payment, redirect to payment screen
+          setError(registerData.message);
+          setTimeout(() => {
+            router.push(registerData.redirectUrl || '/subscription-required?pending=true');
+          }, 2000);
+          return;
+        }
         setError(`Registration failed: ${registerData.error || 'Unknown error'}`);
         return;
       }
@@ -430,7 +444,6 @@ function RegisterContent() {
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {plans.map((plan) => {
-                          console.log('Rendering plan:', plan.name, plan.isActive);
                           let featuresList: string[] = [];
                           try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
                           const planColor = plan.name === 'trial' ? 'from-gray-500 to-gray-600' :
@@ -464,7 +477,7 @@ function RegisterContent() {
                               )}
                               <ul className="mt-3 space-y-1">
                                 {featuresList.slice(0, 4).map((f, i) => (
-                                  <li key={i} className="text-xs text-gray-400 flex items-center gap-1.5">
+                                  <li key={`${plan.name}-feature-${i}`} className="text-xs text-gray-400 flex items-center gap-1.5">
                                     <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
