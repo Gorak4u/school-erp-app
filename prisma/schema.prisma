@@ -655,7 +655,7 @@ model Section {
 
 model SchoolSetting {
   id        String   @id @default(cuid())
-  schoolId  String
+  schoolId  String   @default("default")
   group     String
   key       String
   value     String
