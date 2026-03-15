@@ -370,78 +370,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
             </motion.div>
           )}
 
-          {activeTab === 'collections' && (
-            <motion.div
-              key="collections"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <div className="space-y-4">
-                {feeCollections.map((collection, index) => (
-                  <div
-                    key={collection.id || `collection-${index}`}
-                    className={`p-6 rounded-xl border ${
-                      theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {collection.date}
-                        </h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Collected by: {collection.collectedBy}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        collection.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : collection.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {collection.status}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                      <div>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Total</p>
-                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{(collection.totalAmount || 0).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Cash</p>
-                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{(collection.cashAmount || 0).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Cheque</p>
-                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{(collection.chequeAmount || 0).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Online</p>
-                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          ₹{(collection.onlineAmount || 0).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Transactions</p>
-                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {collection.transactionCount}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
+          
           {activeTab === 'discounts' && (
             <motion.div
               key="discounts"
