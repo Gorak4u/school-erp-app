@@ -22,6 +22,7 @@ const roleBasedRoutes: Record<string, string[]> = {
   '/profile': ['admin', 'teacher', 'student', 'parent'],
   '/settings': ['admin'],
   '/fees': ['admin'],
+  '/fee-collection': ['admin'],
 };
 
 // Routes that require specific permissions (used when user has a custom role)
@@ -30,6 +31,7 @@ const permissionBasedRoutes: Record<string, string> = {
   '/teachers': 'view_teachers',
   '/attendance': 'view_attendance',
   '/fees': 'view_fees',
+  '/fee-collection': 'view_fees',
   '/reports': 'view_reports',
   '/settings': 'view_settings',
 };

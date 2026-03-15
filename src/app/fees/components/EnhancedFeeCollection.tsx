@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { 
   CreditCard, 
   Calendar, 
@@ -55,6 +56,17 @@ interface PaymentMethod {
 
 export default function EnhancedFeeCollection({ theme, onClose, studentId, studentData }: EnhancedFeeCollectionProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+
+  // Get current user's full name
+  const getCurrentUserName = () => {
+    if (session?.user) {
+      const firstName = session.user.firstName || session.user.name?.split(' ')[0] || '';
+      const lastName = session.user.lastName || session.user.name?.split(' ')[1] || '';
+      return firstName && lastName ? `${firstName} ${lastName}` : session.user.name || 'Unknown User';
+    }
+    return 'Unknown User';
+  };
   const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('all');
@@ -296,7 +308,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
           feeRecordId: feeId,
           amount,
           paymentMethod: paymentMethod,
-          collectedBy: 'Admin',
+          collectedBy: getCurrentUserName(),
           remarks: promoCode ? `Promo: ${promoCode}` : undefined,
         });
       }
@@ -1142,7 +1154,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                     rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
                     fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
                     parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
-                    collectedBy: studentData?.collectedBy || 'Admin'
+                    collectedBy: studentData?.collectedBy || getCurrentUserName()
                   }}
                   paymentData={{
                     currentYearFees: selectedFees.map(feeId => {

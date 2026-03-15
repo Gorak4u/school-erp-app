@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PaymentReceipt from './PaymentReceipt';
 import { PDFGenerator } from '@/utils/pdfGenerator';
-import { feeRecordsApi } from '@/lib/apiClient';
+import { studentsApi } from '@/lib/apiClient';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,8 +43,8 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const chartTextColor = isDark ? '#fff' : '#000';
   const chartGridColor = isDark ? '#333' : '#ddd';
 
-  // Fetch fee records for the student
-  const [feeRecords, setFeeRecords] = useState<any[]>([]);
+  // Fetch complete student data including fee records and payments
+  const [studentFinancialData, setStudentFinancialData] = useState<any>(null);
   const [loadingRecords, setLoadingRecords] = useState(true);
 
   useEffect(() => {
@@ -52,49 +52,81 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     (async () => {
       try {
         const sid = studentId || studentData?.id;
-        const data = await feeRecordsApi.list({ studentId: sid, pageSize: 200 });
-        setFeeRecords(data.records || data.feeRecords || []);
-      } catch (e) { console.error('Failed to load student fee records', e); }
+        // Use students API to get complete financial data
+        const response = await fetch(`/api/fees/students?studentId=${sid}&pageSize=1`);
+        const data = await response.json();
+        if (data.success && data.data?.students?.length > 0) {
+          setStudentFinancialData(data.data.students[0]);
+        }
+      } catch (e) { console.error('Failed to load student financial data', e); }
       finally { setLoadingRecords(false); }
     })();
   }, [studentId, studentData?.id]);
 
-  // Compute aggregates from real records
-  const totalFees = useMemo(() => feeRecords.reduce((s, r) => s + (r.amount || 0), 0), [feeRecords]);
-  const totalPaid = useMemo(() => feeRecords.reduce((s, r) => s + (r.paidAmount || 0), 0), [feeRecords]);
-  const totalPending = totalFees - totalPaid;
+  // Use data from API or fallback to prop data
+  const apiData = studentFinancialData || studentData;
+  const feeRecords = apiData?.feeRecords || [];
+  
+  // Compute aggregates from API data
+  const totalFees = apiData?.totalFees || 0;
+  const totalPaid = apiData?.totalPaid || 0;
+  const totalPending = apiData?.totalPending || 0;
+  const totalOverdue = apiData?.totalOverdue || 0;
 
-  // Build currentStudentData from prop or computed defaults
-  const currentStudentData = studentData ? {
-    ...studentData,
-    name: studentData.name || studentData.studentName || 'Unknown Student',
-    studentClass: studentData.studentClass || studentData.class || 'N/A',
-    admissionNo: studentData.admissionNo || studentData.rollNo || 'N/A',
-    totalFees: studentData.totalFees ?? totalFees,
-    paid: studentData.paid ?? totalPaid,
-    pending: studentData.pending ?? totalPending,
-    discount: studentData.discount ?? studentData.discountApplied ?? 0,
-    riskLevel: studentData.riskLevel ?? (totalPending > totalFees * 0.5 ? 'high' : totalPending > 0 ? 'medium' : 'low'),
+  // Build currentStudentData from API or prop data
+  const currentStudentData = apiData ? {
+    name: apiData.studentName || apiData.name || 'Unknown Student',
+    studentClass: apiData.studentClass || apiData.class || 'N/A',
+    admissionNo: apiData.admissionNo || apiData.rollNo || 'N/A',
+    rollNo: apiData.rollNo || apiData.admissionNo || 'N/A',
+    parentName: apiData.parentName || 'N/A',
+    contact: apiData.parentPhone || apiData.phone || 'N/A',
+    email: apiData.email || 'N/A',
+    feePlan: apiData.feePlan || 'Standard',
+    scholarship: apiData.scholarship || '',
+    totalFees,
+    paid: totalPaid,
+    pending: totalPending,
+    lateFees: totalOverdue,
+    discount: apiData.discount || 0,
+    nextDueDate: apiData.nextDueDate || '-',
+    nextDueAmount: apiData.nextDueAmount || 0,
+    riskLevel: totalOverdue > 0 ? 'high' : totalPending > totalFees * 0.5 ? 'medium' : 'low',
+    previousYearPending: apiData.previousYearPending || {},
+    paymentStatus: apiData.calculatedPaymentStatus || 'no_payment',
+    lastPaymentDate: apiData.lastPaymentDate || '',
+    section: apiData.section || '',
+    gender: apiData.gender || '',
+    medium: apiData.medium || '',
+    academicYear: apiData.academicYear || '',
   } : {
-    name: 'Select a student', studentClass: '-', admissionNo: '-', parentName: '-', contact: '-', email: '-',
-    feePlan: '-', scholarship: '', totalFees, paid: totalPaid, pending: totalPending,
+    name: 'Select a student', studentClass: '-', admissionNo: '-', rollNo: '-', parentName: '-', 
+    contact: '-', email: '-', feePlan: '-', scholarship: '', totalFees: 0, paid: 0, pending: 0,
     lateFees: 0, discount: 0, nextDueDate: '-', nextDueAmount: 0, riskLevel: 'low',
-    previousYearPending: {},
+    previousYearPending: {}, paymentStatus: 'no_payment', lastPaymentDate: '',
   };
 
-  // Payment history from fee records with paid amounts
-  const paymentHistory = useMemo(() => feeRecords
-    .filter(r => r.paidAmount > 0)
-    .map(r => ({
-      id: r.id,
-      date: r.updatedAt?.split('T')[0] || r.dueDate || '',
-      amount: r.paidAmount,
-      method: r.paymentMethod || 'N/A',
-      receipt: r.receiptNumber || `RCP-${r.id.slice(-6)}`,
-      type: r.feeStructure?.name || r.remarks || 'Fee',
-      status: 'success',
-    }))
-  , [feeRecords]);
+  // Payment history from fee records with payments
+  const paymentHistory = useMemo(() => {
+    const allPayments = [];
+    feeRecords.forEach(record => {
+      if (record.payments && record.payments.length > 0) {
+        record.payments.forEach(payment => {
+          allPayments.push({
+            id: payment.id,
+            date: payment.paymentDate?.split('T')[0] || payment.createdAt?.split('T')[0] || '',
+            amount: payment.amount,
+            method: payment.paymentMethod || 'N/A',
+            receipt: payment.receiptNumber || `RCP-${payment.id.slice(-6)}`,
+            type: record.feeStructure?.name || 'Fee Payment',
+            status: 'success',
+            collectedBy: payment.collectedBy || 'Staff',
+          });
+        });
+      }
+    });
+    return allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [feeRecords]);
 
   // Fee breakdown chart from records
   const catAmounts = useMemo(() => {
