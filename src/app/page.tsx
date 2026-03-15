@@ -138,6 +138,8 @@ export default function Home() {
                     color: "blue"
                   },
                   {
+                    icon: "👩‍🏫",
+                    name: "Teacher",
                     role: "Class management",
                     email: "teacher@schoolerp.in",
                     password: "[SET_BY_ADMIN]",
@@ -179,7 +181,7 @@ export default function Home() {
                             {account.icon}
                           </div>
                           <div>
-                            <h3 className="font-bold text-gray-900">{account.name}</h3>
+                            <h3 className="font-bold text-gray-900">{account.name || 'User'}</h3>
                             <p className="text-sm text-gray-500">{account.role}</p>
                           </div>
                         <Badge variant={
@@ -188,7 +190,7 @@ export default function Home() {
                           account.color === 'purple' ? 'secondary' :
                           'warning'
                         }>
-                          {account.name.charAt(0)}
+                          {account.name?.charAt(0) || 'U'}
                         </Badge>
                       </div>
                     </div>
