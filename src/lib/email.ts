@@ -108,14 +108,19 @@ export async function sendSchoolEmail({
   const port = parseInt(smtp.smtp_port || process.env.SMTP_PORT || '587');
   const user = smtp.smtp_username || process.env.SMTP_USER;
   const pass = smtp.smtp_password || process.env.SMTP_PASS;
-  const from = smtp.smtp_from_email || user; // Use authenticated user as fallback, not env SMTP_FROM
+  const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
+  
+  // For Gmail, ensure the from address is the authenticated user
+  // Gmail doesn't allow sending from a different email address
+  const finalFrom = (host?.includes('gmail.com') || host?.includes('smtp.gmail.com')) ? user : from;
 
   console.log('Final SMTP settings:', { 
     host: host ? 'SET' : 'NOT SET', 
     port, 
     user: user ? 'SET' : 'NOT SET',
     pass: pass ? 'SET' : 'NOT SET',
-    from
+    from,
+    finalFrom
   });
 
   if (!host || !user || !pass) {
@@ -138,7 +143,7 @@ export async function sendSchoolEmail({
 
   try {
     await transporter.sendMail({
-      from: `"${smtp.smtp_from_name || 'School'}" <${from}>`,
+      from: `"${smtp.smtp_from_name || 'School'}" <${finalFrom}>`,
       to,
       subject,
       html,
