@@ -136,7 +136,22 @@ export default function RolesPage() {
 
       {/* Create / Edit Form */}
       {showForm && (
-        <div className={`${cardCls} p-6 ring-2 ring-purple-500`}>
+        <div className={`${cardCls} p-6 ring-2 ring-purple-500 relative`}>
+          {/* Close button in top-right corner */}
+          <button
+            onClick={() => setShowForm(false)}
+            className={`absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+              isDark 
+                ? 'bg-gray-800 text-gray-300 hover:bg-red-900 hover:text-red-300 border border-gray-600' 
+                : 'bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 border border-gray-300'
+            }`}
+            title="Close"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
           <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {editingRole ? `Edit "${editingRole.name}"` : 'Create New Role'}
           </h2>
