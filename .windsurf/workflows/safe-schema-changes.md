@@ -5,7 +5,7 @@ description: Safe database schema changes without data loss
 # Safe Database Schema Changes Workflow
 
 ## ⚠️ CRITICAL WARNING
-**NEVER use `--force-reset` on production databases!** This deletes ALL data.
+**NEVER use `--force-reset` in ANY environment!** This deletes ALL data in development AND production. Use only safe alternatives below.
 
 ## 🛡️ Safe Schema Change Process
 
@@ -17,18 +17,21 @@ if [ "$NODE_ENV" = "production" ]; then
   # Use safe methods below
 else
   echo "✅ Development environment detected"
-  # Can use --force-reset if explicitly confirmed
+  # Still NEVER use --force-reset even in development
 fi
 ```
 
 ### 2. For Adding New Fields (like autoRenew)
 ```bash
-# SAFE: Create migration instead of reset
+# ✅ SAFE: Create migration instead of reset
 npx prisma migrate dev --name add-auto-renew-field
 
-# OR if you already changed schema.prisma:
+# ✅ SAFE: Apply schema changes without data loss
 npx prisma db push --force  # NOT --force-reset
 npx prisma generate
+
+# ❌ NEVER: This deletes ALL data
+# npx prisma db push --force-reset  # FORBIDDEN
 ```
 
 ### 3. For Complex Schema Changes
