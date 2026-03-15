@@ -141,10 +141,22 @@ export async function POST(request: NextRequest) {
     // Try to send welcome email if not a super admin and user has email
     if (!ctx.isSuperAdmin && targetSchoolId && user.email) {
       try {
+        console.log('📧 Starting welcome email process:', {
+          userEmail: user.email,
+          schoolId: targetSchoolId,
+          isSuperAdmin: ctx.isSuperAdmin
+        });
+        
         // Fetch school details and subscription for the email
         const school = await (saasPrisma as any).school.findUnique({
           where: { id: targetSchoolId },
           include: { subscription: true }
+        });
+
+        console.log('🏫 School data fetched:', {
+          schoolFound: !!school,
+          schoolName: school?.name,
+          hasSubscription: !!school?.subscription
         });
 
         if (school) {
@@ -159,28 +171,48 @@ export async function POST(request: NextRequest) {
             password: password // Include plain text password for first login
           };
 
+          console.log('📧 Email data prepared:', {
+            hasUser: !!emailData.user,
+            hasSchool: !!emailData.school,
+            hasLoginUrl: !!emailData.loginUrl,
+            hasPassword: !!emailData.password
+          });
+
           const { subject, html } = generateWelcomeEmail(emailData);
           
-          await sendSchoolEmail({
+          console.log('📧 Email template generated:', {
+            subject,
+            htmlLength: html.length
+          });
+          
+          const emailResult = await sendSchoolEmail({
             to: user.email,
             subject,
             html,
             schoolId: targetSchoolId
           });
           
-          console.log(`Welcome email sent to new user ${user.email} using school SMTP`);
+          console.log('📧 Email send result:', emailResult);
+          console.log(`✅ Welcome email sent to new user ${user.email} using school SMTP`);
         } else {
-          console.log(`School not found for ID: ${targetSchoolId} or no email provided, cannot send welcome email`);
+          console.log(`❌ School not found for ID: ${targetSchoolId}, cannot send welcome email`);
         }
       } catch (emailErr: any) {
-        console.error('Failed to send welcome email to new user:', {
+        console.error('❌ Failed to send welcome email to new user:', {
           error: emailErr.message,
           stack: emailErr.stack,
           userEmail: user.email,
-          schoolId: targetSchoolId
+          schoolId: targetSchoolId,
+          errorDetails: emailErr
         });
         // Continue anyway since user creation was successful
       }
+    } else {
+      console.log('📧 Skipping welcome email:', {
+        isSuperAdmin: ctx.isSuperAdmin,
+        hasSchoolId: !!targetSchoolId,
+        hasUserEmail: !!user.email
+      });
     }
 
     return NextResponse.json({ user }, { status: 201 });
