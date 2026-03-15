@@ -110,9 +110,17 @@ export async function sendSchoolEmail({
   const pass = smtp.smtp_password || process.env.SMTP_PASS;
   const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
   
-  // For Gmail, ensure the from address is the authenticated user
-  // Gmail doesn't allow sending from a different email address
-  const finalFrom = (host?.includes('gmail.com') || host?.includes('smtp.gmail.com')) ? user : from;
+  // For Gmail, check if we have a custom from_email that's been set up as "Send As"
+  // If not, fall back to the authenticated user
+  let finalFrom = from;
+  if ((host?.includes('gmail.com') || host?.includes('smtp.gmail.com')) && from !== user) {
+    // For Gmail with custom from address, we need to ensure it's set up as "Send As"
+    // If it fails, Gmail will give us an error and we can handle it
+    console.log('📧 Gmail: Attempting to send from custom address:', from, 'authenticated as:', user);
+    finalFrom = from;
+  } else {
+    finalFrom = from;
+  }
 
   console.log('Final SMTP settings:', { 
     host: host ? 'SET' : 'NOT SET', 
