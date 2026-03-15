@@ -3,7 +3,7 @@ import { School, Subscription, User } from '@prisma/client';
 export interface WelcomeEmailData {
   user: User;
   school: School;
-  subscription: Subscription;
+  subscription: Subscription | null;
   loginUrl: string;
   dashboardUrl: string;
   paymentUrl?: string;
@@ -15,9 +15,9 @@ export interface WelcomeEmailData {
 export function generateWelcomeEmail(data: WelcomeEmailData) {
   const { user, school, subscription, loginUrl, dashboardUrl, paymentUrl, password, planStartDate, planEndDate } = data;
   
-  const isTrial = subscription.plan === 'trial';
-  const isPaid = subscription.plan === 'pro' || subscription.plan === 'premium';
-  const trialDays = subscription.trialEndsAt 
+  const isTrial = subscription?.plan === 'trial';
+  const isPaid = subscription?.plan === 'pro' || subscription?.plan === 'premium';
+  const trialDays = subscription?.trialEndsAt 
     ? Math.ceil((new Date(subscription.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
@@ -67,6 +67,7 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
             </p>
         </div>
 
+        ${subscription ? `
         <div class="card">
             <h2>💳 Subscription Details</h2>
             <p>
@@ -94,6 +95,7 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
             </ul>
             ${paymentUrl ? `<a href="${paymentUrl}" class="btn">💳 Upgrade Now</a>` : ''}
         </div>
+        ` : ''}
         ` : ''}
 
         <div class="card">
