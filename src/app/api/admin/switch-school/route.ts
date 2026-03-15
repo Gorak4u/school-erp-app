@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         },
       });
       
-      console.log(`Created school user for ${session.user.email} with temp password: ${tempPassword}`);
+      console.log(`Created school user for ${session.user.email}`);
     }
 
     return NextResponse.json({

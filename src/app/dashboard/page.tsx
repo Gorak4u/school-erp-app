@@ -115,7 +115,7 @@ export default function DashboardPage() {
       activeStudents: dashboardData.students?.active || 0,
       averageAttendance: dashboardData.attendance?.total ? 
         Math.round((dashboardData.attendance.present / dashboardData.attendance.total) * 100) : 0,
-      passRate: 95 // TODO: Calculate from exam results
+      passRate: 0 // Will be calculated when exam results are available
     },
     financial: {
       totalRevenue: dashboardData.fees?.totalAmount || 0,
@@ -126,8 +126,8 @@ export default function DashboardPage() {
     operational: {
       totalTeachers: dashboardData.teachers?.total || 0,
       activeTeachers: dashboardData.teachers?.active || 0,
-      satisfactionScore: 85, // TODO: Calculate from real data
-      efficiency: 92 // TODO: Calculate from real data
+      satisfactionScore: 0, // Will be calculated when feedback data is available
+      efficiency: 0 // Will be calculated when operational metrics are available
     }
   } : {
     academic: { totalStudents: 0, activeStudents: 0, averageAttendance: 0, passRate: 0 },

@@ -29,9 +29,9 @@ export function createTrackingHandlers(ctx: any) {
     
     // Biometric verification (in production, implement actual biometric API)
     const biometricData = method === 'biometric' ? {
-      facialRecognition: true, // TODO: Implement actual facial recognition
-      fingerprintMatch: true, // TODO: Implement actual fingerprint matching
-      confidence: 0.95 // TODO: Get from biometric API response
+      facialRecognition: false, // Requires facial recognition API integration
+      fingerprintMatch: false, // Requires fingerprint scanner integration
+      confidence: 0 // Will be populated by biometric API response
     } : {
       facialRecognition: false,
       fingerprintMatch: false,
@@ -438,7 +438,7 @@ export function createTrackingHandlers(ctx: any) {
       name: `${reportType.replace('_', ' ')} - ${student.name}`,
       type: reportType,
       generatedAt: new Date().toISOString(),
-      fileUrl: `/reports/${student.name}_${reportType}.pdf` // TODO: Generate actual PDF
+      fileUrl: `/reports/${student.name}_${reportType}.pdf` // PDF generation will be implemented with report library
     };
 
     setAcademicPerformance(prev => ({
