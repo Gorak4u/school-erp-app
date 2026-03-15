@@ -70,6 +70,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('all');
+  const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [historySearch, setHistorySearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [customAmounts, setCustomAmounts] = useState<{[key: string]: number}>({});
@@ -88,6 +89,23 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
 
   // Fetch optimized payment history when history tab is activated
+  useEffect(() => {
+    // Fetch academic years from database
+    const fetchAcademicYears = async () => {
+      try {
+        const response = await fetch('/api/school-structure/academic-years');
+        if (response.ok) {
+          const data = await response.json();
+          setAcademicYears(data.academicYears || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch academic years:', error);
+      }
+    };
+
+    fetchAcademicYears();
+  }, []);
+
   useEffect(() => {
     const fetchPaymentHistory = async () => {
       if (activeTab !== 'history' || !studentId) return;
@@ -552,9 +570,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   onChange={(e) => setSelectedYear(e.target.value)}
                   className={`px-4 py-2 rounded-lg border ${inputCls}`}
                 >
-                  <option value="2024-25">2024-25</option>
-                  <option value="2023-24">2023-24</option>
-                  <option value="2022-23">2022-23</option>
+                  <option value="all">All Years</option>
+                  {academicYears.map((year) => (
+                    <option key={year.id} value={year.year}>
+                      {year.name || year.year}
+                    </option>
+                  ))}
                 </select>
                 
                 <select
