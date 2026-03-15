@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const group = searchParams.get('group');
 
-    const where = group ? { group } : {};
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    const where = group ? { group, schoolId: ctx.schoolId } : { schoolId: ctx.schoolId };
 
     const settings = await (schoolPrisma as any).schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
 
@@ -27,12 +31,21 @@ export async function GET(request: NextRequest) {
 // Upsert a single setting
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { group, key, value } = await request.json();
 
     const setting = await (schoolPrisma as any).schoolSetting.upsert({
-      where: { group_key: { group, key } },
+      where: { 
+        schoolId_group_key: { 
+          schoolId: ctx.schoolId, 
+          group, 
+          key 
+        } 
+      },
       update: { value },
-      create: { group, key, value },
+      create: { schoolId: ctx.schoolId, group, key, value },
     });
 
     return NextResponse.json({ setting }, { status: 201 });
@@ -45,13 +58,22 @@ export async function POST(request: NextRequest) {
 // Batch upsert: save an entire group at once
 export async function PUT(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { group, settings } = await request.json() as { group: string; settings: Record<string, string> };
 
     const ops = Object.entries(settings).map(([key, value]) =>
       (schoolPrisma as any).schoolSetting.upsert({
-        where: { group_key: { group, key } },
+        where: { 
+          schoolId_group_key: { 
+            schoolId: ctx.schoolId, 
+            group, 
+            key 
+          } 
+        },
         update: { value },
-        create: { group, key, value },
+        create: { schoolId: ctx.schoolId, group, key, value },
       })
     );
 
