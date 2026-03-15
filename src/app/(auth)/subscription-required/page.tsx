@@ -44,15 +44,27 @@ export default function SubscriptionRequiredPage() {
           </p>
 
           <div className="space-y-3">
-            <Link href={isPendingPayment ? "/billing" : "/pricing"}>
-              <motion.button
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isPendingPayment ? 'Complete Payment' : 'Choose a Plan'}
-              </motion.button>
-            </Link>
+            {isPendingPayment ? (
+              <Link href="/billing">
+                <motion.button
+                  className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white rounded-lg font-medium transition-all"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Complete Payment
+                </motion.button>
+              </Link>
+            ) : (
+              <Link href="/pricing">
+                <motion.button
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Choose a Plan
+                </motion.button>
+              </Link>
+            )}
 
             <Link href="/login">
               <button className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm transition-all mt-3">

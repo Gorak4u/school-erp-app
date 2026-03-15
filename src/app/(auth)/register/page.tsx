@@ -63,6 +63,7 @@ function RegisterContent() {
   const [success, setSuccess] = useState('');
   const [currentStep, setCurrentStep] = useState(selectedPlan ? 2 : 1);
   const [showPassword, setShowPassword] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     if (planParam && plans.find(p => p.name === planParam)) {
@@ -146,7 +147,16 @@ function RegisterContent() {
       });
 
       if (loginResult?.ok) {
-        router.push('/dashboard');
+        // Check subscription status after login
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        
+        // Redirect based on subscription status
+        if (session?.user?.subscriptionStatus === 'pending_payment') {
+          router.push('/subscription-required?pending=true');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         router.push('/login?message=Registration successful! Please log in.');
       }
@@ -154,6 +164,145 @@ function RegisterContent() {
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!planInfo) {
+      setError('Plan information not available');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    setError('');
+
+    try {
+      // First register the user
+      setSuccess('Creating your account...');
+      const registerRes = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolName: formData.schoolName,
+          email: formData.email,
+          phone: formData.phone,
+          adminFirstName: formData.firstName,
+          adminLastName: formData.lastName,
+          adminEmail: formData.email,
+          adminPassword: formData.password,
+          plan: selectedPlan,
+        }),
+      });
+
+      const registerData = await registerRes.json();
+      if (!registerRes.ok) {
+        setError(`Registration failed: ${registerData.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Auto-login after registration
+      const loginResult = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (!loginResult?.ok) {
+        setError('Login failed after registration. Please try logging in manually.');
+        return;
+      }
+
+      setSuccess('Account created! Initializing payment...');
+
+      // Now create payment order
+      const response = await fetch('/api/create-payment-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: planInfo.name,
+          amount: Math.round(planInfo.priceMonthly * 1.18), // Include GST
+          currency: 'INR',
+          billingCycle: 'monthly',
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Payment order response:', data);
+
+      if (!data.success) {
+        setError(`Payment order failed: ${data.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Check if Razorpay is available
+      if (typeof (window as any).Razorpay === 'undefined') {
+        setError('Payment gateway is not available. Please refresh the page and try again.');
+        return;
+      }
+
+      // Initialize Razorpay
+      const options = {
+        key: data.key_id,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: 'School ERP',
+        description: `Subscription Plan: ${planInfo.displayName} (Monthly)`,
+        order_id: data.order.id,
+        handler: async function (response: any) {
+          console.log('Payment successful:', response);
+          
+          // Verify payment
+          const verifyResponse = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              signature: response.razorpay_signature,
+              billingCycle: 'monthly',
+            }),
+          });
+
+          const verifyData = await verifyResponse.json();
+          console.log('Payment verification response:', verifyData);
+
+          if (verifyData.success) {
+            // Payment successful, redirect to dashboard
+            setSuccess('Payment successful! Redirecting to dashboard...');
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 2000);
+          } else {
+            setError(`Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
+          }
+        },
+        prefill: {
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+        },
+        theme: {
+          color: '#3399cc',
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Payment modal dismissed');
+            setIsProcessingPayment(false);
+          }
+        }
+      };
+
+      console.log('Initializing Razorpay with options:', options);
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error('Payment error:', error);
+      setError(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -171,6 +320,11 @@ function RegisterContent() {
       // If trial, register immediately
       if (isTrial) {
         handleRegister();
+        return;
+      }
+      // If paid plan, go to payment step
+      if (isPaid) {
+        setCurrentStep(3);
         return;
       }
     }
@@ -468,9 +622,9 @@ function RegisterContent() {
                   </button>
                 )}
                 {currentStep === 3 && isPaid && (
-                  <button onClick={handleRegister} disabled={isLoading}
+                  <button onClick={handlePayment} disabled={isProcessingPayment}
                     className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    {isLoading ? 'Processing...' : `Pay ₹${planInfo ? Math.round(planInfo.priceMonthly * 1.18).toLocaleString() : ''} & Create Account`}
+                    {isProcessingPayment ? 'Initializing Payment...' : `Pay ₹${planInfo ? Math.round(planInfo.priceMonthly * 1.18).toLocaleString() : ''} & Create Account`}
                   </button>
                 )}
               </div>

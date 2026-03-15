@@ -116,6 +116,28 @@ export const authOptions = {
         token.lastName = user.lastName;
         token.schema = user.schema;
         token.isSuperAdmin = (user as any).isSuperAdmin ?? (user.role === 'super_admin');
+        
+        // Fetch subscription status for school users
+        if (user.schema === 'school' && user.schoolId) {
+          try {
+            const subscription = await (schoolPrisma as any).subscription.findUnique({
+              where: { schoolId: user.schoolId },
+              select: {
+                status: true,
+                trialEndsAt: true,
+                plan: true,
+              }
+            });
+            
+            if (subscription) {
+              token.subscriptionStatus = subscription.status;
+              token.trialEndsAt = subscription.trialEndsAt;
+              token.plan = subscription.plan;
+            }
+          } catch (error) {
+            console.error('Failed to fetch subscription for JWT:', error);
+          }
+        }
       }
       return token;
     },
@@ -131,6 +153,9 @@ export const authOptions = {
         session.user.lastName = token.lastName;
         session.user.schema = token.schema;
         session.user.isSuperAdmin = token.isSuperAdmin;
+        session.user.subscriptionStatus = token.subscriptionStatus;
+        session.user.trialEndsAt = token.trialEndsAt;
+        session.user.plan = token.plan;
       }
       return session;
     },

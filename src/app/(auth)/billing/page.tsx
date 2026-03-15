@@ -63,15 +63,19 @@ export default function BillingPage() {
 
   const handleUpgrade = async (planName: string) => {
     try {
+      console.log('Starting payment process for plan:', planName);
+      
       // Find plan in database
       const plan = plans.find(p => p.name === planName);
       if (!plan) {
         console.error('Plan not found:', planName);
+        alert('Plan not found. Please try again.');
         return;
       }
 
       // Get pricing from database
       const amount = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
+      console.log('Payment amount:', amount, 'Billing cycle:', billing);
 
       // Create payment order
       const response = await fetch('/api/create-payment-order', {
@@ -88,9 +92,18 @@ export default function BillingPage() {
       });
 
       const data = await response.json();
+      console.log('Payment order response:', data);
 
       if (!data.success) {
         console.error('Payment order failed:', data.error);
+        alert(`Payment order failed: ${data.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Check if Razorpay is available
+      if (typeof (window as any).Razorpay === 'undefined') {
+        console.error('Razorpay not loaded');
+        alert('Payment gateway is not available. Please refresh the page and try again.');
         return;
       }
 
@@ -103,6 +116,8 @@ export default function BillingPage() {
         description: `Subscription Plan: ${plan.name.toUpperCase()} (${billing === 'monthly' ? 'Monthly' : 'Yearly'})`,
         order_id: data.order.id,
         handler: async function (response: any) {
+          console.log('Payment response:', response);
+          
           // Verify payment
           const verifyResponse = await fetch('/api/verify-payment', {
             method: 'POST',
@@ -119,13 +134,15 @@ export default function BillingPage() {
           });
 
           const verifyData = await verifyResponse.json();
+          console.log('Payment verification response:', verifyData);
 
           if (verifyData.success) {
             // Payment successful, redirect to dashboard
+            alert('Payment successful! Redirecting to dashboard...');
             window.location.href = '/dashboard';
           } else {
             console.error('Payment verification failed:', verifyData.error);
-            alert('Payment verification failed. Please contact support.');
+            alert(`Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
           }
         },
         prefill: {
@@ -135,13 +152,19 @@ export default function BillingPage() {
         theme: {
           color: '#3399cc',
         },
+        modal: {
+          ondismiss: function() {
+            console.log('Payment modal dismissed');
+          }
+        }
       };
 
+      console.log('Initializing Razorpay with options:', options);
       const razorpay = new (window as any).Razorpay(options);
       razorpay.open();
     } catch (error) {
       console.error('Payment error:', error);
-      alert('Payment failed. Please try again.');
+      alert(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     }
   };
 

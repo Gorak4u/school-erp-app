@@ -136,7 +136,9 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>₹{(record.paidAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
-                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>₹{(record.discount || 0).toLocaleString()}</td>
+                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                          }`}>₹{(record.discount || 0).toLocaleString()}</td>
+                          <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>₹{(record.pendingAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${

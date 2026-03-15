@@ -79,17 +79,7 @@ export default function LoginPage() {
     });
   };
 
-  const demoCredentials = [
-    {
-      role: 'Administrator',
-      email: 'admin@yourschool.com',
-      password: '[SET_BY_ADMIN]',
-      icon: '👨‍💼',
-      color: 'from-blue-500 to-cyan-500',
-      description: 'Full system access and control'
-    }
-  ];
-
+  
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative">
       {/* Dynamic Background */}
@@ -442,46 +432,6 @@ export default function LoginPage() {
                     </motion.button>
                   </motion.div>
                 </form>
-
-                {/* Demo Credentials */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1.1 }}
-                  className="mt-8"
-                >
-                  <div className="text-center mb-4">
-                    <span className="text-xs text-gray-500 uppercase tracking-wider">Demo Access</span>
-                  </div>
-                  <div className="space-y-2">
-                    {demoCredentials.map((demo, index) => (
-                      <motion.div
-                        key={index}
-                        className="group cursor-pointer"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.8, delay: 1.2 + index * 0.1 }}
-                        whileHover={{ x: 5 }}
-                        onClick={() => {
-                          setFormData({ email: demo.email, password: demo.password });
-                        }}
-                      >
-                        <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg border border-gray-700 hover:border-gray-600 transition-all duration-300">
-                          <div className={`w-10 h-10 bg-gradient-to-br ${demo.color} rounded-lg flex items-center justify-center text-lg`}>
-                            {demo.icon}
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-white">{demo.role}</div>
-                            <div className="text-xs text-gray-400">{demo.description}</div>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Click to fill
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
 
                 {/* Footer Links */}
                 <motion.div

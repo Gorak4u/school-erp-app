@@ -6,6 +6,8 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { ensureSuperAdmin } from '@/lib/super-admin-init';
 
+export const runtime = 'nodejs';
+
 // Routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required'];
 

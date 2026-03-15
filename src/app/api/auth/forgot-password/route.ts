@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { sendEmail, passwordResetEmailHtml } from '@/lib/email';
 // Note: sendEmail() uses SaaS SMTP (SaasSetting group: saas_smtp) for platform emails like password reset
-import crypto from 'crypto';
+
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
@@ -51,8 +52,10 @@ export async function POST(req: Request) {
       await (schoolPrisma as any).school_VerificationToken.deleteMany({ where: { identifier } });
     }
 
-    // Generate new token
-    const token = crypto.randomBytes(32).toString('hex');
+    // Generate new token using Web Crypto API
+    const arrayBuffer = new Uint8Array(32);
+    crypto.getRandomValues(arrayBuffer);
+    const token = Array.from(arrayBuffer, byte => byte.toString(16).padStart(2, '0')).join('');
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     // Create token in appropriate schema
