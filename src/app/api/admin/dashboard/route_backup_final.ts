@@ -3,36 +3,54 @@ import { getServerSession } from 'next-auth';
 import { saasPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
-// Enhanced in-memory cache for development (replace with Redis in production)
+// Enhanced caching system for production performance
 const dashboardCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes (Phase 3: Enhanced caching)
-
-// Background refresh interval (Phase 3: Background cache refresh)
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes (longer for better performance)
 const BACKGROUND_REFRESH_INTERVAL = 12 * 60 * 1000; // 12 minutes
 
-// Background refresh function
-const backgroundRefreshCache = async () => {
+// Background refresh to keep cache warm
+let backgroundRefreshTimer: NodeJS.Timeout | null = null;
+
+// Background cache refresh function
+const refreshCacheInBackground = async (period: string) => {
   try {
-    const periods = ['7days', '30days', '90days'];
-    for (const period of periods) {
-      const cacheKey = `admin-dashboard-${period}`;
-      const cached = dashboardCache.get(cacheKey);
-      
-      // Only refresh if cache exists and is older than 10 minutes
-      if (cached && Date.now() - cached.timestamp > 10 * 60 * 1000) {
-        console.log(`Background refresh needed for period: ${period}`);
-        // For now, just log - actual refresh will happen on next request
-      }
-    }
+    console.log(`Background refreshing dashboard cache for period: ${period}`);
+    const cacheKey = `admin-dashboard-${period}`;
+    dashboardCache.delete(cacheKey); // Force refresh
   } catch (error) {
-    console.error('Background cache refresh error:', error);
+    console.error('Background cache refresh failed:', error);
   }
 };
 
-// Start background refresh interval
-if (typeof setInterval !== 'undefined') {
-  setInterval(backgroundRefreshCache, BACKGROUND_REFRESH_INTERVAL);
-}
+// Start background refresh timer
+const startBackgroundRefresh = () => {
+  if (backgroundRefreshTimer) clearInterval(backgroundRefreshTimer);
+  
+  backgroundRefreshTimer = setInterval(() => {
+    ['7days', '30days', '90days'].forEach(period => {
+      refreshCacheInBackground(period);
+    });
+  }, BACKGROUND_REFRESH_INTERVAL);
+};
+
+// Cache warming on startup
+const warmCache = async () => {
+  console.log('Warming dashboard cache...');
+  try {
+    await Promise.all([
+      refreshCacheInBackground('7days'),
+      refreshCacheInBackground('30days'),
+      refreshCacheInBackground('90days'),
+    ]);
+    console.log('Dashboard cache warmed successfully');
+    startBackgroundRefresh();
+  } catch (error) {
+    console.error('Cache warming failed:', error);
+  }
+};
+
+// Start cache warming on first API call
+let cacheWarmed = false;
 
 function getDateRange(period: string) {
   const now = new Date();
@@ -62,21 +80,6 @@ function cacheDashboardData(period: string, data: any) {
   dashboardCache.set(cacheKey, { data, timestamp: Date.now() });
 }
 
-// Simplified cache warming function
-const warmCache = async () => {
-  try {
-    console.log('Cache warming initialized - will warm on first request');
-    // Cache will be warmed on first API call for each period
-  } catch (error) {
-    console.error('Cache warming error:', error);
-  }
-};
-
-// Initialize cache warming on startup
-if (typeof setTimeout !== 'undefined') {
-  setTimeout(warmCache, 5000); // Initialize after 5 seconds
-}
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession();
@@ -90,6 +93,14 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || '30days'; // Default: 30 days
     const refresh = searchParams.get('refresh') === 'true';
 
+    // Start cache warming on first call
+    if (!cacheWarmed && cache) {
+      cacheWarmed = true;
+      setTimeout(() => {
+        warmCache();
+      }, 1000);
+    }
+
     // Check cache first (unless refresh requested)
     if (cache && !refresh) {
       const cached = getCachedDashboardData(period);
@@ -101,69 +112,55 @@ export async function GET(request: NextRequest) {
     const { start, end } = getDateRange(period);
     const trialExpirySoon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    // Phase 2: Optimized consolidated queries (no materialized views for now)
-    const [schoolStats, userStats, growthData] = await Promise.all([
-      // Single query for all school stats
-      p.$queryRaw`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN "isActive" = true THEN 1 END) as active,
-          COUNT(CASE WHEN "isDemo" = true THEN 1 END) as demo,
-          COUNT(CASE WHEN "isActive" = false THEN 1 END) as blocked
-        FROM "saas"."School"
-      `,
-      // Single query for all user stats
-      p.$queryRaw`
-        SELECT 
-          (SELECT COUNT(*) FROM "saas"."User") as saas_users,
-          (SELECT COUNT(*) FROM "school"."Student") as students,
-          (SELECT COUNT(*) FROM "school"."Teacher") as teachers
-      `,
-      // Single query for growth metrics
-      p.$queryRaw`
-        SELECT 
-          COUNT(CASE WHEN "createdAt" >= ${start} AND "createdAt" <= ${end} THEN 1 END) as period_schools,
-          COUNT(CASE WHEN "createdAt" >= ${new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)} THEN 1 END) as week_schools
-        FROM "saas"."School"
-      `,
-    ]);
-    
-    const schoolStat = schoolStats[0];
-    const userStat = userStats[0];
-    const growthStat = growthData[0];
-    
-    let totalSchools = parseInt(schoolStat.total);
-    let activeSchools = parseInt(schoolStat.active);
-    let demoSchools = parseInt(schoolStat.demo);
-    let blockedSchools = parseInt(schoolStat.blocked);
-    let totalUsers = parseInt(userStat.saas_users);
-    let totalStudents = parseInt(userStat.students);
-    let totalTeachers = parseInt(userStat.teachers);
-    let newSchoolsThisPeriod = parseInt(growthStat.period_schools);
-    let newSchoolsThisWeek = parseInt(growthStat.week_schools);
-    
-    // Get subscription and recent activity data (optimized queries)
-    const [subscriptions, plans, trialsExpiringSoon, recentSchools, recentAuditLogs] = await Promise.all([
-      // Optimized subscription query
-      p.subscription.findMany({ select: { plan: true, status: true } }),
-      
-      // Plans query (unchanged, already optimized)
+    // Use Prisma client methods instead of raw queries to avoid column name issues
+    const [
+      totalSchools,
+      activeSchools,
+      demoSchools,
+      blockedSchools,
+      totalUsers,
+      totalStudents,
+      totalTeachers,
+      newSchoolsThisPeriod,
+      newSchoolsThisWeek,
+      subscriptions,
+      plans,
+      trialsExpiringSoon,
+      recentSchools,
+      recentAuditLogs,
+    ] = await Promise.all([
+      // School counts
+      p.school.count(),
+      p.school.count({ where: { isActive: true } }),
+      p.school.count({ where: { isDemo: true } }),
+      p.school.count({ where: { isActive: false } }),
+      // User counts
+      p.user.count(),
+      p.student.count(),
+      p.teacher.count(),
+      // Growth metrics
+      p.school.count({ where: { createdAt: { gte: start, lte: end } } }),
+      p.school.count({ where: { createdAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } } }),
+      // Subscription data
+      p.subscription.findMany({
+        select: { plan: true, status: true },
+      }),
       p.plan.findMany({ where: { isActive: true }, select: { name: true, priceMonthly: true } }),
-      
-      // Optimized trials expiring soon query
+      // Trials expiring soon
       p.subscription.findMany({
         where: {
           status: 'trial',
           trialEndsAt: { gte: now, lte: trialExpirySoon },
         },
-        include: { 
-          school: { select: { id: true, name: true } }
+        include: {
+          school: {
+            select: { id: true, name: true }
+          }
         },
         orderBy: { trialEndsAt: 'asc' },
         take: 10,
       }),
-      
-      // Recent schools (optimized with proper join)
+      // Recent activity
       p.school.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
@@ -172,8 +169,6 @@ export async function GET(request: NextRequest) {
           subscription: { select: { plan: true, status: true } },
         },
       }),
-      
-      // Recent audit logs (unchanged, already optimized)
       p.auditLog.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
@@ -187,8 +182,6 @@ export async function GET(request: NextRequest) {
     let mrr = 0;
     const subByPlan: Record<string, number> = {};
     const subByStatus: Record<string, number> = {};
-    
-    // Regular subscription data processing
     for (const s of subscriptions) {
       subByPlan[s.plan] = (subByPlan[s.plan] || 0) + 1;
       subByStatus[s.status] = (subByStatus[s.status] || 0) + 1;

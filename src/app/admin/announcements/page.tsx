@@ -40,7 +40,7 @@ export default function AnnouncementsPage() {
     setLoading(true);
     Promise.all([
       fetch('/api/admin/announcements').then(r => r.json()),
-      fetch('/api/admin/plans').then(r => r.json()),
+      fetch('/api/admin/plans?cache=true').then(r => r.json()),
     ]).then(([aData, pData]) => {
       setAnnouncements(aData.announcements || []);
       setPlans((pData.plans || []).filter((p: any) => p.isActive));

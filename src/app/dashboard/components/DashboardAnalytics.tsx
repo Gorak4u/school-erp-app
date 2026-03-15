@@ -16,7 +16,16 @@ export default function DashboardAnalytics({ theme }: DashboardAnalyticsProps) {
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       try {
-        const response = await fetch('/api/dashboard/analytics');
+        // Build query parameters for optimized API call
+        const params = new URLSearchParams();
+        params.append('period', selectedPeriod);
+        if (selectedMetric !== 'all') {
+          params.append('metric', selectedMetric);
+        }
+        params.append('limit', '100'); // Add reasonable limit
+        params.append('cache', 'true'); // Enable caching
+        
+        const response = await fetch(`/api/dashboard/analytics?${params}`);
         if (response.ok) {
           const data = await response.json();
           setAnalyticsData(data);

@@ -36,7 +36,7 @@ function RegisterContent() {
 
   // Fetch plans from database
   useEffect(() => {
-    fetch('/api/admin/plans')
+    fetch('/api/admin/plans?cache=true')
       .then(res => res.json())
       .then(data => {
         setPlans((data.plans || []).filter((p: PlanFromDB) => p.isActive));

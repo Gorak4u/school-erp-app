@@ -9,14 +9,21 @@ export default function AdminDashboard() {
   const isDark = theme === 'dark';
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('30days');
+  const [useCache, setUseCache] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/dashboard')
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.append('period', period);
+    params.append('cache', useCache ? 'true' : 'false');
+    
+    fetch(`/api/admin/dashboard?${params}`)
       .then(r => r.json())
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [period, useCache]);
 
   const card = (label: string, value: string | number, icon: string, color: string, sub?: string) => (
     <div className={`rounded-xl border p-5 ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -62,8 +69,25 @@ export default function AdminDashboard() {
           <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Platform Dashboard</h1>
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Real-time overview of your SaaS platform</p>
         </div>
-        <div className={`text-xs px-3 py-1.5 rounded-full border ${isDark ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-green-50 text-green-700 border-green-200'}`}>
-          ● Live
+        <div className="flex items-center gap-3">
+          <div className={`text-xs px-3 py-1.5 rounded-full border ${isDark ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-green-50 text-green-700 border-green-200'}`}>
+            ● Live
+          </div>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+          >
+            <option value="7days">Last 7 days</option>
+            <option value="30days">Last 30 days</option>
+            <option value="90days">Last 90 days</option>
+          </select>
+          <button
+            onClick={() => setUseCache(!useCache)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+          >
+            {useCache ? '🗄️ Cached' : '🔄 Fresh'}
+          </button>
         </div>
       </div>
 

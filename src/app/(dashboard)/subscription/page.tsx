@@ -55,7 +55,7 @@ export default function SubscriptionPage() {
   // Define functions before useEffect that uses them
   const fetchSubscriptionData = async () => {
     try {
-      const response = await fetch('/api/subscription');
+      const response = await fetch('/api/subscription?cache=true');
       const data = await response.json();
       if (data.subscription) {
         setSubscription(data.subscription);
@@ -69,7 +69,7 @@ export default function SubscriptionPage() {
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch('/api/admin/plans');
+      const response = await fetch('/api/admin/plans?cache=true');
       const data = await response.json();
       if (data.plans) {
         setPlans(data.plans.filter((p: PlanFromDB) => p.isActive));

@@ -17,7 +17,7 @@ export default function AdminSettingsPage() {
   const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
-    fetch('/api/admin/dashboard').then(r => r.json()).then(d => setStats(d)).catch(() => {});
+    fetch('/api/admin/dashboard?period=30days&cache=true').then(r => r.json()).then(d => setStats(d)).catch(() => {});
   }, []);
 
   const handleChangePassword = async (e: React.FormEvent) => {

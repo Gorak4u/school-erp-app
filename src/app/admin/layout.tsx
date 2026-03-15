@@ -39,15 +39,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [searchResults, setSearchResults] = useState<SchoolOption[]>([]);
 
   useEffect(() => {
-    fetch('/api/admin/schools')
+    // Fetch schools with pagination (get first 100 for dropdown)
+    fetch('/api/admin/schools?page=1&limit=100&includeCounts=false')
       .then(r => r.json())
       .then(d => {
         const list = (d.schools || []).map((s: any) => ({ id: s.id, name: s.name, slug: s.slug }));
         setSchools(list);
       })
       .catch(() => {});
-    // Fetch trial expiry alert count
-    fetch('/api/admin/dashboard')
+    // Fetch trial expiry alert count with caching
+    fetch('/api/admin/dashboard?period=30days&cache=true')
       .then(r => r.json())
       .then(d => setAlertCount(d.trialsExpiringSoon?.length || 0))
       .catch(() => {});

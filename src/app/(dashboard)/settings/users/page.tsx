@@ -43,8 +43,8 @@ export default function UsersPage() {
   const load = () => {
     setLoading(true);
     Promise.all([
-      fetch('/api/users').then(r => r.json()),
-      fetch('/api/roles').then(r => r.json()),
+      fetch('/api/users?page=1&limit=100&cache=true').then(r => r.json()),
+      fetch('/api/roles?cache=true').then(r => r.json()),
     ]).then(([uData, rData]) => {
       setUsers(uData.users || []);
       setCustomRoles(rData.roles || []);

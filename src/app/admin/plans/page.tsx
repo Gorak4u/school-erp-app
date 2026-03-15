@@ -59,8 +59,8 @@ export default function AdminPlansPage() {
   const load = () => {
     setLoading(true);
     Promise.all([
-      fetch('/api/admin/plans').then(r => r.json()),
-      fetch('/api/admin/dashboard').then(r => r.json()),
+      fetch('/api/admin/plans?cache=true').then(r => r.json()),
+      fetch('/api/admin/dashboard?period=30days&cache=true').then(r => r.json()),
     ]).then(([pData, dData]) => {
       setPlans(pData.plans || []);
       setSubscriptionCounts(dData.subscriptionsByPlan || {});

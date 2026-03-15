@@ -1,45 +1,109 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 import { logAuditAction } from '@/lib/auditLog';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get schools without cross-schema counts first
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const status = searchParams.get('status'); // active, trial, expired, blocked
+    const search = searchParams.get('search');
+    const plan = searchParams.get('plan');
+    const includeCounts = searchParams.get('includeCounts') !== 'false'; // Default: true
+
+    // Build where clause
+    const whereClause: any = {};
+    if (status && status !== 'all') {
+      if (status === 'active') {
+        whereClause.isActive = true;
+      } else if (status === 'blocked') {
+        whereClause.isActive = false;
+      } else if (status === 'trial') {
+        whereClause.subscription = { status: 'trial' };
+      } else if (status === 'expired') {
+        whereClause.subscription = { status: 'expired' };
+      }
+    }
+    
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    
+    if (plan && plan !== 'all') {
+      whereClause.subscription = { plan };
+    }
+
+    // Get total count for pagination
+    const total = await (saasPrisma as any).school.count({ where: whereClause });
+
+    // Get paginated schools
     const schools = await (saasPrisma as any).school.findMany({
+      where: whereClause,
       include: {
         subscription: true,
         _count: { select: { User: true } }, // Only User is in same schema
       },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    // Get student and teacher counts for each school separately
-    const schoolsWithCounts = await Promise.all(
-      schools.map(async (school: any) => {
-        const [studentCount, teacherCount] = await Promise.all([
-          (schoolPrisma as any).student.count({ where: { schoolId: school.id } }),
-          (schoolPrisma as any).teacher.count({ where: { schoolId: school.id } }),
-        ]);
+    // Optimize counts - only get when requested and use batch queries
+    let schoolsWithCounts = schools;
+    if (includeCounts && schools.length > 0) {
+      // Batch count queries instead of N+1
+      const schoolIds = schools.map((s: any) => s.id);
+      const studentCounts = await (schoolPrisma as any).student.groupBy({
+        by: ['schoolId'],
+        where: { schoolId: { in: schoolIds } },
+        _count: true,
+      });
+      
+      const teacherCounts = await (schoolPrisma as any).teacher.groupBy({
+        by: ['schoolId'],
+        where: { schoolId: { in: schoolIds } },
+        _count: true,
+      });
+      
+      // Map counts back to schools
+      const studentCountMap = Object.fromEntries(
+        studentCounts.map((c: any) => [c.schoolId, c._count])
+      );
+      const teacherCountMap = Object.fromEntries(
+        teacherCounts.map((c: any) => [c.schoolId, c._count])
+      );
+      
+      schoolsWithCounts = schools.map((school: any) => ({
+        ...school,
+        _count: {
+          ...school._count,
+          students: studentCountMap[school.id] || 0,
+          teachers: teacherCountMap[school.id] || 0,
+        },
+      }));
+    }
 
-        return {
-          ...school,
-          _count: {
-            ...school._count,
-            students: studentCount,
-            teachers: teacherCount,
-          },
-        };
-      })
-    );
-
-    return NextResponse.json({ schools: schoolsWithCounts });
+    return NextResponse.json({
+      schools: schoolsWithCounts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

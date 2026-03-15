@@ -341,10 +341,40 @@ export function useFeeState() {
     }
   };
 
-  const loadReportsData = async () => {
+  const loadReportsData = async (filters?: { fromDate?: string; toDate?: string; academicYear?: string; studentClass?: string; limit?: number; cache?: boolean }) => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/fees/statistics');
+      
+      // Build API parameters for optimized filtering
+      const params = new URLSearchParams();
+      
+      if (filters?.academicYear && filters.academicYear !== 'all') {
+        params.append('academicYear', filters.academicYear);
+      }
+      
+      if (filters?.studentClass && filters.studentClass !== 'all') {
+        params.append('class', filters.studentClass);
+      }
+      
+      if (filters?.fromDate) {
+        params.append('fromDate', filters.fromDate);
+      }
+      
+      if (filters?.toDate) {
+        params.append('toDate', filters.toDate);
+      }
+      
+      if (filters?.limit) {
+        params.append('limit', filters.limit.toString());
+      } else {
+        params.append('limit', '1000'); // Default limit for reports
+      }
+      
+      if (filters?.cache !== false) {
+        params.append('cache', 'true');
+      }
+      
+      const response = await fetch(`/api/fees/statistics?${params}`);
       const data = await response.json();
       
       if (data.success) {

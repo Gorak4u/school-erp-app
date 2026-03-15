@@ -16,7 +16,16 @@ export default function DashboardPerformance({ theme }: DashboardPerformanceProp
   useEffect(() => {
     const fetchPerformanceData = async () => {
       try {
-        const response = await fetch('/api/dashboard/performance');
+        // Build query parameters for optimized API call
+        const params = new URLSearchParams();
+        if (selectedDepartment !== 'all') {
+          params.append('department', selectedDepartment);
+        }
+        params.append('timeframe', selectedTimeframe);
+        params.append('limit', '100'); // Add reasonable limit
+        params.append('cache', 'true'); // Enable caching
+        
+        const response = await fetch(`/api/dashboard/performance?${params}`);
         if (response.ok) {
           const data = await response.json();
           setPerformanceData(data);

@@ -50,18 +50,42 @@ export default function AdminUsersPage() {
   const [newPassword, setNewPassword] = useState('Reset@123');
   const [showPw, setShowPw] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch('/api/admin/users')
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', pageSize.toString());
+    if (search) params.append('search', search);
+    if (filterRole) params.append('role', filterRole);
+    if (filterStatus) params.append('status', filterStatus);
+    if (filterSchool) params.append('school', filterSchool);
+    params.append('cache', 'true');
+    
+    fetch(`/api/admin/users?${params}`)
       .then(r => r.json())
-      .then(d => setUsers(d.users || []))
+      .then(d => {
+        console.log('API Response:', d); // Debug log
+        setUsers(d.users || []);
+        if (d.pagination) {
+          setTotalPages(d.pagination.totalPages);
+          setTotalUsers(d.pagination.total);
+        } else {
+          // Fallback if API doesn't return pagination info
+          const userCount = d.users?.length || 0;
+          setTotalPages(Math.max(1, Math.ceil(userCount / pageSize)));
+          setTotalUsers(userCount);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, pageSize, search, filterRole, filterStatus, filterSchool]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -140,7 +164,7 @@ export default function AdminUsersPage() {
   const exportCSV = () => {
     const rows = [
       ['Name', 'Email', 'Role', 'School', 'Status', 'Joined'].join(','),
-      ...filtered.map(u => [`"${u.firstName} ${u.lastName}"`, u.email, u.role, `"${u.schoolName}"`, u.isActive ? 'Active' : 'Blocked', new Date(u.createdAt).toLocaleDateString()].join(',')),
+      ...users.map((u: UserRow) => [`"${u.firstName} ${u.lastName}"`, u.email, u.role, `"${u.schoolName}"`, u.isActive ? 'Active' : 'Blocked', new Date(u.createdAt).toLocaleDateString()].join(',')),
     ];
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
@@ -149,18 +173,8 @@ export default function AdminUsersPage() {
 
   const schools = Array.from(new Set(users.map(u => u.schoolName))).sort();
 
-  const filtered = users.filter(u => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || `${u.firstName} ${u.lastName} ${u.email} ${u.schoolName}`.toLowerCase().includes(q);
-    const matchRole = !filterRole || u.role === filterRole;
-    const matchStatus = !filterStatus || (filterStatus === 'active' ? u.isActive : !u.isActive);
-    const matchSchool = !filterSchool || u.schoolName === filterSchool;
-    return matchSearch && matchRole && matchStatus && matchSchool;
-  });
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const allSelected = paginated.length > 0 && paginated.every(u => selected.has(u.id));
+  // Server-side pagination - no client-side filtering needed
+  const allSelected = users.length > 0 && users.every(u => selected.has(u.id));
 
   // Stats
   const roleCounts = users.reduce((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; return acc; }, {} as Record<string, number>);
@@ -256,10 +270,28 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Results count */}
-      {filtered.length !== users.length && (
-        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Showing {filtered.length} of {users.length} users</p>
-      )}
+      {/* Results count and page size */}
+      <div className="flex items-center justify-between">
+        {(search || filterRole || filterStatus || filterSchool) && (
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Showing {users.length} of {totalUsers} users</p>
+        )}
+        <div className="flex items-center gap-2">
+          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Show:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(parseInt(e.target.value));
+              setPage(1); // Reset to first page when changing page size
+            }}
+            className={`px-2 py-1 rounded text-sm border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+      </div>
 
       {/* Table */}
       {loading ? (
@@ -275,7 +307,7 @@ export default function AdminUsersPage() {
               <tr className={isDark ? 'bg-gray-800/60' : 'bg-gray-50'}>
                 <th className="px-4 py-3 w-10">
                   <input type="checkbox" checked={allSelected}
-                    onChange={() => allSelected ? setSelected(new Set()) : setSelected(new Set(paginated.map(u => u.id)))}
+                    onChange={() => allSelected ? setSelected(new Set()) : setSelected(new Set(users.map((u: UserRow) => u.id)))}
                     className="rounded" />
                 </th>
                 <th className={thCls}>User</th>
@@ -287,7 +319,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-gray-800' : 'divide-gray-100'}`}>
-              {paginated.map(user => {
+              {users.map((user: UserRow) => {
                 const rc = ROLE_CONFIG[user.role] || { color: 'bg-gray-500/20 text-gray-400 border-gray-500/20', icon: '👤' };
                 return (
                   <tr key={user.id} className={`${isDark ? 'hover:bg-gray-800/40' : 'hover:bg-gray-50/80'} transition-colors ${selected.has(user.id) ? (isDark ? 'bg-blue-500/5' : 'bg-blue-50/50') : ''}`}>
@@ -360,7 +392,7 @@ export default function AdminUsersPage() {
               })}
             </tbody>
           </table>
-          {paginated.length === 0 && (
+          {users.length === 0 && (
             <div className={`text-center py-16 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               <div className="text-3xl mb-2">👥</div>
               <p>No users found</p>
@@ -370,10 +402,10 @@ export default function AdminUsersPage() {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {(totalPages > 1 || totalUsers > 0) && (
         <div className="flex items-center justify-between">
           <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Page {page} of {totalPages} · {filtered.length} users
+            Page {page} of {totalPages} · {totalUsers} users
           </span>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}

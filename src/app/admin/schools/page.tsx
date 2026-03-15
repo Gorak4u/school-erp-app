@@ -48,9 +48,13 @@ export default function AdminSchoolsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [filterPlan, setFilterPlan] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [extendDays, setExtendDays] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalSchools, setTotalSchools] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState('');
   const [bulkPlan, setBulkPlan] = useState('');
@@ -58,17 +62,37 @@ export default function AdminSchoolsPage() {
 
   const load = () => {
     setLoading(true);
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', pageSize.toString());
+    if (search) params.append('search', search);
+    if (filterPlan) params.append('plan', filterPlan);
+    if (filterStatus) params.append('status', filterStatus);
+    params.append('includeCounts', 'true');
+    params.append('cache', 'true');
+    
     Promise.all([
-      fetch('/api/admin/schools').then(r => r.json()),
-      fetch('/api/admin/plans').then(r => r.json()),
+      fetch(`/api/admin/schools?${params}`).then(r => r.json()),
+      fetch('/api/admin/plans?cache=true').then(r => r.json()),
     ]).then(([schoolsData, plansData]) => {
       setSchools(schoolsData.schools || []);
       setPlans((plansData.plans || []).filter((p: any) => p.isActive));
+      
+      // Handle pagination metadata
+      if (schoolsData.pagination) {
+        setTotalPages(schoolsData.pagination.totalPages);
+        setTotalSchools(schoolsData.pagination.total);
+      } else {
+        // Fallback calculation
+        const schoolCount = schoolsData.schools?.length || 0;
+        setTotalPages(Math.max(1, Math.ceil(schoolCount / pageSize)));
+        setTotalSchools(schoolCount);
+      }
     }).catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [page, pageSize, search, filterPlan, filterStatus]);
 
   const doAction = async (schoolId: string, action: string, extra?: any) => {
     if (action === 'delete') {
@@ -133,31 +157,28 @@ export default function AdminSchoolsPage() {
 
   const exportCSV = () => {
     const rows = [
-      ['Name', 'Email', 'City', 'State', 'Status', 'Plan', 'Students', 'Teachers', 'Users', 'Joined'].join(','),
-      ...filtered.map(s => [
-        `"${s.name}"`, s.email, s.city || '', s.state || '',
-        s.isActive ? 'Active' : 'Blocked',
-        s.subscription?.plan || 'None',
-        s._count.students, s._count.teachers, s._count.users,
-        new Date(s.createdAt).toLocaleDateString(),
-      ].join(',')),
+      ['Name', 'Email', 'Phone', 'City', 'State', 'Status', 'Plan', 'Students', 'Teachers', 'Created'].join(','),
+      ...schools.map(s => [
+        `"${s.name}"`, s.email, s.phone || '', s.city || '', s.state || '', s.isActive ? 'Active' : 'Blocked',
+        s.subscription?.plan || 'None', s._count.students, s._count.teachers, new Date(s.createdAt).toLocaleDateString()
+      ].join(','))
     ];
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'schools.csv'; a.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+    a.download = 'schools.csv'; a.click();
   };
 
-  const filtered = schools.filter(s => {
+  // Filter schools based on search and filters
+  const filtered = schools.filter(school => {
     const q = search.toLowerCase();
-    const matchSearch = !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.slug.toLowerCase().includes(q);
+    const matchSearch = !q || `${school.name} ${school.email} ${school.city} ${school.state}`.toLowerCase().includes(q);
     const matchStatus = !filterStatus || (
-      filterStatus === 'active' ? s.isActive && s.subscription?.status !== 'expired' :
-      filterStatus === 'blocked' ? !s.isActive :
-      filterStatus === 'trial' ? s.subscription?.status === 'trial' :
-      filterStatus === 'expired' ? s.subscription?.status === 'expired' : true
+      filterStatus === 'active' ? school.isActive && school.subscription?.status !== 'expired' :
+      filterStatus === 'blocked' ? !school.isActive :
+      filterStatus === 'trial' ? school.subscription?.status === 'trial' :
+      filterStatus === 'expired' ? school.subscription?.status === 'expired' : true
     );
-    const matchPlan = !filterPlan || s.subscription?.plan === filterPlan;
+    const matchPlan = !filterPlan || school.subscription?.plan === filterPlan;
     return matchSearch && matchStatus && matchPlan;
   });
 
@@ -186,7 +207,7 @@ export default function AdminSchoolsPage() {
         <div>
           <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Schools</h1>
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            {schools.length} total · {schools.filter(s => s.isActive).length} active · {schools.filter(s => !s.isActive).length} blocked
+            {totalSchools} total · {schools.filter(s => s.isActive).length} active · {schools.filter(s => !s.isActive).length} blocked
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -202,6 +223,22 @@ export default function AdminSchoolsPage() {
             <option value="">All Plans</option>
             {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
           </select>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(parseInt(e.target.value));
+                setPage(1); // Reset to first page when changing page size
+              }}
+              className={`px-2 py-1 rounded text-sm border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
           <button onClick={exportCSV} className={btnCls(isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')}>
             ⬇ Export CSV
           </button>
@@ -377,6 +414,34 @@ export default function AdminSchoolsPage() {
               <div className={`text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No schools found</div>
             )}
           </div>
+
+          {/* Pagination */}
+          {(totalPages > 1 || totalSchools > 0) && (
+            <div className="flex items-center justify-between mt-6">
+              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Page {page} of {totalPages} · {totalSchools} schools
+              </span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className={`px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40 ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                  ← Prev
+                </button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                  return (
+                    <button key={p} onClick={() => setPage(p)}
+                      className={`w-8 h-8 rounded-lg text-sm ${p === page ? 'bg-blue-600 text-white' : isDark ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                      {p}
+                    </button>
+                  );
+                })}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className={`px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40 ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
       {/* Delete Confirmation Dialog */}

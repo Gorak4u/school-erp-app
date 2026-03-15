@@ -31,7 +31,7 @@ export default function RolesPage() {
 
   const load = () => {
     setLoading(true);
-    fetch('/api/roles')
+    fetch('/api/roles?cache=true')
       .then(r => r.json())
       .then(d => setRoles(d.roles || []))
       .finally(() => setLoading(false));

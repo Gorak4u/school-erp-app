@@ -217,7 +217,7 @@ export function createMobileHandlers(ctx: any) {
     try {
       const { studentsApi } = await import('@/lib/apiClient');
       // Get current subscription info
-      const subscriptionResponse = await fetch('/api/subscription');
+      const subscriptionResponse = await fetch('/api/subscription?cache=true');
       const subscriptionData = await subscriptionResponse.json();
       
       if (subscriptionData.subscription) {

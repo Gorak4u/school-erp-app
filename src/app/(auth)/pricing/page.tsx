@@ -41,7 +41,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/plans')
+    fetch('/api/admin/plans?cache=true')
       .then(r => r.json())
       .then(d => setPlans((d.plans || []).filter((p: PlanFromDB) => p.isActive)))
       .catch(console.error)
