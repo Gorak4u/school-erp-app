@@ -1,6 +1,37 @@
 import nodemailer from 'nodemailer';
 import { saasPrisma, schoolPrisma } from './prisma';
 
+// Check if email notifications are enabled for a school
+export async function isEmailNotificationEnabled(schoolId?: string): Promise<boolean> {
+  try {
+    let whereClause: any = { group: 'app_config', key: 'email_notifications' };
+    
+    if (schoolId) {
+      whereClause.schoolId = schoolId;
+    } else {
+      whereClause.schoolId = 'default';
+    }
+    
+    const setting = await (schoolPrisma as any).SchoolSetting.findFirst({
+      where: whereClause,
+    });
+    
+    // Default to true if setting is not found (backward compatibility)
+    if (!setting) {
+      console.log('📧 Email notifications setting not found, defaulting to enabled');
+      return true;
+    }
+    
+    const isEnabled = setting.value === 'true';
+    console.log(`📧 Email notifications ${isEnabled ? 'ENABLED' : 'DISABLED'} for school ${schoolId || 'default'}`);
+    return isEnabled;
+  } catch (error) {
+    console.error('Error checking email notification setting:', error);
+    // Default to enabled on error to avoid breaking existing functionality
+    return true;
+  }
+}
+
 // Reads SaaS-level SMTP from SaasSetting (group: saas_smtp)
 // This is SEPARATE from school-level SMTP in SchoolSetting (group: smtp)
 export async function getSaasSmtpConfig() {
@@ -95,6 +126,14 @@ export async function sendSchoolEmail({
   schoolId?: string;
 }) {
   console.log('sendSchoolEmail called with:', { to, subject, schoolId });
+  
+  // Check if email notifications are enabled for this school
+  const emailNotificationsEnabled = await isEmailNotificationEnabled(schoolId);
+  if (!emailNotificationsEnabled) {
+    console.log(`📧 Email notifications are DISABLED for school ${schoolId || 'default'}. Skipping email send.`);
+    console.log(`📧 Email details (not sent): To: ${to}, Subject: ${subject}`);
+    return { success: true, skipped: true, reason: 'Email notifications disabled' };
+  }
   
   const smtp = await getSchoolSmtpConfig(schoolId);
   console.log('SMTP config retrieved:', { 

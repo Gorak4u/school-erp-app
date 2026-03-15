@@ -11,6 +11,15 @@ export async function sendWelcomeEmail(
   planEndDate?: Date
 ) {
   try {
+    // Check if email notifications are enabled for this school
+    const { isEmailNotificationEnabled } = await import('./email');
+    const emailNotificationsEnabled = await isEmailNotificationEnabled(school.id);
+    
+    if (!emailNotificationsEnabled) {
+      console.log(`📧 Email notifications are DISABLED for school ${school.id}. Skipping welcome email to ${user.email}.`);
+      return { success: true, skipped: true, reason: 'Email notifications disabled' };
+    }
+    
     // Build URLs
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const loginUrl = `${baseUrl}/login`;
