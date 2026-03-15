@@ -219,7 +219,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   }, [filteredFees]);
 
   const totalPending = useMemo(() => {
-    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount), 0);
+    return filteredFees.reduce((sum, fee) => sum + (fee.fee.pendingAmount), 0);
   }, [filteredFees]);
 
   const selectedFeesTotal = useMemo(() => {
@@ -301,7 +301,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     const fee = filteredFees.find(f => f.id === feeId);
     if (!fee) return;
     
-    const maxAmount = fee.amount - fee.paidAmount;
+    const maxAmount = fee.fee.pendingAmount;
     const validAmount = Math.min(Math.max(0, amount), maxAmount);
     
     setCustomAmounts(prev => ({
@@ -335,7 +335,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       for (const feeId of selectedFees) {
         const fee = filteredFees.find(f => f.id === feeId);
         if (!fee || fee.status === 'paid') continue;
-        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount);
+        const amount = customAmounts[feeId] || (fee.fee.pendingAmount);
         await paymentsApi.process({
           feeRecordId: feeId,
           amount,
@@ -612,7 +612,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFees.map((fee) => {
                 const isSelected = selectedFees.includes(fee.id);
-                const pendingAmount = fee.amount - fee.paidAmount;
+                const pendingAmount = fee.fee.pendingAmount;
                 
                 return (
                   <motion.div

@@ -1,3 +1,4 @@
+import SessionVerifier from "@/components/SessionVerifier";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -36,6 +37,7 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <SessionProviderWrapper>
+          <SessionVerifier />
           <ThemeProvider>
             <SchoolConfigProvider>
               {children}

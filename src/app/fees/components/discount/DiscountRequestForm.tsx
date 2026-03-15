@@ -11,6 +11,62 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Data States
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch Data
+  useEffect(() => {
+    const fetchFeeStructures = async () => {
+      try {
+        const res = await fetch('/api/fees/structures');
+        if (res.ok) {
+          const data = await res.json();
+          setFeeStructures(data.structures || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch fee structures:', err);
+      }
+    };
+    
+    const fetchClasses = async () => {
+      try {
+        const res = await fetch('/api/school-structure/classes');
+        if (res.ok) {
+          const data = await res.json();
+          setClasses(data.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch classes:', err);
+      }
+    };
+    
+    fetchFeeStructures();
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm.length >= 2) {
+      const fetchStudents = async () => {
+        try {
+          const res = await fetch(`/api/students?search=${encodeURIComponent(searchTerm)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setStudents(data.data || []);
+          }
+        } catch (err) {
+          console.error('Failed to search students:', err);
+        }
+      };
+      const timeoutId = setTimeout(fetchStudents, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setStudents([]);
+    }
+  }, [searchTerm]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -129,10 +185,89 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
               </div>
             </div>
 
-            {/* Scope specific inputs would go here (student picker, class picker, etc) */}
-            <div className="p-4 border border-dashed rounded-lg text-center text-sm text-gray-500">
-              [ {formData.scope} selector component will be embedded here ]
-            </div>
+            {formData.scope === 'student' && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Select Student <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="Search student by name or admission number (min 2 chars)..."
+                  className={inputCls}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                
+                {students.length > 0 && (
+                  <div className={`max-h-48 overflow-y-auto rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    {students.map((student: any) => (
+                      <div
+                        key={student.id}
+                        className={`p-3 cursor-pointer border-b last:border-0 flex justify-between items-center transition-colors ${
+                          formData.studentIds.includes(student.id)
+                            ? (isDark ? 'bg-blue-900/30' : 'bg-blue-50')
+                            : (isDark ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-100')
+                        }`}
+                        onClick={() => {
+                          if (formData.studentIds.includes(student.id)) {
+                            setFormData({...formData, studentIds: formData.studentIds.filter(id => id !== student.id)});
+                          } else {
+                            setFormData({...formData, studentIds: [...formData.studentIds, student.id]});
+                          }
+                        }}
+                      >
+                        <div>
+                          <div className="font-medium text-sm">{student.name}</div>
+                          <div className="text-xs text-gray-500">
+                            Class: {student.class?.name || student.class} | Adm No: {student.admissionNo}
+                          </div>
+                        </div>
+                        {formData.studentIds.includes(student.id) && (
+                          <div className="text-blue-500">✓</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {formData.studentIds.length > 0 && (
+                  <div className="text-sm text-green-600">
+                    {formData.studentIds.length} student(s) selected
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {formData.scope === 'class' && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Select Classes <span className="text-red-500">*</span></label>
+                <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                  {classes.map((cls: any) => (
+                    <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.classIds.includes(cls.id)}
+                        onChange={(e) => {
+                          const newIds = e.target.checked
+                            ? [...formData.classIds, cls.id]
+                            : formData.classIds.filter(id => id !== cls.id);
+                          setFormData({...formData, classIds: newIds});
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium">{cls.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {formData.scope === 'bulk' && (
+              <div className="p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center bg-gray-50 dark:bg-gray-800">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Bulk application will apply to all students in the school. 
+                  Proceed with caution.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -166,7 +301,36 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   Specific Fee Structures
                 </button>
               </div>
-            </div>
+              </div>
+              
+              {formData.targetType === 'fee_structure' && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Select Fee Structures <span className="text-red-500">*</span></label>
+                  <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    {feeStructures.length > 0 ? feeStructures.map((fs: any) => (
+                      <label key={fs.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.feeStructureIds.includes(fs.id)}
+                          onChange={(e) => {
+                            const newIds = e.target.checked
+                              ? [...formData.feeStructureIds, fs.id]
+                              : formData.feeStructureIds.filter(id => id !== fs.id);
+                            setFormData({...formData, feeStructureIds: newIds});
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium">
+                          {fs.name} <span className="text-gray-500 text-xs">({fs.category}) - ₹{fs.amount}</span>
+                        </span>
+                      </label>
+                    )) : (
+                      <div className="text-center p-4 text-gray-500 text-sm">No fee structures available</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            
 
             <div className="grid grid-cols-2 gap-4">
               <div>
