@@ -9,12 +9,35 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (error) return error;
 
     const { id } = await params;
+    
+    // OPTIMIZED: Limit attendance to last 30 days and fee records to recent 10
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
     const student = await (schoolPrisma as any).student.findFirst({
       where: { id, ...tenantWhere(ctx) },
       include: {
-        feeRecords: { include: { feeStructure: true, payments: true } },
-        attendanceRecords: { orderBy: { date: 'desc' }, take: 90 },
-        examResults: { include: { exam: true } },
+        feeRecords: { 
+          include: { 
+            feeStructure: { select: { id: true, name: true, category: true, amount: true } },
+            payments: { 
+              orderBy: { createdAt: 'desc' },
+              take: 5, // Limit to recent 5 payments per fee record
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10, // Limit to recent 10 fee records
+        },
+        attendanceRecords: { 
+          where: { date: { gte: thirtyDaysAgo.toISOString().slice(0, 10) } },
+          orderBy: { date: 'desc' },
+          take: 30, // Limit to 30 most recent records
+        },
+        examResults: { 
+          include: { exam: { select: { id: true, name: true, date: true, subject: true, totalMarks: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 20, // Limit to recent 20 exam results
+        },
       },
     });
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });

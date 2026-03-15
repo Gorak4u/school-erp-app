@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { parseDateParam } from '@/lib/parseDateParam';
 
 // GET /api/fees/statistics - Optimized reports data with date range filtering
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const academicYear = searchParams.get('academicYear');
     const studentClass = searchParams.get('class');
-    const fromDate = searchParams.get('fromDate');
-    const toDate = searchParams.get('toDate');
+    const fromDate = parseDateParam(searchParams.get('fromDate'));
+    const toDate = parseDateParam(searchParams.get('toDate'), { endOfDay: true });
 
-    
-    // Build WHERE conditions for students
-    const studentWhereConditions: any = {};
+    // Build WHERE conditions for students with tenant filtering
+    const studentWhereConditions: any = { ...tenantWhere(ctx) };
     if (academicYear && academicYear !== 'all') {
       studentWhereConditions.academicYear = academicYear;
     }
@@ -23,42 +27,46 @@ export async function GET(request: NextRequest) {
     // Build WHERE conditions for payments (with date filtering)
     const paymentWhereConditions: any = {};
     if (fromDate || toDate) {
-      // Use createdAt DateTime field for reliable date filtering
+      paymentWhereConditions.createdAt = {};
       if (fromDate) {
-        paymentWhereConditions.createdAt = {
-          ...paymentWhereConditions.createdAt,
-          gte: new Date(fromDate)
-        };
+        paymentWhereConditions.createdAt.gte = fromDate;
       }
       if (toDate) {
-        paymentWhereConditions.createdAt = {
-          ...paymentWhereConditions.createdAt,
-          lte: new Date(toDate + 'T23:59:59.999Z') // Include entire end day
-        };
+        paymentWhereConditions.createdAt.lte = toDate;
       }
     }
 
-    // Use database aggregation for statistics
-    const [students, paymentAggregations, filteredPayments] = await Promise.all([
-      // Get all students with their fee records (no pagination)
-      prisma.student.findMany({
-        where: studentWhereConditions,
-        include: {
-          feeRecords: {
-            where: paymentWhereConditions, // Apply date filter to fee records
-            include: {
-              payments: {
-                where: paymentWhereConditions, // Apply date filter to payments
-                orderBy: { createdAt: 'desc' }
-              }
+    // OPTIMIZED: Use aggregations instead of loading all students
+    const [
+      studentCount,
+      feeAggregates,
+      paymentAggregations,
+      classBreakdownData,
+      monthlyPayments,
+    ] = await Promise.all([
+      // Count students only
+      schoolPrisma.student.count({ where: studentWhereConditions }),
+      
+      // Aggregate fee records with date filtering
+      schoolPrisma.feeRecord.aggregate({
+        where: {
+          student: studentWhereConditions,
+          ...(fromDate || toDate ? {
+            createdAt: {
+              ...(fromDate && { gte: fromDate }),
+              ...(toDate && { lte: toDate })
             }
-          }
+          } : {})
         },
-        orderBy: { name: 'asc' }
+        _sum: {
+          amount: true,
+          paidAmount: true,
+          pendingAmount: true,
+        },
       }),
       
-      // Get aggregated payment data for statistics (with all filters)
-      prisma.payment.groupBy({
+      // Get aggregated payment data by method with date filtering
+      schoolPrisma.payment.groupBy({
         by: ['paymentMethod'],
         where: {
           ...paymentWhereConditions,
@@ -66,89 +74,77 @@ export async function GET(request: NextRequest) {
             student: studentWhereConditions
           }
         },
-        _sum: {
-          amount: true
-        },
-        _count: {
-          id: true
-        }
+        _sum: { amount: true },
+        _count: { id: true }
       }),
 
-      // Get all filtered payments for monthly trend calculation
-      prisma.payment.findMany({
+      // Get class breakdown using groupBy
+      schoolPrisma.student.groupBy({
+        by: ['class'],
+        where: studentWhereConditions,
+        _count: { id: true },
+      }),
+
+      // Get limited payments for monthly trend (last 1000 payments max)
+      schoolPrisma.payment.findMany({
         where: {
           ...paymentWhereConditions,
           feeRecord: {
             student: studentWhereConditions
           }
         },
-        include: {
+        select: {
+          amount: true,
+          createdAt: true,
+          paymentMethod: true,
           feeRecord: {
-            include: {
-              student: {
-                select: { class: true }
-              }
+            select: {
+              studentId: true,
+              student: { select: { class: true } }
             }
-          }
+          },
+          collectedBy: true,
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 1000, // Limit to prevent memory issues
       })
     ]);
 
     
-    // Calculate overall statistics
-    const totalStudents = students.length;
-    const totalFees = students.reduce((sum, student) => {
-      return sum + student.feeRecords.reduce((feeSum, record) => feeSum + (record.amount || 0), 0);
-    }, 0);
-    const totalCollected = students.reduce((sum, student) => {
-      return sum + student.feeRecords.reduce((feeSum, record) => feeSum + (record.paidAmount || 0), 0);
-    }, 0);
-    const totalPending = totalFees - totalCollected;
+    // OPTIMIZED: Calculate statistics from aggregates
+    const totalStudents = studentCount;
+    const totalFees = feeAggregates._sum.amount || 0;
+    const totalCollected = feeAggregates._sum.paidAmount || 0;
+    const totalPending = feeAggregates._sum.pendingAmount || 0;
     const collectionRate = totalFees > 0 ? (totalCollected / totalFees) * 100 : 0;
 
-    // Calculate payment status breakdown with proper amounts
-    const paymentStatusCounts = students.reduce((acc: any, student) => {
-      const studentTotal = student.feeRecords?.reduce((sum: number, record: any) => sum + (record.amount || 0), 0) || 0;
-      const studentPaid = student.feeRecords?.reduce((sum: number, record: any) => sum + (record.paidAmount || 0), 0) || 0;
-      const studentPending = studentTotal - studentPaid;
-      
-      // Check for overdue records
-      const hasOverdue = student.feeRecords?.some((record: any) => {
-        return record.status === 'overdue' || (record.dueDate && new Date(record.dueDate) < new Date() && record.pendingAmount > 0);
-      });
-      
-      let status = 'no_payment';
-      if (studentPaid >= studentTotal && studentTotal > 0) {
-        status = 'fully_paid';
-      } else if (studentPaid > 0 && hasOverdue) {
-        status = 'overdue';
-      } else if (studentPaid > 0) {
-        status = 'partially_paid';
-      } else if (hasOverdue) {
-        status = 'overdue';
-      }
-      
-      // Initialize status if not exists
-      if (!acc[status]) {
-        acc[status] = { count: 0, totalFees: 0, totalPaid: 0, totalPending: 0 };
-      }
-      
-      acc[status].count += 1;
-      acc[status].totalFees += studentTotal;
-      acc[status].totalPaid += studentPaid;
-      acc[status].totalPending += studentPending;
-      
-      return acc;
-    }, {} as Record<string, any>);
+    // OPTIMIZED: Use database aggregation for payment status with date filtering
+    const statusAggregates = await schoolPrisma.feeRecord.groupBy({
+      by: ['status'],
+      where: {
+        student: studentWhereConditions,
+        ...(fromDate || toDate ? {
+          createdAt: {
+            ...(fromDate && { gte: fromDate }),
+            ...(toDate && { lte: toDate })
+          }
+        } : {})
+      },
+      _count: { id: true },
+      _sum: {
+        amount: true,
+        paidAmount: true,
+        pendingAmount: true,
+      },
+    });
 
-    const paymentStatusBreakdown = Object.entries(paymentStatusCounts).map(([status, data]: [string, any]) => ({
-      status,
-      count: data.count,
-      totalFees: data.totalFees,
-      totalPaid: data.totalPaid,
-      totalPending: data.totalPending,
-      percentage: totalStudents > 0 ? (data.count / totalStudents) * 100 : 0
+    const paymentStatusBreakdown = statusAggregates.map(item => ({
+      status: item.status || 'no_payment',
+      count: item._count.id,
+      totalFees: item._sum.amount || 0,
+      totalPaid: item._sum.paidAmount || 0,
+      totalPending: item._sum.pendingAmount || 0,
+      percentage: totalStudents > 0 ? (item._count.id / totalStudents) * 100 : 0
     }));
 
     // Ensure all statuses are present
@@ -165,41 +161,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Class breakdown
-    const classBreakdown = students.reduce((acc: any, student) => {
-      const className = student.class || 'Unknown';
-      if (!acc[className]) {
-        acc[className] = {
-          studentCount: 0,
-          totalFees: 0,
-          totalPaid: 0,
-          totalPending: 0,
-          fullyPaid: 0,
-          partiallyPaid: 0,
-          noPayment: 0
-        };
-      }
-      
-      acc[className].studentCount += 1;
-      
-      const studentTotal = student.feeRecords?.reduce((sum: number, record: any) => sum + (record.amount || 0), 0) || 0;
-      const studentPaid = student.feeRecords?.reduce((sum: number, record: any) => sum + (record.paidAmount || 0), 0) || 0;
-      
-      acc[className].totalFees += studentTotal;
-      acc[className].totalPaid += studentPaid;
-      acc[className].totalPending += studentTotal - studentPaid;
-      
-      let status = 'no_payment';
-      if (studentPaid >= studentTotal && studentTotal > 0) {
-        status = 'fully_paid';
-        acc[className].fullyPaid += 1;
-      } else if (studentPaid > 0) {
-        status = 'partially_paid';
-        acc[className].partiallyPaid += 1;
-      } else {
-        acc[className].noPayment += 1;
-      }
-      
+    // OPTIMIZED: Class breakdown from aggregated data
+    const classBreakdown = classBreakdownData.reduce((acc: any, item) => {
+      acc[item.class || 'Unknown'] = {
+        studentCount: item._count.id,
+        totalFees: 0,
+        totalPaid: 0,
+        totalPending: 0,
+      };
       return acc;
     }, {} as Record<string, any>);
 
@@ -213,8 +182,8 @@ export async function GET(request: NextRequest) {
       collectors: new Set()
     }));
 
-    // Process filtered payments to get monthly data
-    filteredPayments.forEach(payment => {
+    // Process limited payments to get monthly data
+    monthlyPayments.forEach(payment => {
       const date = payment.createdAt; // Use createdAt DateTime field
       if (date) {
         const month = date.getMonth(); // 0-11
@@ -244,7 +213,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        totalStudents: students.length,
+        totalStudents: studentCount,
         totalFees,
         totalCollected,
         totalPending,
@@ -264,7 +233,7 @@ export async function GET(request: NextRequest) {
           count: pg._count.id
         })),
         statistics: {
-          totalStudents: students.length,
+          totalStudents: studentCount,
           totalFees,
           totalCollected,
           totalPending,

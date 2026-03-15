@@ -71,16 +71,31 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { getSessionContext } = await import('@/lib/apiAuth');
+    const { parseDateParam } = await import('@/lib/parseDateParam');
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
     const feeRecordId = searchParams.get('feeRecordId');
+    const fromDate = parseDateParam(searchParams.get('fromDate'));
+    const toDate = parseDateParam(searchParams.get('toDate'), { endOfDay: true });
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '50');
 
     const where: any = {};
     if (feeRecordId) where.feeRecordId = feeRecordId;
+    
+    // Add date range filtering
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) {
+        where.createdAt.gte = fromDate;
+      }
+      if (toDate) {
+        where.createdAt.lte = toDate;
+      }
+    }
+    
     // Tenant isolation via feeRecord → student
     if (!ctx.isSuperAdmin && ctx.schoolId) {
       where.feeRecord = { student: { schoolId: ctx.schoolId } };

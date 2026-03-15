@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { parseDateParam } from '@/lib/parseDateParam';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId') || '';
     const status = searchParams.get('status') || '';
     const academicYear = searchParams.get('academicYear') || '';
+    const fromDate = parseDateParam(searchParams.get('fromDate'));
+    const toDate = parseDateParam(searchParams.get('toDate'), { endOfDay: true });
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '50');
 
@@ -19,6 +22,18 @@ export async function GET(request: NextRequest) {
     if (studentId) where.studentId = studentId;
     if (status) where.status = status;
     if (academicYear) where.academicYear = academicYear;
+    
+    // Add date range filtering
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) {
+        where.createdAt.gte = fromDate;
+      }
+      if (toDate) {
+        where.createdAt.lte = toDate;
+      }
+    }
+    
     // Tenant isolation via student relation
     if (ctx.schoolId) {
       where.student = { schoolId: ctx.schoolId };
