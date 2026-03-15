@@ -14,10 +14,17 @@ export async function getSaasSmtpConfig() {
 
 // Reads school-level SMTP from SchoolSetting (group: smtp)
 // Used for: fee receipts, school notifications, admissions, reminders
-export async function getSchoolSmtpConfig() {
+export async function getSchoolSmtpConfig(schoolId?: string) {
+  let whereClause: any = { group: 'smtp' };
+  
+  if (schoolId) {
+    whereClause.schoolId = schoolId;
+  }
+  
   const settings = await (schoolPrisma as any).SchoolSetting.findMany({
-    where: { group: 'smtp' },
+    where: whereClause,
   });
+  
   const config: Record<string, string> = {};
   for (const s of settings) config[s.key] = s.value;
   return config;
@@ -79,12 +86,14 @@ export async function sendSchoolEmail({
   to,
   subject,
   html,
+  schoolId,
 }: {
   to: string;
   subject: string;
   html: string;
+  schoolId?: string;
 }) {
-  const smtp = await getSchoolSmtpConfig();
+  const smtp = await getSchoolSmtpConfig(schoolId);
 
   // Fallback: use environment variables if no school SMTP config
   const host = smtp.smtp_host || process.env.SMTP_HOST;

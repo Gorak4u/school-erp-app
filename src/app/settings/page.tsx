@@ -31,7 +31,6 @@ const TABS = [
   { id: 'fees', label: 'Fee Structure', icon: '💰' },
   { id: 'timings', label: 'School Timings', icon: '🕐' },
   { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
-  { id: 'access', label: 'Access Rights', icon: '🔒' },
   { id: 'app', label: 'App Settings', icon: '⚙️' },
   { id: 'roles', label: 'Custom Roles', icon: '🎭' },
   { id: 'users', label: 'Users & Access', icon: '👥' },
@@ -1031,7 +1030,6 @@ export default function SettingsPage() {
             {activeTab === 'fees' && <FeeTab />}
             {activeTab === 'timings' && <TimingsTab />}
             {activeTab === 'integrations' && <IntegrationsTab />}
-            {activeTab === 'access' && <AccessTab />}
             {activeTab === 'app' && <AppSettingsTab />}
             {activeTab === 'roles' && <RolesManagement theme={theme} isDark={isDark} />}
             {activeTab === 'users' && <UsersManagement theme={theme} isDark={isDark} />}

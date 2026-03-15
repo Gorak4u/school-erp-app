@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
-import { schoolPrisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
+import { sendSchoolEmail } from '@/lib/email';
+import { generateWelcomeEmail } from '@/lib/email-templates';
 
 export async function GET() {
   try {
@@ -89,6 +91,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
+    let finalRole = role || 'teacher';
+    
     // If customRoleId is provided, validate it exists and belongs to the school
     if (customRoleId) {
       console.log('POST /api/users - Validating customRoleId:', customRoleId);
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
         }
         
         console.log('POST /api/users - Custom role validated:', customRole.name);
+        finalRole = customRole.name; // Assign custom role name as role
       } catch (roleErr: any) {
         console.error('POST /api/users - Error validating custom role:', roleErr);
         return NextResponse.json({ error: 'Failed to validate custom role' }, { status: 500 });
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         password: hashed,
-        role: role || 'teacher',
+        role: finalRole,
         customRoleId: customRoleId || null,
         schoolId: targetSchoolId,
         isActive: true,
@@ -132,6 +137,44 @@ export async function POST(request: NextRequest) {
         CustomRole: { select: { id: true, name: true } },
       },
     });
+
+    // Try to send welcome email if not a super admin
+    if (!ctx.isSuperAdmin && targetSchoolId) {
+      try {
+        // Fetch school details and subscription for the email
+        const school = await (saasPrisma as any).school.findUnique({
+          where: { id: targetSchoolId },
+          include: { subscription: true }
+        });
+
+        if (school && school.subscription) {
+          const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+          const emailData = {
+            user: { ...user, name: `${user.firstName} ${user.lastName}` },
+            school,
+            subscription: school.subscription,
+            loginUrl: `${baseUrl}/login`,
+            dashboardUrl: `${baseUrl}/dashboard`,
+            paymentUrl: school.subscription.plan !== 'trial' ? `${baseUrl}/billing` : undefined,
+            password: password // Include plain text password for first login
+          };
+
+          const { subject, html } = generateWelcomeEmail(emailData);
+          
+          await sendSchoolEmail({
+            to: user.email,
+            subject,
+            html,
+            schoolId: targetSchoolId
+          });
+          
+          console.log(`Welcome email sent to new user ${user.email} using school SMTP`);
+        }
+      } catch (emailErr) {
+        console.error('Failed to send welcome email to new user:', emailErr);
+        // Continue anyway since user creation was successful
+      }
+    }
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (err: any) {
