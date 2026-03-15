@@ -117,7 +117,6 @@ export default function PricingPage() {
           {plans.map((plan, index) => {
             const isPopular = plan.name === 'professional';
             const price = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
-            const isEnterprise = plan.name === 'enterprise';
             const isTrial = plan.name === 'trial';
             let featuresList: string[] = [];
             try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
@@ -154,17 +153,13 @@ export default function PricingPage() {
               </div>
 
               <div className="mb-6">
-                {isEnterprise ? (
-                  <div className="text-4xl font-bold text-white">Custom</div>
-                ) : (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">
-                      {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
-                    </span>
-                    {isTrial && <span className="text-gray-400 text-sm ml-1">{plan.trialDays} days</span>}
-                    {!isTrial && price > 0 && <span className="text-gray-400 text-sm">/{billing === 'monthly' ? 'mo' : 'yr'}</span>}
-                  </div>
-                )}
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-white">
+                    {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
+                  </span>
+                  {isTrial && <span className="text-gray-400 text-sm ml-1">{plan.trialDays} days</span>}
+                  {!isTrial && price > 0 && <span className="text-gray-400 text-sm">/{billing === 'monthly' ? 'mo' : 'yr'}</span>}
+                </div>
               </div>
 
               <ul className="space-y-3 mb-8 flex-1">

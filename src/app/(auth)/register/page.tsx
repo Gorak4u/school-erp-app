@@ -138,9 +138,12 @@ function RegisterContent() {
       });
 
       const data = await res.json();
+      console.log('Registration response:', data);
+      console.log('Response status:', res.status);
       if (!res.ok) {
         if (data.error === 'ACCOUNT_PENDING_PAYMENT') {
           // User has pending payment, redirect to payment screen
+          console.log('Detected pending payment, redirecting to:', data.redirectUrl);
           setError(data.message);
           setTimeout(() => {
             router.push(data.redirectUrl || '/subscription-required?pending=true');

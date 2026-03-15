@@ -42,8 +42,13 @@ export async function POST(req: Request) {
     });
     
     if (existingUser) {
+      console.log('Existing user found:', existingUser.email);
+      console.log('School subscription:', existingUser.School?.subscription);
+      console.log('Subscription status:', existingUser.School?.subscription?.status);
+      
       // Check if user has pending payment subscription
       if (existingUser.School?.subscription?.status === 'pending_payment') {
+        console.log('Detected pending payment status, returning ACCOUNT_PENDING_PAYMENT');
         return NextResponse.json({
           error: 'ACCOUNT_PENDING_PAYMENT',
           message: 'You have an incomplete registration. Please complete your payment to continue.',
@@ -52,6 +57,7 @@ export async function POST(req: Request) {
         }, { status: 409 });
       }
       
+      console.log('No pending payment detected, returning regular error');
       return NextResponse.json(
         { error: 'An account with this email already exists' },
         { status: 409 }

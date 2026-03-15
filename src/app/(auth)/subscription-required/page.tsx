@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 
-export default function SubscriptionRequiredPage() {
-  // Check URL params to see if this is a pending payment case
-  const isPendingPayment = typeof window !== 'undefined' && 
-    window.location.search.includes('pending=true');
+function SubscriptionRequiredContent() {
+  const searchParams = useSearchParams();
+  const isPendingPayment = searchParams.get('pending') === 'true';
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
@@ -75,12 +75,24 @@ export default function SubscriptionRequiredPage() {
 
           <p className="mt-6 text-gray-500 text-xs">
             Need help? Contact us at{' '}
-            <a href="mailto:support@schoolerp.com" className="text-blue-400 hover:text-blue-300">
+            <Link href="mailto:support@schoolerp.com" className="text-blue-400 hover:text-blue-300">
               support@schoolerp.com
-            </a>
+            </Link>
           </p>
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function SubscriptionRequiredPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <SubscriptionRequiredContent />
+    </Suspense>
   );
 }
