@@ -43,12 +43,33 @@ export async function POST(req: Request) {
       const billingCycle = body.billingCycle || 'monthly';
       const daysToAdd = billingCycle === 'yearly' ? 365 : 30;
 
+      // Calculate new period end date
+      let newPeriodEnd: Date;
+      
+      if (school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now) {
+        // If current period hasn't ended, add remaining days to new period
+        const currentEnd = new Date(school.subscription.currentPeriodEnd);
+        const remainingDays = Math.ceil((currentEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        
+        // New period starts when current period ends, plus the new duration
+        newPeriodEnd = new Date(currentEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+        
+        console.log(`Early renewal: ${remainingDays} days remaining + ${daysToAdd} new days = ${Math.ceil((newPeriodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))} total days`);
+      } else {
+        // If current period has ended or doesn't exist, start from now
+        newPeriodEnd = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+        
+        console.log(`Normal renewal: ${daysToAdd} days from now`);
+      }
+
       const subscription = await tx.subscription.update({
         where: { id: school.subscription.id },
         data: {
           status: 'active',
-          currentPeriodStart: now,
-          currentPeriodEnd: new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000), // 30 or 365 days
+          currentPeriodStart: school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now 
+            ? new Date(school.subscription.currentPeriodEnd) // Start after current period
+            : now, // Start now if no current period or expired
+          currentPeriodEnd: newPeriodEnd,
           razorpayPaymentId: paymentId,
           razorpayOrderId: orderId,
         },
@@ -70,7 +91,7 @@ export async function POST(req: Request) {
         data: { isActive: true },
       });
 
-      return { school, subscription };
+      return { school, subscription, wasEarlyRenewal: school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now };
     });
 
     // 5. Send payment confirmation email (non-blocking)
@@ -100,10 +121,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Payment verified and account activated',
+      message: result.wasEarlyRenewal 
+        ? 'Payment verified! Your remaining days have been added to your new subscription period.'
+        : 'Payment verified and account activated',
       subscription: {
         status: result.subscription.status,
         currentPeriodEnd: result.subscription.currentPeriodEnd,
+        wasEarlyRenewal: result.wasEarlyRenewal,
       },
     });
   } catch (error: any) {

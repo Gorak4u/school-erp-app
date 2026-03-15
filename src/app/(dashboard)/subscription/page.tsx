@@ -125,14 +125,14 @@ export default function SubscriptionPage() {
     if (!subscription) return;
     
     try {
-      // Check Razorpay configuration first
-      const configResponse = await fetch('/api/debug/saas-smtp');
+      // Check Razorpay configuration from SaaS settings
+      const configResponse = await fetch('/api/admin/saas-config');
       const configData = await configResponse.json();
       
       const hasRazorpayConfig = configData.config?.razorpay_key_id && configData.config?.razorpay_key_secret;
       
       if (!hasRazorpayConfig) {
-        alert('Payment system not configured. Please contact your administrator to set up payment processing.');
+        alert('Payment system not configured. Please contact your administrator to set up Razorpay payment processing.');
         return;
       }
       
@@ -199,7 +199,13 @@ export default function SubscriptionPage() {
           if (verifyData.success) {
             // Payment successful, refresh data
             fetchSubscriptionData();
-            alert('Subscription renewed successfully!');
+            
+            // Show appropriate message based on whether it was early renewal
+            const message = verifyData.subscription?.wasEarlyRenewal
+              ? 'Subscription renewed successfully! Your remaining days have been added to your new subscription period.'
+              : 'Subscription renewed successfully!';
+            
+            alert(message);
           } else {
             console.error('Payment verification failed:', verifyData.error);
             alert('Payment verification failed. Please contact support.');
@@ -741,7 +747,7 @@ export default function SubscriptionPage() {
                           {subscription.status === 'active' 
                             ? subscription.upgradedFromTrial
                               ? '🚀 Upgraded from trial - Active subscription'
-                              : '✅ Active subscription - Auto-renewal enabled'
+                              : `✅ Active subscription - ${subscription.autoRenew ? 'Auto-renewal enabled' : 'Manual renewal'}`
                             : subscription.status === 'expired'
                             ? '❌ Subscription expired - Renew to continue'
                             : subscription.status === 'cancelled'
