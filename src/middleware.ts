@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { ensureSuperAdmin } from '@/lib/super-admin-init';
 
 // Routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required'];
@@ -36,8 +37,20 @@ const permissionBasedRoutes: Record<string, string> = {
   '/settings': 'view_settings',
 };
 
+let superAdminChecked = false;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Check super admin only once on first request (non-API routes)
+  if (!superAdminChecked && !pathname.startsWith('/api/')) {
+    try {
+      await ensureSuperAdmin();
+      superAdminChecked = true;
+    } catch (error) {
+      console.error('❌ Middleware super admin check failed:', error);
+    }
+  }
 
   // Allow public routes
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
