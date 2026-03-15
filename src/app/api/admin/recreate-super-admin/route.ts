@@ -95,6 +95,7 @@ export async function POST(req: Request) {
         lastName: 'Admin',
         role: 'admin',
         isActive: true,
+        schoolId: null, // Super admin has no school association
         createdAt: new Date(),
         updatedAt: new Date(),
       },

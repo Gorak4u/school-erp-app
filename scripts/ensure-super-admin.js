@@ -101,6 +101,7 @@ async function ensureSuperAdmin() {
         lastName: 'Admin',
         role: 'admin',
         isActive: true,
+        schoolId: null, // Super admin has no school association
         createdAt: new Date(),
         updatedAt: new Date(),
       },
