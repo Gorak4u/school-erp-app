@@ -148,6 +148,7 @@ export async function GET() {
         nextBillingDate: nextBillingDate?.toISOString(),
         amount: sub.amount || null,
         billingCycle: sub.billingCycle || 'monthly',
+        autoRenew: sub.autoRenew,
         upgradedFromTrial: !isTrial && trialEndsAt && trialEndsAt >= now, // Flag for users who upgraded during active trial
         subscriptionStartDate: subscriptionStartDate.toISOString(), // When subscription actually started
       },

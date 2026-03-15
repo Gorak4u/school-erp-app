@@ -26,6 +26,7 @@ interface SubscriptionData {
   amount?: number;
   upgradedFromTrial?: boolean;
   subscriptionStartDate?: string;
+  autoRenew?: boolean;
 }
 
 interface PlanFromDB {
@@ -51,6 +52,7 @@ export default function SubscriptionPage() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [autoRenewLoading, setAutoRenewLoading] = useState(false);
 
   // Define functions before useEffect that uses them
   const fetchSubscriptionData = async () => {
@@ -86,6 +88,36 @@ export default function SubscriptionPage() {
       fetchPlans();
     }
   }, [session]);
+
+  const handleToggleAutoRenew = async () => {
+    if (!subscription) return;
+    
+    setAutoRenewLoading(true);
+    try {
+      const response = await fetch('/api/subscription/auto-renew', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ autoRenew: !subscription.autoRenew }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSubscription({
+          ...subscription,
+          autoRenew: data.subscription.autoRenew,
+        });
+      } else {
+        throw new Error(data.error || 'Failed to update auto-renewal setting');
+      }
+    } catch (error) {
+      console.error('Error toggling auto-renew:', error);
+    } finally {
+      setAutoRenewLoading(false);
+    }
+  };
 
   // Define style variables before any early returns
   const isDark = theme === 'dark';
@@ -356,6 +388,36 @@ export default function SubscriptionPage() {
                   <div>
                     <p className={`${subtext} text-sm mb-1`}>Billing Cycle</p>
                     <p className="text-lg font-semibold text-white capitalize">{subscription.billingCycle}</p>
+                  </div>
+                )}
+                
+                {/* Auto-Renewal Toggle */}
+                {!subscription.isTrial && subscription.status !== 'cancelled' && (
+                  <div className="pt-3 mt-3 border-t border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-medium">Auto-Renewal</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {subscription.autoRenew 
+                            ? 'Your subscription will renew automatically.' 
+                            : 'You will need to renew manually.'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleToggleAutoRenew}
+                        disabled={autoRenewLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          subscription.autoRenew ? 'bg-purple-600' : 'bg-gray-600'
+                        } ${autoRenewLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <span className="sr-only">Toggle auto-renewal</span>
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            subscription.autoRenew ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
