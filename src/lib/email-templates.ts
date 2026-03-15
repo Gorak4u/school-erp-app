@@ -21,7 +21,7 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
     ? Math.ceil((new Date(subscription.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  const subject = `Welcome to School ERP - ${school.name} is Ready!`;
+  const subject = `Welcome to ${school.name} - Your account is Ready!`;
 
   const html = `
 <!DOCTYPE html>
@@ -29,7 +29,7 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to School ERP</title>
+    <title>Welcome to ${school.name}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
@@ -46,8 +46,8 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
 </head>
 <body>
     <div class="header">
-        <h1>🎓 Welcome to School ERP</h1>
-        <p>Your school management system is ready!</p>
+        <h1>🎓 Welcome to ${school.name}</h1>
+        <p>Your school account is ready!</p>
     </div>
     
     <div class="content">
