@@ -135,11 +135,12 @@ export default function PricingPage() {
                 isPopular
                   ? 'border-purple-500/50 bg-gray-900/80'
                   : 'border-gray-800 bg-gray-900/50'
-              } backdrop-blur-sm p-6 flex flex-col`}
+              } backdrop-blur-sm p-6 flex flex-col cursor-pointer`}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
               whileHover={{ scale: 1.02, borderColor: 'rgba(99,102,241,0.5)' }}
+              onClick={() => handleSelectPlan(plan.name)}
             >
               {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-semibold">
