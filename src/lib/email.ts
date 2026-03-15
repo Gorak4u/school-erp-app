@@ -104,11 +104,13 @@ export async function sendSchoolEmail({
   });
 
   // Fallback: use environment variables if no school SMTP config
-  const host = smtp.smtp_host || process.env.SMTP_HOST;
-  const port = parseInt(smtp.smtp_port || process.env.SMTP_PORT || '587');
-  const user = smtp.smtp_username || process.env.SMTP_USER;
-  const pass = smtp.smtp_password || process.env.SMTP_PASS;
-  const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
+  // Note: School SMTP settings use different keys (e.g., 'host' instead of 'smtp_host')
+  const host = smtp.host || smtp.smtp_host || process.env.SMTP_HOST;
+  const port = parseInt(smtp.port || smtp.smtp_port || process.env.SMTP_PORT || '587');
+  const user = smtp.user || smtp.smtp_username || process.env.SMTP_USER;
+  const pass = smtp.password || smtp.smtp_password || process.env.SMTP_PASS;
+  const from = smtp.from_email || smtp.smtp_from_email || process.env.SMTP_FROM || user;
+  const fromName = smtp.from_name || smtp.smtp_from_name || 'School ERP';
   
   // For Gmail, check if we have a custom from_email that's been set up as "Send As"
   // If not, fall back to the authenticated user
@@ -151,7 +153,7 @@ export async function sendSchoolEmail({
 
   try {
     await transporter.sendMail({
-      from: `"${smtp.smtp_from_name || 'School'}" <${finalFrom}>`,
+      from: `"${fromName}" <${finalFrom}>`,
       to,
       subject,
       html,
