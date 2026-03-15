@@ -39,24 +39,24 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
+  // Only use SaaS SMTP settings from database - no fallbacks
   const smtp = await getSaasSmtpConfig();
 
-  // Fallback: use environment variables if no DB SMTP config
-  const host = smtp.smtp_host || process.env.SMTP_HOST;
-  const port = parseInt(smtp.smtp_port || process.env.SMTP_PORT || '587');
-  const user = smtp.smtp_username || process.env.SMTP_USER;
-  const pass = smtp.smtp_password || process.env.SMTP_PASS;
-  const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
+  const host = smtp.smtp_host;
+  const port = parseInt(smtp.smtp_port || '587');
+  const user = smtp.smtp_username;
+  const pass = smtp.smtp_password;
+  const from = smtp.smtp_from_email || user;
 
+  // Check if SaaS SMTP is properly configured
   if (!host || !user || !pass) {
-    // No SMTP configured — log the email for development
-    console.log('\n📧 [EMAIL - No SMTP configured]');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('--- HTML ---');
-    console.log(html);
+    console.log('\n📧 [EMAIL - SaaS SMTP not configured]');
+    console.log('Missing settings in SaasSetting table (group: saas_smtp):');
+    console.log('- smtp_host:', host ? '✓' : '✗ Missing');
+    console.log('- smtp_username:', user ? '✓' : '✗ Missing');
+    console.log('- smtp_password:', pass ? '✓' : '✗ Missing');
     console.log('--- END ---\n');
-    return { success: true, devMode: true };
+    return { success: false, error: 'SaaS SMTP not configured' };
   }
 
   const transporter = nodemailer.createTransport({
@@ -73,9 +73,10 @@ export async function sendEmail({
       subject,
       html,
     });
+    console.log('✅ Email sent via SaaS SMTP');
     return { success: true };
   } catch (error: any) {
-    console.error('Email send error:', error);
+    console.error('SaaS SMTP send error:', error);
     return { success: false, error: error.message };
   }
 }

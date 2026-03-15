@@ -79,11 +79,25 @@ export async function POST(req: Request) {
       html: passwordResetEmailHtml(resetUrl, userName),
     });
 
-    // In dev with no SMTP: return the reset URL so user can test
+    // Check if email sending failed
+    if (!result.success) {
+      let errorMessage = 'There is a problem with the email service. Please contact your school administrator to reset your password manually.';
+      
+      if (result.error === 'SaaS SMTP not configured') {
+        errorMessage = 'SMTP settings are not configured. Please contact your school administrator to reset your password manually.';
+      }
+      
+      return NextResponse.json({
+        error: 'EMAIL_SEND_FAILED',
+        message: errorMessage,
+        details: result.error
+      }, { status: 500 });
+    }
+
+    // Email sent successfully
     return NextResponse.json({
       success: true,
       message: 'If an account exists, a reset email has been sent.',
-      ...(result.devMode ? { devResetUrl: resetUrl } : {}),
     });
   } catch (error: any) {
     console.error('Forgot password error:', error);
