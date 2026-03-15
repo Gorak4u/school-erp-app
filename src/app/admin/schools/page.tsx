@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface School {
   id: string;
@@ -46,7 +47,6 @@ export default function AdminSchoolsPage() {
   const [plans, setPlans] = useState<PlanOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [search, setSearch] = useState('');
   const [filterPlan, setFilterPlan] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -59,6 +59,14 @@ export default function AdminSchoolsPage() {
   const [bulkAction, setBulkAction] = useState('');
   const [bulkPlan, setBulkPlan] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Create School State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial',
+    adminFirstName: '', adminLastName: '', adminEmail: '', adminPassword: ''
+  });
 
   const load = () => {
     setLoading(true);
@@ -104,7 +112,6 @@ export default function AdminSchoolsPage() {
     }
     
     setActionLoading(schoolId);
-    setMessage(null);
     try {
       const res = await fetch('/api/admin/schools', {
         method: 'PUT',
@@ -112,10 +119,14 @@ export default function AdminSchoolsPage() {
         body: JSON.stringify({ id: schoolId, action, ...extra }),
       });
       const data = await res.json();
-      setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
-      if (res.ok) load();
+      if (res.ok) {
+        showSuccessToast('Success', data.message || 'Action completed successfully');
+        load();
+      } else {
+        showErrorToast('Error', data.message || data.error || 'Action failed');
+      }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Network Error', 'Please check your connection and try again');
     } finally {
       setActionLoading(null);
     }
@@ -136,7 +147,6 @@ export default function AdminSchoolsPage() {
   const executeBulkAction = async () => {
     const ids = Array.from(selected);
     setActionLoading('bulk');
-    setMessage(null);
     try {
       const body: any = { id: ids[0], action: `bulk_${bulkAction}`, ids };
       if (bulkAction === 'change_plan') body.plan = bulkPlan;
@@ -146,12 +156,49 @@ export default function AdminSchoolsPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
-      if (res.ok) { setSelected(new Set()); setBulkAction(''); setShowDeleteConfirm(false); load(); }
+      if (res.ok) {
+        showSuccessToast('Success', data.message || 'Bulk action completed successfully');
+        setSelected(new Set());
+        setBulkAction('');
+        setShowDeleteConfirm(false);
+        load();
+      } else {
+        showErrorToast('Error', data.message || data.error || 'Bulk action failed');
+      }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Network Error', 'Please check your connection and try again');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleCreateSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateLoading(true);
+    
+    try {
+      const res = await fetch('/api/admin/schools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        showSuccessToast('Success', 'School created successfully!');
+        setShowCreateModal(false);
+        setCreateForm({
+          schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial',
+          adminFirstName: '', adminLastName: '', adminEmail: '', adminPassword: ''
+        });
+        load();
+      } else {
+        showErrorToast('Error', data.error || 'Failed to create school');
+      }
+    } catch (err) {
+      showErrorToast('Network Error', 'Please check your connection and try again');
+    } finally {
+      setCreateLoading(false);
     }
   };
 
@@ -242,15 +289,14 @@ export default function AdminSchoolsPage() {
           <button onClick={exportCSV} className={btnCls(isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')}>
             ⬇ Export CSV
           </button>
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className={btnCls('bg-blue-600 text-white hover:bg-blue-700')}
+          >
+            ➕ Add School
+          </button>
         </div>
       </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Bulk Actions Bar */}
       {selected.size > 0 && (
@@ -446,37 +492,140 @@ export default function AdminSchoolsPage() {
       )}
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} border rounded-xl p-6 max-w-md mx-4`}>
-            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              ⚠️ Delete Schools Permanently?
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${isDark ? 'bg-gray-900' : 'bg-white'} rounded-xl max-w-md w-full p-6 shadow-2xl border border-red-500/20`}>
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4 text-xl">
+              ⚠️
+            </div>
+            <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Delete {selected.size === 1 ? 'School' : `${selected.size} Schools`}?
             </h3>
-            <div className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              <p className="mb-2">You are about to delete <strong>{selected.size}</strong> school(s) and ALL their related data:</p>
-              <ul className="list-disc list-inside text-sm space-y-1 ml-4">
+            <div className={`text-sm mb-6 space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p>This action <strong>cannot be undone</strong>.</p>
+              <p>It will permanently delete:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>School profile & settings</li>
                 <li>All students and their records</li>
-                <li>All teachers and their records</li>
-                <li>All user accounts</li>
-                <li>All subscriptions and payments</li>
-                <li>All school data and settings</li>
+                <li>All teachers and staff</li>
+                <li>All fee records, payments, and receipts</li>
+                <li>All attendance and exam data</li>
+                <li>All admin user accounts</li>
               </ul>
-              <p className="mt-3 text-red-500 font-medium">This action cannot be undone!</p>
+              <p className="mt-4 font-semibold text-red-500">
+                Are you absolutely sure you want to proceed?
+              </p>
             </div>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className={`px-4 py-2 rounded-lg border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                onClick={() => { setShowDeleteConfirm(false); setBulkAction(''); setSelected(new Set()); }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
               >
                 Cancel
               </button>
               <button
                 onClick={executeBulkAction}
                 disabled={actionLoading === 'bulk'}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
               >
-                {actionLoading === 'bulk' ? 'Deleting...' : 'Delete Forever'}
+                {actionLoading === 'bulk' ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                Yes, Delete Permanently
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create School Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl max-w-2xl w-full p-6 shadow-2xl border max-h-[90vh] overflow-y-auto`}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Add New School
+              </h3>
+              <button onClick={() => setShowCreateModal(false)} className={`text-gray-500 hover:text-gray-700 ${isDark ? 'hover:text-gray-300' : ''}`}>
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateSchool} className="space-y-6">
+              <div className="space-y-4">
+                <h4 className={`text-lg font-semibold border-b pb-2 ${isDark ? 'text-gray-300 border-gray-800' : 'text-gray-700 border-gray-100'}`}>
+                  School Details
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>School Name *</label>
+                    <input required type="text" className={`${inputCls} w-full`} value={createForm.schoolName} onChange={e => setCreateForm({...createForm, schoolName: e.target.value})} placeholder="e.g. Modern High School" />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Subscription Plan *</label>
+                    <select required className={`${inputCls} w-full`} value={createForm.plan} onChange={e => setCreateForm({...createForm, plan: e.target.value})}>
+                      {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Contact Email *</label>
+                    <input required type="email" className={`${inputCls} w-full`} value={createForm.email} onChange={e => setCreateForm({...createForm, email: e.target.value})} placeholder="school@example.com" />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Phone</label>
+                    <input type="text" className={`${inputCls} w-full`} value={createForm.phone} onChange={e => setCreateForm({...createForm, phone: e.target.value})} placeholder="+91..." />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>City</label>
+                    <input type="text" className={`${inputCls} w-full`} value={createForm.city} onChange={e => setCreateForm({...createForm, city: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>State</label>
+                    <input type="text" className={`${inputCls} w-full`} value={createForm.state} onChange={e => setCreateForm({...createForm, state: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className={`text-lg font-semibold border-b pb-2 ${isDark ? 'text-gray-300 border-gray-800' : 'text-gray-700 border-gray-100'}`}>
+                  Initial Admin User
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>First Name *</label>
+                    <input required type="text" className={`${inputCls} w-full`} value={createForm.adminFirstName} onChange={e => setCreateForm({...createForm, adminFirstName: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Last Name *</label>
+                    <input required type="text" className={`${inputCls} w-full`} value={createForm.adminLastName} onChange={e => setCreateForm({...createForm, adminLastName: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Admin Login Email *</label>
+                    <input required type="email" className={`${inputCls} w-full`} value={createForm.adminEmail} onChange={e => setCreateForm({...createForm, adminEmail: e.target.value})} placeholder="admin@example.com" />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Initial Password *</label>
+                    <input required type="password" minLength={6} className={`${inputCls} w-full`} value={createForm.adminPassword} onChange={e => setCreateForm({...createForm, adminPassword: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {createLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                  Create School
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

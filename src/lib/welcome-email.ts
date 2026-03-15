@@ -5,7 +5,10 @@ import { School, Subscription, User } from '@prisma/client';
 export async function sendWelcomeEmail(
   user: User,
   school: School,
-  subscription: Subscription
+  subscription: Subscription,
+  password?: string,
+  planStartDate?: Date,
+  planEndDate?: Date
 ) {
   try {
     // Build URLs
@@ -22,6 +25,9 @@ export async function sendWelcomeEmail(
       loginUrl,
       dashboardUrl,
       paymentUrl,
+      password,
+      planStartDate,
+      planEndDate,
     };
 
     const { subject, html } = generateWelcomeEmail(emailData);

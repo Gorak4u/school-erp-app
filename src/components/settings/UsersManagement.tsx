@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole { id: string; name: string; }
 interface SchoolUser {
@@ -28,11 +30,11 @@ interface UsersManagementProps {
 }
 
 export default function UsersManagement({ theme, isDark }: UsersManagementProps) {
+  const { data: session } = useSession();
   const [users, setUsers] = useState<SchoolUser[]>([]);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<SchoolUser | null>(null);
   const [form, setForm] = useState({
@@ -49,7 +51,7 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       setUsers(uData.users || []);
       setCustomRoles(rData.roles || []);
     }).catch(err => {
-      setMessage({ type: 'error', text: 'Failed to load data' });
+      showErrorToast('Error', 'Failed to load data');
     }).finally(() => setLoading(false));
   };
 
@@ -62,7 +64,13 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       role: 'teacher', customRoleId: '', password: '', isActive: true,
     });
     setShowForm(true);
-    setMessage(null);
+    
+    // Refresh roles to get any newly created ones
+    fetch('/api/roles').then(r => r.json()).then(rData => {
+      setCustomRoles(rData.roles || []);
+    }).catch(err => {
+      console.error('Failed to refresh roles:', err);
+    });
   };
 
   const openEdit = (user: SchoolUser) => {
@@ -77,15 +85,23 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       isActive: user.isActive,
     });
     setShowForm(true);
-    setMessage(null);
+    
+    // Refresh roles to get any newly created ones
+    fetch('/api/roles').then(r => r.json()).then(rData => {
+      setCustomRoles(rData.roles || []);
+    }).catch(err => {
+      console.error('Failed to refresh roles:', err);
+    });
   };
 
   const save = async () => {
     if (!form.email.trim() || !form.firstName.trim() || !form.lastName.trim()) {
-      return setMessage({ type: 'error', text: 'All fields are required' });
+      showErrorToast('Validation Error', 'All fields are required');
+      return;
     }
     if (!editingUser && !form.password.trim()) {
-      return setMessage({ type: 'error', text: 'Password is required for new users' });
+      showErrorToast('Validation Error', 'Password is required for new users');
+      return;
     }
 
     setSaving(true);
@@ -101,6 +117,10 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       if (!editingUser || form.password.trim()) {
         payload.password = form.password.trim();
       }
+      // Add schoolId from session for super admins
+      if (session?.user?.schoolId) {
+        payload.schoolId = session.user.schoolId;
+      }
 
       const res = await fetch('/api/users' + (editingUser ? `/${editingUser.id}` : ''), {
         method: editingUser ? 'PUT' : 'POST',
@@ -109,11 +129,11 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      setMessage({ type: 'success', text: editingUser ? 'User updated' : 'User created' });
+      showSuccessToast('Success', editingUser ? 'User updated' : 'User created');
       setShowForm(false);
       load();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Something went wrong' });
+      showErrorToast('Error', err.message || 'Something went wrong');
     } finally {
       setSaving(false);
     }
@@ -128,10 +148,10 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
-      setMessage({ type: 'success', text: `User ${!user.isActive ? 'activated' : 'deactivated'}` });
+      showSuccessToast('Success', `User ${!user.isActive ? 'activated' : 'deactivated'}`);
       load();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Update failed' });
+      showErrorToast('Error', err.message || 'Update failed');
     }
   };
 
@@ -141,10 +161,10 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       const res = await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
-      setMessage({ type: 'success', text: 'User deleted' });
+      showSuccessToast('Success', 'User deleted');
       load();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Delete failed' });
+      showErrorToast('Error', err.message || 'Delete failed');
     }
   };
 
@@ -177,16 +197,6 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
           + Add User
         </button>
       </div>
-
-      {message && (
-        <div className={`p-4 rounded-lg border ${
-          message.type === 'success' 
-            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       {loading ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading users...</div>

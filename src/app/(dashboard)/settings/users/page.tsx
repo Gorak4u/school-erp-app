@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole { id: string; name: string; }
 interface SchoolUser {
@@ -32,7 +33,6 @@ export default function UsersPage() {
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<SchoolUser | null>(null);
   const [form, setForm] = useState({
@@ -57,7 +57,6 @@ export default function UsersPage() {
     setEditingUser(null);
     setForm({ email: '', firstName: '', lastName: '', role: 'teacher', customRoleId: '', password: '', isActive: true });
     setShowForm(true);
-    setMessage(null);
   };
 
   const openEdit = (user: SchoolUser) => {
@@ -72,12 +71,10 @@ export default function UsersPage() {
       isActive: user.isActive,
     });
     setShowForm(true);
-    setMessage(null);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
     try {
       const payload: any = {
         email: form.email,
@@ -101,14 +98,14 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: editingUser ? 'User updated!' : 'User created!' });
+        showSuccessToast('Success', editingUser ? 'User updated!' : 'User created!');
         setShowForm(false);
         load();
       } else {
-        setMessage({ type: 'error', text: data.error });
+        showErrorToast('Error', data.error);
       }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Error', 'Network error');
     } finally {
       setSaving(false);
     }
@@ -121,8 +118,16 @@ export default function UsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !user.isActive }),
       });
-      if (res.ok) load();
-    } catch {}
+      const data = await res.json();
+      if (res.ok) {
+        showSuccessToast('Success', `User ${!user.isActive ? 'activated' : 'deactivated'}`);
+        load();
+      } else {
+        showErrorToast('Error', data.error);
+      }
+    } catch {
+      showErrorToast('Error', 'Network error');
+    }
   };
 
   const cardCls = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
@@ -146,12 +151,6 @@ export default function UsersPage() {
           + Add User
         </button>
       </div>
-
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Create / Edit Form */}
       {showForm && (

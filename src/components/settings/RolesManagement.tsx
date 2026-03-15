@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PERMISSION_GROUPS, PERMISSION_LABELS, ALL_PERMISSIONS, type Permission } from '@/lib/permissions';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole {
   id: string;
@@ -24,7 +25,6 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -43,7 +43,6 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
     setEditingRole(null);
     setForm(EMPTY_FORM);
     setShowForm(true);
-    setMessage(null);
   };
 
   const openEdit = (role: CustomRole) => {
@@ -55,12 +54,17 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       isDefault: role.isDefault,
     });
     setShowForm(true);
-    setMessage(null);
   };
 
   const save = async () => {
-    if (!form.name.trim()) return setMessage({ type: 'error', text: 'Role name is required' });
-    if (form.permissions.length === 0) return setMessage({ type: 'error', text: 'Please select at least one permission' });
+    if (!form.name.trim()) {
+      showErrorToast('Validation Error', 'Role name is required');
+      return;
+    }
+    if (form.permissions.length === 0) {
+      showErrorToast('Validation Error', 'Please select at least one permission');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -76,12 +80,12 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      setMessage({ type: 'success', text: editingRole ? 'Role updated' : 'Role created' });
+      showSuccessToast('Success', editingRole ? 'Role updated' : 'Role created');
       setShowForm(false);
       setForm(EMPTY_FORM);
       load();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Something went wrong' });
+      showErrorToast('Error', err.message || 'Something went wrong');
     } finally {
       setSaving(false);
     }
@@ -94,10 +98,10 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       const res = await fetch(`/api/roles/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
-      setMessage({ type: 'success', text: 'Role deleted' });
+      showSuccessToast('Success', 'Role deleted');
       load();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Delete failed' });
+      showErrorToast('Error', err.message || 'Delete failed');
     } finally {
       setDeleting(null);
     }
@@ -126,16 +130,6 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
           + Create Role
         </button>
       </div>
-
-      {message && (
-        <div className={`p-4 rounded-lg border ${
-          message.type === 'success' 
-            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       {loading ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading roles...</div>
@@ -228,7 +222,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2 capitalize">{group}</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {groupData.permissions.map((perm: Permission) => (
-                          <label key={perm} className="flex items-center gap-2 text-sm">
+                          <label key={perm} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                             <input
                               type="checkbox"
                               checked={form.permissions.includes(perm)}

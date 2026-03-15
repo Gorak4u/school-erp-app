@@ -36,6 +36,7 @@ import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
 import StudentFinancialProfile from './components/StudentFinancialProfile';
 import FeeWorkflows from './components/FeeWorkflows';
+import DiscountManagement from './components/discount/DiscountManagement';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function FeesPage() {
@@ -138,6 +139,8 @@ export default function FeesPage() {
           <FeeFinancialAnalytics theme={theme} />
         ) : activeTab === 'notifications' ? (
           <FeeNotificationManager theme={theme} />
+        ) : activeTab === 'discounts' ? (
+          <DiscountManagement theme={theme} userRole={userRole} />
         ) : (
           <FeeTabContent ctx={ctx} />
         )}

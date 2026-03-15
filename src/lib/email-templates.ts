@@ -7,10 +7,13 @@ export interface WelcomeEmailData {
   loginUrl: string;
   dashboardUrl: string;
   paymentUrl?: string;
+  password?: string;
+  planStartDate?: Date;
+  planEndDate?: Date;
 }
 
 export function generateWelcomeEmail(data: WelcomeEmailData) {
-  const { user, school, subscription, loginUrl, dashboardUrl, paymentUrl } = data;
+  const { user, school, subscription, loginUrl, dashboardUrl, paymentUrl, password, planStartDate, planEndDate } = data;
   
   const isTrial = subscription.plan === 'trial';
   const isPaid = subscription.plan === 'pro' || subscription.plan === 'premium';
@@ -58,7 +61,7 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
         <div class="card">
             <h2>🔐 Login Credentials</h2>
             <p><strong>Email:</strong> ${user.email}</p>
-            <p><strong>Password:</strong> [Use the password you created during registration]</p>
+            <p><strong>Password:</strong> ${password ? `<code>${password}</code><br><small><i>(Please change this password after your first login)</i></small>` : '[Use the password you created during registration]'}</p>
             <p style="margin-top: 15px;">
                 <a href="${loginUrl}" class="btn">🚀 Login Now</a>
             </p>
@@ -75,6 +78,8 @@ export function generateWelcomeEmail(data: WelcomeEmailData) {
             ${isTrial ? `<p><strong>Trial Period:</strong> ${trialDays} days remaining</p>` : ''}
             <p><strong>Student Limit:</strong> ${subscription.maxStudents}</p>
             <p><strong>Teacher Limit:</strong> ${subscription.maxTeachers}</p>
+            ${planStartDate ? `<p><strong>Plan Start Date:</strong> ${planStartDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
+            ${planEndDate ? `<p><strong>Plan End Date:</strong> ${planEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
             ${isPaid && paymentUrl ? `<p><strong>Manage Billing:</strong> <a href="${paymentUrl}">Payment Settings</a></p>` : ''}
         </div>
 

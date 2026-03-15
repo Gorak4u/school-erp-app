@@ -3,6 +3,115 @@ import { getServerSession } from 'next-auth';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 import { logAuditAction } from '@/lib/auditLog';
+import bcrypt from 'bcryptjs';
+import { sendWelcomeEmail } from '@/lib/welcome-email';
+
+export async function POST(req: Request) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const data = await req.json();
+    const { schoolName, email, phone, city, state, plan, adminFirstName, adminLastName, adminEmail, adminPassword } = data;
+
+    if (!schoolName || !email || !plan || !adminFirstName || !adminLastName || !adminEmail || !adminPassword) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Check if admin email already exists
+    const existingUser = await (schoolPrisma as any).school_User.findUnique({ where: { email: adminEmail } });
+    if (existingUser) {
+      return NextResponse.json({ error: 'Admin email already exists' }, { status: 400 });
+    }
+
+    const p = saasPrisma as any;
+    const planConfig = await p.plan.findUnique({ where: { name: plan } });
+
+    // Generate unique slug
+    const baseSlug = schoolName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const slug = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+
+    let createdSchool: any = null;
+    let createdUser: any = null;
+
+    // Create School and Subscription first
+    createdSchool = await p.school.create({
+      data: {
+        name: schoolName,
+        slug,
+        email,
+        phone: phone || null,
+        city: city || null,
+        state: state || null,
+        isActive: true,
+        subscription: {
+          create: {
+            plan,
+            status: 'active',
+            maxStudents: planConfig?.maxStudents || 50,
+            maxTeachers: planConfig?.maxTeachers || 5,
+            features: planConfig?.features || '[]',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: plan === 'trial' 
+              ? new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)) // 30 days from now for trial
+              : new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)) // 1 year from now for paid plans
+          }
+        }
+      },
+      include: {
+        subscription: true
+      }
+    });
+
+    // Create Admin User after school is created
+    createdUser = await (schoolPrisma as any).school_User.create({
+      data: {
+        id: 'usr-' + Date.now() + Math.floor(Math.random() * 1000),
+        email: adminEmail,
+        password: hashedPassword,
+        firstName: adminFirstName,
+        lastName: adminLastName,
+        role: 'admin',
+        schoolId: createdSchool.id,
+        updatedAt: new Date()
+      }
+    });
+
+    // Send welcome email with login credentials
+    if (createdSchool && createdUser) {
+      try {
+        await sendWelcomeEmail(
+          createdUser,
+          createdSchool,
+          createdSchool.subscription,
+          adminPassword, // Pass plain text password to be included in email
+          createdSchool.subscription.currentPeriodStart || undefined,
+          createdSchool.subscription.currentPeriodEnd || undefined
+        );
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // We don't throw here so the API still returns success for school creation
+      }
+    }
+
+    await logAuditAction({ 
+      actorEmail: session.user.email, 
+      action: 'create_school', 
+      target: createdSchool.id, 
+      targetName: schoolName, 
+      details: { adminEmail, plan } 
+    });
+
+    return NextResponse.json({ success: true, message: 'School and Admin user created successfully', school: createdSchool });
+  } catch (error: any) {
+    console.error('Error creating school:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

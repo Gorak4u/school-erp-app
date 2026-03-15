@@ -74,6 +74,33 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
     <>
         {/* Tab Content */}
         <AnimatePresence>
+          {activeTab === 'discounts' && (
+            <motion.div
+              key="tab-discounts"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <div className={`p-6 rounded-xl border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <h3 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Discount Management
+                </h3>
+                <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Manage fee discounts, approvals, and audit trails. Please navigate to the Discounts tab to use the full Discount Approval System.
+                </p>
+                <div className="flex justify-center p-8">
+                  <button
+                    onClick={() => setActiveTab('discounts')}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    Open Discount System
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'all-students' && (
             <motion.div
               key="tab-all-students"

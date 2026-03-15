@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PaymentReceipt from './PaymentReceipt';
+import StudentDiscountForm from './StudentDiscountForm';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 import { studentsApi } from '@/lib/apiClient';
 import {
@@ -34,6 +35,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const [activeTab, setActiveTab] = useState<'overview' | 'fee-details' | 'payment-history'>('overview');
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -385,6 +387,28 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <p className={`text-sm ${textSecondary}`}>Next Due</p>
               <p className={`text-xl font-bold ${textPrimary}`}>{currentStudentData?.nextDueDate || 'N/A'}</p>
               <p className={`text-xs ${textSecondary}`}>Rs.{(currentStudentData?.nextDueAmount || 0).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className={`p-6 rounded-xl border ${cardCls}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Quick Actions</h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowDiscountModal(true)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                🎁 Apply Discount
+              </button>
+              <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                💳 Collect Payment
+              </button>
+              <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                📧 Send Reminder
+              </button>
+              <button className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                📄 Generate Receipt
+              </button>
             </div>
           </div>
 
@@ -848,6 +872,37 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
             />
           </motion.div>
         </motion.div>
+      )}
+
+      {/* Discount Modal */}
+      {showDiscountModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+            <div className={`flex justify-between items-center p-6 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+              <h2 className={`text-xl font-bold ${textPrimary}`}>Apply Discount to {currentStudentData?.name || 'Student'}</h2>
+              <button
+                onClick={() => setShowDiscountModal(false)}
+                className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <StudentDiscountForm 
+                theme={theme} 
+                studentId={selectedStudent || studentId || studentData?.id}
+                studentName={currentStudentData?.name || 'Student'}
+                onClose={() => setShowDiscountModal(false)}
+                onSuccess={() => {
+                  setShowDiscountModal(false);
+                  // Refresh student data
+                  if (fetchStudentData) fetchStudentData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 type Tab = 'smtp' | 'razorpay' | 'bank' | 'business';
 
@@ -62,7 +64,6 @@ export default function AdminPaymentsPage() {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -76,12 +77,10 @@ export default function AdminPaymentsPage() {
   const set = (key: string, val: string) => {
     setConfig(p => ({ ...p, [key]: val }));
     setHasChanges(true);
-    setMessage(null);
   };
 
   const save = async () => {
     setSaving(true);
-    setMessage(null);
     try {
       const res = await fetch('/api/admin/saas-config', {
         method: 'PUT',
@@ -90,13 +89,13 @@ export default function AdminPaymentsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: 'Configuration saved successfully!' });
+        showSuccessToast('Success', 'Configuration saved successfully!');
         setHasChanges(false);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to save' });
+        showErrorToast('Error', data.error || 'Failed to save');
       }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Error', 'Network error');
     } finally {
       setSaving(false);
     }
@@ -112,85 +111,79 @@ export default function AdminPaymentsPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment & Email Config</h1>
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Platform-level settings for billing, SMTP, and business identity</p>
+    <AppLayout currentPage="admin" theme={theme}>
+      <div className="max-w-4xl mx-auto space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment & Email Config</h1>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Platform-level settings for billing, SMTP, and business identity</p>
+          </div>
+          <div className={`text-xs px-3 py-2 rounded-xl border flex items-center gap-2 ${isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+            <span>ℹ️</span>
+            <span>These are platform settings — not per-school settings</span>
+          </div>
         </div>
-        <div className={`text-xs px-3 py-2 rounded-xl border flex items-center gap-2 ${isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
-          <span>ℹ️</span>
-          <span>These are platform settings — not per-school settings</span>
-        </div>
-      </div>
 
-      {/* Status chips */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <span className="text-sm">✉️ SMTP</span>
-          <StatusBadge enabled={config.smtp_enabled === 'true'} isDark={isDark} />
+        {/* Status chips */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+            <span className="text-sm">✉️ SMTP</span>
+            <StatusBadge enabled={config.smtp_enabled === 'true'} isDark={isDark} />
+          </div>
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+            <span className="text-sm">💳 Razorpay</span>
+            <StatusBadge enabled={config.razorpay_enabled === 'true'} isDark={isDark} />
+          </div>
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+            <span className="text-sm">🏦 Bank</span>
+            <StatusBadge enabled={!!config.bank_account_number} isDark={isDark} />
+          </div>
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+            <span className="text-sm">🏢 Business</span>
+            <StatusBadge enabled={!!config.company_name} isDark={isDark} />
+          </div>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <span className="text-sm">💳 Razorpay</span>
-          <StatusBadge enabled={config.razorpay_enabled === 'true'} isDark={isDark} />
-        </div>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <span className="text-sm">🏦 Bank</span>
-          <StatusBadge enabled={!!config.bank_account_number} isDark={isDark} />
-        </div>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <span className="text-sm">🏢 Business</span>
-          <StatusBadge enabled={!!config.company_name} isDark={isDark} />
-        </div>
-      </div>
 
-      {/* Message */}
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {message.text}
+        {/* Tab bar */}
+        <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
+                activeTab === t.id
+                  ? isDark ? 'bg-gray-900 text-white shadow' : 'bg-white text-gray-900 shadow'
+                  : isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              <span>{t.icon}</span>
+              <span className="hidden sm:inline">{t.label}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Tab bar */}
-      <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
-              activeTab === t.id
-                ? isDark ? 'bg-gray-900 text-white shadow' : 'bg-white text-gray-900 shadow'
-                : isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
-            }`}>
-            <span>{t.icon}</span>
-            <span className="hidden sm:inline">{t.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div className={`${cardCls} p-6 space-y-5`}>
-        {/* SMTP */}
-        {activeTab === 'smtp' && (
-          <>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>✉️ SMTP Configuration</h3>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>For: password reset emails, welcome emails, subscription invoices, platform notifications</p>
+        {/* Tab content */}
+        <div className={`${cardCls} p-6 space-y-5`}>
+          {/* SMTP */}
+          {activeTab === 'smtp' && (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>✉️ SMTP Configuration</h3>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>For: password reset emails, welcome emails, subscription invoices, platform notifications</p>
+                </div>
+                <select
+                  className={`px-3 py-1.5 rounded-lg border text-xs ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  value={config.smtp_enabled || 'false'} onChange={e => set('smtp_enabled', e.target.value)}>
+                  <option value="false">Disabled</option>
+                  <option value="true">Enabled</option>
+                </select>
               </div>
-              <select
-                className={`px-3 py-1.5 rounded-lg border text-xs ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                value={config.smtp_enabled || 'false'} onChange={e => set('smtp_enabled', e.target.value)}>
-                <option value="false">Disabled</option>
-                <option value="true">Enabled</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FieldRow label="SMTP Host" placeholder="smtp.gmail.com" value={config.smtp_host || ''} onChange={v => set('smtp_host', v)} isDark={isDark} />
-              <FieldRow label="SMTP Port" placeholder="587" value={config.smtp_port || ''} onChange={v => set('smtp_port', v)} isDark={isDark} hint="587 for TLS, 465 for SSL" />
-              <FieldRow label="Username / Email" placeholder="platform@yourcompany.com" value={config.smtp_username || ''} onChange={v => set('smtp_username', v)} isDark={isDark} />
-              <FieldRow label="Password / App Password" placeholder="App password" value={config.smtp_password || ''} onChange={v => set('smtp_password', v)} isDark={isDark} secret />
-              <FieldRow label="From Email" type="email" placeholder="noreply@schoolerp.com" value={config.smtp_from_email || ''} onChange={v => set('smtp_from_email', v)} isDark={isDark} />
-              <FieldRow label="From Name" placeholder="School ERP Platform" value={config.smtp_from_name || ''} onChange={v => set('smtp_from_name', v)} isDark={isDark} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FieldRow label="SMTP Host" placeholder="smtp.gmail.com" value={config.smtp_host || ''} onChange={v => set('smtp_host', v)} isDark={isDark} />
+                <FieldRow label="SMTP Port" placeholder="587" value={config.smtp_port || ''} onChange={v => set('smtp_port', v)} isDark={isDark} hint="587 for TLS, 465 for SSL" />
+                <FieldRow label="Username / Email" placeholder="platform@yourcompany.com" value={config.smtp_username || ''} onChange={v => set('smtp_username', v)} isDark={isDark} />
+                <FieldRow label="Password / App Password" placeholder="App password" value={config.smtp_password || ''} onChange={v => set('smtp_password', v)} isDark={isDark} secret />
+                <FieldRow label="From Email" type="email" placeholder="noreply@schoolerp.com" value={config.smtp_from_email || ''} onChange={v => set('smtp_from_email', v)} isDark={isDark} />
+                <FieldRow label="From Name" placeholder="School ERP Platform" value={config.smtp_from_name || ''} onChange={v => set('smtp_from_name', v)} isDark={isDark} />
             </div>
             <div className={`p-3 rounded-lg text-xs ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
               💡 When disabled, password reset links are shown on-screen (dev mode). Enable for production.
@@ -284,5 +277,6 @@ export default function AdminPaymentsPage() {
         </button>
       </div>
     </div>
+  </AppLayout>
   );
 }

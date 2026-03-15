@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
+import Toast from "@/components/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
             </SchoolConfigProvider>
           </ThemeProvider>
         </SessionProviderWrapper>
+        <Toast theme="light" />
       </body>
     </html>
   );

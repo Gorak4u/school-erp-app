@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface Announcement {
   id: string;
@@ -34,7 +35,6 @@ export default function AnnouncementsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -51,25 +51,24 @@ export default function AnnouncementsPage() {
 
   const save = async () => {
     if (!form.title.trim() || !form.message.trim()) {
-      setMessage({ type: 'error', text: 'Title and message are required' });
+      showErrorToast('Validation Error', 'Title and message are required');
       return;
     }
     setSaving(true);
-    setMessage(null);
     try {
       const method = editId ? 'PUT' : 'POST';
       const body = { ...form, ...(editId ? { id: editId } : {}), targetPlans: form.targetPlans.length ? form.targetPlans : null };
       const res = await fetch('/api/admin/announcements', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: editId ? 'Announcement updated' : 'Announcement created' });
+        showSuccessToast('Success', editId ? 'Announcement updated' : 'Announcement created');
         setShowForm(false); setEditId(null); setForm({ ...EMPTY_FORM });
         load();
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to save' });
+        showErrorToast('Error', data.error || 'Failed to save');
       }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Network Error', 'Please check your connection and try again');
     } finally {
       setSaving(false);
     }
@@ -113,13 +112,6 @@ export default function AnnouncementsPage() {
           + New Announcement
         </button>
       </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Create / Edit Form */}
       {showForm && (

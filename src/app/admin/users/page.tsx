@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface UserRow {
   id: string;
@@ -41,7 +42,6 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -99,7 +99,6 @@ export default function AdminUsersPage() {
     }
     
     setActionLoading(id);
-    setMessage(null);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
@@ -107,11 +106,15 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ id, action, ...extra }),
       });
       const data = await res.json();
-      setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
-      if (action === 'reset_password') setResetModal(null);
-      if (res.ok) load();
+      if (res.ok) {
+        showSuccessToast('Success', data.message || 'Action completed successfully');
+        if (action === 'reset_password') setResetModal(null);
+        load();
+      } else {
+        showErrorToast('Error', data.message || data.error);
+      }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Error', 'Network error');
     } finally {
       setActionLoading(null);
     }
@@ -141,7 +144,11 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ id: ids[0], action: 'bulk_delete', ids }),
       });
       const data = await res.json();
-      setMessage({ type: res.ok ? 'success' : 'error', text: data.message || data.error });
+      if (res.ok) {
+        showSuccessToast('Success', data.message || 'Users deleted successfully');
+      } else {
+        showErrorToast('Error', data.message || data.error);
+      }
     } else {
       // Handle other bulk actions
       for (const id of ids) {
@@ -151,7 +158,7 @@ export default function AdminUsersPage() {
           body: JSON.stringify({ id, action: bulkAction }),
         });
       }
-      setMessage({ type: 'success', text: `Bulk action applied to ${ids.length} users` });
+      showSuccessToast('Success', `Bulk action applied to ${ids.length} users`);
     }
     
     setActionLoading(null);
@@ -244,13 +251,6 @@ export default function AdminUsersPage() {
           </button>
         )}
       </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Bulk Action Bar */}
       {selected.size > 0 && (

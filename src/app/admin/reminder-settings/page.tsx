@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 import { ReminderSchedule, DEFAULT_REMINDER_CONFIG, getReminderConfigClient, updateReminderConfigClient } from '@/lib/reminder-config-client';
 
 export default function ReminderSettingsPage() {
@@ -10,7 +12,6 @@ export default function ReminderSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<ReminderSchedule>(DEFAULT_REMINDER_CONFIG);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isDark = theme === 'dark';
   const card = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
@@ -35,13 +36,12 @@ export default function ReminderSettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
     
     try {
       await updateReminderConfigClient(config);
-      setMessage({ type: 'success', text: 'Reminder settings saved successfully!' });
+      showSuccessToast('Success', 'Reminder settings saved successfully!');
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save reminder settings' });
+      showErrorToast('Error', 'Failed to save reminder settings');
     } finally {
       setSaving(false);
     }
@@ -196,75 +196,58 @@ export default function ReminderSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Reminder Settings
-          </h1>
-          <p className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Configure automated email reminders for trials, renewals, and payments
-          </p>
-        </div>
+    <AppLayout currentPage="admin" theme={theme}>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Reminder Settings
+              </h1>
+              <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Configure automated email and SMS reminders for pending fees and trial expirations.
+              </p>
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-sm text-sm disabled:opacity-50 flex items-center gap-2`}
+            >
+              {saving ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
 
-        {/* Message */}
-        {message && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg ${
-              message.type === 'success'
-                ? 'bg-green-100 border-green-400 text-green-700'
-                : 'bg-red-100 border-red-400 text-red-700'
-            }`}
-          >
-            {message.text}
-          </motion.div>
-        )}
-
-        {/* Reminder Configurations */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ReminderConfigCard
-            type="trialExpiry"
-            title="Trial Expiry Reminders"
-            description="Notifies users before their trial period ends"
-            color="bg-yellow-500"
-          />
-          
-          <ReminderConfigCard
-            type="subscriptionRenewal"
-            title="Subscription Renewal"
-            description="Reminds users before subscription renewal"
-            color="bg-blue-500"
-          />
-          
-          <ReminderConfigCard
-            type="paymentFailed"
-            title="Payment Failed"
-            description="Notifies when automatic payment fails"
-            color="bg-red-500"
-          />
-          
-          <ReminderConfigCard
-            type="serviceSuspension"
-            title="Service Suspension"
-            description="Warns users after service suspension"
-            color="bg-orange-500"
-          />
-        </div>
-
-        {/* Save Button */}
-        <div className="mt-8 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={`${btnPrimary} ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ReminderConfigCard
+              type="trialExpiry"
+              title="Trial Expiry Reminders"
+              description="Notifies users before their trial period ends"
+              color="bg-yellow-500"
+            />
+            
+            <ReminderConfigCard
+              type="subscriptionRenewal"
+              title="Subscription Renewal"
+              description="Reminds users before subscription renewal"
+              color="bg-blue-500"
+            />
+            
+            <ReminderConfigCard
+              type="paymentFailed"
+              title="Payment Failed"
+              description="Notifies when automatic payment fails"
+              color="bg-red-500"
+            />
+            
+            <ReminderConfigCard
+              type="serviceSuspension"
+              title="Service Suspension"
+              description="Notifies users before service suspension"
+              color="bg-orange-500"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

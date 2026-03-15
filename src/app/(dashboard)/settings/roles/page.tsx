@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PERMISSION_GROUPS, PERMISSION_LABELS, ALL_PERMISSIONS, type Permission } from '@/lib/permissions';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole {
   id: string;
@@ -24,7 +25,6 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -43,7 +43,6 @@ export default function RolesPage() {
     setEditingRole(null);
     setForm(EMPTY_FORM);
     setShowForm(true);
-    setMessage(null);
   };
 
   const openEdit = (role: CustomRole) => {
@@ -52,7 +51,6 @@ export default function RolesPage() {
     try { perms = JSON.parse(role.permissions); } catch {}
     setForm({ name: role.name, description: role.description || '', permissions: perms, isDefault: role.isDefault });
     setShowForm(true);
-    setMessage(null);
   };
 
   const togglePermission = (p: Permission) => {
@@ -75,9 +73,8 @@ export default function RolesPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setMessage({ type: 'error', text: 'Role name is required' }); return; }
+    if (!form.name.trim()) { showErrorToast('Validation Error', 'Role name is required'); return; }
     setSaving(true);
-    setMessage(null);
     try {
       const res = await fetch(editingRole ? `/api/roles/${editingRole.id}` : '/api/roles', {
         method: editingRole ? 'PUT' : 'POST',
@@ -86,14 +83,14 @@ export default function RolesPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: editingRole ? `"${form.name}" updated!` : `"${form.name}" created!` });
+        showSuccessToast('Success', editingRole ? `"${form.name}" updated!` : `"${form.name}" created!`);
         setShowForm(false);
         load();
       } else {
-        setMessage({ type: 'error', text: data.error });
+        showErrorToast('Error', data.error);
       }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Error', 'Network error');
     } finally {
       setSaving(false);
     }
@@ -106,10 +103,10 @@ export default function RolesPage() {
       const res = await fetch(`/api/roles/${role.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: `"${role.name}" deleted` });
+        showSuccessToast('Success', `"${role.name}" deleted`);
         load();
       } else {
-        setMessage({ type: 'error', text: data.error });
+        showErrorToast('Error', data.error);
       }
     } finally {
       setDeleting(null);
@@ -136,12 +133,6 @@ export default function RolesPage() {
           + Create Role
         </button>
       </div>
-
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Create / Edit Form */}
       {showForm && (

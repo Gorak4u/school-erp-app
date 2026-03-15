@@ -762,3 +762,150 @@ model school_VerificationToken {
   @@map("VerificationToken")
   @@schema("school")
 }
+
+model DiscountRequest {
+  id               String   @id @default(cuid())
+  schoolId         String
+
+  // What discount
+  name             String
+  description      String?
+  discountType     String   // "percentage" | "fixed" | "full_waiver"
+  discountValue    Float
+  maxCapAmount     Float?
+
+  // Scope of application
+  scope            String   // "student" | "class" | "bulk"
+  targetType       String   // "fee_structure" | "total"
+  feeStructureIds  String   @default("[]")
+  studentIds       String   @default("[]")
+  classIds         String   @default("[]")
+  sectionIds       String   @default("[]")
+  academicYear     String
+
+  // Reason / justification
+  reason           String
+  supportingDoc    String?
+
+  // Workflow status
+  status           String   @default("pending") // "pending"|"approved"|"rejected"|"cancelled"|"applied"
+
+  // Requester
+  requestedBy      String
+  requestedByEmail String
+  requestedByName  String
+  requestedAt      DateTime @default(now())
+
+  // Approver
+  approvedBy       String?
+  approvedByEmail  String?
+  approvedByName   String?
+  approvedAt       DateTime?
+  approvalNote     String?
+
+  // Rejection
+  rejectedBy       String?
+  rejectedByEmail  String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+
+  // Applied
+  appliedBy        String?
+  appliedByEmail   String?
+  appliedAt        DateTime?
+  appliedCount     Int?
+
+  // Validity
+  validFrom        String
+  validTo          String
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  applications     DiscountApplication[]
+  auditLogs        DiscountRequestAuditLog[]
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, academicYear])
+  @@index([schoolId, status, academicYear])
+  @@index([requestedBy])
+  @@index([approvedBy])
+  @@index([status])
+  @@index([createdAt])
+  @@schema("school")
+}
+
+model DiscountApplication {
+  id                String          @id @default(cuid())
+  schoolId          String
+
+  discountRequestId String
+  discountRequest   DiscountRequest @relation(fields: [discountRequestId], references: [id], onDelete: Cascade)
+
+  studentId         String
+  feeRecordId       String
+  feeStructureId    String?
+
+  discountAmount    Float
+  previousDiscount  Float
+
+  // Reversal support
+  isReversed        Boolean  @default(false)
+  reversedBy        String?
+  reversedByEmail   String?
+  reversedAt        DateTime?
+  reversalReason    String?
+
+  appliedAt         DateTime @default(now())
+  appliedBy         String
+  appliedByEmail    String
+
+  @@index([schoolId])
+  @@index([schoolId, studentId])
+  @@index([discountRequestId])
+  @@index([studentId])
+  @@index([feeRecordId])
+  @@index([studentId, feeRecordId])
+  @@index([schoolId, isReversed])
+  @@schema("school")
+}
+
+model DiscountRequestAuditLog {
+  id                String          @id @default(cuid())
+  schoolId          String
+
+  discountRequestId String
+  discountRequest   DiscountRequest @relation(fields: [discountRequestId], references: [id], onDelete: Cascade)
+
+  action            String          // "created"|"approved"|"rejected"|"cancelled"|"applied"|"reversed"|"modified"
+  actorUserId       String
+  actorEmail        String
+  actorName         String
+  actorRole         String
+
+  previousStatus    String?
+  newStatus         String?
+  details           String?
+  ipAddress         String?
+
+  createdAt         DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([discountRequestId])
+  @@index([schoolId, createdAt])
+  @@index([actorEmail])
+  @@index([action])
+  @@schema("school")
+}
+
+// Token blacklist for production JWT invalidation
+model TokenBlacklist {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  
+  @@index([expiresAt])
+  @@schema("school")
+}

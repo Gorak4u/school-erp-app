@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface PlanData {
   id: string;
@@ -50,7 +52,6 @@ export default function AdminPlansPage() {
   const [subscriptionCounts, setSubscriptionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [editingPlan, setEditingPlan] = useState<PlanData | null>(null);
   const [editFeatures, setEditFeatures] = useState<string[]>([]);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -98,7 +99,6 @@ export default function AdminPlansPage() {
   const savePlan = async () => {
     if (!editingPlan) return;
     setSaving(true);
-    setMessage(null);
     try {
       const payload = { ...editingPlan, features: JSON.stringify(editFeatures) };
       const res = await fetch('/api/admin/plans', {
@@ -108,15 +108,15 @@ export default function AdminPlansPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: isCreating ? `"${editingPlan.displayName}" created!` : `"${editingPlan.displayName}" updated!` });
+        showSuccessToast(`"${editingPlan.displayName}" ${isCreating ? 'created' : 'updated'}!`);
         setEditingPlan(null);
         setIsCreating(false);
         load();
       } else {
-        setMessage({ type: 'error', text: data.error });
+        showErrorToast('Error', data.error);
       }
     } catch {
-      setMessage({ type: 'error', text: 'Network error' });
+      showErrorToast('Network Error', 'Failed to save plan');
     } finally {
       setSaving(false);
     }
@@ -132,83 +132,61 @@ export default function AdminPlansPage() {
   const cardCls = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Plans & Pricing</h1>
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Manage plan pricing, limits, and features. Changes apply to new subscriptions immediately.
-          </p>
-        </div>
-        <button onClick={startCreate}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-orange-500 to-red-500 text-white hover:opacity-90">
-          + Create New Plan
-        </button>
-        <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-          <button onClick={() => setBillingCycle('monthly')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${billingCycle === 'monthly' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Monthly
+    <AppLayout currentPage="admin" theme={theme}>
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Plans & Pricing</h1>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Manage plan pricing, limits, and features. Changes apply to new subscriptions immediately.
+            </p>
+          </div>
+          <button onClick={startCreate}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-orange-500 to-red-500 text-white hover:opacity-90">
+            + Create New Plan
           </button>
-          <button onClick={() => setBillingCycle('yearly')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${billingCycle === 'yearly' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Yearly
-          </button>
+          <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <button onClick={() => setBillingCycle('monthly')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${billingCycle === 'monthly' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Monthly
+            </button>
+            <button onClick={() => setBillingCycle('yearly')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${billingCycle === 'yearly' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Yearly
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* MRR Summary */}
-      <div className={`${cardCls} p-5`}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Total MRR</p>
-            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              ₹{totalMRR.toLocaleString()}
-            </p>
-          </div>
-          <div>
-            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>ARR (est.)</p>
-            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              ₹{(totalMRR * 12).toLocaleString()}
-            </p>
-          </div>
-          <div>
-            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Active Plans</p>
-            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {plans.filter(p => p.isActive).length}
-            </p>
-          </div>
-          <div>
-            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Total Subscribers</p>
-            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {Object.values(subscriptionCounts).reduce((a, b) => a + b, 0)}
-            </p>
+        {/* MRR Summary */}
+        <div className={`${cardCls} p-5`}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Total MRR</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                ₹{totalMRR.toLocaleString()}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className={`h-48 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'} animate-pulse`} />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Create New Plan Form */}
-          {isCreating && editingPlan && (
-            <div className={`${cardCls} overflow-hidden ring-2 ring-green-500`}>
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-5">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">✨</span>
-                  <span className="text-white font-bold text-lg">New Plan</span>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-4" />
+            <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>Loading plans...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Create New Plan Form */}
+            {isCreating && editingPlan && (
+              <div className={`${cardCls} overflow-hidden ring-2 ring-green-500`}>
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">✨</span>
+                    <span className="text-white font-bold text-lg">New Plan</span>
+                  </div>
                 </div>
-              </div>
-              <div className="p-5 space-y-3">
+                <div className="p-5 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Plan Name (slug)</label>
@@ -282,6 +260,7 @@ export default function AdminPlansPage() {
               </div>
             </div>
           )}
+          
           {/* Existing Plans */}
           {plans.sort((a, b) => a.sortOrder - b.sortOrder).map(plan => {
             const gradient = PLAN_GRADIENTS[plan.name] || 'from-gray-500 to-gray-600';
@@ -438,6 +417,7 @@ export default function AdminPlansPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }

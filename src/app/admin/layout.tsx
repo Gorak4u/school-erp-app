@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
+import Toast from '@/components/Toast';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '📊', exact: true },
@@ -275,6 +276,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
       )}
+      
+      {/* Toast Component */}
+      <Toast theme={theme} />
     </div>
   );
 }
