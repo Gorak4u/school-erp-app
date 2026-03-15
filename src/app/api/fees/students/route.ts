@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
 
 // GET /api/fees/students - Optimized students data with pagination and filtering
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100');
@@ -17,6 +21,11 @@ export async function GET(request: NextRequest) {
 
     // Build WHERE conditions
     const whereConditions: any = {};
+    
+    // Tenant isolation - filter by school
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      whereConditions.schoolId = ctx.schoolId;
+    }
     
     if (studentClass && studentClass !== 'all') {
       whereConditions.class = studentClass;

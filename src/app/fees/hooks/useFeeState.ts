@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from '../types';
 import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi } from '@/lib/apiClient';
@@ -199,13 +199,15 @@ export function useFeeState() {
     };
   };
 
-  // Filter fee records based on current filters
-  const filteredFeeRecords = feeRecords.filter(record => {
-    if (selectedClass !== 'all' && record.student?.class !== selectedClass) return false;
-    if (selectedStatus !== 'all' && record.status !== selectedStatus) return false;
-    if (debouncedSearchTerm && !record.student?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) return false;
-    return true;
-  });
+  // Filter fee records based on current filters - memoized to prevent infinite loops
+  const filteredFeeRecords = React.useMemo(() => {
+    return feeRecords.filter(record => {
+      if (selectedClass !== 'all' && record.student?.class !== selectedClass) return false;
+      if (selectedStatus !== 'all' && record.status !== selectedStatus) return false;
+      if (debouncedSearchTerm && !record.student?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) return false;
+      return true;
+    });
+  }, [feeRecords, selectedClass, selectedStatus, debouncedSearchTerm]);
 
   // Enhanced filtering with AI search capabilities
   const filteredStudentSummaries = studentFeeSummaries.filter(student => {
@@ -402,7 +404,9 @@ export function useFeeState() {
       const data = await response.json();
       
       if (data.success !== false) {
-        setFeeRecords(data.records || []);
+        // Handle both old and new API response structures
+        const records = data.data?.records || data.records || [];
+        setFeeRecords(records);
         return data;
       } else {
         throw new Error(data.error);

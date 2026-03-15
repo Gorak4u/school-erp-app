@@ -1489,7 +1489,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
             </motion.div>
           )}
 
-          {activeTab !== 'collections' && <FeeRecordsTabs ctx={ctx} />}
+          {['fee-records', 'structures', 'collections', 'discounts'].includes(activeTab) && <FeeRecordsTabs key={`feetabs-${activeTab}`} ctx={ctx} />}
         </AnimatePresence>
 
         {/* Receipt Modal */}

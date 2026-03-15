@@ -6,9 +6,8 @@ import { parseDateParam } from '@/lib/parseDateParam';
 // GET /api/fees/collections/summary-optimized - Database-optimized for 10M records
 export async function GET(request: NextRequest) {
   try {
-    // Temporarily skip authentication for compatibility
-    // const { ctx, error } = await getSessionContext();
-    // if (error) return error;
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -24,6 +23,12 @@ export async function GET(request: NextRequest) {
     if (toDate) {
       whereConditions.push(`p."createdAt" <= '${toDate.toISOString()}'`);
     }
+    
+    // Tenant isolation - filter by school
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      whereConditions.push(`s."schoolId" = '${ctx.schoolId}'`);
+    }
+    
     const whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : 'TRUE';
 
     // OPTIMIZED: Use database aggregations with complete SQL strings

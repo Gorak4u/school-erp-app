@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
@@ -12,8 +12,14 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
     selectedStatus, setSelectedStatus, feeRecords, filteredFeeRecords, feeStructures, feeCollections,
     discounts, setShowFeeStructureModal, setShowReceiptModal, selectedFeeRecord, setSelectedFeeRecord,
     prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
+    currentPage, setCurrentPage, pageSize, setPageSize,
   } = ctx;
   const { dropdowns } = useSchoolConfig();
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedClass, selectedStatus]);
 
   return (
     <>
@@ -49,7 +55,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                         : 'bg-white border-gray-300 text-gray-900'
                     }`}
                   >
-                    <option value="all">All Classes</option>
+                    <option key="class-all" value="all">All Classes</option>
                     {dropdowns.classes.map(cls => (
                       <option key={cls.value} value={cls.label}>{cls.label}</option>
                     ))}
@@ -63,11 +69,11 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                         : 'bg-white border-gray-300 text-gray-900'
                     }`}
                   >
-                    <option value="all">All Status</option>
-                    <option value="paid">Paid</option>
-                    <option value="pending">Pending</option>
-                    <option value="overdue">Overdue</option>
-                    <option value="partial">Partial</option>
+                    <option key="status-all" value="all">All Status</option>
+                    <option key="status-paid" value="paid">Paid</option>
+                    <option key="status-pending" value="pending">Pending</option>
+                    <option key="status-overdue" value="overdue">Overdue</option>
+                    <option key="status-partial" value="partial">Partial</option>
                   </select>
                 </div>
               </div>
@@ -107,7 +113,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                      {(filteredFeeRecords || []).map((record) => (
+                      {(filteredFeeRecords || []).slice((currentPage - 1) * pageSize, currentPage * pageSize).map((record) => (
                         <tr key={record.id}>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
@@ -164,6 +170,91 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <div className="text-sm">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredFeeRecords?.length || 0)} of {filteredFeeRecords?.length || 0} records
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded ${
+                      currentPage === 1
+                        ? theme === 'dark' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil((filteredFeeRecords?.length || 0) / pageSize)) }, (_, i) => {
+                      const totalPages = Math.ceil((filteredFeeRecords?.length || 0) / pageSize);
+                      let pageNum;
+                      
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-1 rounded ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(Math.min(Math.ceil((filteredFeeRecords?.length || 0) / pageSize), currentPage + 1))}
+                    disabled={currentPage >= Math.ceil((filteredFeeRecords?.length || 0) / pageSize)}
+                    className={`px-3 py-1 rounded ${
+                      currentPage >= Math.ceil((filteredFeeRecords?.length || 0) / pageSize)
+                        ? theme === 'dark' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label className="text-sm">Show:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(parseInt(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className={`px-2 py-1 rounded text-sm ${
+                      theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <option key="page-size-10" value={10}>10</option>
+                    <option key="page-size-25" value={25}>25</option>
+                    <option key="page-size-50" value={50}>50</option>
+                    <option key="page-size-100" value={100}>100</option>
+                  </select>
                 </div>
               </div>
             </motion.div>
@@ -287,9 +378,9 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
               exit={{ opacity: 0, y: -10 }}
             >
               <div className="space-y-4">
-                {feeCollections.map((collection) => (
+                {feeCollections.map((collection, index) => (
                   <div
-                    key={collection.id}
+                    key={collection.id || `collection-${index}`}
                     className={`p-6 rounded-xl border ${
                       theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                     }`}

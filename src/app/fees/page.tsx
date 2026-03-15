@@ -31,8 +31,7 @@ import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
 import EnhancedFeeCollection from './components/EnhancedFeeCollection';
 import PaymentReceipt from './components/PaymentReceipt';
-import { PDFGenerator } from '@/utils/pdfGenerator';
-import FeeInvoiceManager from './components/FeeInvoiceManager';
+import FeeInvoiceManagerOptimized from './components/FeeInvoiceManager-Optimized';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
 import StudentFinancialProfile from './components/StudentFinancialProfile';
@@ -134,7 +133,7 @@ export default function FeesPage() {
 
         {/* Tab Content */}
         {activeTab === 'invoices' ? (
-          <FeeInvoiceManager theme={theme} />
+          <FeeInvoiceManagerOptimized theme={theme} activeTab={activeTab} />
         ) : activeTab === 'analytics' ? (
           <FeeFinancialAnalytics theme={theme} />
         ) : activeTab === 'notifications' ? (
