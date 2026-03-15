@@ -109,11 +109,13 @@ export default function SubscriptionPage() {
           ...subscription,
           autoRenew: data.subscription.autoRenew,
         });
+        alert(`Auto-renewal ${data.subscription.autoRenew ? 'enabled' : 'disabled'} successfully!`);
       } else {
         throw new Error(data.error || 'Failed to update auto-renewal setting');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling auto-renew:', error);
+      alert('Failed to update auto-renewal: ' + (error.message || 'Please try again or contact support'));
     } finally {
       setAutoRenewLoading(false);
     }
@@ -123,6 +125,17 @@ export default function SubscriptionPage() {
     if (!subscription) return;
     
     try {
+      // Check Razorpay configuration first
+      const configResponse = await fetch('/api/debug/saas-smtp');
+      const configData = await configResponse.json();
+      
+      const hasRazorpayConfig = configData.config?.razorpay_key_id && configData.config?.razorpay_key_secret;
+      
+      if (!hasRazorpayConfig) {
+        alert('Payment system not configured. Please contact your administrator to set up payment processing.');
+        return;
+      }
+      
       // Find current plan in database to get pricing
       const plan = plans.find(p => p.name === subscription.plan);
       if (!plan) {
@@ -152,6 +165,7 @@ export default function SubscriptionPage() {
 
       if (!data.success) {
         console.error('Payment order failed:', data.error);
+        alert('Payment system error: ' + (data.error || 'Unknown error'));
         return;
       }
 
@@ -185,7 +199,7 @@ export default function SubscriptionPage() {
           if (verifyData.success) {
             // Payment successful, refresh data
             fetchSubscriptionData();
-            // showSuccessToast('Subscription renewed successfully!');
+            alert('Subscription renewed successfully!');
           } else {
             console.error('Payment verification failed:', verifyData.error);
             alert('Payment verification failed. Please contact support.');
@@ -204,7 +218,7 @@ export default function SubscriptionPage() {
       razorpay.open();
     } catch (error) {
       console.error('Renewal error:', error);
-      alert('Failed to initiate renewal. Please try again.');
+      alert('Failed to initiate renewal. Please try again or contact support.');
     }
   };
 
