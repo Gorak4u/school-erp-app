@@ -24,10 +24,16 @@ export async function GET(request: NextRequest) {
       whereConditions.push(`p."createdAt" <= '${toDate.toISOString()}'`);
     }
     
-    // Tenant isolation - filter by school
-    if (!ctx.isSuperAdmin && ctx.schoolId) {
-      whereConditions.push(`s."schoolId" = '${ctx.schoolId}'`);
+    // Tenant isolation - strict: null schoolId only visible to super admins
+    if (!ctx.isSuperAdmin) {
+      if (ctx.schoolId) {
+        whereConditions.push(`s."schoolId" = '${ctx.schoolId}'`);
+      } else {
+        // Non-admin users without school context get no data
+        whereConditions.push('FALSE');
+      }
     }
+    // Super admins can see all data including null schoolId
     
     const whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : 'TRUE';
 

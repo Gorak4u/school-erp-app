@@ -22,10 +22,16 @@ export async function GET(request: NextRequest) {
     // Build WHERE conditions
     const whereConditions: any = {};
     
-    // Tenant isolation - filter by school
-    if (!ctx.isSuperAdmin && ctx.schoolId) {
-      whereConditions.schoolId = ctx.schoolId;
+    // Tenant isolation - strict: null schoolId only visible to super admins
+    if (!ctx.isSuperAdmin) {
+      if (ctx.schoolId) {
+        whereConditions.schoolId = ctx.schoolId;
+      } else {
+        // Non-admin users without school context get no data
+        whereConditions.id = 'impossible-id-no-match';
+      }
     }
+    // Super admins can see all students including null schoolId
     
     if (studentClass && studentClass !== 'all') {
       whereConditions.class = studentClass;
@@ -102,10 +108,17 @@ export async function GET(request: NextRequest) {
         ? allPayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
         : null;
 
-      // Determine payment status
+      // Determine payment status - calculate from payment amounts
       let calculatedPaymentStatus: 'fully_paid' | 'partially_paid' | 'no_payment' | 'overdue';
-      const overdueRecords = feeRecords.filter(fr => fr.status === 'overdue');
-      const totalOverdue = overdueRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
+      
+      // Calculate overdue based on due dates and pending amounts
+      const now = new Date();
+      const overdueRecords = feeRecords.filter(fr => {
+        const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0);
+        const isOverdue = fr.dueDate && new Date(fr.dueDate) < now && pendingAmount > 0;
+        return isOverdue;
+      });
+      const totalOverdue = overdueRecords.reduce((sum, record) => sum + ((record.amount || 0) - (record.paidAmount || 0)), 0);
       
       if (totalOverdue > 0) {
         calculatedPaymentStatus = 'overdue';
@@ -135,16 +148,33 @@ export async function GET(request: NextRequest) {
         totalOverdue,
         lastPaymentDate: latestPayment?.paymentDate || '',
         calculatedPaymentStatus,
-        feeRecords: feeRecords.map(fr => ({
-          id: fr.id,
-          amount: fr.amount,
-          paidAmount: fr.paidAmount,
-          pendingAmount: fr.pendingAmount,
-          status: fr.status,
-          dueDate: fr.dueDate,
-          paymentMethod: fr.paymentMethod,
-          payments: fr.payments
-        })),
+        feeRecords: feeRecords.map(fr => {
+          // Calculate status for each fee record
+          let status: string;
+          const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0);
+          const isOverdue = fr.dueDate && new Date(fr.dueDate) < new Date() && pendingAmount > 0;
+          
+          if (isOverdue) {
+            status = 'overdue';
+          } else if (fr.paidAmount === 0) {
+            status = 'pending';
+          } else if (fr.paidAmount >= (fr.amount || 0)) {
+            status = 'paid';
+          } else {
+            status = 'partial';
+          }
+          
+          return {
+            id: fr.id,
+            amount: fr.amount,
+            paidAmount: fr.paidAmount,
+            pendingAmount: (fr.amount || 0) - (fr.paidAmount || 0),
+            status,
+            dueDate: fr.dueDate,
+            paymentMethod: fr.paymentMethod,
+            payments: fr.payments
+          };
+        }),
         // Additional student info
         gender: student.gender,
         phone: student.phone,

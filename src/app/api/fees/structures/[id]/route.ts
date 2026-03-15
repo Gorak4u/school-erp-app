@@ -19,10 +19,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const structure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id }, include: INCLUDE_RELATIONS });
     if (!structure) return NextResponse.json({ error: 'Fee structure not found' }, { status: 404 });
     
-    // Verify structure belongs to user's school
-    if (!ctx.isSuperAdmin && ctx.schoolId && structure.schoolId !== ctx.schoolId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    // Verify structure belongs to user's school - strict isolation
+    if (!ctx.isSuperAdmin) {
+      if (!ctx.schoolId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
+      if (structure.schoolId !== ctx.schoolId) {
+        // Structure belongs to different school or has null schoolId
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
     }
+    // Super admins can access all structures including null schoolId
     
     return NextResponse.json(structure);
   } catch (error) {
@@ -37,11 +44,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     
-    // Verify structure belongs to user's school before updating
+    // Verify structure belongs to user's school before updating - strict isolation
     const existingStructure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id } });
     if (!existingStructure) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (!ctx.isSuperAdmin && ctx.schoolId && existingStructure.schoolId !== ctx.schoolId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (!ctx.isSuperAdmin) {
+      if (!ctx.schoolId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
+      if (existingStructure.schoolId !== ctx.schoolId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
     }
     
     const { id: _id, academicYear, board, medium, class: cls, createdAt, updatedAt, feeRecords, ...data } = await request.json();
@@ -64,11 +76,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     
-    // Verify structure belongs to user's school before deleting
+    // Verify structure belongs to user's school before deleting - strict isolation
     const existingStructure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id } });
     if (!existingStructure) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (!ctx.isSuperAdmin && ctx.schoolId && existingStructure.schoolId !== ctx.schoolId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (!ctx.isSuperAdmin) {
+      if (!ctx.schoolId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
+      if (existingStructure.schoolId !== ctx.schoolId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
     }
     
     await (schoolPrisma as any).feeStructure.delete({ where: { id } });
