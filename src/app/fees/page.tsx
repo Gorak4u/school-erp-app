@@ -178,27 +178,36 @@ export default function FeesPage() {
       {/* Student Profile Modal */}
       {activeTab === 'student-profile' && selectedStudents.length === 1 && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
+          <div className={`w-full max-w-6xl max-h-[90vh] rounded-2xl border shadow-2xl ${
             theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
           }`}>
-            <div className="sticky top-0 flex justify-between items-center p-6 border-b">
+            {/* Header */}
+            <div className={`sticky top-0 z-10 flex justify-between items-center px-6 py-4 border-b ${
+              theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+            }`}>
               <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 Student Financial Profile
               </h2>
               <button
                 onClick={() => setActiveTab('all-students')}
                 className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  theme === 'dark' ? 'hover:bg-gray-800 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                 }`}
+                title="Close"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            <div className="p-6">
+            
+            {/* Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-64px)] p-6">
               <StudentFinancialProfile 
                 theme={theme} 
                 studentId={selectedStudents[0]}
                 studentData={studentFeeSummaries.find(s => s.studentId === selectedStudents[0])}
+                onClose={() => setActiveTab('all-students')}
               />
             </div>
           </div>

@@ -20,9 +20,7 @@ export async function GET(
     // Await params to get the student ID
     const { id: studentId } = await params;
     
-    // Simple test to verify endpoint is being called
-    console.log('Payment history endpoint called with student ID:', studentId);
-    
+        
     const { getSessionContext } = await import('@/lib/apiAuth');
     const { parseDateParam } = await import('@/lib/parseDateParam');
     
@@ -53,17 +51,7 @@ export async function GET(
       whereConditions.push(`s."schoolId" = '${ctx.schoolId}'`);
     }
     
-    // Log the query conditions
-    console.log('Payment History Query:', {
-      studentId,
-      ctx: ctx.isSuperAdmin ? 'superadmin' : `school: ${ctx.schoolId}`,
-      whereConditions,
-      search,
-      fromDate,
-      toDate,
-      paymentMethod
-    });
-    
+        
     // Date range filtering (uses index on createdAt)
     if (fromDate) {
       whereConditions.push(`p."createdAt" >= '${fromDate.toISOString()}'`);
@@ -89,9 +77,7 @@ export async function GET(
     const whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : 'TRUE';
     const havingClause = havingConditions.length > 0 ? `HAVING ${havingConditions.join(' AND ')}` : '';
 
-    // Log the final WHERE clause
-    console.log('Final WHERE clause:', whereClause);
-
+    
     // OPTIMIZED: Main query with all payment details
     const paymentsQuery = `
       SELECT 
@@ -164,17 +150,6 @@ export async function GET(
       ORDER BY total DESC
     `;
 
-    // Simple query to check if any payments exist for this student
-    const debugQuery = `
-      SELECT COUNT(*) as total_payments
-      FROM "school"."Payment" p
-      INNER JOIN "school"."FeeRecord" fr ON p."feeRecordId" = fr.id
-      WHERE fr."studentId" = '${studentId}'
-    `;
-    
-    const debugResult = await (schoolPrisma as any).$queryRawUnsafe(debugQuery);
-    console.log('Simple payment count for student:', studentId, debugResult[0]?.total_payments);
-
     // Execute all queries in parallel for performance
     const [paymentsResult, countResult, summaryResult, methodBreakdownResult] = await Promise.all([
       (schoolPrisma as any).$queryRawUnsafe(paymentsQuery),
@@ -182,14 +157,6 @@ export async function GET(
       (schoolPrisma as any).$queryRawUnsafe(summaryQuery),
       (schoolPrisma as any).$queryRawUnsafe(methodBreakdownQuery),
     ]);
-
-    // Log query results
-    console.log('Query results:', {
-      paymentsCount: paymentsResult.length,
-      totalCount: countResult[0]?.total,
-      summary: summaryResult[0],
-      methodBreakdownCount: methodBreakdownResult.length
-    });
 
     const total = parseInt(countResult[0]?.total || '0');
     const summary = summaryResult[0] || {};

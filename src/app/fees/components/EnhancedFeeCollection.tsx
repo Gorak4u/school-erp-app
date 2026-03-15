@@ -82,6 +82,38 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [promoCode, setPromoCode] = useState('');
   const [installmentPlan, setInstallmentPlan] = useState(false);
+  
+  // Optimized payment history state
+  const [paymentHistoryData, setPaymentHistoryData] = useState<any>(null);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+
+  // Fetch optimized payment history when history tab is activated
+  useEffect(() => {
+    const fetchPaymentHistory = async () => {
+      if (activeTab !== 'history' || !studentId) return;
+      
+      setLoadingPaymentHistory(true);
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          pageSize: '1000', // Get all records for history tab
+        });
+        
+        const response = await fetch(`/api/fees/students/${studentId}/payment-history?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setPaymentHistoryData(data.data);
+        }
+      } catch (e) {
+        console.error('Failed to load payment history', e);
+      } finally {
+        setLoadingPaymentHistory(false);
+      }
+    };
+    
+    fetchPaymentHistory();
+  }, [activeTab, studentId]);
 
   const isDark = theme === 'dark';
   
@@ -882,59 +914,32 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
 
             {/* Payment history entries */}
             {(() => {
-              // Flatten all payment transactions from feeRecords
-              const rawRecords: any[] = studentData?.feeRecords || [];
-              const entries: any[] = [];
+              // Use optimized payment history data if available, otherwise fall back to feeRecords
+              if (loadingPaymentHistory) {
+                return (
+                  <div className={`${cardCls} p-10 rounded-xl border text-center`}>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className={`${textPrimary} mt-4`}>Loading payment history...</p>
+                  </div>
+                );
+              }
 
-              rawRecords.forEach((record: any) => {
-                const feeName = record.feeStructure?.name || record.feeStructureName || 'Fee';
-                const academicYear = record.academicYear || '';
-
-                // If record has individual payment transactions
-                if (Array.isArray(record.payments) && record.payments.length > 0) {
-                  record.payments.forEach((pmt: any, pmtIndex: number) => {
-                    // Calculate cumulative paid amount up to this payment
-                    const cumulativePaid = record.payments
-                      .slice(0, pmtIndex + 1)
-                      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-                    
-                    entries.push({
-                      id: pmt.id || `${record.id}-pmt`,
-                      feeRecordId: record.id,
-                      feeName,
-                      academicYear,
-                      amount: pmt.amount || 0, // This payment amount
-                      totalAmount: record.amount || 0, // Original fee total
-                      cumulativePaid, // Total paid up to this point
-                      paymentMethod: pmt.paymentMethod || record.paymentMethod || 'cash',
-                      paidDate: pmt.paidDate || pmt.createdAt || record.paidDate || '',
-                      receiptNumber: pmt.receiptNumber || record.receiptNumber || `RCP-${record.id?.slice(-6).toUpperCase()}`,
-                      collectedBy: pmt.collectedBy || record.collectedBy || 'Staff',
-                      transactionId: pmt.transactionId || record.transactionId || '',
-                      remarks: pmt.remarks || record.remarks || '',
-                      status: record.status,
-                    });
-                  });
-                } else if (record.status === 'paid' || record.status === 'partial') {
-                  // No payments sub-records, use the fee record itself
-                  entries.push({
-                    id: record.id,
-                    feeRecordId: record.id,
-                    feeName,
-                    academicYear,
-                    amount: record.paidAmount || 0,
-                    totalAmount: record.amount || 0, // Original fee total
-                    cumulativePaid: record.paidAmount || 0,
-                    paymentMethod: record.paymentMethod || 'cash',
-                    paidDate: record.paidDate || record.updatedAt || record.createdAt || '',
-                    receiptNumber: record.receiptNumber || `RCP-${record.id?.slice(-6).toUpperCase()}`,
-                    collectedBy: record.collectedBy || 'Staff',
-                    transactionId: record.transactionId || '',
-                    remarks: record.remarks || '',
-                    status: record.status,
-                  });
-                }
-              });
+              const entries: any[] = paymentHistoryData?.payments?.map((payment: any) => ({
+                id: payment.id,
+                feeRecordId: payment.feeRecordId,
+                feeName: payment.feeName || 'Fee',
+                academicYear: payment.academicYear || '',
+                amount: payment.amount || 0,
+                totalAmount: payment.feeAmount || 0,
+                cumulativePaid: payment.amount || 0, // Will be calculated when receipt is clicked
+                paymentMethod: payment.paymentMethod || 'cash',
+                paidDate: payment.paymentDate || payment.createdAt || '',
+                receiptNumber: payment.receiptNumber || '',
+                collectedBy: payment.collectedBy || 'Staff',
+                transactionId: payment.transactionId || '',
+                remarks: payment.remarks || '',
+                status: 'paid',
+              })) || [];
 
               const filteredEntries = entries
                 .filter(e => {
@@ -1017,13 +1022,25 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                           <td className="px-4 py-3">
                             <button
                               onClick={() => {
-                                setSelectedHistoryEntry(entry);
+                                // Calculate cumulative paid amount up to this payment's date
+                                const paymentDate = new Date(entry.paidDate);
+                                const cumulativePaid = paymentHistoryData?.payments
+                                  ?.filter((p: any) => {
+                                    const pDate = new Date(p.paymentDate);
+                                    return pDate <= paymentDate && p.feeRecordId === entry.feeRecordId;
+                                  })
+                                  .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || entry.amount;
+                                
+                                setSelectedHistoryEntry({
+                                  ...entry,
+                                  cumulativePaid: cumulativePaid
+                                });
                                 setShowHistoryReceipt(true);
                               }}
                               title="View Receipt"
                               className={`p-1.5 rounded-lg text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
                             >
-                              �️
+                              🧾
                             </button>
                           </td>
                         </tr>

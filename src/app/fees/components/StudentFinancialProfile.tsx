@@ -614,7 +614,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                 <table className="w-full text-sm">
                   <thead className={`${isDark ? 'bg-gray-800' : 'bg-gray-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <tr>
-                      {['Receipt No.', 'Fee Name', 'AY', 'Amount', 'Method', 'Received By', 'Date', 'Action'].map(h => (
+                      {['Receipt No.', 'Fee Name', 'AY', 'Amount', 'Method', 'Received By', 'Date'].map(h => (
                         <th key={h} className={`px-4 py-3 text-left font-semibold text-xs uppercase tracking-wide ${textSecondary}`}>{h}</th>
                       ))}
                     </tr>
@@ -622,7 +622,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {paymentHistory.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="p-10 text-center">
+                        <td colSpan={7} className="p-10 text-center">
                           <p className={`text-4xl mb-3`}>📭</p>
                           <p className={`${textPrimary} font-medium`}>No payment history found</p>
                           <p className={`text-sm ${textSecondary} mt-1`}>
@@ -674,27 +674,6 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                               {new Date(entry.paymentDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => {
-                              setSelectedPayment({
-                                id: entry.id,
-                                date: entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString('en-IN') : '',
-                                amount: entry.amount,
-                                method: entry.paymentMethod,
-                                receipt: entry.receiptNumber,
-                                type: entry.feeName,
-                                status: 'success',
-                                collectedBy: entry.collectedBy,
-                              });
-                              setShowDetailedReceipt(true);
-                            }}
-                            title="View Receipt"
-                            className={`p-1.5 rounded-lg text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-                          >
-                            🧾
-                          </button>
                         </td>
                       </tr>
                     ))}
