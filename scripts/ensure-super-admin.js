@@ -27,11 +27,7 @@ const prisma = new PrismaClient({ adapter });
 
 // Import saasPrisma (same as in the main app)
 const saasPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.SAAS_DATABASE_URL
-    }
-  }
+  adapter: adapter
 });
 
 async function ensureSuperAdmin() {
