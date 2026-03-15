@@ -38,12 +38,17 @@ export async function POST(req: Request) {
 
       // 2. Update subscription to active
       const now = new Date();
+      // Get billing cycle from the request body
+      const body = await req.clone().json();
+      const billingCycle = body.billingCycle || 'monthly';
+      const daysToAdd = billingCycle === 'yearly' ? 365 : 30;
+
       const subscription = await tx.subscription.update({
         where: { id: school.subscription.id },
         data: {
           status: 'active',
           currentPeriodStart: now,
-          currentPeriodEnd: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          currentPeriodEnd: new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000), // 30 or 365 days
           razorpayPaymentId: paymentId,
           razorpayOrderId: orderId,
         },

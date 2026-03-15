@@ -28,18 +28,24 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get('plan') || '';
+  const billingParam = searchParams.get('billing') as 'monthly' | 'yearly' || 'monthly';
   const [selectedPlan, setSelectedPlan] = useState(planParam || '');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(billingParam);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [loading, setLoading] = useState(true);
-  const isTrial = selectedPlan === 'trial';
-  const isPaid = selectedPlan && selectedPlan !== 'trial' && selectedPlan !== 'enterprise';
+  const planInfo = plans.find(p => p.name === selectedPlan);
+  const isTrial = planInfo?.priceMonthly === 0;
+  const isPaid = planInfo && planInfo.priceMonthly > 0;
 
   // Fetch plans from database
   useEffect(() => {
     fetch('/api/admin/plans?cache=true')
       .then(res => res.json())
       .then(data => {
-        setPlans((data.plans || []).filter((p: PlanFromDB) => p.isActive));
+        console.log('All plans from API:', data.plans);
+        const activePlans = (data.plans || []).filter((p: PlanFromDB) => p.isActive);
+        console.log('Active plans:', activePlans);
+        setPlans(activePlans);
         setLoading(false);
       })
       .catch(err => {
@@ -68,9 +74,10 @@ function RegisterContent() {
   useEffect(() => {
     if (planParam && plans.find(p => p.name === planParam)) {
       setSelectedPlan(planParam);
+      if (billingParam) setBillingCycle(billingParam);
       setCurrentStep(2);
     }
-  }, [planParam, plans]);
+  }, [planParam, billingParam, plans]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -222,9 +229,9 @@ function RegisterContent() {
         },
         body: JSON.stringify({
           plan: planInfo.name,
-          amount: Math.round(planInfo.priceMonthly * 1.18), // Include GST
+          amount: Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18), // Include GST
           currency: 'INR',
-          billingCycle: 'monthly',
+          billingCycle: billingCycle,
         }),
       });
 
@@ -248,7 +255,7 @@ function RegisterContent() {
         amount: data.order.amount,
         currency: data.order.currency,
         name: 'School ERP',
-        description: `Subscription Plan: ${planInfo.displayName} (Monthly)`,
+        description: `Subscription Plan: ${planInfo.displayName} (${billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})`,
         order_id: data.order.id,
         handler: async function (response: any) {
           console.log('Payment successful:', response);
@@ -263,7 +270,7 @@ function RegisterContent() {
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
-              billingCycle: 'monthly',
+              billingCycle: billingCycle,
             }),
           });
 
@@ -332,8 +339,6 @@ function RegisterContent() {
     setCurrentStep(prev => prev + 1);
   };
 
-  const planInfo = plans.find(p => p.name === selectedPlan);
-
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
@@ -398,18 +403,42 @@ function RegisterContent() {
                 {/* Step 1: Choose Plan */}
                 {currentStep === 1 && (
                   <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    <h2 className="text-xl font-bold mb-6">Choose Your Plan</h2>
+                    <h2 className="text-xl font-bold mb-4">Choose Your Plan</h2>
+                    
+                    {/* Billing Toggle */}
+                    <div className="flex items-center justify-center gap-4 mb-6">
+                      <span className={billingCycle === 'monthly' ? 'text-white' : 'text-gray-500'}>Monthly</span>
+                      <button
+                        onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+                        className={`relative w-14 h-7 rounded-full transition-colors ${
+                          billingCycle === 'yearly' ? 'bg-blue-600' : 'bg-gray-700'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white transition-transform ${
+                            billingCycle === 'yearly' ? 'translate-x-7' : ''
+                          }`}
+                        />
+                      </button>
+                      <span className={billingCycle === 'yearly' ? 'text-white' : 'text-gray-500'}>
+                        Yearly <span className="text-green-400 text-sm">(Save 20%)</span>
+                      </span>
+                    </div>
+                    
                     {loading ? (
                       <div className="text-center py-8 text-gray-500">Loading plans...</div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {plans.filter(p => p.name !== 'enterprise').map((plan) => {
+                        {plans.map((plan) => {
+                          console.log('Rendering plan:', plan.name, plan.isActive);
                           let featuresList: string[] = [];
                           try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
                           const planColor = plan.name === 'trial' ? 'from-gray-500 to-gray-600' :
                                           plan.name === 'basic' ? 'from-blue-500 to-cyan-500' :
                                           plan.name === 'professional' ? 'from-purple-500 to-pink-500' :
                                           'from-orange-500 to-red-500';
+                          const currentPrice = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+                          const period = billingCycle === 'yearly' ? 'year' : 'month';
                           return (
                             <div
                               key={plan.name}
@@ -424,10 +453,15 @@ function RegisterContent() {
                                 {plan.displayName}
                               </div>
                               <div className="text-2xl font-bold text-white mb-1">
-                                {plan.priceMonthly === 0 ? 'Free' : `₹${plan.priceMonthly.toLocaleString()}`}
-                                {plan.priceMonthly > 0 && <span className="text-sm text-gray-400 font-normal">/month</span>}
-                                {plan.priceMonthly === 0 && <span className="text-sm text-gray-400 font-normal ml-1">{plan.trialDays} days</span>}
+                                {currentPrice === 0 ? 'Free' : `₹${currentPrice.toLocaleString()}`}
+                                {currentPrice > 0 && <span className="text-sm text-gray-400 font-normal">/{period}</span>}
+                                {currentPrice === 0 && <span className="text-sm text-gray-400 font-normal ml-1">{plan.trialDays} days</span>}
                               </div>
+                              {billingCycle === 'yearly' && plan.priceYearly > 0 && (
+                                <div className="text-xs text-green-400 mb-2">
+                                  Save ₹{Math.round((plan.priceMonthly * 12 - plan.priceYearly)).toLocaleString()}/year
+                                </div>
+                              )}
                               <ul className="mt-3 space-y-1">
                                 {featuresList.slice(0, 4).map((f, i) => (
                                   <li key={i} className="text-xs text-gray-400 flex items-center gap-1.5">
@@ -466,7 +500,8 @@ function RegisterContent() {
                             {planInfo.displayName}
                           </div>
                           <span className="text-sm text-gray-400">
-                            {planInfo.priceMonthly === 0 ? `Free for ${planInfo.trialDays} days` : `₹${planInfo.priceMonthly.toLocaleString()}/month`}
+                            {planInfo.priceMonthly === 0 ? `Free for ${planInfo.trialDays} days` : 
+                             `₹${(billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly).toLocaleString()}/${billingCycle === 'yearly' ? 'year' : 'month'}`}
                           </span>
                         </div>
                         <button onClick={() => setCurrentStep(1)} className="text-xs text-purple-400 hover:text-purple-300">
@@ -539,18 +574,38 @@ function RegisterContent() {
                     {/* Order Summary */}
                     {planInfo && (
                       <div className="mb-6 p-5 bg-gray-800/50 rounded-xl border border-gray-700">
-                        <h3 className="font-semibold text-white mb-3">Order Summary</h3>
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-semibold text-white">Order Summary</h3>
+                          <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-700">
+                            <button
+                              onClick={() => setBillingCycle('monthly')}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                billingCycle === 'monthly' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                              }`}
+                            >
+                              Monthly
+                            </button>
+                            <button
+                              onClick={() => setBillingCycle('yearly')}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                billingCycle === 'yearly' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                              }`}
+                            >
+                              Yearly <span className="text-green-400 ml-1">-20%</span>
+                            </button>
+                          </div>
+                        </div>
                         <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-400">{planInfo.displayName} Plan (Monthly)</span>
-                          <span className="text-white font-medium">₹{planInfo.priceMonthly.toLocaleString()}</span>
+                          <span className="text-gray-400">{planInfo.displayName} Plan ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
+                          <span className="text-white font-medium">₹{(billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-gray-400">GST (18%)</span>
-                          <span className="text-white font-medium">₹{Math.round(planInfo.priceMonthly * 0.18).toLocaleString()}</span>
+                          <span className="text-white font-medium">₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 0.18).toLocaleString()}</span>
                         </div>
                         <div className="border-t border-gray-700 mt-3 pt-3 flex justify-between">
                           <span className="font-semibold text-white">Total</span>
-                          <span className="font-bold text-xl text-white">₹{Math.round(planInfo.priceMonthly * 1.18).toLocaleString()}</span>
+                          <span className="font-bold text-xl text-white">₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString()}</span>
                         </div>
                       </div>
                     )}
@@ -624,7 +679,7 @@ function RegisterContent() {
                 {currentStep === 3 && isPaid && (
                   <button onClick={handlePayment} disabled={isProcessingPayment}
                     className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    {isProcessingPayment ? 'Initializing Payment...' : `Pay ₹${planInfo ? Math.round(planInfo.priceMonthly * 1.18).toLocaleString() : ''} & Create Account`}
+                    {isProcessingPayment ? 'Initializing Payment...' : `Pay ₹${planInfo ? Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString() : ''} & Create Account`}
                   </button>
                 )}
               </div>

@@ -53,7 +53,7 @@ export default function PricingPage() {
       window.location.href = 'mailto:sales@schoolerp.com?subject=Enterprise%20Plan%20Inquiry';
       return;
     }
-    router.push(`/register?plan=${planName}`);
+    router.push(`/register?plan=${planName}&billing=${billing}`);
   };
 
   return (
