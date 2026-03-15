@@ -51,15 +51,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
           >
             💰 Collect Fee
           </button>
-          <button
-            onClick={() => setShowFeeStructureModal(true)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-            }`}
-          >
-            🏗️ Fee Structure
-          </button>
-          <button
+                    <button
             onClick={() => setShowImportModal(true)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
