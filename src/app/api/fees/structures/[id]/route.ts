@@ -88,10 +88,29 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       }
     }
     
+    // Check if there are any fee records using this structure
+    const feeRecordsCount = await (schoolPrisma as any).feeRecord.count({
+      where: { feeStructureId: id }
+    });
+    
+    if (feeRecordsCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete fee structure', 
+        details: `This fee structure is being used by ${feeRecordsCount} fee record(s). Please delete or reassign the fee records first.`,
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
+    
     await (schoolPrisma as any).feeStructure.delete({ where: { id } });
     return NextResponse.json({ message: 'Fee structure deleted' });
   } catch (error: any) {
+    console.error('Delete fee structure error:', error);
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (error.code === 'P2002') return NextResponse.json({ 
+      error: 'Cannot delete fee structure', 
+      details: 'This fee structure is referenced by other records. Please delete those records first.',
+      code: 'FOREIGN_KEY_CONSTRAINT'
+    }, { status: 400 });
     return NextResponse.json({ error: 'Failed to delete fee structure' }, { status: 500 });
   }
 }
