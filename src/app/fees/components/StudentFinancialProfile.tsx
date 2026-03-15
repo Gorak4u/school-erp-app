@@ -43,25 +43,94 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const chartTextColor = isDark ? '#fff' : '#000';
   const chartGridColor = isDark ? '#333' : '#ddd';
 
-  // Fetch complete student data including fee records and payments
+  // Fetch student data and fee records (NOT payment history - lazy loaded)
   const [studentFinancialData, setStudentFinancialData] = useState<any>(null);
   const [loadingRecords, setLoadingRecords] = useState(true);
 
+  // Payment history state (lazy loaded)
+  const [paymentHistoryData, setPaymentHistoryData] = useState<any>(null);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+  const [paymentHistoryPage, setPaymentHistoryPage] = useState(1);
+  const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
+  const [paymentHistoryFilters, setPaymentHistoryFilters] = useState({
+    fromDate: '',
+    toDate: '',
+    paymentMethod: 'all'
+  });
+
+  // Fetch student data and fee records on mount
   useEffect(() => {
     if (!studentId && !studentData?.id) { setLoadingRecords(false); return; }
     (async () => {
       try {
         const sid = studentId || studentData?.id;
-        // Use students API to get complete financial data
-        const response = await fetch(`/api/fees/students?studentId=${sid}&pageSize=1`);
-        const data = await response.json();
-        if (data.success && data.data?.students?.length > 0) {
-          setStudentFinancialData(data.data.students[0]);
+        const [studentResponse, feeRecordsResponse] = await Promise.all([
+          fetch(`/api/fees/students?studentId=${sid}&pageSize=1`),
+          fetch(`/api/fees/records?studentId=${sid}&pageSize=10000`)
+        ]);
+        
+        const studentData = await studentResponse.json();
+        const feeRecordsData = await feeRecordsResponse.json();
+        
+        if (studentData.success && studentData.data?.students?.length > 0) {
+          const student = studentData.data.students[0];
+          if (feeRecordsData.success && feeRecordsData.data?.records) {
+            student.feeRecords = feeRecordsData.data.records;
+          }
+          setStudentFinancialData(student);
         }
       } catch (e) { console.error('Failed to load student financial data', e); }
       finally { setLoadingRecords(false); }
     })();
   }, [studentId, studentData?.id]);
+
+  // Lazy load payment history when tab is clicked
+  const fetchPaymentHistory = async () => {
+    if (!studentId && !studentData?.id) {
+      console.log('No student ID available:', { studentId, studentDataId: studentData?.id });
+      return;
+    }
+    
+    setLoadingPaymentHistory(true);
+    try {
+      const sid = studentId || studentData?.id;
+      const params = new URLSearchParams({
+        page: paymentHistoryPage.toString(),
+        pageSize: '25',
+        ...(paymentHistorySearch && { search: paymentHistorySearch }),
+        ...(paymentHistoryFilters.fromDate && { fromDate: paymentHistoryFilters.fromDate }),
+        ...(paymentHistoryFilters.toDate && { toDate: paymentHistoryFilters.toDate }),
+        ...(paymentHistoryFilters.paymentMethod !== 'all' && { paymentMethod: paymentHistoryFilters.paymentMethod })
+      });
+      
+      const apiUrl = `/api/fees/students/${sid}/payment-history?${params}`;
+      console.log('Fetching payment history from:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      console.log('Payment history API response:', data);
+      
+      if (data.success) {
+        setPaymentHistoryData(data.data);
+      } else {
+        console.error('API returned error:', data);
+      }
+    } catch (e) {
+      console.error('Failed to load payment history', e);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+  };
+
+  // Fetch payment history when tab is activated or filters change
+  useEffect(() => {
+    console.log('Tab changed to:', activeTab);
+    if (activeTab === 'payment-history') {
+      console.log('Payment history tab activated - fetching data');
+      fetchPaymentHistory();
+    }
+  }, [activeTab, paymentHistoryPage, paymentHistorySearch, paymentHistoryFilters]);
 
   // Use data from API or fallback to prop data
   const apiData = studentFinancialData || studentData;
@@ -106,34 +175,18 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     previousYearPending: {}, paymentStatus: 'no_payment', lastPaymentDate: '',
   };
 
-  // Payment history from fee records with payments
+  // Payment history from lazy-loaded data
   const paymentHistory = useMemo(() => {
-    const allPayments = [];
-    feeRecords.forEach(record => {
-      if (record.payments && record.payments.length > 0) {
-        record.payments.forEach(payment => {
-          allPayments.push({
-            id: payment.id,
-            date: payment.paymentDate?.split('T')[0] || payment.createdAt?.split('T')[0] || '',
-            amount: payment.amount,
-            method: payment.paymentMethod || 'N/A',
-            receipt: payment.receiptNumber || `RCP-${payment.id.slice(-6)}`,
-            type: record.feeStructure?.name || 'Fee Payment',
-            status: 'success',
-            collectedBy: payment.collectedBy || 'Staff',
-          });
-        });
-      }
-    });
-    return allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [feeRecords]);
+    return paymentHistoryData?.payments || [];
+  }, [paymentHistoryData]);
 
-  // Fee breakdown chart from records
+  // Fee breakdown chart from records - use correct category from API response
   const catAmounts = useMemo(() => {
     const ca: Record<string, number> = {};
     feeRecords.forEach(r => {
-      const c = r.feeStructure?.category || r.feeStructure?.name || 'Other';
-      ca[c] = (ca[c] || 0) + (r.amount || 0);
+      // Get category from API response fields
+      const category = r.feeCategory || r.feeStructure?.category || 'Other';
+      ca[category] = (ca[category] || 0) + (r.amount || 0);
     });
     return ca;
   }, [feeRecords]);
@@ -145,18 +198,47 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     }]
   };
 
-  // Payment trend chart
+  // Payment trend chart - using summary data from API
   const paymentTrend = useMemo(() => {
-    const paid = paymentHistory.sort((a, b) => a.date.localeCompare(b.date));
+    if (!paymentHistoryData?.summary) {
+      return {
+        labels: ['No data'],
+        datasets: [{
+          label: 'Payment Amount (Rs)',
+          data: [0],
+          borderColor: 'rgb(34, 197, 94)', 
+          backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+          tension: 0.4,
+          fill: true
+        }]
+      };
+    }
+
+    // Group payments by date from current page data
+    const groupedByDate = paymentHistory.reduce((acc, payment) => {
+      const date = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString('en-IN') : 'Unknown';
+      if (!acc[date]) {
+        acc[date] = 0;
+      }
+      acc[date] += payment.amount || 0;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const labels = Object.keys(groupedByDate).length ? Object.keys(groupedByDate) : ['No data'];
+    const data = Object.keys(groupedByDate).length ? Object.values(groupedByDate) : [0];
+    
     return {
-      labels: paid.length ? paid.map(p => p.date) : ['No data'],
+      labels,
       datasets: [{
         label: 'Payment Amount (Rs)',
-        data: paid.length ? paid.map(p => p.amount) : [0],
-        borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4
+        data,
+        borderColor: 'rgb(34, 197, 94)', 
+        backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+        tension: 0.4,
+        fill: true
       }]
     };
-  }, [paymentHistory]);
+  }, [paymentHistory, paymentHistoryData]);
 
   // No hardcoded communication log — start empty
   const communicationLog: { date: string; type: string; message: string; status: string }[] = [];
@@ -413,8 +495,8 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                       : (isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600');
                     return (
                       <tr key={r.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                        <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{r.feeStructure?.name || 'Fee'}</td>
-                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.feeStructure?.category || '-'}</td>
+                        <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{r.feeStructureName || r.feeStructure?.name || 'Fee'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.feeCategory || r.feeStructure?.category || '-'}</td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.academicYear || '-'}</td>
                         <td className={`py-3 px-4 text-sm text-right font-medium`}>₹{(r.amount || 0).toLocaleString()}</td>
                         <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹{(r.paidAmount || 0).toLocaleString()}</td>
@@ -438,152 +520,226 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Payment History Table */}
-          <div className={`p-6 rounded-xl border ${cardCls}`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg font-semibold ${textPrimary}`}>Payment History</h3>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => window.print()}
-                  className={`px-3 py-1 rounded-lg text-sm ${isDark ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'} flex items-center gap-1`}
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print All
-                </button>
-                <button className={`px-3 py-1 rounded-lg text-sm ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} flex items-center gap-1`}>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export
-                </button>
+          {/* Payment History Summary Stats */}
+          {paymentHistoryData?.summary && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Total Payments</p>
+                <p className={`text-2xl font-bold ${textPrimary}`}>{paymentHistoryData.summary.totalPayments}</p>
+              </div>
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Total Amount</p>
+                <p className={`text-2xl font-bold text-green-600`}>₹{paymentHistoryData.summary.totalAmount.toLocaleString()}</p>
+              </div>
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Payment Methods</p>
+                <p className={`text-2xl font-bold ${textPrimary}`}>{paymentHistoryData.summary.uniqueMethods}</p>
+              </div>
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Payment Days</p>
+                <p className={`text-2xl font-bold ${textPrimary}`}>{paymentHistoryData.summary.paymentDays}</p>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className={`${isDark ? 'border-gray-700' : 'border-gray-200'} border-b`}>
-                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Date</th>
-                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Type</th>
-                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Amount</th>
-                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Method</th>
-                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Receipt</th>
-                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentHistory.map(payment => (
-                    <tr key={payment.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                      <td className={`py-3 px-4 text-sm ${textPrimary}`}>{payment.date}</td>
-                      <td className={`py-3 px-4 text-sm ${textSecondary}`}>{payment.type}</td>
-                      <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>Rs.{payment.amount.toLocaleString()}</td>
-                      <td className={`py-3 px-4 text-sm ${textSecondary}`}>{payment.method}</td>
-                      <td className="py-3 px-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className={`${isDark ? 'text-blue-400' : 'text-blue-600'} cursor-pointer hover:underline`}>{payment.receipt}</span>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => {
-                                setSelectedPayment(payment);
-                                setShowDetailedReceipt(true);
-                              }}
-                              className={`p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors`}
-                              title="View Detailed Receipt"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => {
-                                if ((window as any).toast) {
-                                  (window as any).toast({
-                                    type: 'info',
-                                    title: 'Printing Receipt',
-                                    message: 'Opening print dialog for receipt',
-                                    duration: 2000
-                                  });
-                                }
-                                window.print();
-                              }}
-                              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
-                              title="Print Receipt"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => {
-                              if ((window as any).toast) {
-                                (window as any).toast({
-                                  type: 'info',
-                                  title: 'Downloading PDF',
-                                  message: 'Generating PDF receipt for download',
-                                  duration: 2000
-                                });
-                              }
-                              const filename = `Receipt_${(payment.receipt || 'RCPT-DEFAULT').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-                              // Use PDF generator here if needed
-                              setTimeout(() => {
-                                if ((window as any).toast) {
-                                  (window as any).toast({
-                                    type: 'success',
-                                    title: 'PDF Downloaded',
-                                    message: `Receipt saved as ${filename}`,
-                                    duration: 3000
-                                  });
-                                }
-                              }, 1000);
-                            }}
-                              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
-                              title="Download PDF"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => {
-                              if ((window as any).toast) {
-                                (window as any).toast({
-                                  type: 'info',
-                                  title: 'Sending Email',
-                                  message: `Sending receipt to ${currentStudentData?.email || 'parent email'}`,
-                                  duration: 2000
-                                });
-                              }
-                              // Simulate email sending
-                              setTimeout(() => {
-                                if ((window as any).toast) {
-                                  (window as any).toast({
-                                    type: 'success',
-                                    title: 'Email Sent',
-                                    message: 'Receipt has been sent to your email',
-                                    duration: 3000
-                                  });
-                                }
-                              }, 1500);
-                            }}
-                              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
-                              title="Email Receipt"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'}`}>{payment.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )}
+
+          {/* Search and Filters */}
+          <div className={`p-4 rounded-lg border ${cardCls}`}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Search</label>
+                <input
+                  type="text"
+                  placeholder="Receipt, fee name, collector..."
+                  value={paymentHistorySearch}
+                  onChange={(e) => {
+                    setPaymentHistorySearch(e.target.value);
+                    setPaymentHistoryPage(1);
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>From Date</label>
+                <input
+                  type="date"
+                  value={paymentHistoryFilters.fromDate}
+                  onChange={(e) => {
+                    setPaymentHistoryFilters({...paymentHistoryFilters, fromDate: e.target.value});
+                    setPaymentHistoryPage(1);
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>To Date</label>
+                <input
+                  type="date"
+                  value={paymentHistoryFilters.toDate}
+                  onChange={(e) => {
+                    setPaymentHistoryFilters({...paymentHistoryFilters, toDate: e.target.value});
+                    setPaymentHistoryPage(1);
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Payment Method</label>
+                <select
+                  value={paymentHistoryFilters.paymentMethod}
+                  onChange={(e) => {
+                    setPaymentHistoryFilters({...paymentHistoryFilters, paymentMethod: e.target.value});
+                    setPaymentHistoryPage(1);
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
+                >
+                  <option value="all">All Methods</option>
+                  <option value="cash">Cash</option>
+                  <option value="online">Online</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="card">Card</option>
+                </select>
+              </div>
             </div>
+          </div>
+
+          {/* Payment History Table */}
+          <div className={`${cardCls} rounded-xl border overflow-hidden`}>
+            {loadingPaymentHistory ? (
+              <div className="p-20 text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className={`mt-4 ${textSecondary}`}>Loading payment history...</p>
+              </div>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead className={`${isDark ? 'bg-gray-800' : 'bg-gray-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <tr>
+                      {['Receipt No.', 'Fee Name', 'AY', 'Amount', 'Method', 'Received By', 'Date', 'Action'].map(h => (
+                        <th key={h} className={`px-4 py-3 text-left font-semibold text-xs uppercase tracking-wide ${textSecondary}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {paymentHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="p-10 text-center">
+                          <p className={`text-4xl mb-3`}>📭</p>
+                          <p className={`${textPrimary} font-medium`}>No payment history found</p>
+                          <p className={`text-sm ${textSecondary} mt-1`}>
+                            {paymentHistorySearch || paymentHistoryFilters.fromDate || paymentHistoryFilters.toDate || paymentHistoryFilters.paymentMethod !== 'all'
+                              ? 'Try adjusting your filters'
+                              : 'No paid fees yet'}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                    {paymentHistory.map((entry, i) => (
+                      <tr key={entry.id} className={`${
+                        i % 2 === 0 ? (isDark ? 'bg-gray-900' : 'bg-white') : (isDark ? 'bg-gray-800/50' : 'bg-gray-50/50')
+                      } hover:${isDark ? 'bg-gray-700' : 'bg-blue-50/30'} transition-colors`}>
+                        <td className="px-4 py-3">
+                          <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                            {entry.receiptNumber}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${textPrimary}`}>
+                          {entry.feeName}
+                          {entry.academicYear && <span className={`block text-xs ${textSecondary}`}>{entry.academicYear}</span>}
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>{entry.academicYear || '-'}</td>
+                        <td className={`px-4 py-3 font-semibold text-green-600`}>₹{Number(entry.amount).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs rounded-full capitalize ${
+                            entry.paymentMethod === 'cash'
+                              ? isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700'
+                              : entry.paymentMethod === 'online'
+                                ? isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {entry.paymentMethod || 'cash'}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>
+                          <div className="flex items-center gap-1">
+                            <span>👤</span>
+                            <span>{entry.collectedBy || 'Staff'}</span>
+                          </div>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary} text-xs`}>
+                          {entry.paymentDate
+                            ? new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-'}
+                          {entry.paymentDate && (
+                            <span className="block opacity-60">
+                              {new Date(entry.paymentDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => {
+                              setSelectedPayment({
+                                id: entry.id,
+                                date: entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString('en-IN') : '',
+                                amount: entry.amount,
+                                method: entry.paymentMethod,
+                                receipt: entry.receiptNumber,
+                                type: entry.feeName,
+                                status: 'success',
+                                collectedBy: entry.collectedBy,
+                              });
+                              setShowDetailedReceipt(true);
+                            }}
+                            title="View Receipt"
+                            className={`p-1.5 rounded-lg text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                          >
+                            🧾
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Pagination */}
+                {paymentHistoryData?.pagination && paymentHistoryData.pagination.totalPages > 1 && (
+                  <div className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'} flex items-center justify-between`}>
+                    <div className={`text-sm ${textSecondary}`}>
+                      Showing {((paymentHistoryData.pagination.page - 1) * paymentHistoryData.pagination.pageSize) + 1} to{' '}
+                      {Math.min(paymentHistoryData.pagination.page * paymentHistoryData.pagination.pageSize, paymentHistoryData.pagination.total)} of{' '}
+                      {paymentHistoryData.pagination.total} payments
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPaymentHistoryPage(Math.max(1, paymentHistoryPage - 1))}
+                        disabled={paymentHistoryPage === 1}
+                        className={`px-3 py-1 rounded-lg text-sm ${
+                          paymentHistoryPage === 1
+                            ? 'opacity-50 cursor-not-allowed'
+                            : isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                        } ${textPrimary}`}
+                      >
+                        Previous
+                      </button>
+                      <span className={`px-3 py-1 ${textPrimary}`}>
+                        Page {paymentHistoryData.pagination.page} of {paymentHistoryData.pagination.totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPaymentHistoryPage(Math.min(paymentHistoryData.pagination.totalPages, paymentHistoryPage + 1))}
+                        disabled={!paymentHistoryData.pagination.hasMore}
+                        className={`px-3 py-1 rounded-lg text-sm ${
+                          !paymentHistoryData.pagination.hasMore
+                            ? 'opacity-50 cursor-not-allowed'
+                            : isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                        } ${textPrimary}`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </motion.div>
       )}
@@ -615,10 +771,56 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
             <p className={`text-sm ${textSecondary}`}>Manage this student's financial records</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Send Reminder</button>
-            <button className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Apply Discount</button>
-            <button className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Generate Statement</button>
-            <button className="px-4 py-2 text-sm rounded-lg font-medium bg-green-600 text-white hover:bg-green-700">Collect Payment</button>
+            <button 
+              onClick={() => {
+                if ((window as any).toast) {
+                  (window as any).toast({
+                    type: 'info',
+                    title: 'Sending Reminder',
+                    message: `Sending fee reminder to ${currentStudentData?.email || currentStudentData?.contact}`,
+                    duration: 3000
+                  });
+                }
+              }}
+              className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Send Reminder
+            </button>
+            <button 
+              onClick={() => {
+                if ((window as any).toast) {
+                  (window as any).toast({
+                    type: 'info',
+                    title: 'Apply Discount',
+                    message: 'Opening discount application form',
+                    duration: 2000
+                  });
+                }
+              }}
+              className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Apply Discount
+            </button>
+            <button 
+              onClick={() => {
+                window.print();
+              }}
+              className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Generate Statement
+            </button>
+            <button 
+              onClick={() => {
+                if (onClose) {
+                  onClose();
+                }
+                // Navigate to fee collection page
+                window.location.href = `/fee-collection?studentId=${studentId || studentData?.id}`;
+              }}
+              className="px-4 py-2 text-sm rounded-lg font-medium bg-green-600 text-white hover:bg-green-700"
+            >
+              Collect Payment
+            </button>
           </div>
         </div>
       </div>

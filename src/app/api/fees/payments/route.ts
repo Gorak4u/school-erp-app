@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const feeRecordId = searchParams.get('feeRecordId');
+    const studentId = searchParams.get('studentId');
     const fromDate = parseDateParam(searchParams.get('fromDate'));
     const toDate = parseDateParam(searchParams.get('toDate'), { endOfDay: true });
     const page = parseInt(searchParams.get('page') || '1');
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     if (feeRecordId) where.feeRecordId = feeRecordId;
+    if (studentId) where.feeRecord = { studentId };
     
     // Add date range filtering
     if (fromDate || toDate) {
@@ -104,7 +106,14 @@ export async function GET(request: NextRequest) {
     const [payments, total] = await Promise.all([
       (schoolPrisma as any).payment.findMany({
         where,
-        include: { feeRecord: { include: { student: { select: { id: true, name: true, class: true } } } } },
+        include: { 
+          feeRecord: { 
+            include: { 
+              student: { select: { id: true, name: true, class: true, rollNo: true, admissionNo: true } },
+              feeStructure: { select: { name: true, category: true } }
+            } 
+          } 
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
