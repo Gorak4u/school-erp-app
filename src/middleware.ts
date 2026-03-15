@@ -44,13 +44,17 @@ let superAdminChecked = false;
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check super admin only once on first request (non-API routes)
+  // Check super admin on every app restart (first request)
+  // This ensures super admin always exists based on .env configuration
   if (!superAdminChecked && !pathname.startsWith('/api/')) {
     try {
+      console.log('🔧 [STARTUP] Checking super admin configuration...');
       await ensureSuperAdmin();
       superAdminChecked = true;
+      console.log('✅ [STARTUP] Super admin check completed');
     } catch (error) {
-      console.error('❌ Middleware super admin check failed:', error);
+      console.error('❌ [STARTUP] Super admin check failed:', error);
+      // Continue operation even if super admin creation fails
     }
   }
 
