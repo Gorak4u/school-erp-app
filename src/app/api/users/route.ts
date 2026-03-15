@@ -138,8 +138,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Try to send welcome email if not a super admin
-    if (!ctx.isSuperAdmin && targetSchoolId) {
+    // Try to send welcome email if not a super admin and user has email
+    if (!ctx.isSuperAdmin && targetSchoolId && user.email) {
       try {
         // Fetch school details and subscription for the email
         const school = await (saasPrisma as any).school.findUnique({
@@ -147,15 +147,15 @@ export async function POST(request: NextRequest) {
           include: { subscription: true }
         });
 
-        if (school && school.subscription) {
+        if (school) {
           const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
           const emailData = {
             user: { ...user, name: `${user.firstName} ${user.lastName}` },
             school,
-            subscription: school.subscription,
+            subscription: school.subscription || null,
             loginUrl: `${baseUrl}/login`,
             dashboardUrl: `${baseUrl}/dashboard`,
-            paymentUrl: school.subscription.plan !== 'trial' ? `${baseUrl}/billing` : undefined,
+            paymentUrl: school.subscription?.plan !== 'trial' ? `${baseUrl}/billing` : undefined,
             password: password // Include plain text password for first login
           };
 
@@ -169,9 +169,16 @@ export async function POST(request: NextRequest) {
           });
           
           console.log(`Welcome email sent to new user ${user.email} using school SMTP`);
+        } else {
+          console.log(`School not found for ID: ${targetSchoolId} or no email provided, cannot send welcome email`);
         }
-      } catch (emailErr) {
-        console.error('Failed to send welcome email to new user:', emailErr);
+      } catch (emailErr: any) {
+        console.error('Failed to send welcome email to new user:', {
+          error: emailErr.message,
+          stack: emailErr.stack,
+          userEmail: user.email,
+          schoolId: targetSchoolId
+        });
         // Continue anyway since user creation was successful
       }
     }
