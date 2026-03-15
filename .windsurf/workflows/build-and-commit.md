@@ -9,7 +9,9 @@ This workflow should be run after any code fixes are applied to ensure the code 
 ### Steps
 
 1. **Build the code** - Run `npm run build` to verify the fix doesn't break anything
+// turbo
 2. **Git add changes** - Stage all modified files
+// turbo  
 3. **Git commit** - Commit with an appropriate message based on the changes
 
 ### Usage
@@ -37,3 +39,4 @@ git commit -m "fix: resolve [issue description] - [brief change summary]"
 - The workflow will only commit if the build succeeds
 - You can customize the commit message format as needed
 - All files are automatically staged before committing
+- Steps marked with `// turbo` will auto-run when executing this workflow
