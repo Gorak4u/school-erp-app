@@ -71,8 +71,9 @@ export async function PATCH(
       return NextResponse.json({ error: `Cannot ${action} a request that is already ${existingReq.status}` }, { status: 400 });
     }
 
-    // Prevent self-approval
-    if (action === 'approve' && existingReq.requestedBy === ctx.userId && !ctx.isSuperAdmin) {
+    // Allow self-approval for admins (but not other roles)
+    // This allows admins to approve their own discount requests
+    if (action === 'approve' && existingReq.requestedBy === ctx.userId && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
       return NextResponse.json({ error: 'You cannot approve your own discount request' }, { status: 403 });
     }
 
