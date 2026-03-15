@@ -119,6 +119,95 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleRenew = async () => {
+    if (!subscription) return;
+    
+    try {
+      // Find current plan in database to get pricing
+      const plan = plans.find(p => p.name === subscription.plan);
+      if (!plan) {
+        console.error('Plan not found:', subscription.plan);
+        return;
+      }
+
+      // Get pricing based on current billing cycle
+      const amount = subscription.billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
+
+      // Create payment order
+      const response = await fetch('/api/create-payment-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: plan.name,
+          amount,
+          currency: 'INR',
+          billingCycle: subscription.billingCycle || 'monthly',
+          isRenewal: true, // Flag to indicate this is a renewal
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.error('Payment order failed:', data.error);
+        return;
+      }
+
+      // Initialize Razorpay
+      const options = {
+        key: data.key_id,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: 'School ERP',
+        description: `Renewal: ${plan.displayName} (${subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'})`,
+        order_id: data.order.id,
+        handler: async function (response: any) {
+          // Verify payment
+          const verifyResponse = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              schoolId: (session as any)?.schoolId,
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              signature: response.razorpay_signature,
+              billingCycle: subscription.billingCycle || 'monthly',
+              isRenewal: true,
+            }),
+          });
+
+          const verifyData = await verifyResponse.json();
+
+          if (verifyData.success) {
+            // Payment successful, refresh data
+            fetchSubscriptionData();
+            // showSuccessToast('Subscription renewed successfully!');
+          } else {
+            console.error('Payment verification failed:', verifyData.error);
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: `${session?.user?.name || ''}`,
+          email: session?.user?.email || '',
+        },
+        theme: {
+          color: '#3399cc',
+        },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error('Renewal error:', error);
+      alert('Failed to initiate renewal. Please try again.');
+    }
+  };
+
   // Define style variables before any early returns
   const isDark = theme === 'dark';
   const card = 'bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl';
@@ -394,7 +483,7 @@ export default function SubscriptionPage() {
                 {/* Auto-Renewal Toggle */}
                 {!subscription.isTrial && subscription.status !== 'cancelled' && (
                   <div className="pt-3 mt-3 border-t border-gray-700">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-white font-medium">Auto-Renewal</p>
                         <p className="text-xs text-gray-400 mt-1">
@@ -418,6 +507,15 @@ export default function SubscriptionPage() {
                         />
                       </button>
                     </div>
+                    
+                    {!subscription.autoRenew && (
+                      <button 
+                        onClick={handleRenew}
+                        className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium transition-all"
+                      >
+                        Renew Manually Now
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
