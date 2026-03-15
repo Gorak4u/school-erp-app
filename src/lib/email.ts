@@ -108,7 +108,7 @@ export async function sendSchoolEmail({
   const port = parseInt(smtp.smtp_port || process.env.SMTP_PORT || '587');
   const user = smtp.smtp_username || process.env.SMTP_USER;
   const pass = smtp.smtp_password || process.env.SMTP_PASS;
-  const from = smtp.smtp_from_email || process.env.SMTP_FROM || user;
+  const from = smtp.smtp_from_email || user; // Use authenticated user as fallback, not env SMTP_FROM
 
   console.log('Final SMTP settings:', { 
     host: host ? 'SET' : 'NOT SET', 
