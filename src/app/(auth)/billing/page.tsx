@@ -35,17 +35,35 @@ export default function BillingPage() {
   const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
 
   useEffect(() => {
-    // Fetch plans from database
     const fetchData = async () => {
+      setLoading(true);
       try {
-        // Fetch subscription data
-        setSubscription({
-          plan: (session as any)?.subscriptionPlan || 'basic',
-          status: (session as any)?.subscriptionStatus || 'pending_payment',
-          maxStudents: 100,
-          maxTeachers: 10,
-          trialEndsAt: (session as any)?.trialEndsAt,
-        });
+        // Fetch subscription data from database API
+        const subscriptionResponse = await fetch('/api/subscription?cache=true');
+        const subscriptionData = await subscriptionResponse.json();
+        
+        if (subscriptionData.subscription) {
+          console.log('Subscription data from API:', subscriptionData.subscription);
+          console.log('Original plan:', subscriptionData.subscription.plan);
+          setSubscription({
+            plan: subscriptionData.subscription.plan || 'basic',
+            status: subscriptionData.subscription.status || 'pending_payment',
+            maxStudents: subscriptionData.subscription.maxStudents || 100,
+            maxTeachers: subscriptionData.subscription.maxTeachers || 10,
+            trialEndsAt: subscriptionData.subscription.trialEndsAt,
+          });
+        } else {
+          console.log('No subscription data from API, using session fallback');
+          console.log('Session plan:', (session as any)?.subscriptionPlan);
+          // Fallback to session data
+          setSubscription({
+            plan: (session as any)?.subscriptionPlan || 'basic',
+            status: (session as any)?.subscriptionStatus || 'pending_payment',
+            maxStudents: 100,
+            maxTeachers: 10,
+            trialEndsAt: (session as any)?.trialEndsAt,
+          });
+        }
 
         // Fetch plans from database
         const plansResponse = await fetch('/api/admin/plans?cache=true');

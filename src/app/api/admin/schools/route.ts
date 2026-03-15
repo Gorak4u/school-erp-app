@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     const data = await req.json();
-    const { schoolName, email, phone, city, state, plan, adminFirstName, adminLastName, adminEmail, adminPassword } = data;
+    const { schoolName, email, phone, city, state, plan, billingCycle, adminFirstName, adminLastName, adminEmail, adminPassword } = data;
 
     if (!schoolName || !email || !plan || !adminFirstName || !adminLastName || !adminEmail || !adminPassword) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -55,6 +55,10 @@ export async function POST(req: Request) {
             maxStudents: planConfig?.maxStudents || 50,
             maxTeachers: planConfig?.maxTeachers || 5,
             features: planConfig?.features || '[]',
+            billingCycle: billingCycle || 'monthly',
+            price: billingCycle === 'yearly' 
+              ? (planConfig?.priceYearly || planConfig?.priceMonthly || 0)
+              : (planConfig?.priceMonthly || 0),
             currentPeriodStart: new Date(),
             currentPeriodEnd: plan === 'trial' 
               ? new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)) // 30 days from now for trial
@@ -255,9 +259,16 @@ export async function PUT(req: Request) {
       }
     }
     if (action === 'change_plan') {
-      const { plan, maxStudents, maxTeachers } = data;
+      const { plan, maxStudents, maxTeachers, billingCycle } = data;
       // Look up plan defaults from DB
       const planConfig = await p.plan.findUnique({ where: { name: plan } });
+      
+      // Calculate pricing based on billing cycle
+      let price = planConfig?.priceMonthly || 0;
+      if (billingCycle === 'yearly') {
+        price = planConfig?.priceYearly || planConfig?.priceMonthly || 0;
+      }
+      
       await p.subscription.update({
         where: { schoolId: id },
         data: {
@@ -266,10 +277,12 @@ export async function PUT(req: Request) {
           maxStudents: maxStudents || planConfig?.maxStudents || 50,
           maxTeachers: maxTeachers || planConfig?.maxTeachers || 5,
           features: planConfig?.features || '[]',
+          billingCycle: billingCycle || 'monthly',
+          price,
         },
       });
-      await logAuditAction({ actorEmail: session.user.email, action: 'change_plan', target: id, targetName: schoolName, details: { plan } });
-      return NextResponse.json({ success: true, message: `Plan changed to ${plan}` });
+      await logAuditAction({ actorEmail: session.user.email, action: 'change_plan', target: id, targetName: schoolName, details: { plan, billingCycle: billingCycle || 'monthly' } });
+      return NextResponse.json({ success: true, message: `Plan changed to ${plan} (${billingCycle || 'monthly'})` });
     }
     if (action === 'bulk_block') {
       const { ids } = data;
@@ -284,8 +297,15 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: true, message: `${ids.length} schools unblocked` });
     }
     if (action === 'bulk_change_plan') {
-      const { ids, plan } = data;
+      const { ids, plan, billingCycle } = data;
       const planConfig = await p.plan.findUnique({ where: { name: plan } });
+      
+      // Calculate pricing based on billing cycle
+      let price = planConfig?.priceMonthly || 0;
+      if (billingCycle === 'yearly') {
+        price = planConfig?.priceYearly || planConfig?.priceMonthly || 0;
+      }
+      
       for (const sid of ids) {
         await p.subscription.updateMany({
           where: { schoolId: sid },
@@ -294,11 +314,13 @@ export async function PUT(req: Request) {
             status: 'active',
             maxStudents: planConfig?.maxStudents || 50,
             maxTeachers: planConfig?.maxTeachers || 5,
+            billingCycle: billingCycle || 'monthly',
+            price,
           },
         });
       }
-      await logAuditAction({ actorEmail: session.user.email, action: 'bulk_change_plan', details: { count: ids.length, plan } });
-      return NextResponse.json({ success: true, message: `Plan changed to ${plan} for ${ids.length} schools` });
+      await logAuditAction({ actorEmail: session.user.email, action: 'bulk_change_plan', details: { count: ids.length, plan, billingCycle: billingCycle || 'monthly' } });
+      return NextResponse.json({ success: true, message: `Plan changed to ${plan} (${billingCycle || 'monthly'}) for ${ids.length} schools` });
     }
 
     if (action === 'delete') {

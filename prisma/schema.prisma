@@ -46,6 +46,8 @@ model Subscription {
   maxStudents          Int                   @default(50)
   maxTeachers          Int                   @default(5)
   features             String                @default("[]")
+  billingCycle         String                @default("monthly")
+  price                Int                   @default(0)
   billingEmail         String?
   paymentMethod        String?
   paymentId            String?

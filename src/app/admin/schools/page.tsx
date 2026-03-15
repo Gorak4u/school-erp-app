@@ -51,6 +51,7 @@ export default function AdminSchoolsPage() {
   const [filterPlan, setFilterPlan] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [extendDays, setExtendDays] = useState<Record<string, number>>({});
+  const [individualPlanChanges, setIndividualPlanChanges] = useState<Record<string, { plan: string; billingCycle: 'monthly' | 'yearly' }>>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
@@ -58,13 +59,14 @@ export default function AdminSchoolsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState('');
   const [bulkPlan, setBulkPlan] = useState('');
+  const [bulkBillingCycle, setBulkBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Create School State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({
-    schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial',
+    schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial', billingCycle: 'monthly' as 'monthly' | 'yearly',
     adminFirstName: '', adminLastName: '', adminEmail: '', adminPassword: ''
   });
 
@@ -149,7 +151,10 @@ export default function AdminSchoolsPage() {
     setActionLoading('bulk');
     try {
       const body: any = { id: ids[0], action: `bulk_${bulkAction}`, ids };
-      if (bulkAction === 'change_plan') body.plan = bulkPlan;
+      if (bulkAction === 'change_plan') {
+        body.plan = bulkPlan;
+        body.billingCycle = bulkBillingCycle;
+      }
       const res = await fetch('/api/admin/schools', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -188,7 +193,7 @@ export default function AdminSchoolsPage() {
         showSuccessToast('Success', 'School created successfully!');
         setShowCreateModal(false);
         setCreateForm({
-          schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial',
+          schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial', billingCycle: 'monthly',
           adminFirstName: '', adminLastName: '', adminEmail: '', adminPassword: ''
         });
         load();
@@ -310,10 +315,36 @@ export default function AdminSchoolsPage() {
             <option value="delete" style={{color: '#ef4444'}}>🗑️ Delete All (Permanent)</option>
           </select>
           {bulkAction === 'change_plan' && (
-            <select className={`${inputCls} text-xs`} value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
-              <option value="">Select plan...</option>
-              {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
-            </select>
+            <>
+              <select className={`${inputCls} text-xs`} value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
+                <option value="">Select plan...</option>
+                {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
+              </select>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  className={`flex-1 py-1 px-2 rounded text-xs border font-medium transition-all ${
+                    bulkBillingCycle === 'monthly'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  }`}
+                  onClick={() => setBulkBillingCycle('monthly')}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 py-1 px-2 rounded text-xs border font-medium transition-all ${
+                    bulkBillingCycle === 'yearly'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  }`}
+                  onClick={() => setBulkBillingCycle('yearly')}
+                >
+                  Yearly
+                </button>
+              </div>
+            </>
           )}
           <button onClick={doBulkAction} disabled={actionLoading === 'bulk' || !bulkAction || (bulkAction === 'change_plan' && !bulkPlan)}
             className={btnCls('bg-blue-600 text-white hover:bg-blue-700')}>
@@ -441,11 +472,67 @@ export default function AdminSchoolsPage() {
                           </div>
                         )}
 
-                        <select className={`${inputCls} text-xs py-1`} defaultValue=""
-                          onChange={e => { if (e.target.value) doAction(school.id, 'change_plan', { plan: e.target.value }); e.target.value = ''; }}>
-                          <option value="" disabled>Change Plan...</option>
-                          {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
-                        </select>
+                        <div className="flex gap-1">
+                          <select className={`${inputCls} text-xs py-1 flex-1`} value={individualPlanChanges[school.id]?.plan || ''}
+                            onChange={e => setIndividualPlanChanges(prev => ({
+                              ...prev,
+                              [school.id]: { ...prev[school.id], plan: e.target.value, billingCycle: prev[school.id]?.billingCycle || 'monthly' }
+                            }))}>
+                            <option value="">Change Plan...</option>
+                            {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
+                          </select>
+                          {individualPlanChanges[school.id]?.plan && (
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                className={`px-2 py-1 rounded text-xs border font-medium transition-all ${
+                                  individualPlanChanges[school.id]?.billingCycle === 'monthly'
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                                }`}
+                                onClick={() => setIndividualPlanChanges(prev => ({
+                                  ...prev,
+                                  [school.id]: { ...prev[school.id], billingCycle: 'monthly' }
+                                }))}
+                              >
+                                M
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-2 py-1 rounded text-xs border font-medium transition-all ${
+                                  individualPlanChanges[school.id]?.billingCycle === 'yearly'
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                                }`}
+                                onClick={() => setIndividualPlanChanges(prev => ({
+                                  ...prev,
+                                  [school.id]: { ...prev[school.id], billingCycle: 'yearly' }
+                                }))}
+                              >
+                                Y
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-2 py-1 rounded text-xs bg-green-600 text-white border-green-600 font-medium transition-all hover:bg-green-700`}
+                                onClick={() => {
+                                  if (individualPlanChanges[school.id]?.plan) {
+                                    doAction(school.id, 'change_plan', { 
+                                      plan: individualPlanChanges[school.id].plan, 
+                                      billingCycle: individualPlanChanges[school.id].billingCycle 
+                                    });
+                                    setIndividualPlanChanges(prev => {
+                                      const newState = { ...prev };
+                                      delete newState[school.id];
+                                      return newState;
+                                    });
+                                  }
+                                }}
+                              >
+                                ✓
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
                         {actionLoading === school.id && (
                           <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Saving...</span>
@@ -564,6 +651,33 @@ export default function AdminSchoolsPage() {
                     <select required className={`${inputCls} w-full`} value={createForm.plan} onChange={e => setCreateForm({...createForm, plan: e.target.value})}>
                       {plans.map(p => <option key={p.name} value={p.name}>{p.displayName}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Billing Cycle *</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={`flex-1 py-2 px-3 rounded-lg border font-medium transition-all ${
+                          createForm.billingCycle === 'monthly'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                        }`}
+                        onClick={() => setCreateForm({...createForm, billingCycle: 'monthly'})}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex-1 py-2 px-3 rounded-lg border font-medium transition-all ${
+                          createForm.billingCycle === 'yearly'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : `${isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                        }`}
+                        onClick={() => setCreateForm({...createForm, billingCycle: 'yearly'})}
+                      >
+                        Yearly
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Contact Email *</label>
