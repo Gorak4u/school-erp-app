@@ -134,15 +134,13 @@ export default function Home() {
                     name: "Administrator",
                     role: "Full system access",
                     email: "admin@schoolerp.in",
-                    password: "admin123",
+                    password: "[SET_BY_ADMIN]",
                     color: "blue"
                   },
                   {
-                    icon: "👩‍🏫",
-                    name: "Teacher",
                     role: "Class management",
                     email: "teacher@schoolerp.in",
-                    password: "teacher123",
+                    password: "[SET_BY_ADMIN]",
                     color: "green"
                   },
                   {
@@ -150,7 +148,7 @@ export default function Home() {
                     name: "Student",
                     role: "Learning portal",
                     email: "student@schoolerp.in",
-                    password: "student123",
+                    password: "[SET_BY_ADMIN]",
                     color: "purple"
                   },
                   {
@@ -158,7 +156,7 @@ export default function Home() {
                     name: "Parent",
                     role: "Progress monitoring",
                     email: "parent@schoolerp.in",
-                    password: "parent123",
+                    password: "[SET_BY_ADMIN]",
                     color: "orange"
                   }
                 ].map((account, index) => (

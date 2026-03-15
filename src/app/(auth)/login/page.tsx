@@ -83,7 +83,7 @@ export default function LoginPage() {
     {
       role: 'Administrator',
       email: 'admin@yourschool.com',
-      password: 'admin123',
+      password: '[SET_BY_ADMIN]',
       icon: '👨‍💼',
       color: 'from-blue-500 to-cyan-500',
       description: 'Full system access and control'
