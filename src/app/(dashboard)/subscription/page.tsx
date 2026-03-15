@@ -125,14 +125,12 @@ export default function SubscriptionPage() {
     if (!subscription) return;
     
     try {
-      // Check Razorpay configuration from SaaS settings
-      const configResponse = await fetch('/api/admin/saas-config');
+      // Check payment configuration (public endpoint accessible by school admins)
+      const configResponse = await fetch('/api/payment-config');
       const configData = await configResponse.json();
       
-      const hasRazorpayConfig = configData.config?.razorpay_key_id && configData.config?.razorpay_key_secret;
-      
-      if (!hasRazorpayConfig) {
-        alert('Payment system not configured. Please contact your administrator to set up Razorpay payment processing.');
+      if (!configData.success || !configData.hasPaymentConfig || !configData.isPaymentEnabled) {
+        alert('Payment system not configured. Please contact your administrator to set up payment processing.');
         return;
       }
       
