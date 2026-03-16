@@ -70,10 +70,10 @@ async function promoteStudents(
       const unpaidFees = student.feeRecords;
       const totalArrears = unpaidFees.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0);
 
-      await (schoolPrisma as any).$transaction(async (tx: any) => {
+      await (schoolPrisma as any).$transaction(async (tx: typeof schoolPrisma) => {
         // 1. Create FeeArrears for unpaid fees in target academic year
         for (const fee of unpaidFees) {
-          await tx.feeArrears.create({
+          await (tx as any).feeArrears.create({
             data: {
               schoolId: promotionPayload.schoolId,
               studentId,
