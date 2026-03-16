@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendAssignmentConfirmation } from '@/lib/transportNotifications';
 
 export async function GET(request: NextRequest) {
   try {
@@ -184,7 +185,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ assignment, feeRecord }, { status: 201 });
+    // Send assignment confirmation notification (async, don't wait)
+    const academicYearLabel = student.academicYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1).toString().slice(-2);
+    sendAssignmentConfirmation({
+      studentId,
+      routeId,
+      academicYear: academicYearLabel,
+      schoolId: ctx.schoolId!
+    }).catch(err => console.error('Failed to send assignment confirmation:', err));
+
+    return NextResponse.json({ 
+      assignment, 
+      feeRecord,
+      message: 'Student assigned to transport successfully. Confirmation email sent to parent.'
+    }, { status: 201 });
   } catch (error: any) {
     console.error('POST /api/transport/students:', error);
     return NextResponse.json({ error: 'Failed to assign student to transport', details: error.message }, { status: 500 });

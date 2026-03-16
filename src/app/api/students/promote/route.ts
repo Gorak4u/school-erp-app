@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { sendBulkTransportNotification, sendRouteChangeNotification } from '@/lib/transportNotifications';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -411,6 +412,20 @@ async function updateStudentStatus(
     } catch (transportErr) {
       console.error('Batch transport processing failed:', transportErr);
       // Don't fail the promotion, just log the error
+    }
+
+    // Send bulk notification about transport updates (async)
+    if (results.updated.length > 0) {
+      const transportStudentCount = activeTransports?.length || 0;
+      if (transportStudentCount > 0) {
+        sendBulkTransportNotification({
+          type: 'promotion_transport',
+          studentIds: results.updated.map(r => r.studentId),
+          targetAcademicYear: statusPayload.toAcademicYear,
+          message: `Transport auto-applied for ${transportStudentCount} students during promotion to ${statusPayload.toAcademicYear}. ${newAssignments?.length || 0} students assigned to routes, ${studentsWithoutRoute?.length || 0} students need manual assignment.`,
+          schoolId: statusPayload.schoolId
+        }).catch(err => console.error('Failed to send bulk notification:', err));
+      }
     }
   }
 
