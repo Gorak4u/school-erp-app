@@ -23,6 +23,8 @@ export default function NavigationSidebar({
   const [isClient, setIsClient] = useState(false);
   const { data: session } = useSession();
   const userIsSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const userRole = (session?.user as any)?.role || '';
+  const isAdmin = userRole === 'admin' || userIsSuperAdmin;
 
   useEffect(() => {
     setIsClient(true);
@@ -200,37 +202,23 @@ export default function NavigationSidebar({
             <span className="font-medium">Subscription</span>
           </Link>
 
-          <Link
-            href="/settings"
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentPage === 'settings'
-                ? theme === 'dark' 
-                  ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-400' 
-                  : 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
-                : theme === 'dark' 
-                  ? 'hover:bg-gray-800 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-700'
-            }`}
-          >
-            <span className="text-lg">⚙️</span>
-            <span className="font-medium">Settings</span>
-          </Link>
-
-          <Link
-            href="/settings/school-structure"
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentPage === 'school-structure'
-                ? theme === 'dark' 
-                  ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-400' 
-                  : 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
-                : theme === 'dark' 
-                  ? 'hover:bg-gray-800 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-700'
-            }`}
-          >
-            <span className="text-lg">🏫</span>
-            <span className="font-medium">School Structure</span>
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/settings"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                currentPage === 'settings'
+                  ? theme === 'dark' 
+                    ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-400' 
+                    : 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                  : theme === 'dark' 
+                    ? 'hover:bg-gray-800 text-gray-300' 
+                    : 'hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              <span className="text-lg">⚙️</span>
+              <span className="font-medium">Settings</span>
+            </Link>
+          )}
 
           {userIsSuperAdmin && (
             <Link
