@@ -87,8 +87,10 @@ export default function SettingsPage() {
       const academicYearsList = ayRes.academicYears || [];
       setAcademicYears(academicYearsList);
       
-      // Find the active academic year
-      const activeAcademicYear = academicYearsList.find((ay: any) => ay.isActive);
+      // Use the NEWEST active academic year (guard against multiple active years)
+      const activeAcademicYear = [...academicYearsList]
+        .filter((ay: any) => ay.isActive)
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
       const activeAYId = activeAcademicYear?.id;
       
       console.log('📅 Active Academic Year:', activeAcademicYear?.name, '(ID:', activeAYId, ')');
@@ -572,8 +574,10 @@ export default function SettingsPage() {
     }
   };
 
-  // ─── Active academic year ──────────────────────────────────────────────────
-  const activeAY = academicYears.find((a: any) => a.isActive);
+  // ─── Active academic year (newest active year wins) ────────────────────────
+  const activeAY = [...academicYears]
+    .filter((a: any) => a.isActive)
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
 
   // ─── School Details Tab ────────────────────────────────────────────────────
   const SchoolDetailsTab = () => {
@@ -813,6 +817,26 @@ export default function SettingsPage() {
     const [showFeeModal, setShowFeeModal] = useState(false);
     const [editingFee, setEditingFee] = useState<any>(null);
     const [feeForm, setFeeForm] = useState<any>({});
+    // Dynamic mediums/classes loaded based on the selected academicYearId in the form
+    const [modalMediums, setModalMediums] = useState<any[]>(mediums);
+    const [modalClasses, setModalClasses] = useState<any[]>(classes);
+    const [modalLoading, setModalLoading] = useState(false);
+
+    // Reload mediums and classes whenever the selected academicYearId changes
+    useEffect(() => {
+      if (!feeForm.academicYearId) { setModalMediums([]); setModalClasses([]); return; }
+      setModalLoading(true);
+      Promise.all([
+        mediumsApi.list({ academicYearId: feeForm.academicYearId, isActive: 'true' }),
+        classesApi.list({ academicYearId: feeForm.academicYearId, isActive: 'true' }),
+      ]).then(([mRes, cRes]) => {
+        setModalMediums(mRes.mediums || []);
+        setModalClasses(cRes.classes || []);
+      }).catch(() => {
+        setModalMediums([]);
+        setModalClasses([]);
+      }).finally(() => setModalLoading(false));
+    }, [feeForm.academicYearId]);
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [cloneSource, setCloneSource] = useState('');
     const [cloneTarget, setCloneTarget] = useState('');
@@ -1007,10 +1031,10 @@ export default function SettingsPage() {
                   <div><label className={label}>Due Date (Day of Month)</label><input className={input} type="number" min={1} max={28} value={feeForm.dueDate || 1} onChange={e => setFeeForm({ ...feeForm, dueDate: parseInt(e.target.value) || 1 })} /></div>
                   <div><label className={label}>Late Fee (₹/day)</label><input className={input} type="number" value={feeForm.lateFee || 0} onChange={e => setFeeForm({ ...feeForm, lateFee: parseFloat(e.target.value) || 0 })} /></div>
                   <div className="md:col-span-2"><label className={label}>Description</label><input className={input} value={feeForm.description || ''} onChange={e => setFeeForm({ ...feeForm, description: e.target.value })} /></div>
-                  <div><label className={label}>Academic Year *</label><select className={input} value={feeForm.academicYearId || ''} onChange={e => setFeeForm({ ...feeForm, academicYearId: e.target.value })}><option value="">Select...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+                  <div><label className={label}>Academic Year *</label><select className={input} value={feeForm.academicYearId || ''} onChange={e => setFeeForm({ ...feeForm, academicYearId: e.target.value, mediumId: null, classId: null })}><option value="">Select...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
                   <div><label className={label}>Board</label><select className={input} value={feeForm.boardId || ''} onChange={e => setFeeForm({ ...feeForm, boardId: e.target.value || null })}><option value="">All Boards</option>{boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
-                  <div><label className={label}>Medium</label><select className={input} value={feeForm.mediumId || ''} onChange={e => setFeeForm({ ...feeForm, mediumId: e.target.value || null, classId: null })}><option value="">All Mediums</option>{mediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                  <div><label className={label}>Class</label><select className={input} value={feeForm.classId || ''} onChange={e => setFeeForm({ ...feeForm, classId: e.target.value || null })}><option value="">All Classes</option>{(feeForm.mediumId ? classes.filter((c: any) => c.mediumId === feeForm.mediumId) : classes).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div><label className={label}>Medium{modalLoading ? ' (loading...)' : ''}</label><select className={input} value={feeForm.mediumId || ''} onChange={e => setFeeForm({ ...feeForm, mediumId: e.target.value || null, classId: null })} disabled={modalLoading}><option value="">All Mediums</option>{modalMediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                  <div><label className={label}>Class{modalLoading ? ' (loading...)' : ''}</label><select className={input} value={feeForm.classId || ''} onChange={e => setFeeForm({ ...feeForm, classId: e.target.value || null })} disabled={modalLoading}><option value="">All Classes</option>{(feeForm.mediumId ? modalClasses.filter((c: any) => c.mediumId === feeForm.mediumId) : modalClasses).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                   <div><label className={label}>Applicable Categories</label><input className={input} value={feeForm.applicableCategories || 'all'} onChange={e => setFeeForm({ ...feeForm, applicableCategories: e.target.value })} placeholder="all, General, OBC, SC, ST" /></div>
                   <div className="flex items-center gap-2 pt-6"><input type="checkbox" checked={feeForm.isActive !== false} onChange={e => setFeeForm({ ...feeForm, isActive: e.target.checked })} /><span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Active</span></div>
                 </div>

@@ -473,7 +473,11 @@ export default function StudentForm({
                       }`}>
                         <div>
                           <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{fee.name}</p>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{fee.category || fee.feeCategory || 'General'}</p>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {fee.category || fee.feeCategory || 'General'}
+                            {' · '}
+                            {fee.classId ? (fee.class?.name || 'Specific Class') : 'All Classes'}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
