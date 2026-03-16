@@ -11,23 +11,24 @@ async function getStudentsByClass(fromClass: string, fromSection: string | null,
   return (schoolPrisma as any).student.findMany({ where, select: { id: true, name: true, class: true, section: true, academicYear: true, admissionNo: true } });
 }
 
-async function promoteStudents(
+async function updateStudentStatus(
   studentIds: string[],
-  promotionPayload: {
-    toClass: string;
-    toSection: string;
-    toAcademicYear: string;
-    toAcademicYearId: string;  // FK id of the target AY
-    promotionType: string;
+  statusPayload: {
+    action: 'promote' | 'exit' | 'graduate';  // promote, exit, or graduate
+    toClass?: string;
+    toSection?: string;
+    toAcademicYear?: string;
+    toAcademicYearId?: string;  // FK id of the target AY (for promote only)
+    promotionType?: string;
     remarks: string;
-    promotedBy: string;
-    promotedByEmail: string;
-    promotedByName: string;
+    updatedBy: string;
+    updatedByEmail: string;
+    updatedByName: string;
     schoolId: string;
-    detainedApplyFees: boolean;
+    detainedApplyFees?: boolean;
   }
 ) {
-  const results = { promoted: [] as any[], failed: [] as any[], totalArrears: 0 };
+  const results = { updated: [] as any[], failed: [] as any[], totalArrears: 0 };
 
   for (const studentId of studentIds) {
     try {
@@ -67,122 +68,151 @@ async function promoteStudents(
         continue;
       }
 
-      // Unpaid fee records become arrears
       const unpaidFees = student.feeRecords;
       const totalArrears = unpaidFees.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0);
-
       const db = schoolPrisma as any;
 
-      // 1. Create FeeArrears for unpaid fees
-      for (const fee of unpaidFees) {
-        await db.feeArrears.create({
-          data: {
-            schoolId: promotionPayload.schoolId,
-            studentId,
-            originalFeeRecordId: fee.id,
-            fromAcademicYear: fee.academicYear || student.academicYear,
-            toAcademicYear: promotionPayload.toAcademicYear,
-            amount: fee.amount,
-            paidAmount: fee.paidAmount || 0,
-            pendingAmount: fee.pendingAmount || 0,
-            dueDate: fee.dueDate,
-            status: fee.paidAmount > 0 ? 'partial' : 'pending',
-            remarks: `Arrears from ${fee.academicYear || student.academicYear} - ${student.class} ${student.section || ''}`
-          }
-        });
-      }
-
-      // 2. Update student record — set academicYearId so the lock is cleared
-      await db.student.update({
-        where: { id: studentId },
-        data: {
-          class: promotionPayload.toClass,
-          section: promotionPayload.toSection,
-          academicYear: promotionPayload.toAcademicYear,
-          academicYearId: promotionPayload.toAcademicYearId,  // clear lock by updating to new AY id
-          status: 'active', // ensure status is active after promotion
-        }
-      });
-
-      // 3. Create promotion audit record
-      try {
-        await db.studentPromotion.create({
-          data: {
-            schoolId: promotionPayload.schoolId,
-            studentId,
-            fromClass: student.class,
-            toClass: promotionPayload.toClass,
-            fromSection: student.section,
-            toSection: promotionPayload.toSection,
-            fromAcademicYear: student.academicYear,
-            toAcademicYear: promotionPayload.toAcademicYear,
-            promotedBy: promotionPayload.promotedBy,
-            promotedByEmail: promotionPayload.promotedByEmail,
-            promotedByName: promotionPayload.promotedByName,
-            promotionType: promotionPayload.promotionType,
-            arrearsAmount: totalArrears,
-            remarks: promotionPayload.remarks || null
-          }
-        });
-      } catch (auditErr) {
-        console.warn('Failed to create promotion audit record:', auditErr);
-      }
-
-      // 4. Auto-apply new academic year fee structures for new class
-      const shouldApplyFees = promotionPayload.promotionType === 'detained'
-        ? promotionPayload.detainedApplyFees
-        : true;
-
-      if (shouldApplyFees) {
-        try {
-          const newAcademicYear = await db.academicYear.findFirst({
-            where: { year: promotionPayload.toAcademicYear }
+      // Handle different actions
+      if (statusPayload.action === 'promote') {
+        // 1. Create FeeArrears for unpaid fees
+        for (const fee of unpaidFees) {
+          await db.feeArrears.create({
+            data: {
+              schoolId: statusPayload.schoolId,
+              studentId,
+              originalFeeRecordId: fee.id,
+              fromAcademicYear: fee.academicYear || student.academicYear,
+              toAcademicYear: statusPayload.toAcademicYear!,
+              amount: fee.amount,
+              paidAmount: fee.paidAmount || 0,
+              pendingAmount: fee.pendingAmount || 0,
+              dueDate: fee.dueDate,
+              status: fee.paidAmount > 0 ? 'partial' : 'pending',
+              remarks: `Arrears from ${fee.academicYear || student.academicYear} - ${student.class} ${student.section || ''}`
+            }
           });
+        }
 
-          if (newAcademicYear) {
-            const newClassRecord = await db.class.findFirst({
-              where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
+        // 2. Update student record — set academicYearId so the lock is cleared
+        await db.student.update({
+          where: { id: studentId },
+          data: {
+            class: statusPayload.toClass,
+            section: statusPayload.toSection,
+            academicYear: statusPayload.toAcademicYear,
+            academicYearId: statusPayload.toAcademicYearId,
+            status: 'active',
+          }
+        });
+
+        // 3. Create promotion audit record
+        try {
+          await db.studentPromotion.create({
+            data: {
+              schoolId: statusPayload.schoolId,
+              studentId,
+              fromClass: student.class,
+              toClass: statusPayload.toClass!,
+              fromSection: student.section,
+              toSection: statusPayload.toSection,
+              fromAcademicYear: student.academicYear,
+              toAcademicYear: statusPayload.toAcademicYear!,
+              promotedBy: statusPayload.updatedBy,
+              promotedByEmail: statusPayload.updatedByEmail,
+              promotedByName: statusPayload.updatedByName,
+              promotionType: statusPayload.promotionType,
+              arrearsAmount: totalArrears,
+              remarks: statusPayload.remarks || null
+            }
+          });
+        } catch (auditErr) {
+          console.warn('Failed to create promotion audit record:', auditErr);
+        }
+
+        // 4. Auto-apply new academic year fee structures for new class
+        const shouldApplyFees = statusPayload.promotionType === 'detained'
+          ? statusPayload.detainedApplyFees
+          : true;
+
+        if (shouldApplyFees) {
+          try {
+            const newAcademicYear = await db.academicYear.findFirst({
+              where: { year: statusPayload.toAcademicYear }
             });
 
-            const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
-            if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
-
-            const newFeeStructures = await db.feeStructure.findMany({ where: feeStructureWhere });
-
-            const currentYear = new Date().getFullYear();
-            for (const structure of newFeeStructures) {
-              const cats = structure.applicableCategories || 'all';
-              const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-              if (!categoryMatch) continue;
-
-              const existingRecord = await db.feeRecord.findFirst({
-                where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
+            if (newAcademicYear) {
+              const newClassRecord = await db.class.findFirst({
+                where: { name: statusPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
               });
-              if (existingRecord) continue;
 
-              await db.feeRecord.create({
-                data: {
-                  studentId,
-                  feeStructureId: structure.id,
-                  amount: structure.amount,
-                  paidAmount: 0,
-                  pendingAmount: structure.amount,
-                  dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
-                  status: 'pending',
-                  academicYear: promotionPayload.toAcademicYear,
-                  receiptNumber: `FEE-${promotionPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
-                  remarks: `Auto-applied on promotion to ${promotionPayload.toClass}`
-                }
-              });
+              const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
+              if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
+
+              const newFeeStructures = await db.feeStructure.findMany({ where: feeStructureWhere });
+
+              const currentYear = new Date().getFullYear();
+              for (const structure of newFeeStructures) {
+                const cats = structure.applicableCategories || 'all';
+                const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
+                if (!categoryMatch) continue;
+
+                const existingRecord = await db.feeRecord.findFirst({
+                  where: { studentId, feeStructureId: structure.id, academicYear: statusPayload.toAcademicYear }
+                });
+                if (existingRecord) continue;
+
+                await db.feeRecord.create({
+                  data: {
+                    studentId,
+                    feeStructureId: structure.id,
+                    amount: structure.amount,
+                    paidAmount: 0,
+                    pendingAmount: structure.amount,
+                    dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
+                    status: 'pending',
+                    academicYear: statusPayload.toAcademicYear,
+                    receiptNumber: `FEE-${statusPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
+                    remarks: `Auto-applied on promotion to ${statusPayload.toClass}`
+                  }
+                });
+              }
             }
+          } catch (feeErr) {
+            console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
           }
-        } catch (feeErr) {
-          console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
         }
-      }
 
-      results.promoted.push({ studentId, studentName: student.name, fromClass: student.class, toClass: promotionPayload.toClass, arrearsAmount: totalArrears });
-      results.totalArrears += totalArrears;
+        results.updated.push({ studentId, studentName: student.name, action: 'promote', fromClass: student.class, toClass: statusPayload.toClass, arrearsAmount: totalArrears });
+        results.totalArrears += totalArrears;
+
+      } else if (statusPayload.action === 'exit') {
+        // Mark student as exited
+        await db.student.update({
+          where: { id: studentId },
+          data: {
+            status: 'exited',
+            exitDate: new Date().toISOString(),
+            exitReason: statusPayload.remarks || 'Student exited'
+          }
+        });
+
+        results.updated.push({ studentId, studentName: student.name, action: 'exit', fromClass: student.class, arrearsAmount: totalArrears });
+        results.totalArrears += totalArrears;
+
+      } else if (statusPayload.action === 'graduate') {
+        // Mark student as graduated
+        await db.student.update({
+          where: { id: studentId },
+          data: {
+            status: 'graduated',
+            graduationDate: new Date().toISOString(),
+            graduationRemark: statusPayload.remarks || 'Student graduated'
+          }
+        });
+
+        results.updated.push({ studentId, studentName: student.name, action: 'graduate', fromClass: student.class, arrearsAmount: totalArrears });
+        results.totalArrears += totalArrears;
+      }
     } catch (err: any) {
       console.error(`Promotion failed for student ${studentId}:`, err);
       results.failed.push({ studentId, reason: err.message });
@@ -206,6 +236,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       mode,              // "single" | "bulk" | "class"
+      action = 'promote', // "promote" | "exit" | "graduate"
       studentId,         // for mode=single
       studentIds,        // for mode=bulk
       fromClass,         // for mode=class
@@ -218,17 +249,27 @@ export async function POST(request: NextRequest) {
       detainedApplyFees = false
     } = body;
 
-    // Validate required fields
-    if (!toClass || !toAcademicYear) {
-      return NextResponse.json({ error: 'toClass and toAcademicYear are required' }, { status: 400 });
+    // Validate action
+    if (!['promote', 'exit', 'graduate'].includes(action)) {
+      return NextResponse.json({ error: 'action must be promote, exit, or graduate' }, { status: 400 });
     }
 
-    // Validate target academic year exists
-    const targetAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
-      where: { year: toAcademicYear }
-    });
-    if (!targetAcademicYear) {
-      return NextResponse.json({ error: `Academic year ${toAcademicYear} not found. Please create it in Settings first.` }, { status: 400 });
+    // Validate required fields based on action
+    if (action === 'promote') {
+      if (!toClass || !toAcademicYear) {
+        return NextResponse.json({ error: 'toClass and toAcademicYear are required for promote action' }, { status: 400 });
+      }
+    }
+
+    // Validate target academic year exists (only for promote)
+    let targetAcademicYear = null;
+    if (action === 'promote') {
+      targetAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
+        where: { year: toAcademicYear }
+      });
+      if (!targetAcademicYear) {
+        return NextResponse.json({ error: `Academic year ${toAcademicYear} not found. Please create it in Settings first.` }, { status: 400 });
+      }
     }
 
     // Validate section is optional (will be checked later based on class configuration)
@@ -268,45 +309,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No valid students to promote' }, { status: 400 });
     }
 
-    const promoterName = ctx.email.split('@')[0];
+    const updaterName = ctx.email.split('@')[0];
 
-    const results = await promoteStudents(targetStudentIds, {
+    const results = await updateStudentStatus(targetStudentIds, {
+      action,
       toClass,
       toSection,
       toAcademicYear,
-      toAcademicYearId: targetAcademicYear.id,  // pass the FK id
+      toAcademicYearId: targetAcademicYear?.id,
       promotionType,
       remarks,
-      promotedBy: ctx.userId,
-      promotedByEmail: ctx.email,
-      promotedByName: promoterName,
+      updatedBy: ctx.userId,
+      updatedByEmail: ctx.email,
+      updatedByName: updaterName,
       schoolId: ctx.schoolId!,
       detainedApplyFees
     });
 
     // Determine success based on results
-    const allFailed = results.promoted.length === 0 && results.failed.length > 0;
-    const partialSuccess = results.promoted.length > 0 && results.failed.length > 0;
-    const allSuccess = results.promoted.length > 0 && results.failed.length === 0;
+    const allFailed = results.updated.length === 0 && results.failed.length > 0;
+    const partialSuccess = results.updated.length > 0 && results.failed.length > 0;
 
     let message = '';
+    const actionLabel = action === 'promote' ? 'promoted' : action === 'exit' ? 'exited' : 'graduated';
+    const actionLabelCaps = action === 'promote' ? 'Promoted' : action === 'exit' ? 'Exited' : 'Graduated';
+    
     if (allFailed) {
-      message = `Failed to promote all ${targetStudentIds.length} students. Check errors below.`;
+      message = `Failed to ${action} all ${targetStudentIds.length} students. Check errors below.`;
     } else if (partialSuccess) {
-      message = `Promoted ${results.promoted.length} of ${targetStudentIds.length} students to ${toClass} (${toAcademicYear}). ${results.failed.length} failed.`;
+      message = `${actionLabelCaps} ${results.updated.length} of ${targetStudentIds.length} students. ${results.failed.length} failed.`;
     } else {
-      message = `Successfully promoted ${results.promoted.length} of ${targetStudentIds.length} students to ${toClass} (${toAcademicYear})`;
+      message = `Successfully ${actionLabel} ${results.updated.length} of ${targetStudentIds.length} students`;
     }
 
     return NextResponse.json({
-      success: !allFailed, // Only true if at least one student was promoted
+      success: !allFailed,
       data: {
         mode,
+        action,
         totalRequested: targetStudentIds.length,
-        promoted: results.promoted.length,
+        updated: results.updated.length,
         failed: results.failed.length,
         totalArrears: results.totalArrears,
-        promotedStudents: results.promoted,
+        updatedStudents: results.updated,
         failedStudents: results.failed
       },
       message
