@@ -65,7 +65,7 @@ async function promoteStudents(
       const totalArrears = unpaidFees.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0);
 
       await (schoolPrisma as any).$transaction(async (tx: any) => {
-        // 1. Create FeeArrears for unpaid fees
+        // 1. Create FeeArrears for unpaid fees in target academic year
         for (const fee of unpaidFees) {
           await tx.feeArrears.create({
             data: {
@@ -79,7 +79,7 @@ async function promoteStudents(
               pendingAmount: fee.pendingAmount || 0,
               dueDate: fee.dueDate,
               status: fee.paidAmount > 0 ? 'partial' : 'pending',
-              remarks: `Arrears carried from ${fee.academicYear || student.academicYear}`
+              remarks: `Arrears from ${fee.academicYear || student.academicYear} - ${student.class} ${student.section || ''}`
             }
           });
         }
