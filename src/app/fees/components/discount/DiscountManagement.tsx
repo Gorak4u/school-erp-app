@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import DiscountRequestForm from './DiscountRequestForm';
-import DiscountApprovalQueue from './DiscountApprovalQueue';
-import DiscountAuditLog from './DiscountAuditLog';
+import EnhancedDiscountApprovalQueue from './EnhancedDiscountApprovalQueue';
+import EnhancedDiscountAuditLog from './EnhancedDiscountAuditLog';
 
 interface DiscountManagementProps {
   theme: 'dark' | 'light';
@@ -73,9 +73,9 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
       </div>
 
       <div className={`p-6 rounded-xl border ${bgCard}`}>
-        {activeTab === 'requests' && <DiscountApprovalQueue theme={theme} userRole={userRole} viewMode="my_requests" />}
-        {activeTab === 'approvals' && <DiscountApprovalQueue theme={theme} userRole={userRole} viewMode="all" />}
-        {activeTab === 'audit' && <DiscountAuditLog theme={theme} />}
+        {activeTab === 'requests' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="my_requests" />}
+        {activeTab === 'approvals' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="all" />}
+        {activeTab === 'audit' && <EnhancedDiscountAuditLog theme={theme} />}
       </div>
 
       {showForm && (

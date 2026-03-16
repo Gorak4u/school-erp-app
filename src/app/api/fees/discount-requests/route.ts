@@ -16,11 +16,36 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const academicYear = searchParams.get('academicYear');
     const scope = searchParams.get('scope');
+    const search = searchParams.get('search') || '';
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
 
     const where: any = tenantWhere(ctx);
+    
+    // Status filter
     if (status && status !== 'all') where.status = status;
+    
+    // Academic year filter
     if (academicYear) where.academicYear = academicYear;
+    
+    // Scope filter
     if (scope && scope !== 'all') where.scope = scope;
+    
+    // Search filter (name, description, requestedByName)
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { requestedByName: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    // Date range filter
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) where.createdAt.lte = new Date(dateTo + 'T23:59:59.999Z');
+    }
 
     // Users can only see requests they created, UNLESS they are admin/principal
     if (ctx.role !== 'admin' && ctx.role !== 'principal' && !ctx.isSuperAdmin) {
