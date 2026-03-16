@@ -246,6 +246,7 @@ export default function SettingsPage() {
       console.log('📚 Copying classes...');
       let classesResponse;
       try {
+        console.log(`  🔍 Fetching classes for previous academic year: ${previousYearId}`);
         classesResponse = await classesApi.list({ academicYearId: previousYearId });
         console.log('  📋 Classes API response:', classesResponse);
       } catch (error) {
@@ -254,36 +255,51 @@ export default function SettingsPage() {
       }
       
       const classes = classesResponse.classes || [];
-      console.log(`  📊 Found ${classes.length} classes to copy`);
+      console.log(`  📊 Found ${classes.length} classes to copy from previous year`);
+      console.log('  📋 Medium mapping available:', mediumMapping);
       const classMapping: { [key: string]: string } = {};
+      
+      if (classes.length === 0) {
+        console.warn('  ⚠️ No classes found in previous academic year to copy');
+      }
       
       for (const cls of classes) {
         try {
+          console.log(`  📝 Processing class: ${cls.name} (ID: ${cls.id}, mediumId: ${cls.mediumId})`);
+          
           // Find corresponding medium in new year
           const newMediumId = mediumMapping[cls.mediumId];
-          console.log(`  📝 Creating class: ${cls.name} -> ${cls.code}_${yearSuffix}`);
           console.log(`  🔗 Original mediumId: ${cls.mediumId} -> New mediumId: ${newMediumId}`);
           
           if (!newMediumId) {
             console.warn(`  ⚠️ Skipping class ${cls.name} - no corresponding medium found (original mediumId: ${cls.mediumId})`);
+            console.warn(`  🔍 Available medium mappings:`, Object.keys(mediumMapping));
             continue; // Skip this class if no medium mapping exists
           }
           
-          const newClass = await classesApi.create({
+          const classData = {
             code: `${cls.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
             name: cls.name,
             level: cls.level,
             isActive: cls.isActive,
             academicYearId: newYearId,
             mediumId: newMediumId // Only set if we have a valid mapping
-          });
+          };
+          
+          console.log(`  📝 Creating class with data:`, classData);
+          
+          const newClass = await classesApi.create(classData);
           classMapping[cls.id] = newClass.id;
           console.log(`  ✅ Copied class: ${cls.name} (ID: ${newClass.id})`);
         } catch (error) {
           console.error(`  ❌ Failed to copy class ${cls.name}:`, error);
-          throw error;
+          // Continue with other classes instead of throwing
+          console.warn(`  ⚠️ Continuing with remaining classes...`);
         }
       }
+      
+      console.log(`  📊 Class mapping result:`, classMapping);
+      console.log(`  📊 Successfully copied ${Object.keys(classMapping).length} classes`);
 
       // 3. Copy sections
       console.log('📝 Copying sections...');
@@ -383,12 +399,22 @@ export default function SettingsPage() {
       }
       
       // Mark old classes as inactive
+      console.log(`  🔄 Marking ${classes.length} old classes as inactive...`);
       for (const cls of classes) {
-        await classesApi.update({
-          ...cls,
-          isActive: false
-        });
-        console.log(`  ✅ Marked class as inactive: ${cls.name}`);
+        try {
+          console.log(`  🔄 Marking class inactive: ${cls.name} (ID: ${cls.id})`);
+          const updateData = {
+            ...cls,
+            isActive: false
+          };
+          console.log(`  📝 Update data:`, updateData);
+          
+          await classesApi.update(updateData);
+          console.log(`  ✅ Marked class as inactive: ${cls.name}`);
+        } catch (error) {
+          console.error(`  ❌ Failed to mark class ${cls.name} as inactive:`, error);
+          // Continue with other classes
+        }
       }
       
       // Mark old sections as inactive
