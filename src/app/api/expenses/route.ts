@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendExpenseCreatedEmail } from '@/lib/expenseEmails';
 
 function hasExpenseAccess(ctx: any, action = 'view') {
   if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
@@ -169,6 +170,9 @@ export async function POST(request: NextRequest) {
         details: `Expense created: ${title} — ₹${expenseAmount}`,
       },
     });
+
+    // Fire-and-forget: notify admins of new pending expense
+    sendExpenseCreatedEmail(expense, ctx.schoolId).catch(() => {});
 
     return NextResponse.json({ expense }, { status: 201 });
   } catch (err: any) {

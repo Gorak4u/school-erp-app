@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendExpenseApprovedEmail, sendExpenseRejectedEmail, sendExpensePaidEmail } from '@/lib/expenseEmails';
 
 function hasExpenseAccess(ctx: any, action = 'view') {
   if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
@@ -87,6 +88,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         include: { category: { select: { id: true, name: true, color: true, icon: true } } },
       });
       await logAudit(ctx.schoolId, id, ctx, 'approved', 'pending', 'approved', fields.approvalNote);
+      sendExpenseApprovedEmail(expense, ctx.schoolId).catch(() => {});
       return NextResponse.json({ expense });
     }
 
@@ -106,6 +108,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         include: { category: { select: { id: true, name: true, color: true, icon: true } } },
       });
       await logAudit(ctx.schoolId, id, ctx, 'rejected', 'pending', 'rejected', fields.rejectionReason);
+      sendExpenseRejectedEmail(expense, fields.rejectionReason, ctx.schoolId).catch(() => {});
       return NextResponse.json({ expense });
     }
 
@@ -124,6 +127,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         include: { category: { select: { id: true, name: true, color: true, icon: true } } },
       });
       await logAudit(ctx.schoolId, id, ctx, 'paid', 'approved', 'paid', fields.paymentMethod);
+      sendExpensePaidEmail(expense, fields.paymentMethod || existing.paymentMethod, ctx.schoolId).catch(() => {});
       return NextResponse.json({ expense });
     }
 
