@@ -182,6 +182,106 @@ async function updateStudentStatus(
           }
         }
 
+        // 5. Handle transport route assignment for new AY
+        try {
+          // Check if student has active transport
+          const activeTransport = await db.studentTransport.findFirst({
+            where: { studentId, isActive: true },
+            include: { route: true }
+          });
+
+          if (activeTransport && activeTransport.route) {
+            // Deactivate old transport assignment
+            await db.studentTransport.updateMany({
+              where: { studentId, isActive: true },
+              data: { isActive: false }
+            });
+
+            // Check if route exists in target AY
+            const routeInTargetAY = await db.transportRoute.findFirst({
+              where: {
+                routeNumber: activeTransport.route.routeNumber,
+                academicYearId: statusPayload.toAcademicYearId,
+                schoolId: statusPayload.schoolId,
+                isActive: true
+              }
+            });
+
+            if (routeInTargetAY) {
+              // Auto-assign to route in new AY
+              const newAssignment = await db.studentTransport.create({
+                data: {
+                  studentId,
+                  routeId: routeInTargetAY.id,
+                  pickupStop: activeTransport.pickupStop,
+                  dropStop: activeTransport.dropStop,
+                  monthlyFee: routeInTargetAY.monthlyFee,
+                  academicYearId: statusPayload.toAcademicYearId,
+                  isActive: true
+                }
+              });
+
+              // Create transport FeeStructure if doesn't exist
+              let transportFeeStructure = await db.feeStructure.findFirst({
+                where: {
+                  schoolId: statusPayload.schoolId,
+                  category: 'transport',
+                  name: `Transport - ${routeInTargetAY.routeName}`,
+                  academicYearId: statusPayload.toAcademicYearId
+                }
+              });
+
+              if (!transportFeeStructure) {
+                transportFeeStructure = await db.feeStructure.create({
+                  data: {
+                    name: `Transport - ${routeInTargetAY.routeName}`,
+                    category: 'transport',
+                    amount: routeInTargetAY.monthlyFee,
+                    frequency: 'monthly',
+                    dueDate: 10,
+                    lateFee: 0,
+                    description: `Monthly transport fee for route ${routeInTargetAY.routeNumber} - ${routeInTargetAY.routeName}`,
+                    applicableCategories: 'all',
+                    isActive: true,
+                    schoolId: statusPayload.schoolId,
+                    academicYearId: statusPayload.toAcademicYearId
+                  }
+                });
+              }
+
+              // Create transport FeeRecord
+              const existingTransportFee = await db.feeRecord.findFirst({
+                where: { studentId, feeStructureId: transportFeeStructure.id, academicYear: statusPayload.toAcademicYear }
+              });
+
+              if (!existingTransportFee) {
+                await db.feeRecord.create({
+                  data: {
+                    studentId,
+                    feeStructureId: transportFeeStructure.id,
+                    amount: routeInTargetAY.monthlyFee,
+                    paidAmount: 0,
+                    pendingAmount: routeInTargetAY.monthlyFee,
+                    dueDate: new Date(currentYear, 3, 10).toISOString().split('T')[0],
+                    status: 'pending',
+                    academicYear: statusPayload.toAcademicYear,
+                    receiptNumber: `TRNSP-${statusPayload.toAcademicYear}-${student.admissionNo}-${Date.now()}`,
+                    remarks: `Auto-applied transport fee on promotion - Route ${routeInTargetAY.routeNumber}`
+                  }
+                });
+              }
+            } else {
+              // Route doesn't exist in target AY - update student transport field
+              await db.student.update({
+                where: { id: studentId },
+                data: { transport: 'No', transportRoute: null }
+              });
+            }
+          }
+        } catch (transportErr) {
+          console.error(`Transport auto-assign failed for student ${studentId}:`, transportErr);
+        }
+
         results.updated.push({ studentId, studentName: student.name, action: 'promote', fromClass: student.class, toClass: statusPayload.toClass, arrearsAmount: totalArrears });
         results.totalArrears += totalArrears;
 
@@ -246,7 +346,8 @@ export async function POST(request: NextRequest) {
       toAcademicYear,
       promotionType = 'regular',
       remarks = '',
-      detainedApplyFees = false
+      detainedApplyFees = false,
+      skipTransportCheck = false  // User confirmed to proceed without transport routes
     } = body;
 
     // Validate action
@@ -272,10 +373,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate section is optional (will be checked later based on class configuration)
-    // No hard requirement here
-
-    // Resolve student IDs based on mode
+    // Resolve student IDs based on mode FIRST
     let targetStudentIds: string[] = [];
 
     if (mode === 'single') {
@@ -307,6 +405,68 @@ export async function POST(request: NextRequest) {
 
     if (targetStudentIds.length === 0) {
       return NextResponse.json({ error: 'No valid students to promote' }, { status: 400 });
+    }
+
+    // Check transport routes for students using transport (only for promote)
+    if (action === 'promote' && !skipTransportCheck) {
+      // Get students with active transport assignments
+      const studentsWithTransport = await (schoolPrisma as any).student.findMany({
+        where: {
+          id: { in: targetStudentIds },
+          schoolId: ctx.schoolId,
+          transport: 'Yes'
+        },
+        include: {
+          transportAssignments: {
+            where: { isActive: true },
+            include: { route: true }
+          }
+        }
+      });
+
+      if (studentsWithTransport.length > 0) {
+        // Check if routes exist in target AY
+        const routeNumbers = [...new Set(studentsWithTransport.flatMap((s: any) => 
+          s.transportAssignments.map((ta: any) => ta.route?.routeNumber).filter(Boolean)
+        ))];
+
+        if (routeNumbers.length > 0) {
+          const routesInTargetAY = await (schoolPrisma as any).transportRoute.findMany({
+            where: {
+              routeNumber: { in: routeNumbers },
+              academicYearId: targetAcademicYear?.id,
+              schoolId: ctx.schoolId,
+              isActive: true
+            }
+          });
+
+          const foundRouteNumbers = new Set(routesInTargetAY.map((r: any) => r.routeNumber));
+          const missingRoutes = routeNumbers.filter(rn => !foundRouteNumbers.has(rn));
+
+          if (missingRoutes.length > 0) {
+            const affectedStudents = studentsWithTransport.filter((s: any) => 
+              s.transportAssignments.some((ta: any) => missingRoutes.includes(ta.route?.routeNumber))
+            );
+
+            return NextResponse.json({
+              error: 'TRANSPORT_ROUTES_NOT_FOUND',
+              message: `${missingRoutes.length} transport route(s) not configured for ${toAcademicYear}`,
+              details: {
+                missingRoutes,
+                affectedStudentCount: affectedStudents.length,
+                affectedStudents: affectedStudents.map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  admissionNo: s.admissionNo,
+                  currentRoute: s.transportAssignments[0]?.route?.routeNumber
+                })),
+                instruction: `Please configure these routes for ${toAcademicYear}:\n\n1. Go to Transport → Routes tab\n2. For each missing route, click 'Copy to Next AY' button\n   OR\n3. Create new routes for ${toAcademicYear}\n\nAlternatively, you can proceed without transport routes (students will need to be manually assigned later).`
+              },
+              requiresConfirmation: true
+            }, { status: 409 });
+          }
+        }
+      }
     }
 
     const updaterName = ctx.email.split('@')[0];
