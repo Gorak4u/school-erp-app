@@ -60,50 +60,61 @@ export async function ensureSuperAdmin() {
     console.log('🔐 [SUPER ADMIN] Password hashed successfully');
 
     // Create super admin user in SaaS User table
-    const superAdmin = await (saasPrisma as any).user.create({
-      data: {
-        email: superAdminEmail,
-        name: 'Super Admin',
-        password: hashedPassword,
-        role: 'super_admin',
-        isActive: true,
-        isSuperAdmin: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    try {
+      const superAdmin = await (saasPrisma as any).user.create({
+        data: {
+          email: superAdminEmail,
+          name: 'Super Admin',
+          password: hashedPassword,
+          role: 'super_admin',
+          isActive: true,
+          isSuperAdmin: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
 
-    // Store password separately in school_User table for authentication
-    const schoolAdmin = await (prisma as any).school_User.create({
-      data: {
-        id: 'super-admin-' + Date.now(),
-        email: superAdminEmail,
-        password: hashedPassword,
-        firstName: 'Super',
-        lastName: 'Admin',
-        role: 'admin',
-        isActive: true,
-        schoolId: null, // Super admin has no school association
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+      // Store password separately in school_User table for authentication
+      const schoolAdmin = await (prisma as any).school_User.create({
+        data: {
+          id: 'super-admin-' + Date.now(),
+          email: superAdminEmail,
+          password: hashedPassword,
+          firstName: 'Super',
+          lastName: 'Admin',
+          role: 'admin',
+          isActive: true,
+          schoolId: null, // Super admin has no school association
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
 
-    console.log('🎉 [SUPER ADMIN] Super admin created successfully!');
-    console.log(`📧 [SUPER ADMIN] Email: ${superAdminEmail}`);
-    console.log(`🆔 [SUPER ADMIN] SaaS User ID: ${superAdmin.id}`);
-    console.log(`🆔 [SUPER ADMIN] School User ID: ${schoolAdmin.id}`);
-    console.log(`📅 [SUPER ADMIN] Created: ${superAdmin.createdAt}`);
-    console.log('✅ [SUPER ADMIN] Ready for login');
-
+      console.log('🎉 [SUPER ADMIN] Super admin created successfully!');
+      console.log(`📧 [SUPER ADMIN] Email: ${superAdminEmail}`);
+      console.log(`🆔 [SUPER ADMIN] SaaS User ID: ${superAdmin.id}`);
+      console.log(`🆔 [SUPER ADMIN] School User ID: ${schoolAdmin.id}`);
+      console.log(`📅 [SUPER ADMIN] Created: ${superAdmin.createdAt}`);
+      console.log('✅ [SUPER ADMIN] Ready for login');
+    } catch (createError: any) {
+      // Handle unique constraint error - user might have been created by another process
+      if (createError.code === 'P2002' && createError.meta?.target?.includes('email')) {
+        console.log('✅ [SUPER ADMIN] Super admin already exists (concurrent creation)');
+      } else {
+        console.error('❌ [SUPER ADMIN] Error during super admin creation:', createError);
+        console.error('❌ [SUPER ADMIN] Error details:', createError.message);
+        console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
+      }
+    }
+    
+    isInitialized = true;
+    await prisma.$disconnect();
   } catch (error: any) {
     console.error('❌ [SUPER ADMIN] Error during super admin creation:', error);
     console.error('❌ [SUPER ADMIN] Error details:', error.message);
     
     // Don't throw error, allow app to continue
     console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
-  } finally {
     isInitialized = true;
-    await prisma.$disconnect();
   }
 }
