@@ -254,49 +254,6 @@ export default function NavigationSidebar({
             <span className="font-medium">Reports</span>
           </Link>
         </nav>
-
-        {/* Quick Stats - Sticky at bottom */}
-        <div className={`mt-6 p-4 rounded-lg border flex-shrink-0 ${
-          theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
-          <h4 className={`text-sm font-semibold mb-3 ${
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>
-            Quick Access
-          </h4>
-          <div className="space-y-2">
-            <Link
-              href="/fees"
-              className={`block p-2 rounded text-sm transition-colors ${
-                theme === 'dark' 
-                  ? 'hover:bg-gray-700 text-blue-400' 
-                  : 'hover:bg-white text-blue-600'
-              }`}
-            >
-              💰 Fee Collection
-            </Link>
-            <Link
-              href="/students"
-              className={`block p-2 rounded text-sm transition-colors ${
-                theme === 'dark' 
-                  ? 'hover:bg-gray-700 text-green-400' 
-                  : 'hover:bg-white text-green-600'
-              }`}
-            >
-              👥 Add Student
-            </Link>
-            <Link
-              href="/attendance"
-              className={`block p-2 rounded text-sm transition-colors ${
-                theme === 'dark' 
-                  ? 'hover:bg-gray-700 text-orange-400' 
-                  : 'hover:bg-white text-orange-600'
-              }`}
-            >
-              📝 Mark Attendance
-            </Link>
-          </div>
-        </div>
       </div>
     </motion.aside>
   );
