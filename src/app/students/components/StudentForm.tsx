@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
@@ -33,7 +33,7 @@ export default function StudentForm({
   onCancel: () => void; 
   theme: 'dark' | 'light'; 
 }) {
-  const { mediums, classes, sections, dropdowns, loading } = useSchoolConfig();
+  const { mediums, classes, sections, dropdowns, activeAcademicYear, loading } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState('admission');
   
   // Initialize mediumId if only one medium exists
@@ -154,23 +154,19 @@ export default function StudentForm({
     if (!formData.classId) { setFeeStructures([]); return; }
     setFeesLoading(true);
     
-    // Fetch active academic year first, then fee structures
-    fetch('/api/school-structure/academic-years')
-      .then(r => r.json())
-      .then(data => {
-        const activeYear = (data.academicYears || []).find((y: any) => y.isActive);
-        const params = new URLSearchParams({
-          classId: formData.classId,
-          ...(formData.mediumId && { mediumId: formData.mediumId }),
-          ...(activeYear?.id && { academicYearId: activeYear.id }),
-          isActive: 'true'
-        });
-        return fetch(`/api/fees/structures?${params}`);
-      })
+    // Use SchoolConfigContext to get active academic year (already filtered)
+    const params = new URLSearchParams({
+      classId: formData.classId,
+      ...(formData.mediumId && { mediumId: formData.mediumId }),
+      ...(activeAcademicYear?.id && { academicYearId: activeAcademicYear.id }),
+      isActive: 'true'
+    });
+    
+    fetch(`/api/fees/structures?${params}`)
       .then(r => r.json())
       .then(data => {
         const structs = data.feeStructures || [];
-        console.log('Loaded fee structures:', structs);
+        console.log('Loaded fee structures for active AY:', structs);
         setFeeStructures(structs);
         setSelectedDiscountFeeIds([]);
       })
@@ -179,7 +175,7 @@ export default function StudentForm({
         setFeeStructures([]);
       })
       .finally(() => setFeesLoading(false));
-  }, [formData.classId, formData.mediumId]);
+  }, [formData.classId, formData.mediumId, activeAcademicYear]);
 
   // Auto-save
   useEffect(() => {
