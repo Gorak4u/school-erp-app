@@ -1,9 +1,224 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
 import { sendSchoolEmail } from '@/lib/email';
 import { generateDiscountApprovedEmail } from '@/lib/discount-email-templates';
+
+// Helper function to resolve class target student IDs
+async function resolveClassTargetStudentIds(classIds: string[], sectionIds: string[], ctx: SessionContext) {
+  if (!classIds?.length) return [];
+
+  const classRecords = await (schoolPrisma as any).Class.findMany({
+    where: {
+      OR: [
+        { id: { in: classIds } },
+        { code: { in: classIds } },
+        { name: { in: classIds } }
+      ],
+      ...tenantWhere(ctx)
+    },
+    select: { id: true, name: true }
+  });
+
+  const classNames = classRecords.map((c: any) => c.name);
+
+  const studentWhere: any = {
+    OR: [
+      { class: { in: classIds } },
+      { class: { in: classNames } }
+    ]
+  };
+
+  if (sectionIds?.length) {
+    studentWhere.section = { in: sectionIds };
+  }
+
+  const students = await (schoolPrisma as any).Student.findMany({
+    where: { ...studentWhere, ...tenantWhere(ctx) },
+    select: { id: true }
+  });
+
+  return students.map((s: any) => s.id);
+}
+
+// Helper function to automatically apply discount after approval
+async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext) {
+  try {
+    console.log(`🔄 Auto-applying discount for request: ${discountRequestId}`);
+    
+    // Fetch the discount request
+    const discountReq = await (schoolPrisma as any).DiscountRequest.findUnique({
+      where: { id: discountRequestId }
+    });
+
+    if (!discountReq || discountReq.status !== 'approved') {
+      console.error('Discount request not found or not approved');
+      return { success: false, error: 'Discount request not approved' };
+    }
+
+    // Parse target IDs
+    const studentIds = JSON.parse(discountReq.studentIds || '[]');
+    const classIds = JSON.parse(discountReq.classIds || '[]');
+    const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
+    const feeStructureIds = JSON.parse(discountReq.feeStructureIds || '[]');
+
+    // Build query for target fee records
+    const baseWhere: any = {
+      status: { in: ['pending', 'partial'] },
+    };
+
+    let feeRecordsQuery: any = { where: baseWhere };
+
+    // Filter by student/class/bulk
+    if ((discountReq.scope === 'student' || discountReq.scope === 'bulk') && studentIds.length > 0) {
+      feeRecordsQuery.where.studentId = { in: studentIds };
+    } else if (discountReq.scope === 'class') {
+      const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
+      if (resolvedStudentIds.length) {
+        feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
+      }
+    }
+
+    // Filter by fee structures
+    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length > 0) {
+      feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
+    }
+
+    // Apply tenant scoping
+    if (ctx.schoolId) {
+      feeRecordsQuery.where.student = { schoolId: ctx.schoolId };
+    }
+
+    // Fetch target records
+    const targetRecords = await (schoolPrisma as any).FeeRecord.findMany({
+      where: feeRecordsQuery.where,
+      select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true }
+    });
+
+    if (targetRecords.length === 0) {
+      console.log('⚠️ No matching fee records found to apply discount');
+      return { success: true, appliedCount: 0, message: 'No matching fee records found' };
+    }
+
+    console.log(`📊 Found ${targetRecords.length} target fee records`);
+
+    // Calculate and apply discounts
+    const applications = [];
+    const updates = [];
+    let skippedCount = 0;
+
+    for (const record of targetRecords) {
+      const totalFee = record.amount;
+      const paidAmount = record.paidAmount || 0;
+      const currentDiscount = record.discount || 0;
+      
+      // Skip if already paid full amount
+      if (paidAmount >= totalFee) {
+        skippedCount++;
+        continue;
+      }
+      
+      let calcDiscount = 0;
+      
+      if (discountReq.discountType === 'percentage') {
+        calcDiscount = (totalFee * discountReq.discountValue) / 100;
+        if (discountReq.maxCapAmount) {
+          calcDiscount = Math.min(calcDiscount, discountReq.maxCapAmount);
+        }
+      } else if (discountReq.discountType === 'fixed') {
+        calcDiscount = discountReq.discountValue;
+      } else if (discountReq.discountType === 'full_waiver') {
+        calcDiscount = totalFee;
+      }
+
+      // Ensure discount doesn't exceed amount
+      calcDiscount = Math.min(calcDiscount, totalFee);
+      const totalNewDiscount = currentDiscount + calcDiscount;
+
+      if (totalNewDiscount > totalFee) {
+        calcDiscount = totalFee - currentDiscount;
+      }
+
+      const newPendingAmount = totalFee - paidAmount - totalNewDiscount;
+      
+      // Skip if discount creates negative pending or provides no benefit
+      if (newPendingAmount < 0 || calcDiscount <= 0) {
+        skippedCount++;
+        continue;
+      }
+
+      applications.push({
+        schoolId: ctx.schoolId,
+        discountRequestId: discountRequestId,
+        studentId: record.studentId,
+        feeRecordId: record.id,
+        feeStructureId: record.feeStructureId,
+        discountAmount: calcDiscount,
+        previousDiscount: currentDiscount,
+        appliedBy: ctx.userId,
+        appliedByEmail: ctx.email
+      });
+
+      updates.push(
+        (schoolPrisma as any).$executeRawUnsafe(
+          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = $2 WHERE id = $3`,
+          calcDiscount,
+          newPendingAmount,
+          record.id
+        )
+      );
+    }
+
+    if (applications.length === 0) {
+      console.log('⚠️ No valid records to apply discount');
+      return { success: true, appliedCount: 0, skippedCount, message: 'No valid records to apply discount' };
+    }
+
+    // Execute batch operations
+    await (schoolPrisma as any).$transaction([
+      ...updates,
+      (schoolPrisma as any).DiscountApplication.createMany({ data: applications }),
+      (schoolPrisma as any).DiscountRequest.update({
+        where: { id: discountRequestId },
+        data: {
+          status: 'applied',
+          appliedBy: ctx.userId,
+          appliedByEmail: ctx.email,
+          appliedAt: new Date(),
+          appliedCount: applications.length
+        }
+      }),
+      (schoolPrisma as any).DiscountRequestAuditLog.create({
+        data: {
+          schoolId: ctx.schoolId,
+          discountRequestId: discountRequestId,
+          action: 'applied',
+          actorUserId: ctx.userId,
+          actorEmail: ctx.email,
+          actorName: ctx.email.split('@')[0],
+          actorRole: ctx.role || 'admin',
+          previousStatus: 'approved',
+          newStatus: 'applied',
+          details: JSON.stringify({ appliedCount: applications.length, skippedCount })
+        }
+      })
+    ]);
+
+    console.log(`✅ Auto-applied discount to ${applications.length} fee records (${skippedCount} skipped)`);
+
+    return { 
+      success: true, 
+      appliedCount: applications.length,
+      skippedCount,
+      message: `Discount applied to ${applications.length} fee records`
+    };
+
+  } catch (error: any) {
+    console.error('❌ Auto-apply discount failed:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -125,6 +340,24 @@ export async function PATCH(
       return updatedReq;
     });
 
+    // Auto-apply discount after approval
+    let autoApplyResult = null;
+    if (action === 'approve') {
+      try {
+        console.log('🚀 Starting automatic discount application...');
+        autoApplyResult = await autoApplyDiscount(id, ctx);
+        
+        if (autoApplyResult.success) {
+          console.log(`✅ Auto-applied discount: ${autoApplyResult.appliedCount} records updated`);
+        } else {
+          console.error('⚠️ Auto-apply failed:', autoApplyResult.error);
+        }
+      } catch (autoApplyError) {
+        console.error('❌ Auto-apply error:', autoApplyError);
+        // Don't fail the approval if auto-apply fails
+      }
+    }
+
     // Send email notification for approval
     if (action === 'approve') {
       try {
@@ -172,9 +405,11 @@ export async function PATCH(
     return NextResponse.json({ 
       success: true, 
       data: result,
-      message: action === 'approve' ? 'Discount request approved successfully' : 
-               action === 'reject' ? 'Discount request rejected' : 
-               'Discount request cancelled'
+      autoApply: autoApplyResult,
+      message: action === 'approve' 
+        ? `Discount request approved and applied to ${autoApplyResult?.appliedCount || 0} fee records` 
+        : action === 'reject' ? 'Discount request rejected' 
+        : 'Discount request cancelled'
     });
   } catch (err) {
     console.error('PATCH /api/fees/discount-requests/[id]:', err);
