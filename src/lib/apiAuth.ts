@@ -9,6 +9,8 @@ export interface SessionContext {
   email: string;
   role: string;
   isSuperAdmin: boolean;
+  customRoleId?: string | null;
+  permissions?: string[];
 }
 
 /**
@@ -31,6 +33,26 @@ export async function getSessionContext(): Promise<
   // Use schoolId from the JWT session
   let schoolId = u.schoolId || null;
   
+  // Fetch user permissions if they have a custom role
+  let customRoleId: string | null = null;
+  let permissions: string[] = [];
+  
+  if (schoolId && u.customRoleId) {
+    try {
+      const user = await (schoolPrisma as any).user.findUnique({
+        where: { id: u.id },
+        include: { customRole: true }
+      });
+      
+      if (user?.customRole) {
+        customRoleId = user.customRole.id;
+        permissions = user.customRole.permissions || [];
+      }
+    } catch (error) {
+      console.error('Error fetching user permissions:', error);
+    }
+  }
+  
   return {
     ctx: {
       schoolId,
@@ -38,6 +60,8 @@ export async function getSessionContext(): Promise<
       email: u.email || '',
       role: u.role || 'admin',
       isSuperAdmin,
+      customRoleId,
+      permissions,
     },
     error: null,
   };
