@@ -101,19 +101,6 @@ export async function POST(
       select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true, pendingAmount: true }
     });
 
-      discountReqId: id,
-      academicYear: discountReq.academicYear,
-      scope: discountReq.scope,
-      targetType: discountReq.targetType,
-      studentIds,
-      classIds,
-      sectionIds,
-      feeStructureIds,
-      finalQueryWhere: feeRecordsQuery.where,
-      matchedRecordsCount: targetRecords.length,
-      schoolId: ctx.schoolId
-    });
-
     // Debug: Check if any fee records exist for this student at all
     const allStudentRecords = await (schoolPrisma as any).FeeRecord.findMany({
       where: { 
@@ -149,6 +136,7 @@ export async function POST(
       
       // Check if student has already paid full amount
       if (paidAmount >= totalFee) {
+        console.log(`SKIPPING: Student already paid full amount. Fee: ${totalFee}, Paid: ${paidAmount}, Current Discount: ${currentDiscount}`);
         skippedRecords.push({
           id: record.id,
           studentId: record.studentId,
@@ -184,6 +172,7 @@ export async function POST(
       
       // Skip if discount would create negative pending amount
       if (newPendingAmount < 0) {
+        console.log(`SKIPPING: Discount would create negative pending amount. Fee: ${totalFee}, Paid: ${paidAmount}, New Discount: ${totalNewDiscount}, New Pending: ${newPendingAmount}`);
         skippedRecords.push({
           id: record.id,
           studentId: record.studentId,
@@ -194,6 +183,7 @@ export async function POST(
       
       // Only apply discount if it actually reduces the pending amount
       if (newPendingAmount >= remainingBalance) {
+        console.log(`SKIPPING: Discount doesn't benefit student. Current Pending: ${remainingBalance}, New Pending: ${newPendingAmount}`);
         skippedRecords.push({
           id: record.id,
           studentId: record.studentId,
@@ -233,14 +223,6 @@ export async function POST(
       );
     }
 
-      totalRecords: targetRecords.length,
-      appliedCount: applications.length,
-      skippedCount: skippedRecords.length,
-      skippedReasons: skippedRecords.reduce((acc: any, record: any) => {
-        acc[record.reason] = (acc[record.reason] || 0) + 1;
-        return acc;
-      }, {})
-    });
 
     if (applications.length === 0) {
       return NextResponse.json({ error: 'No valid records found to apply this discount (might already be fully discounted)' }, { status: 400 });
