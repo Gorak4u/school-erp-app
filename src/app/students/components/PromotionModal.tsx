@@ -275,7 +275,11 @@ export default function PromotionModal({
                       <label className={labelCls}>Target Academic Year *</label>
                       <select className={inputCls} value={form.toAcademicYear} onChange={e => setForm(f => ({ ...f, toAcademicYear: e.target.value }))}>
                         <option value="">Select Year</option>
-                        {academicYears.map(ay => <option key={ay.id} value={ay.year}>{ay.name || ay.year}</option>)}
+                        {academicYears.map(ay => (
+                          <option key={ay.id} value={ay.year} style={{ fontWeight: ay.isActive ? 'bold' : 'normal', color: ay.isActive ? (isDark ? '#60a5fa' : '#2563eb') : undefined }}>
+                            {ay.name || ay.year} {ay.isActive ? '✓ Active' : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
