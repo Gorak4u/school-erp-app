@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import DiscountRequestForm from './DiscountRequestForm';
 import EnhancedDiscountApprovalQueue from './EnhancedDiscountApprovalQueue';
 import EnhancedDiscountAuditLog from './EnhancedDiscountAuditLog';
+import DiscountAnalytics from './DiscountAnalytics';
 
 interface DiscountManagementProps {
   theme: 'dark' | 'light';
@@ -11,7 +12,7 @@ interface DiscountManagementProps {
 }
 
 export default function DiscountManagement({ theme, userRole }: DiscountManagementProps) {
-  const [activeTab, setActiveTab] = useState<'requests' | 'approvals' | 'audit'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'approvals' | 'audit' | 'analytics'>('requests');
   const [showForm, setShowForm] = useState(false);
 
   const isDark = theme === 'dark';
@@ -70,12 +71,25 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
             Audit Logs
           </button>
         )}
+        {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'principal') && (
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'analytics'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            Analytics & Reports
+          </button>
+        )}
       </div>
 
       <div className={`p-6 rounded-xl border ${bgCard}`}>
         {activeTab === 'requests' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="my_requests" />}
         {activeTab === 'approvals' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="all" />}
         {activeTab === 'audit' && <EnhancedDiscountAuditLog theme={theme} />}
+        {activeTab === 'analytics' && <DiscountAnalytics theme={theme} />}
       </div>
 
       {showForm && (

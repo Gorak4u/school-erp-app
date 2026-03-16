@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
+import DiscountAnalytics from './discount/DiscountAnalytics';
 
 interface FeeReportsTabProps {
   studentFeeSummaries: any[];
@@ -828,6 +829,15 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: F
           {reportsData ? `Showing data for ${reportsData.totalStudents} students` : 'Loading data...'}
           {(fromDate || toDate) && ` from ${fromDate || 'start'} to ${toDate || 'end'}`}
         </div>
+      </div>
+
+      {/* Discount Analytics & Reports Section */}
+      <div className="mt-8">
+        <div className={`mb-4 p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>💰 Discount Analytics & Reports</h2>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Comprehensive discount request analytics and financial impact analysis</p>
+        </div>
+        <DiscountAnalytics theme={theme} />
       </div>
     </motion.div>
   );

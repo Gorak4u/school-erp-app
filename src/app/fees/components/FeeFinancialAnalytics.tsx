@@ -16,6 +16,7 @@ import {
   ArcElement
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import DiscountAnalytics from './discount/DiscountAnalytics';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -532,8 +533,17 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
         </div>
       </div>
 
+      {/* Discount Analytics Section */}
+      <div className="mt-8">
+        <div className={`mb-4 p-4 rounded-lg border ${cardCls}`}>
+          <h2 className={`text-2xl font-bold ${textPrimary}`}>💰 Discount Analytics & Reports</h2>
+          <p className={`text-sm ${textSecondary} mt-1`}>Comprehensive discount request analytics and financial impact analysis</p>
+        </div>
+        <DiscountAnalytics theme={theme} />
+      </div>
+
       {/* Export Options */}
-      <div className={`p-4 rounded-lg border ${cardCls}`}>
+      <div className={`p-4 rounded-lg border ${cardCls} mt-6`}>
         <div className="flex items-center justify-between">
           <div>
             <h4 className={`font-medium ${textPrimary}`}>Export Financial Report</h4>
