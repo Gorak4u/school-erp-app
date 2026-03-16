@@ -410,7 +410,7 @@ export async function POST(request: NextRequest) {
           requestedByEmail: ctx.email,
           requestedByName: requesterName,
           validFrom,
-          validTo
+          validTo: validTo || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
         }
       });
 
