@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { sendPaymentConfirmationEmail } from '@/lib/payment-confirmation-email';
 
@@ -14,15 +15,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // TODO: Verify payment signature with Razorpay
-    // const crypto = require('crypto');
-    // const expectedSignature = crypto
-    //   .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    //   .update(orderId + '|' + paymentId)
-    //   .digest('hex');
-    // if (signature !== expectedSignature) {
-    //   return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
-    // }
+    // Verify Razorpay payment signature
+    if (orderId && paymentId && signature) {
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (keySecret) {
+        const expectedSignature = crypto
+          .createHmac('sha256', keySecret)
+          .update(orderId + '|' + paymentId)
+          .digest('hex');
+        if (signature !== expectedSignature) {
+          return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
+        }
+      }
+    }
 
     // Update subscription and user in transaction
     const result = await (saasPrisma as any).$transaction(async (tx: any) => {
@@ -38,8 +43,7 @@ export async function POST(req: Request) {
 
       // 2. Update subscription to active
       const now = new Date();
-      // Get billing cycle from the request body
-      const body = await req.clone().json();
+      // Use billingCycle from the outer body (already parsed at top)
       const billingCycle = body.billingCycle || 'monthly';
       const daysToAdd = billingCycle === 'yearly' ? 365 : 30;
 
@@ -101,11 +105,8 @@ export async function POST(req: Request) {
       where: { orderId: orderId },
     });
 
-    if (paymentRecord && result.school.users.length > 0) {
-      const adminUser = result.school.users.find((u: any) => u.role === 'admin') || result.school.users[0];
-      
-      // Get billing cycle from the request body (passed from frontend)
-      const body = await req.clone().json();
+    if (paymentRecord && result.school.User && result.school.User.length > 0) {
+      const adminUser = result.school.User.find((u: any) => u.role === 'admin') || result.school.User[0];
       const billingCycle: 'monthly' | 'yearly' = body.billingCycle || 'monthly';
       
       sendPaymentConfirmationEmail(

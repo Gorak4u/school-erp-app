@@ -65,7 +65,8 @@ function RegisterContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [currentStep, setCurrentStep] = useState(selectedPlan ? 2 : 1);
+  // Use planParam directly (not isTrial) to avoid race condition before plans load
+  const [currentStep, setCurrentStep] = useState(planParam === 'trial' ? 1 : (planParam ? 2 : 1));
   const [showPassword, setShowPassword] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -73,7 +74,7 @@ function RegisterContent() {
     if (planParam && plans.find(p => p.name === planParam)) {
       setSelectedPlan(planParam);
       if (billingParam) setBillingCycle(billingParam);
-      setCurrentStep(2);
+      setCurrentStep(planParam === 'trial' ? 1 : 2);
     }
   }, [planParam, billingParam, plans]);
 
@@ -208,6 +209,7 @@ function RegisterContent() {
           adminEmail: formData.email,
           adminPassword: formData.password,
           plan: selectedPlan,
+          billingCycle: billingCycle,
         }),
       });
 
@@ -296,11 +298,16 @@ function RegisterContent() {
           console.log('Payment verification response:', verifyData);
 
           if (verifyData.success) {
-            // Payment successful, redirect to dashboard
-            setSuccess('Payment successful! Redirecting to dashboard...');
+            setSuccess('Payment successful! Activating your account...');
+            // Re-sign in to force JWT refresh so middleware sees new subscription status
+            await signIn('credentials', {
+              email: formData.email,
+              password: formData.password,
+              redirect: false,
+            });
             setTimeout(() => {
               window.location.href = '/dashboard';
-            }, 2000);
+            }, 1500);
           } else {
             setError(`Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
           }
@@ -332,22 +339,23 @@ function RegisterContent() {
   };
 
   const handleNext = () => {
-    if (currentStep === 1 && !selectedPlan) {
-      setError('Please select a plan');
+    // Plan selection step (non-trial only, step 1)
+    if (currentStep === 1 && !isTrial && !selectedPlan) {
+      setError('Please select a plan to continue');
       return;
     }
-    if (currentStep === 2) {
+    // School details step: step 1 for trial, step 2 for paid
+    const isDetailsStep = (isTrial && currentStep === 1) || (!isTrial && currentStep === 2);
+    if (isDetailsStep) {
       const validationError = validateStep2();
       if (validationError) {
         setError(validationError);
         return;
       }
-      // If trial, register immediately
       if (isTrial) {
         handleRegister();
         return;
       }
-      // If paid plan, go to payment step
       if (isPaid) {
         setCurrentStep(3);
         return;
@@ -501,8 +509,8 @@ function RegisterContent() {
                   </motion.div>
                 )}
 
-                {/* Step 2: School & Admin Details */}
-                {currentStep === 2 && (
+                {/* Step 1: School & Admin Details (Trial) or Step 2: School & Admin Details (Paid) */}
+                {((currentStep === 1 && isTrial) || (currentStep === 2 && !isTrial)) && (
                   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                     {/* Selected Plan Badge */}
                     {planInfo && (

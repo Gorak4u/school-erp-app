@@ -143,7 +143,7 @@ export default function BillingPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              schoolId: (session as any)?.schoolId,
+              schoolId: session?.user?.schoolId,
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,

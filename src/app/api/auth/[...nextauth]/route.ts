@@ -116,29 +116,26 @@ export const authOptions = {
         token.lastName = user.lastName;
         token.schema = user.schema;
         token.isSuperAdmin = (user as any).isSuperAdmin ?? (user.role === 'super_admin');
-        
-        // Fetch subscription status for school users
-        if (user.schema === 'school' && user.schoolId) {
-          try {
-            const subscription = await (schoolPrisma as any).subscription.findUnique({
-              where: { schoolId: user.schoolId },
-              select: {
-                status: true,
-                trialEndsAt: true,
-                plan: true,
-              }
-            });
-            
-            if (subscription) {
-              token.subscriptionStatus = subscription.status;
-              token.trialEndsAt = subscription.trialEndsAt;
-              token.plan = subscription.plan;
-            }
-          } catch (error) {
-            console.error('Failed to fetch subscription for JWT:', error);
+      }
+
+      // Always re-fetch subscription status for school users so middleware
+      // gets fresh status immediately after payment verification.
+      if (token.schema === 'school' && token.schoolId) {
+        try {
+          const subscription = await (saasPrisma as any).subscription.findUnique({
+            where: { schoolId: token.schoolId as string },
+            select: { status: true, trialEndsAt: true, plan: true },
+          });
+          if (subscription) {
+            token.subscriptionStatus = subscription.status;
+            token.trialEndsAt = subscription.trialEndsAt;
+            token.plan = subscription.plan;
           }
+        } catch (error) {
+          console.error('Failed to refresh subscription in JWT:', error);
         }
       }
+
       return token;
     },
     async session({ session, token }) {

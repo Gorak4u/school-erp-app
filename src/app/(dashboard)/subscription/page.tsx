@@ -183,7 +183,7 @@ export default function SubscriptionPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              schoolId: (session as any)?.schoolId,
+              schoolId: session?.user?.schoolId,
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
@@ -238,9 +238,8 @@ export default function SubscriptionPage() {
   const userRole = session?.user?.role;
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin;
   
-  // Additional check using environment variables for super admin detection
-  const superAdminEmails = process.env.SUPER_ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
-  const isEffectivelySuperAdmin = isSuperAdmin || superAdminEmails.includes(session?.user?.email?.toLowerCase() || '');
+  // isSuperAdmin is set in JWT from server-side env check; process.env is not available client-side
+  const isEffectivelySuperAdmin = !!isSuperAdmin;
   
   if (!session || (userRole !== 'admin' && !isEffectivelySuperAdmin)) {
     return (

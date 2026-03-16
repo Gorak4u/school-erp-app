@@ -99,10 +99,8 @@ export async function GET() {
       // Check if trial has ended
       if (trialEndsAt >= now) {
         trialDaysLeft = Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Calculate trial start date (assuming 14-day trial period)
-        const trialDurationDays = 14;
-        trialStartedAt = new Date(trialEndsAt.getTime() - (trialDurationDays * 24 * 60 * 60 * 1000));
+        // Use subscription createdAt as trial start
+        trialStartedAt = sub.createdAt ? new Date(sub.createdAt) : null;
       }
     }
     
@@ -146,7 +144,7 @@ export async function GET() {
         features: JSON.parse(sub.features || '[]'),
         currentPeriodEnd: subscriptionEndDate?.toISOString(),
         nextBillingDate: nextBillingDate?.toISOString(),
-        amount: sub.amount || null,
+        amount: sub.price || null,
         billingCycle: sub.billingCycle || 'monthly',
         autoRenew: sub.autoRenew,
         upgradedFromTrial: !isTrial && trialEndsAt && trialEndsAt >= now, // Flag for users who upgraded during active trial
