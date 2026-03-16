@@ -46,14 +46,20 @@ async function promoteStudents(
       }
 
       // Check if already promoted this year
-      const existingPromotion = await (schoolPrisma as any).studentPromotion.findFirst({
-        where: {
-          studentId,
-          fromAcademicYear: student.academicYear,
-          toAcademicYear: promotionPayload.toAcademicYear,
-          schoolId: promotionPayload.schoolId
-        }
-      });
+      let existingPromotion = null;
+      try {
+        existingPromotion = await (schoolPrisma as any).studentPromotion.findFirst({
+          where: {
+            studentId,
+            fromAcademicYear: student.academicYear,
+            toAcademicYear: promotionPayload.toAcademicYear,
+            schoolId: promotionPayload.schoolId
+          }
+        });
+      } catch (promotionCheckErr) {
+        console.warn('StudentPromotion table check failed, skipping duplicate check:', promotionCheckErr);
+        // Continue without duplicate check if table doesn't exist
+      }
 
       if (existingPromotion) {
         results.failed.push({ studentId, studentName: student.name, reason: `Already promoted from ${student.academicYear} to ${promotionPayload.toAcademicYear}` });
@@ -94,25 +100,30 @@ async function promoteStudents(
           }
         });
 
-        // 3. Create promotion audit record
-        await tx.studentPromotion.create({
-          data: {
-            schoolId: promotionPayload.schoolId,
-            studentId,
-            fromClass: student.class,
-            toClass: promotionPayload.toClass,
-            fromSection: student.section,
-            toSection: promotionPayload.toSection,
-            fromAcademicYear: student.academicYear,
-            toAcademicYear: promotionPayload.toAcademicYear,
-            promotedBy: promotionPayload.promotedBy,
-            promotedByEmail: promotionPayload.promotedByEmail,
-            promotedByName: promotionPayload.promotedByName,
-            promotionType: promotionPayload.promotionType,
-            arrearsAmount: totalArrears,
-            remarks: promotionPayload.remarks || null
-          }
-        });
+        // 3. Create promotion audit record (if table exists)
+        try {
+          await tx.studentPromotion.create({
+            data: {
+              schoolId: promotionPayload.schoolId,
+              studentId,
+              fromClass: student.class,
+              toClass: promotionPayload.toClass,
+              fromSection: student.section,
+              toSection: promotionPayload.toSection,
+              fromAcademicYear: student.academicYear,
+              toAcademicYear: promotionPayload.toAcademicYear,
+              promotedBy: promotionPayload.promotedBy,
+              promotedByEmail: promotionPayload.promotedByEmail,
+              promotedByName: promotionPayload.promotedByName,
+              promotionType: promotionPayload.promotionType,
+              arrearsAmount: totalArrears,
+              remarks: promotionPayload.remarks || null
+            }
+          });
+        } catch (auditErr) {
+          console.warn('Failed to create promotion audit record:', auditErr);
+          // Continue promotion even if audit record fails
+        }
 
         // 4. Auto-apply new academic year fee structures for new class
         // For detained: only apply if detainedApplyFees is true
@@ -272,8 +283,22 @@ export async function POST(request: NextRequest) {
       detainedApplyFees
     });
 
+    // Determine success based on results
+    const allFailed = results.promoted.length === 0 && results.failed.length > 0;
+    const partialSuccess = results.promoted.length > 0 && results.failed.length > 0;
+    const allSuccess = results.promoted.length > 0 && results.failed.length === 0;
+
+    let message = '';
+    if (allFailed) {
+      message = `Failed to promote all ${targetStudentIds.length} students. Check errors below.`;
+    } else if (partialSuccess) {
+      message = `Promoted ${results.promoted.length} of ${targetStudentIds.length} students to ${toClass} (${toAcademicYear}). ${results.failed.length} failed.`;
+    } else {
+      message = `Successfully promoted ${results.promoted.length} of ${targetStudentIds.length} students to ${toClass} (${toAcademicYear})`;
+    }
+
     return NextResponse.json({
-      success: true,
+      success: !allFailed, // Only true if at least one student was promoted
       data: {
         mode,
         totalRequested: targetStudentIds.length,
@@ -283,8 +308,8 @@ export async function POST(request: NextRequest) {
         promotedStudents: results.promoted,
         failedStudents: results.failed
       },
-      message: `Successfully promoted ${results.promoted.length} of ${targetStudentIds.length} students to ${toClass} (${toAcademicYear})`
-    });
+      message
+    }, { status: allFailed ? 400 : 200 });
   } catch (err: any) {
     console.error('POST /api/students/promote:', err);
     return NextResponse.json({ error: 'Failed to promote students', details: err.message }, { status: 500 });
