@@ -197,6 +197,10 @@ export default function SettingsPage() {
     try {
       console.log(`🔄 Copying data from academic year ${previousYearId} to ${newYearId}`);
       
+      if (!newYearId) {
+        throw new Error('newYearId is required but was not provided');
+      }
+      
       // 0. Skip boards - they are global entities, not year-specific
       // Boards are shared across all academic years, so no need to copy them
       console.log('🏫 Boards are global entities - skipping copy (they already exist)');
@@ -207,9 +211,12 @@ export default function SettingsPage() {
       const mediums = mediumsResponse.mediums || [];
       const mediumMapping: { [key: string]: string } = {};
       
+      // Create a safe year suffix (use last 4 chars or fallback to timestamp)
+      const yearSuffix = newYearId.slice(-4) || Date.now().toString().slice(-4);
+      
       for (const medium of mediums) {
         const newMedium = await mediumsApi.create({
-          code: `${medium.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          code: `${medium.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
           name: medium.name,
           description: medium.description,
           isActive: medium.isActive,
@@ -230,7 +237,7 @@ export default function SettingsPage() {
         const newMediumId = mediumMapping[cls.mediumId];
         
         const newClass = await classesApi.create({
-          code: `${cls.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          code: `${cls.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
           name: cls.name,
           level: cls.level,
           isActive: cls.isActive,
@@ -251,7 +258,7 @@ export default function SettingsPage() {
         const newClassId = classMapping[section.classId];
         
         await sectionsApi.create({
-          code: `${section.code}_${newYearId.slice(-4)}`, // Add year suffix to ensure uniqueness
+          code: `${section.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
           name: section.name,
           capacity: section.capacity,
           roomNumber: section.roomNumber,
@@ -346,6 +353,12 @@ export default function SettingsPage() {
       
       // Create academic year first
       const newAcademicYear = await academicYearsApi.create(pendingAcademicYear);
+      
+      console.log('🔍 Created academic year:', newAcademicYear);
+      
+      if (!newAcademicYear?.id) {
+        throw new Error('Failed to get new academic year ID');
+      }
       
       // Then copy data from previous year
       await copyDataFromPreviousYear(previousYearForCopy.id, newAcademicYear.id);

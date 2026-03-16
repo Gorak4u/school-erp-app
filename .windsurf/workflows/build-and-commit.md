@@ -12,7 +12,7 @@ This workflow should be run after any code fixes are applied to ensure the code 
 // turbo
 2. **Git add changes** - Stage all modified files
 // turbo  
-3. **Git commit** - Commit with an appropriate message based on the changes
+3. **Git commit** - Commit with an appropriate short message based on the changes
 
 ### Usage
 
