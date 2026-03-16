@@ -174,7 +174,10 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget: notify admins of new pending expense
     sendExpenseCreatedEmail(expense, ctx.schoolId).catch(() => {});
 
-    return NextResponse.json({ expense }, { status: 201 });
+    // Toast to creator
+    const res = NextResponse.json({ expense }, { status: 201 });
+    res.headers.set('X-Toast', JSON.stringify({ type: 'info', title: '💸 Expense submitted', message: `Your expense "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')}) is pending approval.` }));
+    return res;
   } catch (err: any) {
     console.error('POST /api/expenses:', err);
     return NextResponse.json({ error: 'Failed to create expense', details: err.message }, { status: 500 });

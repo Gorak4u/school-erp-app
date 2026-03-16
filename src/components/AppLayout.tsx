@@ -38,6 +38,28 @@ export default function AppLayout({
 
   useEffect(() => {
     setIsClient(true);
+
+    // Global fetch interceptor for X-Toast headers
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      const toastHeader = response.headers.get('X-Toast');
+      if (toastHeader) {
+        try {
+          const toastData = JSON.parse(toastHeader);
+          if ((window as any).toast) {
+            (window as any).toast(toastData);
+          }
+        } catch (e) {
+          console.error('Failed to parse X-Toast header:', e);
+        }
+      }
+      return response;
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
   }, []);
 
   useEffect(() => {

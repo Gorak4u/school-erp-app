@@ -89,7 +89,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       });
       await logAudit(ctx.schoolId, id, ctx, 'approved', 'pending', 'approved', fields.approvalNote);
       sendExpenseApprovedEmail(expense, ctx.schoolId).catch(() => {});
-      return NextResponse.json({ expense });
+      const res = NextResponse.json({ expense });
+      res.headers.set('X-Toast', JSON.stringify({ type: 'success', title: '✅ Expense approved', message: `You approved "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')})` }));
+      return res;
     }
 
     if (action === 'reject') {
@@ -109,7 +111,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       });
       await logAudit(ctx.schoolId, id, ctx, 'rejected', 'pending', 'rejected', fields.rejectionReason);
       sendExpenseRejectedEmail(expense, fields.rejectionReason, ctx.schoolId).catch(() => {});
-      return NextResponse.json({ expense });
+      const res = NextResponse.json({ expense });
+      res.headers.set('X-Toast', JSON.stringify({ type: 'warning', title: '❌ Expense rejected', message: `You rejected "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')})` }));
+      return res;
     }
 
     if (action === 'pay') {
@@ -128,7 +132,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       });
       await logAudit(ctx.schoolId, id, ctx, 'paid', 'approved', 'paid', fields.paymentMethod);
       sendExpensePaidEmail(expense, fields.paymentMethod || existing.paymentMethod, ctx.schoolId).catch(() => {});
-      return NextResponse.json({ expense });
+      const res = NextResponse.json({ expense });
+      res.headers.set('X-Toast', JSON.stringify({ type: 'success', title: '🏦 Expense marked as paid', message: `You marked "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')}) as paid` }));
+      return res;
     }
 
     // Regular update — only pending expenses can be edited
