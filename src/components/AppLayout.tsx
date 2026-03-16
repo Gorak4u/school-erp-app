@@ -83,6 +83,27 @@ export default function AppLayout({
     };
   }, [sidebarTimeout]);
 
+  // Show toast notification when new approvals arrive
+  useEffect(() => {
+    if (showToast && pendingCount > 0) {
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'info',
+          title: 'New Approval Request',
+          message: `You have ${pendingCount} pending ${pendingCount === 1 ? 'approval' : 'approvals'} waiting for your review.`,
+          duration: 5000,
+          action: {
+            label: 'View Now',
+            onClick: () => {
+              window.location.href = '/fees?tab=discounts';
+            }
+          }
+        });
+      }
+      dismissToast();
+    }
+  }, [showToast, pendingCount, dismissToast]);
+
   return (
     <div className={`min-h-screen overflow-hidden relative transition-colors duration-300 ${
       globalTheme === 'dark' ? 'bg-black text-white' : 'bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900'
@@ -203,16 +224,113 @@ export default function AppLayout({
               </button>
 
               {/* Notifications */}
-              <button className={`relative p-2 rounded-lg transition-colors ${
-                globalTheme === 'dark' 
-                  ? 'hover:bg-gray-800 text-gray-300' 
-                  : 'hover:bg-gray-200 text-gray-600'
-              }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setNotificationMenuOpen(!notificationMenuOpen)}
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    globalTheme === 'dark' 
+                      ? 'hover:bg-gray-800 text-gray-300' 
+                      : 'hover:bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                      {pendingCount > 9 ? '9+' : pendingCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notification Dropdown */}
+                <AnimatePresence>
+                  {notificationMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className={`absolute right-0 mt-2 w-80 rounded-lg shadow-xl border overflow-hidden ${
+                        globalTheme === 'dark' 
+                          ? 'bg-gray-800 border-gray-700' 
+                          : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div className={`px-4 py-3 border-b ${
+                        globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <h3 className="font-semibold">Pending Approvals</h3>
+                        <p className={`text-xs ${
+                          globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          {pendingCount} {pendingCount === 1 ? 'item' : 'items'} waiting for your approval
+                        </p>
+                      </div>
+                      
+                      <div className="max-h-96 overflow-y-auto">
+                        {approvals.length === 0 ? (
+                          <div className="px-4 py-8 text-center">
+                            <p className={globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                              No pending approvals
+                            </p>
+                          </div>
+                        ) : (
+                          approvals.map((approval: any) => (
+                            <Link
+                              key={approval.id}
+                              href={approval.link}
+                              onClick={() => setNotificationMenuOpen(false)}
+                              className={`block px-4 py-3 border-b transition-colors ${
+                                globalTheme === 'dark' 
+                                  ? 'border-gray-700 hover:bg-gray-700' 
+                                  : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{approval.title}</p>
+                                  <p className={`text-xs mt-1 ${
+                                    globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                  }`}>
+                                    {approval.description}
+                                  </p>
+                                  {approval.reason && (
+                                    <p className={`text-xs mt-1 italic ${
+                                      globalTheme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                                    }`}>
+                                      "{approval.reason}"
+                                    </p>
+                                  )}
+                                  <p className={`text-xs mt-1 ${
+                                    globalTheme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                                  }`}>
+                                    {new Date(approval.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </Link>
+                          ))
+                        )}
+                      </div>
+                      
+                      {approvals.length > 0 && (
+                        <div className={`px-4 py-2 border-t ${
+                          globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                          <Link
+                            href="/fees?tab=discounts"
+                            onClick={() => setNotificationMenuOpen(false)}
+                            className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                          >
+                            View all approvals →
+                          </Link>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* User Menu */}
               <div className="relative">

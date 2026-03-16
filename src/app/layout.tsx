@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 
@@ -40,7 +41,9 @@ export default function RootLayout({
           <SessionVerifier />
           <ThemeProvider>
             <SchoolConfigProvider>
-              {children}
+              <NotificationProvider>
+                {children}
+              </NotificationProvider>
             </SchoolConfigProvider>
           </ThemeProvider>
         </SessionProviderWrapper>
