@@ -1033,9 +1033,11 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                           }`}>
                             <div>
                               <div className="font-medium">₹{student.totalFees.toLocaleString()}</div>
-                              {student.discountApplied > 0 && (
+                              {/* Show discount if available */}
+                              {console.log('DEBUG student discount:', student.studentName, { totalDiscount: student.totalDiscount, feeRecords: student.feeRecords }) || null}
+                              {student.totalDiscount > 0 && (
                                 <div className={`text-xs ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                                  -₹{student.discountApplied} discount
+                                  -₹{student.totalDiscount.toLocaleString()} discount
                                 </div>
                               )}
                             </div>

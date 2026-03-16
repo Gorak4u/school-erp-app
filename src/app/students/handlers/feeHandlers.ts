@@ -25,7 +25,7 @@ export function createFeeHandlers(ctx: any) {
 
     // Update fee record
     const updatedPaidAmount = feeRecord.paidAmount + amount;
-    const updatedBalance = feeRecord.balance - amount;
+    const updatedBalance = (feeRecord.amount - feeRecord.discount - feeRecord.paidAmount) - amount;
     const updatedStatus = updatedBalance <= 0 ? 'paid' : 'partial' as const;
 
     setFeeManagement(prev => ({
@@ -35,7 +35,7 @@ export function createFeeHandlers(ctx: any) {
           ? {
               ...record,
               paidAmount: updatedPaidAmount,
-              balance: Math.max(0, updatedBalance),
+              balance: Math.max(0, (record.amount - record.discount - updatedPaidAmount)),
               status: updatedStatus,
               paymentDate: new Date().toISOString().split('T')[0],
               transactionId: transaction.transactionId,

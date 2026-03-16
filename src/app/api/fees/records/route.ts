@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
     // Status filter - moved to WHERE clause
     if (status && status !== 'all') {
       if (status === 'paid') {
-        whereConditions.push(`fr."paidAmount" >= fr.amount`);
+        whereConditions.push(`fr."paidAmount" >= (fr.amount - fr.discount)`);
       } else if (status === 'partial') {
-        whereConditions.push(`fr."paidAmount" > 0 AND fr."paidAmount" < fr.amount`);
+        whereConditions.push(`fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount)`);
       } else if (status === 'pending') {
         whereConditions.push(`fr."paidAmount" = 0`);
       }
@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
         fs.name as "feeStructureName",
         fs.category as "feeCategory",
         CASE 
-          WHEN fr."paidAmount" >= fr.amount THEN 'paid'
-          WHEN fr."paidAmount" > 0 AND fr."paidAmount" < fr.amount THEN 'partial'
+          WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 'paid'
+          WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 'partial'
           ELSE 'pending'
         END as status,
         COALESCE(SUM(p.amount), 0) as "totalPayments",
@@ -125,9 +125,9 @@ export async function GET(request: NextRequest) {
         COUNT(*) as "totalRecords",
         COALESCE(SUM(fr.amount), 0) as "totalAmount",
         COALESCE(SUM(fr."paidAmount"), 0) as "totalCollected",
-        COUNT(CASE WHEN fr."paidAmount" >= fr.amount THEN 1 END) as "paidCount",
-        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < fr.amount THEN 1 END) as "overdueCount",
-        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < fr.amount THEN 1 END) as "partialCount",
+        COUNT(CASE WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 1 END) as "paidCount",
+        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 1 END) as "overdueCount",
+        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 1 END) as "partialCount",
         COUNT(CASE WHEN fr."paidAmount" = 0 THEN 1 END) as "pendingCount"
       FROM "school"."FeeRecord" fr
       LEFT JOIN "school"."Student" s ON fr."studentId" = s.id

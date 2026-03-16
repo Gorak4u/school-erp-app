@@ -12,6 +12,13 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
   } = ctx;
 
   const stats = calculateStatistics ? calculateStatistics() : { totalFees: 0, collectedFees: 0, pendingFees: 0, overdueFees: 0, collectionRate: 0 };
+  
+  // Calculate total discount from all student fee summaries
+  const totalDiscount = studentFeeSummaries?.reduce((sum: number, student: any) => {
+    // Calculate discount from student's fee records
+    const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => discountSum + (record.discount || 0), 0) || 0;
+    return sum + studentDiscount;
+  }, 0) || 0;
 
   const statCards = [
     { label: 'Total Fees', value: `₹${(stats.totalFees / 1000).toFixed(0)}K`, icon: '💰', color: 'blue', trend: `${stats.collectionRate?.toFixed(1) || 0}% collected` },
@@ -97,6 +104,27 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                   <div className="text-sm opacity-90 mt-1">{card.label}</div>
                 </motion.div>
               ))}
+            </div>
+
+            {/* Total Discount Display */}
+            <div className="mb-4">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-xl p-4 border text-center ${
+                  theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+                }`}
+              >
+                <div className="text-lg font-semibold text-green-600 mb-1">
+                  🎁 Total Discount Applied
+                </div>
+                <div className="text-3xl font-bold text-green-600">
+                  ₹{totalDiscount.toLocaleString()}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Across all students
+                </div>
+              </motion.div>
             </div>
 
             {/* Secondary Stats Row */}

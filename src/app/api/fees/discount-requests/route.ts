@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { resolveUserDisplayName } from '@/lib/userName';
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,6 +69,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const requesterName = await resolveUserDisplayName(ctx.userId, ctx.email);
+
     // Create request in transaction to ensure audit log is also created
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       // 1. Create the request
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           requestedBy: ctx.userId,
           requestedByEmail: ctx.email,
-          requestedByName: ctx.email.split('@')[0], // Fallback name
+          requestedByName: requesterName,
           validFrom,
           validTo
         }
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
           action: 'created',
           actorUserId: ctx.userId,
           actorEmail: ctx.email,
-          actorName: ctx.email.split('@')[0],
+          actorName: requesterName,
           actorRole: ctx.role || 'user',
           newStatus: 'pending',
           details: JSON.stringify({ reason })

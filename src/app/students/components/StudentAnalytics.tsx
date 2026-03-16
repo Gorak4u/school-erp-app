@@ -113,7 +113,11 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
     // Financial
     const totalFees = activeStudents.reduce((sum, s) => sum + (s.fees?.total || 0), 0);
     const totalPaid = activeStudents.reduce((sum, s) => sum + (s.fees?.paid || 0), 0);
-    const totalPending = activeStudents.reduce((sum, s) => sum + (s.fees?.pending || 0), 0);
+    const totalPending = activeStudents.reduce((sum, s) => {
+      // Ensure we're using the correct pending amount that includes discount
+      const studentPending = s.fees?.pending || 0;
+      return sum + studentPending;
+    }, 0);
     const collectionRate = totalFees > 0 ? (totalPaid / totalFees) * 100 : 0;
     const feeDefaulters = activeStudents.filter(s => (s.fees?.pending || 0) > 0).length;
 

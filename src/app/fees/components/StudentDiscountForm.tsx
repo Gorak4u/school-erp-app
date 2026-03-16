@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface StudentDiscountFormProps {
   theme: 'dark' | 'light';
@@ -13,6 +13,7 @@ interface StudentDiscountFormProps {
 export default function StudentDiscountForm({ theme, studentId, studentName, onClose, onSuccess }: StudentDiscountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   
   const [formData, setFormData] = useState({
     name: `Discount for ${studentName}`,
@@ -22,10 +23,34 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
     maxCapAmount: '',
     targetType: 'total',
     feeStructureIds: [] as string[],
+    academicYear: '',
     reason: '',
     validFrom: new Date().toISOString().split('T')[0],
     validTo: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
   });
+
+  // Fetch academic years
+  useEffect(() => {
+    const fetchAcademicYears = async () => {
+      try {
+        const res = await fetch('/api/school-structure/academic-years');
+        if (res.ok) {
+          const data = await res.json();
+          setAcademicYears(data.academicYears || []);
+          // Set default academic year
+          if (data.academicYears?.length > 0 && !formData.academicYear) {
+            const currentYear = new Date().getFullYear();
+            const currentAcademicYear = data.academicYears.find((ay: any) => ay.year.includes(currentYear.toString())) || data.academicYears[0];
+            setFormData(prev => ({ ...prev, academicYear: currentAcademicYear.year }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic years:', err);
+      }
+    };
+    
+    fetchAcademicYears();
+  }, []);
 
   const isDark = theme === 'dark';
   const inputCls = `w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
@@ -46,7 +71,6 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
           ...formData,
           scope: 'student',
           studentIds: [studentId],
-          academicYear: '2024-25',
           discountValue: Number(formData.discountValue),
           maxCapAmount: formData.maxCapAmount ? Number(formData.maxCapAmount) : null,
         }),
@@ -93,6 +117,23 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
             onChange={(e) => setFormData({...formData, description: e.target.value})}
             placeholder="Additional details about this discount..."
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Academic Year <span className="text-red-500">*</span></label>
+          <select
+            className={inputCls}
+            value={formData.academicYear}
+            onChange={(e) => setFormData({...formData, academicYear: e.target.value})}
+            required
+          >
+            <option value="">Select Academic Year</option>
+            {academicYears.map((year) => (
+              <option key={year.id} value={year.year}>
+                {year.name || year.year}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

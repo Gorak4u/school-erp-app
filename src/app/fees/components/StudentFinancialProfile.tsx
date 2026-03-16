@@ -143,6 +143,9 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const totalPaid = apiData?.totalPaid || 0;
   const totalPending = apiData?.totalPending || 0;
   const totalOverdue = apiData?.totalOverdue || 0;
+  
+  // Calculate total discount from fee records
+  const totalDiscount = feeRecords.reduce((sum: number, record: any) => sum + (record.discount || 0), 0);
 
   // Build currentStudentData from API or prop data
   const currentStudentData = apiData ? {
@@ -159,7 +162,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     paid: totalPaid,
     pending: totalPending,
     lateFees: totalOverdue,
-    discount: apiData.discount || 0,
+    discount: totalDiscount,
     nextDueDate: apiData.nextDueDate || '-',
     nextDueAmount: apiData.nextDueAmount || 0,
     riskLevel: totalOverdue > 0 ? 'high' : totalPending > totalFees * 0.5 ? 'medium' : 'low',

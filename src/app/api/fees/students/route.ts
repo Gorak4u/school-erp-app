@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
       const totalFees = feeRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
       const totalPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
       const totalPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
+      const totalDiscount = feeRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
       
       // Get latest payment date
       const allPayments = feeRecords.flatMap(fr => fr.payments || []);
@@ -114,11 +115,11 @@ export async function GET(request: NextRequest) {
       // Calculate overdue based on due dates and pending amounts
       const now = new Date();
       const overdueRecords = feeRecords.filter(fr => {
-        const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0);
+        const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0) - (fr.discount || 0);
         const isOverdue = fr.dueDate && new Date(fr.dueDate) < now && pendingAmount > 0;
         return isOverdue;
       });
-      const totalOverdue = overdueRecords.reduce((sum, record) => sum + ((record.amount || 0) - (record.paidAmount || 0)), 0);
+      const totalOverdue = overdueRecords.reduce((sum, record) => sum + ((record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0)), 0);
       
       if (totalOverdue > 0) {
         calculatedPaymentStatus = 'overdue';
@@ -146,19 +147,20 @@ export async function GET(request: NextRequest) {
         totalPaid,
         totalPending,
         totalOverdue,
+        totalDiscount,
         lastPaymentDate: latestPayment?.paymentDate || '',
         calculatedPaymentStatus,
         feeRecords: feeRecords.map(fr => {
           // Calculate status for each fee record
           let status: string;
-          const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0);
-          const isOverdue = fr.dueDate && new Date(fr.dueDate) < new Date() && pendingAmount > 0;
+          const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0) - (fr.discount || 0);
+          const isOverdue = fr.dueDate && fr.dueDate && new Date(fr.dueDate) < new Date() && pendingAmount > 0;
           
           if (isOverdue) {
             status = 'overdue';
           } else if (fr.paidAmount === 0) {
             status = 'pending';
-          } else if (fr.paidAmount >= (fr.amount || 0)) {
+          } else if ((fr.paidAmount || 0) >= ((fr.amount || 0) - (fr.discount || 0))) {
             status = 'paid';
           } else {
             status = 'partial';
@@ -168,7 +170,8 @@ export async function GET(request: NextRequest) {
             id: fr.id,
             amount: fr.amount,
             paidAmount: fr.paidAmount,
-            pendingAmount: (fr.amount || 0) - (fr.paidAmount || 0),
+            discount: fr.discount,
+            pendingAmount: (fr.amount || 0) - (fr.paidAmount || 0) - (fr.discount || 0),
             status,
             dueDate: fr.dueDate,
             paymentMethod: fr.paymentMethod,

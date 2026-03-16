@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { resolveUserDisplayName } from '@/lib/userName';
 
 export async function GET(
   request: NextRequest,
@@ -77,6 +78,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'You cannot approve your own discount request' }, { status: 403 });
     }
 
+    const approverName = await resolveUserDisplayName(ctx.userId, ctx.email);
+
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'cancelled';
       
@@ -87,7 +90,7 @@ export async function PATCH(
       if (action === 'approve') {
         updateData.approvedBy = ctx.userId;
         updateData.approvedByEmail = ctx.email;
-        updateData.approvedByName = ctx.email.split('@')[0];
+        updateData.approvedByName = approverName;
         updateData.approvedAt = new Date();
         updateData.approvalNote = note;
       } else if (action === 'reject') {
@@ -109,7 +112,7 @@ export async function PATCH(
           action: newStatus,
           actorUserId: ctx.userId,
           actorEmail: ctx.email,
-          actorName: ctx.email.split('@')[0],
+          actorName: approverName,
           actorRole: ctx.role || 'admin',
           previousStatus: 'pending',
           newStatus: newStatus,

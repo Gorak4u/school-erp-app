@@ -137,9 +137,6 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                           }`}>₹{(record.paidAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{(record.discount || 0).toLocaleString()}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>₹{(record.pendingAmount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap ${
                             theme === 'dark' ? 'text-white' : 'text-gray-900'
@@ -157,6 +154,9 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                               {record.status}
                             </span>
                           </td>
+                          <td className={`px-6 py-4 whitespace-nowrap ${
+                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                          }`}>₹{(record.discount || 0).toLocaleString()}</td>
                           <td className={`px-6 py-4 whitespace-nowrap`}>
                             <button
                               onClick={() => {

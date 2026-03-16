@@ -16,6 +16,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch Data
@@ -43,9 +44,22 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         console.error('Failed to fetch classes:', err);
       }
     };
+
+    const fetchAcademicYears = async () => {
+      try {
+        const res = await fetch('/api/school-structure/academic-years');
+        if (res.ok) {
+          const data = await res.json();
+          setAcademicYears(data.academicYears || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic years:', err);
+      }
+    };
     
     fetchFeeStructures();
     fetchClasses();
+    fetchAcademicYears();
   }, []);
 
   useEffect(() => {
@@ -81,11 +95,21 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     studentIds: [] as string[],
     classIds: [] as string[],
     sectionIds: [] as string[],
-    academicYear: '2024-25',
+    academicYear: '',
     reason: '',
     validFrom: new Date().toISOString().split('T')[0],
     validTo: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
   });
+
+  // Set default academic year when data is loaded
+  useEffect(() => {
+    if (academicYears.length > 0 && !formData.academicYear) {
+      // Use the first academic year as default, or find the current one
+      const currentYear = new Date().getFullYear();
+      const currentAcademicYear = academicYears.find(ay => ay.year.includes(currentYear.toString())) || academicYears[0];
+      setFormData(prev => ({ ...prev, academicYear: currentAcademicYear.year }));
+    }
+  }, [academicYears, formData.academicYear]);
 
   const isDark = theme === 'dark';
   const inputCls = `w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
@@ -164,6 +188,23 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Academic Year <span className="text-red-500">*</span></label>
+              <select
+                className={inputCls}
+                value={formData.academicYear}
+                onChange={(e) => setFormData({...formData, academicYear: e.target.value})}
+                required
+              >
+                <option value="">Select Academic Year</option>
+                {academicYears.map((year) => (
+                  <option key={year.id} value={year.year}>
+                    {year.name || year.year}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

@@ -1,12 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    async function resolveClassTargetStudentIds(classIds: string[], sectionIds: string[], ctx: SessionContext) {
+      if (!classIds?.length) return [];
+
+      const classRecords = await (schoolPrisma as any).Class.findMany({
+        where: {
+          OR: [
+            { id: { in: classIds } },
+            { code: { in: classIds } },
+            { name: { in: classIds } }
+          ],
+          ...tenantWhere(ctx)
+        },
+        select: { id: true, name: true }
+      });
+
+      const classNames = classRecords.map((c: any) => c.name);
+
+      const studentWhere: any = {
+        OR: [
+          { class: { in: classIds } },
+          { class: { in: classNames } }
+        ]
+      };
+
+      if (sectionIds?.length) {
+        studentWhere.section = { in: sectionIds };
+      }
+
+      const students = await (schoolPrisma as any).Student.findMany({
+        where: { ...studentWhere, ...tenantWhere(ctx) },
+        select: { id: true }
+      });
+
+      return students.map((s: any) => s.id);
+    }
+
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
@@ -18,7 +54,7 @@ export async function POST(
     const { id } = await params;
     
     // 1. Fetch the approved request
-    const discountReq = await (schoolPrisma as any).DiscountRequest.findUnique({
+    const discountReq = await (schoolPrisma as any).DiscountRequest.findFirst({
       where: { id, ...tenantWhere(ctx) }
     });
 
@@ -26,31 +62,27 @@ export async function POST(
     if (discountReq.status !== 'approved') return NextResponse.json({ error: 'Only approved requests can be applied' }, { status: 400 });
 
     // 2. Identify target FeeRecords
+    const baseWhere: any = {
+      status: { in: ['pending', 'partial'] }, // Only apply to unpaid/partially paid fees
+    };
+
     let feeRecordsQuery: any = {
-      where: {
-        schoolId: ctx.schoolId,
-        academicYear: discountReq.academicYear,
-        status: { in: ['pending', 'partial'] }, // Only apply to unpaid/partially paid fees
-      }
+      where: baseWhere
     };
 
     // Filter by student/class/bulk
-    const studentIds = JSON.parse(discountReq.studentIds);
-    const classIds = JSON.parse(discountReq.classIds);
-    const sectionIds = JSON.parse(discountReq.sectionIds);
+    const studentIds = JSON.parse(discountReq.studentIds || '[]');
+    const classIds = JSON.parse(discountReq.classIds || '[]');
+    const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
     const feeStructureIds = JSON.parse(discountReq.feeStructureIds);
 
-    if (discountReq.scope === 'student' || discountReq.scope === 'bulk') {
+    if ((discountReq.scope === 'student' || discountReq.scope === 'bulk') && studentIds.length > 0) {
       feeRecordsQuery.where.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
-      const studentWhere: any = { class: { in: classIds } };
-      if (sectionIds.length > 0) studentWhere.section = { in: sectionIds };
-      
-      const students = await (schoolPrisma as any).Student.findMany({
-        where: { ...studentWhere, ...tenantWhere(ctx) },
-        select: { id: true }
-      });
-      feeRecordsQuery.where.studentId = { in: students.map((s: any) => s.id) };
+      const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
+      if (resolvedStudentIds.length) {
+        feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
+      }
     }
 
     // Filter by fee structures
@@ -58,11 +90,50 @@ export async function POST(
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
 
+    // Apply tenant scoping via student relationship
+    if (ctx.schoolId) {
+      feeRecordsQuery.where.student = { schoolId: ctx.schoolId };
+    }
+
     // Fetch target records
     const targetRecords = await (schoolPrisma as any).FeeRecord.findMany({
       where: feeRecordsQuery.where,
       select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true, pendingAmount: true }
     });
+
+    console.log('DEBUG: Discount Application Query', {
+      discountReqId: id,
+      academicYear: discountReq.academicYear,
+      scope: discountReq.scope,
+      targetType: discountReq.targetType,
+      studentIds,
+      classIds,
+      sectionIds,
+      feeStructureIds,
+      finalQueryWhere: feeRecordsQuery.where,
+      matchedRecordsCount: targetRecords.length,
+      schoolId: ctx.schoolId
+    });
+
+    // Debug: Check if any fee records exist for this student at all
+    const allStudentRecords = await (schoolPrisma as any).FeeRecord.findMany({
+      where: { 
+        studentId: { in: studentIds },
+        academicYear: discountReq.academicYear 
+      },
+      select: { id: true, status: true, academicYear: true, feeStructureId: true }
+    });
+    console.log('DEBUG: All student fee records:', allStudentRecords);
+
+    // Debug: Check if student has any fee records in any academic year
+    const anyYearRecords = await (schoolPrisma as any).FeeRecord.findMany({
+      where: { 
+        studentId: { in: studentIds }
+      },
+      select: { id: true, status: true, academicYear: true, feeStructureId: true },
+      take: 5
+    });
+    console.log('DEBUG: Student fee records in any year:', anyYearRecords);
 
     if (targetRecords.length === 0) {
       return NextResponse.json({ error: 'No matching fee records found to apply discount' }, { status: 404 });
@@ -112,10 +183,9 @@ export async function POST(
 
       updates.push(
         (schoolPrisma as any).$executeRawUnsafe(
-          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = GREATEST(0, "amount" - "paidAmount" - ("discount" + $1)) WHERE id = $2 AND "schoolId" = $3`,
+          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = GREATEST(0, "amount" - "paidAmount" - ("discount" + $1)) WHERE id = $2`,
           calcDiscount,
-          record.id,
-          ctx.schoolId
+          record.id
         )
       );
     }

@@ -37,6 +37,7 @@ interface FeeItem {
   dueDate: string;
   status: 'pending' | 'paid' | 'partial' | 'overdue';
   paidAmount: number;
+  discount: number;
   frequency: 'monthly' | 'quarterly' | 'yearly' | 'one-time';
   academicYear: string;
   description?: string;
@@ -209,6 +210,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       dueDate: record.dueDate || '',
       status: record.status || 'pending',
       paidAmount: record.paidAmount || 0,
+      discount: record.discount || 0,
       frequency: record.feeStructure?.frequency || 'one-time',
       academicYear: record.academicYear || '2024-25',
       description: record.feeStructure?.description || '',
@@ -237,17 +239,29 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   }, [filteredFees]);
 
   const totalPending = useMemo(() => {
-    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount), 0);
+    const result = filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount - (fee.discount || 0)), 0);
+    console.log('DEBUG fee-collect totalPending:', { filteredFeesCount: filteredFees.length, result });
+    return result;
   }, [filteredFees]);
 
   const selectedFeesTotal = useMemo(() => {
     return filteredFees
       .filter(fee => selectedFees.includes(fee.id))
-      .reduce((sum, fee) => sum + (customAmounts[fee.id] || fee.amount), 0);
+      .reduce((sum, fee) => sum + (customAmounts[fee.id] || (fee.amount - fee.paidAmount - (fee.discount || 0))), 0);
   }, [filteredFees, selectedFees, customAmounts]);
 
   const overdueFees = useMemo(() => {
     return filteredFees.filter(fee => fee.status === 'overdue');
+  }, [filteredFees]);
+
+  const totalDiscount = useMemo(() => {
+    const result = filteredFees.reduce((sum, fee) => sum + (fee.discount || 0), 0);
+    console.log('DEBUG fee-collect totalDiscount:', { 
+      filteredFeesCount: filteredFees.length, 
+      result,
+      feeDetails: filteredFees.map(f => ({ name: f.name, discount: f.discount }))
+    });
+    return result;
   }, [filteredFees]);
 
   const stats = useMemo(() => ({
@@ -258,8 +272,9 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     totalAmount,
     totalPaid,
     totalPending,
+    totalDiscount,
     selectedFeesTotal
-  }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, selectedFeesTotal]);
+  }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, totalDiscount, selectedFeesTotal]);
 
   const handleFeeSelection = (feeId: string) => {
     const wasSelected = selectedFees.includes(feeId);
@@ -319,7 +334,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     const fee = filteredFees.find(f => f.id === feeId);
     if (!fee) return;
     
-    const maxAmount = fee.amount - fee.paidAmount;
+    const maxAmount = fee.amount - fee.paidAmount - (fee.discount || 0);
     const validAmount = Math.min(Math.max(0, amount), maxAmount);
     
     setCustomAmounts(prev => ({
@@ -353,7 +368,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       for (const feeId of selectedFees) {
         const fee = filteredFees.find(f => f.id === feeId);
         if (!fee || fee.status === 'paid') continue;
-        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount);
+        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
         await paymentsApi.process({
           feeRecordId: feeId,
           amount,
@@ -454,7 +469,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
             className="space-y-6"
           >
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className={`${cardCls} p-6 rounded-xl border`}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -475,6 +490,18 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   </div>
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'}`}>
                     <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Discount</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.totalDiscount.toLocaleString()}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
+                    <Award className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
               </div>
@@ -633,7 +660,8 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFees.map((fee) => {
                 const isSelected = selectedFees.includes(fee.id);
-                const pendingAmount = fee.amount - fee.paidAmount;
+                const pendingAmount = fee.amount - fee.paidAmount - (fee.discount || 0);
+                console.log('DEBUG fee card pending:', { feeName: fee.name, amount: fee.amount, paidAmount: fee.paidAmount, pendingAmount });
                 
                 return (
                   <motion.div
@@ -687,6 +715,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                         <span className={`text-sm ${textSecondary}`}>Paid:</span>
                         <span className="font-medium text-green-500">₹{fee.paidAmount.toLocaleString()}</span>
                       </div>
+                      {fee.discount && fee.discount > 0 && (
+                        <div className="flex justify-between">
+                          <span className={`text-sm ${textSecondary}`}>Discount:</span>
+                          <span className="font-medium text-purple-500">-₹{fee.discount.toLocaleString()}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className={`text-sm ${textSecondary}`}>Pending:</span>
                         <span className="font-medium text-red-500">₹{pendingAmount.toLocaleString()}</span>
@@ -771,8 +805,8 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   {selectedFees.map(feeId => {
                     const fee = filteredFees.find(f => f.id === feeId);
                     if (!fee) return null;
-                    const customAmount = customAmounts[feeId] || fee.amount;
-                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== fee.amount;
+                    const customAmount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
+                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== (fee.amount - fee.paidAmount - (fee.discount || 0));
                     
                     return (
                       <div key={feeId} className="flex justify-between items-center text-sm">
@@ -1203,7 +1237,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                         category: fee.category,
                         academicYear: fee.academicYear || new Date().getFullYear().toString(),
                         totalAmount: fee.amount,
-                        paidAmount: customAmounts[feeId] || fee.amount,
+                        paidAmount: customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0)),
                         discount: 0,
                         balance: 0,
                         status: 'paid'
