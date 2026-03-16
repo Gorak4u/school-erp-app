@@ -46,7 +46,7 @@ export default function TransportPage() {
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
 
   // Forms
-  const [routeForm, setRouteForm] = useState<any>({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, isActive: true });
+  const [routeForm, setRouteForm] = useState<any>({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, academicYearId: '', isActive: true });
   const [vehicleForm, setVehicleForm] = useState<any>({ vehicleNumber: '', vehicleType: 'bus', capacity: 40, driverName: '', driverPhone: '', registrationNo: '', insuranceExpiry: '', fitnessExpiry: '' });
   const [assignForm, setAssignForm] = useState<any>({ studentSearch: '', studentId: '', routeId: '', pickupStop: '', dropStop: '', monthlyFee: 0 });
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -87,7 +87,19 @@ export default function TransportPage() {
     if (res.ok) { const data = await res.json(); setStudents(data.assignments || []); }
   }, [studentRouteFilter]);
 
-  useEffect(() => { fetchStats(); fetchRoutes(); fetchVehicles(); }, []);
+  const fetchAcademicYears = useCallback(async () => {
+    try {
+      const res = await fetch('/api/school-structure/academic-years');
+      if (res.ok) {
+        const data = await res.json();
+        setAcademicYears(data.academicYears || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academic years:', error);
+    }
+  }, []);
+
+  useEffect(() => { fetchStats(); fetchRoutes(); fetchVehicles(); fetchAcademicYears(); }, []);
   useEffect(() => { if (activeTab === 'students') fetchStudents(); }, [activeTab, studentRouteFilter]);
 
   const searchStudents = async (q: string) => {
@@ -108,14 +120,75 @@ export default function TransportPage() {
   const openEditRoute = (r: any) => {
     setEditingRoute(r);
     const stopsArr = (() => { try { return JSON.parse(r.stops || '[]'); } catch { return []; } })();
-    setRouteForm({ routeNumber: r.routeNumber, routeName: r.routeName, description: r.description || '', stops: stopsArr.join(', '), vehicleId: r.vehicleId || '', driverName: r.driverName || '', driverPhone: r.driverPhone || '', capacity: r.capacity, monthlyFee: r.monthlyFee, isActive: r.isActive });
+    setRouteForm({ routeNumber: r.routeNumber, routeName: r.routeName, description: r.description || '', stops: stopsArr.join(', '), vehicleId: r.vehicleId || '', driverName: r.driverName || '', driverPhone: r.driverPhone || '', capacity: r.capacity, monthlyFee: r.monthlyFee, academicYearId: r.academicYearId || '', isActive: r.isActive });
     setShowRouteModal(true);
   };
+
+  const copyRouteToNextAY = async (route: any) => {
+    if (!route.academicYearId) {
+      showMsg('Route has no academic year assigned', true); return;
+    }
+    
+    // Find next academic year
+    const currentAYIndex = academicYears.findIndex(ay => ay.id === route.academicYearId);
+    if (currentAYIndex === -1 || currentAYIndex === academicYears.length - 1) {
+      showMsg('No next academic year found', true); return;
+    }
+    
+    const nextAY = academicYears[currentAYIndex + 1];
+    
+    // Check if route already exists in next AY
+    const existingInNextAY = routes.find(r => 
+      r.routeNumber === route.routeNumber && 
+      r.academicYearId === nextAY.id
+    );
+    
+    if (existingInNextAY) {
+      showMsg(`Route ${route.routeNumber} already exists in ${nextAY.name || nextAY.year}`, true); return;
+    }
+    
+    setSaving(true);
+    try {
+      const payload = {
+        routeNumber: route.routeNumber,
+        routeName: route.routeName,
+        description: route.description || null,
+        stops: JSON.parse(route.stops || '[]'),
+        vehicleId: route.vehicleId || null,
+        driverName: route.driverName || null,
+        driverPhone: route.driverPhone || null,
+        capacity: route.capacity,
+        monthlyFee: route.monthlyFee,
+        academicYearId: nextAY.id,
+        isActive: true,
+      };
+      
+      const res = await fetch('/api/transport/routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg(data.error || 'Failed to copy route', true);
+        return;
+      }
+      
+      showMsg(`Route copied to ${nextAY.name || nextAY.year}!`);
+      fetchRoutes(); fetchStats();
+    } finally {
+      setSaving(false);
+    }
+  };
   const saveRoute = async () => {
+    if (!routeForm.academicYearId) {
+      showMsg('Please select an Academic Year', true); return;
+    }
     setSaving(true);
     try {
       const stopsArray = routeForm.stops ? routeForm.stops.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-      const payload = { ...routeForm, stops: stopsArray, vehicleId: routeForm.vehicleId || null, capacity: Number(routeForm.capacity), monthlyFee: Number(routeForm.monthlyFee) };
+      const payload = { ...routeForm, stops: stopsArray, vehicleId: routeForm.vehicleId || null, capacity: Number(routeForm.capacity), monthlyFee: Number(routeForm.monthlyFee), academicYearId: routeForm.academicYearId };
       const url = editingRoute ? `/api/transport/routes/${editingRoute.id}` : '/api/transport/routes';
       const method = editingRoute ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -296,7 +369,7 @@ export default function TransportPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                      {['Route #', 'Name', 'Vehicle / Driver', 'Stops', 'Students', 'Monthly Fee', 'Status', 'Actions'].map(h => (
+                      {['Route #', 'Name', 'Academic Year', 'Vehicle / Driver', 'Stops', 'Students', 'Monthly Fee', 'Status', 'Actions'].map(h => (
                         <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase ${subtext}`}>{h}</th>
                       ))}
                     </tr>
@@ -309,6 +382,12 @@ export default function TransportPage() {
                           <td className={`px-4 py-3 font-medium ${text}`}>{r.routeNumber}</td>
                           <td className={`px-4 py-3 ${text}`}>{r.routeName}<br /><span className={`text-xs ${subtext}`}>{r.description}</span></td>
                           <td className={`px-4 py-3 ${subtext} text-xs`}>
+                            {(() => {
+                              const ay = academicYears.find(a => a.id === r.academicYearId);
+                              return ay ? (ay.name || ay.year) : '—';
+                            })()}
+                          </td>
+                          <td className={`px-4 py-3 ${subtext} text-xs`}>
                             {r.vehicle ? <><span className={text}>{r.vehicle.vehicleNumber}</span><br />{r.vehicle.driverName}</> : (r.driverName || '—')}
                           </td>
                           <td className={`px-4 py-3 ${subtext} text-xs`}>{stopsArr.length > 0 ? stopsArr.slice(0, 3).join(', ') + (stopsArr.length > 3 ? ` +${stopsArr.length - 3}` : '') : '—'}</td>
@@ -320,8 +399,11 @@ export default function TransportPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <button onClick={() => openEditRoute(r)} className={`px-3 py-1.5 text-xs rounded-lg border ${btnSecondary}`}>Edit</button>
+                              <button onClick={() => copyRouteToNextAY(r)} disabled={saving} className={`px-3 py-1.5 text-xs rounded-lg border ${btnSecondary} ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                {saving ? 'Copying...' : 'Copy to Next AY'}
+                              </button>
                               <button onClick={() => deleteRoute(r.id)} className={btnDanger}>Delete</button>
                             </div>
                           </td>
@@ -462,6 +544,13 @@ export default function TransportPage() {
                 </div>
                 <div><label className={label}>Capacity</label><input type="number" className={input} value={routeForm.capacity} onChange={e => setRouteForm({ ...routeForm, capacity: e.target.value })} /></div>
                 <div><label className={label}>Monthly Fee (₹)</label><input type="number" className={input} value={routeForm.monthlyFee} onChange={e => setRouteForm({ ...routeForm, monthlyFee: e.target.value })} /></div>
+                <div>
+                  <label className={label}>Academic Year *</label>
+                  <select className={input} value={routeForm.academicYearId} onChange={e => setRouteForm({ ...routeForm, academicYearId: e.target.value })}>
+                    <option value="">Select Academic Year</option>
+                    {academicYears.map(ay => <option key={ay.id} value={ay.id}>{ay.name || ay.year}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className={label}>Status</label>
                   <select className={input} value={routeForm.isActive.toString()} onChange={e => setRouteForm({ ...routeForm, isActive: e.target.value === 'true' })}>
