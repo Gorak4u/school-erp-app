@@ -101,12 +101,19 @@ export default function FeeInvoiceManagerOptimized({ theme, activeTab }: { theme
       const response = await fetch(`/api/fees/records?${params}`);
       const result = await response.json();
       
-      if (result.success) {
-        setInvoices(result.data.records || []);
-        setSummary(result.data.summary || null);
-        setPagination(result.data.pagination || null);
+      if (result.error) {
+        setError(result.error);
       } else {
-        setError(result.error || 'Failed to load invoices');
+        const recs = (result.data?.records || result.records || []).map((r: any) => ({
+          ...r,
+          pendingAmount: Math.max(0, (r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0)),
+          student: r.student || { name: r.studentName || '-', class: r.class || '-', section: r.section || '', rollNo: r.rollNo || '' },
+          feeStructure: r.feeStructure || { name: r.feeStructureName || '-', category: r.feeCategory || '-' },
+          receiptNumber: r.receiptNumber || `FEE-${r.id?.slice(0, 8).toUpperCase()}`,
+        }));
+        setInvoices(recs);
+        setSummary(result.data?.summary || null);
+        setPagination(result.data?.pagination || null);
       }
     } catch (e) {
       console.error('Failed to load invoices', e);
@@ -440,7 +447,7 @@ export default function FeeInvoiceManagerOptimized({ theme, activeTab }: { theme
                         {invoice.status}
                       </span>
                     </td>
-                    <td className={`p-4 text-sm ${textPrimary}`}>{invoice.dueDate}</td>
+                    <td className={`p-4 text-sm ${textPrimary}`}>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-IN') : '-'}</td>
                     <td className="p-4 text-center">
                       <button className={`text-sm ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}>
                         View

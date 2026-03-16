@@ -19,6 +19,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<any>(null);
   const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; class?: {name: string}}>>([]);
+  const [students, setStudents] = useState<Array<{id: string; name: string; class?: string; section?: string}>>([]);
+  const [classes, setClasses] = useState<Array<{id: string; name: string}>>([]);
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,7 +66,27 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
 
   useEffect(() => {
     fetchFeeStructures();
+    fetchStudentsAndClasses();
   }, []);
+
+  const fetchStudentsAndClasses = async () => {
+    try {
+      const [studRes, configRes] = await Promise.all([
+        fetch('/api/fees/students?page=1&limit=500'),
+        fetch('/api/school-config'),
+      ]);
+      if (studRes.ok) {
+        const d = await studRes.json();
+        setStudents((d.students || d.data?.students || d.data || []).map((s: any) => ({ id: s.studentId || s.id, name: s.studentName || s.name, class: s.studentClass || s.class, section: s.section })));
+      }
+      if (configRes.ok) {
+        const d = await configRes.json();
+        setClasses((d.classes || d.dropdowns?.classes || []).map((c: any) => ({ id: c.id || c.value, name: c.name || c.label })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch students/classes:', err);
+    }
+  };
 
   const fetchFeeStructures = async () => {
     try {
@@ -76,6 +98,31 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
     } catch (err) {
       console.error('Failed to fetch fee structures:', err);
     }
+  };
+
+  const resolveStudentNames = (studentIds: string[]): string => {
+    if (!studentIds?.length) return '-';
+    const names = studentIds.slice(0, 3).map(id => students.find(s => s.id === id)?.name || id);
+    const suffix = studentIds.length > 3 ? ` +${studentIds.length - 3} more` : '';
+    return names.join(', ') + suffix;
+  };
+
+  const resolveClassNames = (classIds: string[]): string => {
+    if (!classIds?.length) return '-';
+    const names = classIds.slice(0, 3).map(id => classes.find(c => c.id === id)?.name || id);
+    const suffix = classIds.length > 3 ? ` +${classIds.length - 3} more` : '';
+    return names.join(', ') + suffix;
+  };
+
+  const getTargetDisplay = (request: any): { students: string; classes: string } => {
+    let studentIds: string[] = [];
+    let classIds: string[] = [];
+    try { studentIds = JSON.parse(request.studentIds || '[]'); } catch { studentIds = []; }
+    try { classIds = JSON.parse(request.classIds || '[]'); } catch { classIds = []; }
+    return {
+      students: resolveStudentNames(studentIds),
+      classes: resolveClassNames(classIds),
+    };
   };
 
   // Helper function to get fee structure names
@@ -394,6 +441,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
           <thead className={`text-xs uppercase ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
             <tr>
               <th className="px-4 py-3">Reason</th>
+              <th className="px-4 py-3">Student / Class</th>
+              <th className="px-4 py-3">Academic Year</th>
               <th className="px-4 py-3">Requested By</th>
               <th className="px-4 py-3">Discount</th>
               <th className="px-4 py-3">Scope</th>
@@ -410,6 +459,28 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                     <p className={`font-medium ${textPrimary}`}>{request.name}</p>
                     <p className={`text-xs ${textSecondary}`}>{request.description}</p>
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const target = getTargetDisplay(request);
+                    return (
+                      <div>
+                        {request.scope === 'student' && <p className={`text-sm font-medium ${textPrimary}`}>{target.students}</p>}
+                        {request.scope === 'class' && <p className={`text-sm font-medium ${textPrimary}`}>{target.classes}</p>}
+                        {request.scope === 'bulk' && (
+                          <div>
+                            <p className={`text-xs ${textSecondary}`}>S: {target.students}</p>
+                            <p className={`text-xs ${textSecondary}`}>C: {target.classes}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 text-xs rounded font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                    {request.academicYear || '-'}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -556,6 +627,66 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                       <span className={`text-sm ${textSecondary}`}>Name:</span>
                       <p className={`font-medium ${textPrimary}`}>{selectedRequest.name}</p>
                     </div>
+                    <div>
+                      <span className={`text-sm ${textSecondary}`}>Academic Year:</span>
+                      <span className={`ml-2 px-2 py-1 text-sm font-bold rounded ${isDark ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-800'}`}>
+                        {selectedRequest.academicYear || '-'}
+                      </span>
+                    </div>
+                    {selectedRequest.scope === 'student' && (() => {
+                      let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
+                      return sIds.length > 0 ? (
+                        <div>
+                          <span className={`text-sm ${textSecondary}`}>Student(s):</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {sIds.map(id => {
+                              const s = students.find(st => st.id === id);
+                              return (
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                                  👤 {s ? `${s.name}${s.class ? ` (${s.class})` : ''}` : id}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    {(selectedRequest.scope === 'class' || selectedRequest.scope === 'bulk') && (() => {
+                      let cIds: string[] = []; try { cIds = JSON.parse(selectedRequest.classIds || '[]'); } catch {}
+                      return cIds.length > 0 ? (
+                        <div>
+                          <span className={`text-sm ${textSecondary}`}>Class(es):</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {cIds.map(id => {
+                              const c = classes.find(cl => cl.id === id);
+                              return (
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                                  🏫 {c?.name || id}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    {selectedRequest.scope === 'bulk' && (() => {
+                      let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
+                      return sIds.length > 0 ? (
+                        <div>
+                          <span className={`text-sm ${textSecondary}`}>Students ({sIds.length}):</span>
+                          <div className="mt-1 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                            {sIds.map(id => {
+                              const s = students.find(st => st.id === id);
+                              return (
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'}`}>
+                                  👤 {s?.name || id}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                     <div>
                       <span className={`text-sm ${textSecondary}`}>Description:</span>
                       <p className={`${textPrimary}`}>{selectedRequest.description}</p>

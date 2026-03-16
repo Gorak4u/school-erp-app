@@ -214,49 +214,70 @@ export function useFeeState() {
     let matchesSearch = true;
     
     if (debouncedSearchTerm) {
-      const lowerQuery = debouncedSearchTerm.toLowerCase();
-      
-      // Basic text matching
-      const basicMatch = student.studentName.toLowerCase().includes(lowerQuery) ||
-        student.rollNo.toLowerCase().includes(lowerQuery) ||
-        student.studentClass.toLowerCase().includes(lowerQuery);
-      
+      const lowerQuery = debouncedSearchTerm.toLowerCase().trim();
+      const status = (student.calculatedPaymentStatus || student.paymentStatus || '').toLowerCase();
+      const cls = (student.studentClass || '').toLowerCase();
+
+      // Basic text matching — name, roll no, class, admission no, parent name
+      const basicMatch =
+        (student.studentName || '').toLowerCase().includes(lowerQuery) ||
+        (student.rollNo || '').toLowerCase().includes(lowerQuery) ||
+        cls.includes(lowerQuery) ||
+        (student.admissionNo || '').toLowerCase().includes(lowerQuery) ||
+        (student.parentName || student.fatherName || '').toLowerCase().includes(lowerQuery);
+
+      // Parse amount from query like "> 50000" or "< 10000"
+      const gtMatch = lowerQuery.match(/>\s*(\d+)/);
+      const ltMatch = lowerQuery.match(/<\s*(\d+)/);
+      const amountGt = gtMatch ? parseInt(gtMatch[1]) : null;
+      const amountLt = ltMatch ? parseInt(ltMatch[1]) : null;
+
+      // Extract class number like "class 10" or "10a"
+      const classMatch = lowerQuery.match(/(?:class\s*)?(\d{1,2})\s*([a-z]?)/i);
+      const classNumber = classMatch ? classMatch[1] : null;
+      const classSection = classMatch ? classMatch[2] : '';
+
       // AI-powered semantic matching
-      const aiMatch = 
-        // Fee status queries
+      const aiMatch =
+        // Status queries
         (lowerQuery.includes('pending') && student.totalPending > 0) ||
-        (lowerQuery.includes('overdue') && student.paymentStatus === 'overdue') ||
-        (lowerQuery.includes('paid') && student.paymentStatus === 'fully_paid') ||
-        (lowerQuery.includes('partial') && student.paymentStatus === 'partially_paid') ||
-        
-        // Amount-based queries
-        (lowerQuery.includes('> 50000') && student.totalFees > 50000) ||
-        (lowerQuery.includes('> 100000') && student.totalFees > 100000) ||
-        (lowerQuery.includes('high') && student.totalFees > 75000) ||
-        (lowerQuery.includes('low') && student.totalFees < 30000) ||
-        
-        // Class-specific queries
-        (lowerQuery.includes('class 10') && student.studentClass === '10') ||
-        (lowerQuery.includes('class 12') && student.studentClass === '12') ||
-        
-        // Payment-related queries
-        (lowerQuery.includes('defaulter') && student.totalPending > 0) ||
-        (lowerQuery.includes('scholarship') && student.discountApplied > 0) ||
-        (lowerQuery.includes('transport') && student.totalFees > 60000) ||
-        
-        // Time-based queries
-        (lowerQuery.includes('this month') && student.lastPaymentDate && 
-         new Date(student.lastPaymentDate).getMonth() === new Date().getMonth()) ||
-        
-        // Risk assessment
-        (lowerQuery.includes('risk') && student.paymentStatus === 'overdue') ||
-        (lowerQuery.includes('good') && student.paymentStatus === 'fully_paid');
-      
+        (lowerQuery.includes('overdue') && status.includes('overdue')) ||
+        (lowerQuery.includes('fully paid') && status.includes('fully_paid')) ||
+        (lowerQuery.includes('paid') && status.includes('paid')) ||
+        (lowerQuery.includes('partial') && status.includes('partial')) ||
+        (lowerQuery.includes('unpaid') && student.totalPaid === 0) ||
+        (lowerQuery.includes('no payment') && student.totalPaid === 0) ||
+
+        // Amount-based
+        (amountGt !== null && student.totalFees > amountGt) ||
+        (amountLt !== null && student.totalFees < amountLt) ||
+        (lowerQuery.includes('high fee') && student.totalFees > 75000) ||
+        (lowerQuery.includes('low fee') && student.totalFees < 30000) ||
+
+        // Class matching
+        (classNumber !== null && cls.includes(classNumber) && (!classSection || cls.includes(classSection))) ||
+
+        // Fee situation
+        (lowerQuery.includes('defaulter') && (student.totalPending > 0 || status.includes('overdue'))) ||
+        (lowerQuery.includes('discount') && (student.totalDiscount || 0) > 0) ||
+        (lowerQuery.includes('scholarship') && (student.totalDiscount || 0) > 0) ||
+
+        // Time-based
+        ((lowerQuery.includes('this month') || lowerQuery.includes('recent')) && student.lastPaymentDate &&
+          new Date(student.lastPaymentDate).getMonth() === new Date().getMonth() &&
+          new Date(student.lastPaymentDate).getFullYear() === new Date().getFullYear()) ||
+
+        // Risk / performance
+        (lowerQuery.includes('risk') && (status.includes('overdue') || student.totalPending > 0)) ||
+        (lowerQuery.includes('good standing') && status.includes('fully_paid')) ||
+        (lowerQuery.includes('top') && student.totalPaid > 0 && status.includes('fully_paid'));
+
       matchesSearch = basicMatch || aiMatch;
     }
     
-    const matchesClass = selectedClass === 'all' || student.studentClass === selectedClass;
-    const matchesStatus = selectedStatus === 'all' || student.paymentStatus === selectedStatus;
+    const matchesClass = selectedClass === 'all' || (student.studentClass || '').toLowerCase() === selectedClass.toLowerCase();
+    const matchesStatus = selectedStatus === 'all' ||
+      (student.calculatedPaymentStatus || student.paymentStatus || '') === selectedStatus;
     
     return matchesSearch && matchesClass && matchesStatus;
   });
@@ -431,7 +452,7 @@ export function useFeeState() {
           discountsApi.list()
         ]);
         
-        setFeeStructures(feeStructuresResponse?.structures || []);
+        setFeeStructures(feeStructuresResponse?.feeStructures || feeStructuresResponse?.structures || []);
         setDiscounts(discountsResponse?.discounts || discountsResponse || []);
         
         // Load tab-specific data

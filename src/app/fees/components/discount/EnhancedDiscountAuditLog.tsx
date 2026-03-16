@@ -11,6 +11,8 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [students, setStudents] = useState<Array<{id: string; name: string; class?: string}>>([]);
+  const [classes, setClasses] = useState<Array<{id: string; name: string}>>([]);
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +51,54 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
   useEffect(() => {
     fetchLogs();
   }, [queryParams]);
+
+  useEffect(() => {
+    const fetchStudentsAndClasses = async () => {
+      try {
+        const [studRes, configRes] = await Promise.all([
+          fetch('/api/fees/students?page=1&limit=500'),
+          fetch('/api/school-config'),
+        ]);
+        if (studRes.ok) {
+          const d = await studRes.json();
+          setStudents((d.students || d.data?.students || d.data || []).map((s: any) => ({ id: s.studentId || s.id, name: s.studentName || s.name, class: s.studentClass || s.class })));
+        }
+        if (configRes.ok) {
+          const d = await configRes.json();
+          setClasses((d.classes || d.dropdowns?.classes || []).map((c: any) => ({ id: c.id || c.value, name: c.name || c.label })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch students/classes:', err);
+      }
+    };
+    fetchStudentsAndClasses();
+  }, []);
+
+  const resolveTarget = (log: any): string => {
+    const req = log.discountRequest;
+    if (!req) return '-';
+    if (req.scope === 'student') {
+      let ids: string[] = []; try { ids = JSON.parse(req.studentIds || '[]'); } catch {}
+      if (!ids.length) return '-';
+      const names = ids.slice(0, 2).map((id: string) => students.find(s => s.id === id)?.name || id);
+      return names.join(', ') + (ids.length > 2 ? ` +${ids.length - 2} more` : '');
+    }
+    if (req.scope === 'class') {
+      let ids: string[] = []; try { ids = JSON.parse(req.classIds || '[]'); } catch {}
+      if (!ids.length) return '-';
+      const names = ids.slice(0, 2).map((id: string) => classes.find(c => c.id === id)?.name || id);
+      return names.join(', ') + (ids.length > 2 ? ` +${ids.length - 2} more` : '');
+    }
+    if (req.scope === 'bulk') {
+      let sIds: string[] = []; try { sIds = JSON.parse(req.studentIds || '[]'); } catch {}
+      let cIds: string[] = []; try { cIds = JSON.parse(req.classIds || '[]'); } catch {}
+      const parts = [];
+      if (sIds.length) parts.push(`${sIds.length} students`);
+      if (cIds.length) parts.push(classes.slice(0,2).map((c) => cIds.includes(c.id) ? c.name : null).filter(Boolean).join(', '));
+      return parts.join(' / ') || '-';
+    }
+    return '-';
+  };
 
   const fetchLogs = async () => {
     try {
@@ -397,6 +447,8 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
             <tr>
               <th className="px-4 py-3">Timestamp</th>
               <th className="px-4 py-3">Action</th>
+              <th className="px-4 py-3">Student / Class</th>
+              <th className="px-4 py-3">Academic Year</th>
               <th className="px-4 py-3">Actor</th>
               <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Details</th>
@@ -416,6 +468,25 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 text-xs rounded-full font-medium ${getActionColor(log.action)}`}>
                     {log.action}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div>
+                    {log.discountRequest?.scope && (
+                      <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold mb-1 ${
+                        log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                      }`}>
+                        {log.discountRequest.scope === 'student' ? '👤' : log.discountRequest.scope === 'class' ? '🏫' : '👥'}
+                      </div>
+                    )}
+                    <p className={`text-sm font-medium ${textPrimary}`}>{resolveTarget(log)}</p>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 text-xs rounded font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                    {log.discountRequest?.academicYear || '-'}
                   </span>
                 </td>
                 <td className="px-4 py-3">

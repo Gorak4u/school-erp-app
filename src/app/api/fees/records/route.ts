@@ -193,9 +193,9 @@ export async function GET(request: NextRequest) {
       academicYear: record.academicYear,
       student: {
         name: record.studentName,
-        class: record.studentClass,
-        section: record.studentSection,
-        rollNo: record.studentRollNo
+        class: record.class,
+        section: record.section,
+        rollNo: record.rollNo
       },
       feeStructure: {
         name: record.feeStructureName,

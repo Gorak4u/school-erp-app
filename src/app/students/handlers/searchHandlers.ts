@@ -3,7 +3,7 @@ import { Student } from '../types';
 
 export function createSearchHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, selectedClass, selectedGender, selectedLanguage, selectedStatus, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students } = ctx;
+  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, selectedClass, selectedGender, selectedLanguage, selectedStatus, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students, searchTerm } = ctx;
 
   // Fuzzy matching function
   const fuzzyMatch = (text: string, query: string, threshold: number = 0.7): boolean => {
@@ -128,30 +128,38 @@ export function createSearchHandlers(ctx: any) {
   };
 
   const evaluateCondition = (student: Student, condition: string): boolean => {
+    const attendance = student.attendance || {};
+    const fees = student.fees || {};
+    const academics = student.academics || {};
+    const attendancePct = attendance.percentage ?? 0;
+    const feesPending = fees.pending ?? 0;
+    const gpa = academics.gpa ?? 0;
+    const failedSubjects = academics.failedSubjects ?? 0;
+
     // Attendance conditions
     if (condition.includes('low attendance') || condition.includes('poor attendance')) {
-      return student.attendance.percentage < 75;
+      return attendancePct < 75;
     }
     
     if (condition.includes('high attendance') || condition.includes('good attendance') || condition.includes('excellent attendance')) {
-      return student.attendance.percentage >= 90;
+      return attendancePct >= 90;
     }
     
     if (condition.includes('average attendance')) {
-      return student.attendance.percentage >= 75 && student.attendance.percentage < 90;
+      return attendancePct >= 75 && attendancePct < 90;
     }
     
     // Fee conditions
-    if (condition.includes('fee pending') || condition.includes('fees due') || condition.includes('outstanding')) {
-      return student.fees.pending > 0;
+    if (condition.includes('fee pending') || condition.includes('fees due') || condition.includes('outstanding') || condition.includes('defaulter')) {
+      return feesPending > 0;
     }
     
     if (condition.includes('fee paid') || condition.includes('no pending') || condition.includes('cleared')) {
-      return student.fees.pending === 0;
+      return feesPending === 0;
     }
     
     if (condition.includes('overdue')) {
-      return student.fees.pending > 0 && new Date(student.fees.lastPaymentDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      return feesPending > 0 && fees.lastPaymentDate && new Date(fees.lastPaymentDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
     
     // Class conditions
@@ -199,19 +207,19 @@ export function createSearchHandlers(ctx: any) {
     
     // Performance conditions
     if (condition.includes('high gpa') || condition.includes('top performer') || condition.includes('excellent') || condition.includes('brilliant')) {
-      return student.academics.gpa >= 3.5;
+      return gpa >= 3.5;
     }
     
     if (condition.includes('low gpa') || condition.includes('needs improvement') || condition.includes('poor performance') || condition.includes('struggling')) {
-      return student.academics.gpa < 2.5;
+      return gpa < 2.5;
     }
     
     if (condition.includes('average gpa') || condition.includes('moderate') || condition.includes('okay')) {
-      return student.academics.gpa >= 2.5 && student.academics.gpa < 3.5;
+      return gpa >= 2.5 && gpa < 3.5;
     }
     
     if (condition.includes('failed subjects') || condition.includes('backlog') || condition.includes('supplementary')) {
-      return student.academics.failedSubjects > 0;
+      return failedSubjects > 0;
     }
     
     // Gender conditions
@@ -263,14 +271,15 @@ export function createSearchHandlers(ctx: any) {
     }
     
     // Name matching (fallback)
-    const studentName = student.name.toLowerCase();
-    const parentName = (student.fatherName + ' ' + student.motherName).toLowerCase();
+    const studentName = (student.name || '').toLowerCase();
+    const parentName = ((student.fatherName || '') + ' ' + (student.motherName || '')).toLowerCase();
     
     if (studentName.includes(condition) || 
         parentName.includes(condition) ||
-        student.rollNo.includes(condition) ||
-        student.email.toLowerCase().includes(condition) ||
-        student.phone.includes(condition)) {
+        (student.rollNo || '').includes(condition) ||
+        (student.email || '').toLowerCase().includes(condition) ||
+        (student.phone || '').includes(condition) ||
+        (student.admissionNo || '').toLowerCase().includes(condition)) {
       return true;
     }
     
@@ -306,7 +315,7 @@ export function createSearchHandlers(ctx: any) {
     // Performance-based scoring
     if (queryLower.includes('top') && student.academics.gpa >= 3.5) score += 20;
     if (queryLower.includes('improvement') && student.academics.gpa < 2.5) score += 20;
-    if (queryLower.includes('attendance') && student.attendance.percentage >= 90) score += 15;
+    if (queryLower.includes('attendance') && (student.attendance?.percentage ?? 0) >= 90) score += 15;
     
     return score;
   };
@@ -316,7 +325,23 @@ export function createSearchHandlers(ctx: any) {
     
     if (advancedSearch.enabled && advancedSearch.query) {
       // Use AI-powered advanced search
-      matchesSearch = evaluateCondition(student, advancedSearch.query.toLowerCase());
+      try {
+        matchesSearch = evaluateCondition(student, advancedSearch.query.toLowerCase());
+      } catch {
+        matchesSearch = (student.name || '').toLowerCase().includes(advancedSearch.query.toLowerCase());
+      }
+    } else if (searchTerm && !showAdvancedFilters) {
+      // Basic client-side text match (server already filtered, this catches stragglers)
+      const q = searchTerm.toLowerCase();
+      matchesSearch =
+        (student.name || '').toLowerCase().includes(q) ||
+        (student.rollNo || '').toLowerCase().includes(q) ||
+        (student.class || '').toLowerCase().includes(q) ||
+        (student.admissionNo || '').toLowerCase().includes(q) ||
+        (student.fatherName || '').toLowerCase().includes(q) ||
+        (student.motherName || '').toLowerCase().includes(q) ||
+        (student.phone || '').includes(q) ||
+        (student.email || '').toLowerCase().includes(q);
     }
     
     // Apply advanced filters if enabled

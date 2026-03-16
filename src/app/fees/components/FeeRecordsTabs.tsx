@@ -1,173 +1,181 @@
 // @ts-nocheck
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { Search, Filter, RefreshCw, Download, Eye, ChevronLeft, ChevronRight, TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react';
 
 export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
-  const {
-    activeTab, theme, searchTerm, setSearchTerm, selectedClass, setSelectedClass,
-    selectedStatus, setSelectedStatus, feeRecords, filteredFeeRecords, feeStructures, feeCollections,
-    discounts, setShowFeeStructureModal, setShowReceiptModal, selectedFeeRecord, setSelectedFeeRecord,
-    prepareMonthlyCollectionData, prepareFeeCategoryData, preparePaymentMethodData,
-    currentPage, setCurrentPage, pageSize, setPageSize,
-  } = ctx;
-  const { dropdowns } = useSchoolConfig();
+  const { activeTab, theme, feeStructures, discounts } = ctx;
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedClass, selectedStatus]);
+  // ── Fee Records: fully self-contained state ──────────────────────────────
+  const [records, setRecords]     = useState<any[]>([]);
+  const [summary, setSummary]     = useState<any>(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [search, setSearch]       = useState('');
+  const [statusFilter, setStatus] = useState('all');
+  const [yearFilter, setYear]     = useState('');
+  const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState(25);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+
+  const isDark = theme === 'dark';
+  const cardBg   = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
+  const headerBg = isDark ? 'bg-gray-700'  : 'bg-gray-50';
+  const rowHover = isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50';
+  const txt      = isDark ? 'text-white'   : 'text-gray-900';
+  const txtSec   = isDark ? 'text-gray-400': 'text-gray-600';
+  const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400';
+
+  const statusColors: Record<string, string> = {
+    paid:    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    partial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+    pending: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    overdue: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  };
+
+  const fetchRecords = useCallback(async () => {
+    if (activeTab !== 'fee-records') return;
+    setLoading(true); setError('');
+    try {
+      const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
+      if (search)       params.set('search', search);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (yearFilter)   params.set('academicYear', yearFilter);
+      const res  = await fetch(`/api/fees/records?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch records');
+      const recs = data.data?.records || data.records || [];
+      setRecords(recs);
+      setSummary(data.data?.summary || data.summary || null);
+      setTotalRecords(data.data?.pagination?.total || data.pagination?.total || recs.length);
+      setTotalPages(data.data?.pagination?.totalPages || data.pagination?.totalPages || Math.ceil(recs.length / pageSize));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, page, pageSize, search, statusFilter, yearFilter]);
+
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, yearFilter]);
+
+  const pending = (r: any) => Math.max(0, (r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0));
+
+  const exportCSV = () => {
+    const rows = [
+      ['Student', 'Class', 'Roll No', 'Fee Type', 'Category', 'Amount', 'Paid', 'Discount', 'Pending', 'Due Date', 'Status', 'Academic Year'],
+      ...records.map(r => [
+        r.student?.name || '-', r.student?.class || '-', r.student?.rollNo || '-',
+        r.feeStructure?.name || '-', r.feeStructure?.category || '-',
+        r.amount, r.paidAmount || 0, r.discount || 0, pending(r),
+        r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '-',
+        r.status, r.academicYear || '-'
+      ])
+    ].map(row => row.join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
+    a.download = `fee-records-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+  };
 
   return (
     <>
           {activeTab === 'fee-records' && (
-            <motion.div
-              key="fee-records"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              {/* Filters — handled by global FeeFilters above */}
-              <div className={`p-4 rounded-lg border mb-6 hidden ${
-                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="flex flex-wrap gap-4">
-                  <input
-                    type="text"
-                    placeholder="Search students..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                  <select
-                    value={selectedClass}
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    <option key="class-all" value="all">All Classes</option>
-                    {dropdowns.classes.map(cls => (
-                      <option key={cls.value} value={cls.label}>{cls.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    <option key="status-all" value="all">All Status</option>
-                    <option key="status-paid" value="paid">Paid</option>
-                    <option key="status-pending" value="pending">Pending</option>
-                    <option key="status-overdue" value="overdue">Overdue</option>
-                    <option key="status-partial" value="partial">Partial</option>
-                  </select>
+            <motion.div key="fee-records" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+
+              {/* Summary Cards */}
+              {summary && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Records', value: (summary.totalRecords || 0).toLocaleString(), icon: <TrendingUp className="w-5 h-5" />, color: 'text-blue-500' },
+                    { label: 'Total Amount',  value: `₹${(summary.totalAmount || 0).toLocaleString()}`,   icon: <DollarSign className="w-5 h-5" />, color: 'text-purple-500' },
+                    { label: 'Collected',     value: `₹${(summary.totalCollected || 0).toLocaleString()}`, icon: <CheckCircle className="w-5 h-5" />, color: 'text-green-500' },
+                    { label: 'Outstanding',   value: `₹${(summary.totalOutstanding || summary.totalPending || 0).toLocaleString()}`, icon: <Clock className="w-5 h-5" />, color: 'text-red-500' },
+                  ].map(card => (
+                    <div key={card.label} className={`p-4 rounded-xl border ${cardBg}`}>
+                      <div className={`flex items-center gap-2 mb-1 ${card.color}`}>{card.icon}<span className={`text-xs font-medium ${txtSec}`}>{card.label}</span></div>
+                      <div className={`text-xl font-bold ${txt}`}>{card.value}</div>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {/* Filters Bar */}
+              <div className={`p-4 rounded-xl border flex flex-wrap gap-3 items-center ${cardBg}`}>
+                <div className="relative flex-1 min-w-48">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <input type="text" placeholder="Search by student name..." value={search} onChange={e => setSearch(e.target.value)}
+                    className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm ${inputCls}`} />
+                </div>
+                <select value={statusFilter} onChange={e => setStatus(e.target.value)} className={`px-3 py-2 rounded-lg border text-sm ${inputCls}`}>
+                  <option value="all">All Status</option>
+                  <option value="paid">Paid</option>
+                  <option value="partial">Partial</option>
+                  <option value="pending">Pending</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+                <input type="text" placeholder="Academic Year (e.g. 2024-25)" value={yearFilter} onChange={e => setYear(e.target.value)}
+                  className={`px-3 py-2 rounded-lg border text-sm w-44 ${inputCls}`} />
+                <select value={pageSize} onChange={e => { setPageSize(+e.target.value); setPage(1); }} className={`px-3 py-2 rounded-lg border text-sm ${inputCls}`}>
+                  {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
+                </select>
+                <button onClick={fetchRecords} className={`p-2 rounded-lg border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}><RefreshCw className={`w-4 h-4 ${txtSec}`} /></button>
+                <button onClick={exportCSV}   className={`p-2 rounded-lg border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}><Download className={`w-4 h-4 ${txtSec}`} /></button>
+                {(search || statusFilter !== 'all' || yearFilter) && (
+                  <button onClick={() => { setSearch(''); setStatus('all'); setYear(''); }} className="px-3 py-2 text-xs rounded-lg bg-red-100 text-red-700 hover:bg-red-200">Clear Filters</button>
+                )}
               </div>
 
-              {/* Fee Records Table */}
-              <div className={`rounded-xl border overflow-hidden ${
-                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
+              {/* Error */}
+              {error && <div className="p-3 rounded-lg bg-red-100 text-red-700 text-sm">{error}</div>}
+
+              {/* Table */}
+              <div className={`rounded-xl border overflow-hidden ${cardBg}`}>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
+                  <table className="w-full text-sm">
+                    <thead className={`text-xs uppercase ${headerBg} ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <tr>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Student</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Fee Type</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Amount</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Paid</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Pending</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Due Date</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Status</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Discount</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Actions</th>
+                        {['Student', 'Class / Roll', 'Fee Structure', 'Category', 'Amount', 'Paid', 'Discount', 'Pending', 'Due Date', 'Acad. Year', 'Status', 'Actions'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
+                        ))}
                       </tr>
                     </thead>
-                    <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                      {(filteredFeeRecords || []).slice((currentPage - 1) * pageSize, currentPage * pageSize).map((record) => (
-                        <tr key={record.id}>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <div>
-                              <div className="font-medium">{record.student?.name || 'N/A'}</div>
-                              <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {record.student?.class || 'N/A'}
-                              </div>
-                            </div>
+                    <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                      {loading ? (
+                        <tr><td colSpan={12} className={`px-4 py-12 text-center ${txtSec}`}>
+                          <div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /><span>Loading fee records...</span></div>
+                        </td></tr>
+                      ) : records.length === 0 ? (
+                        <tr><td colSpan={12} className={`px-4 py-12 text-center ${txtSec}`}>
+                          <div className="text-4xl mb-2">📋</div>
+                          <p className={`font-medium ${txt}`}>No fee records found</p>
+                          <p className="text-xs mt-1">Try adjusting your filters</p>
+                        </td></tr>
+                      ) : records.map(r => (
+                        <tr key={r.id} className={`${rowHover} transition-colors`}>
+                          <td className={`px-4 py-3 font-medium ${txt}`}>{r.student?.name || '-'}</td>
+                          <td className={`px-4 py-3 ${txtSec}`}>
+                            <div>{r.student?.class || '-'}{r.student?.section ? ` - ${r.student.section}` : ''}</div>
+                            <div className="text-xs">{r.student?.rollNo ? `Roll: ${r.student.rollNo}` : ''}</div>
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>{record.feeStructure?.name || 'N/A'}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{(record.amount || 0).toLocaleString()}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{(record.paidAmount || 0).toLocaleString()}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{(record.pendingAmount || 0).toLocaleString()}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>{record.dueDate}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap`}>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              record.status === 'paid'
-                                ? 'bg-green-100 text-green-800'
-                                : record.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : record.status === 'overdue'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {record.status}
+                          <td className={`px-4 py-3 ${txt}`}>{r.feeStructure?.name || '-'}</td>
+                          <td className={`px-4 py-3 ${txtSec} capitalize`}>{r.feeStructure?.category || '-'}</td>
+                          <td className={`px-4 py-3 font-medium ${txt}`}>₹{(r.amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-green-500 font-medium">₹{(r.paidAmount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-blue-500">₹{(r.discount || 0).toLocaleString()}</td>
+                          <td className={`px-4 py-3 font-medium ${pending(r) > 0 ? 'text-red-500' : 'text-green-500'}`}>₹{pending(r).toLocaleString()}</td>
+                          <td className={`px-4 py-3 ${txtSec} whitespace-nowrap`}>{r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td className={`px-4 py-3 ${txtSec}`}>{r.academicYear || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>
+                              {r.status || '-'}
                             </span>
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{(record.discount || 0).toLocaleString()}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap`}>
-                            <button
-                              onClick={() => {
-                              setSelectedFeeRecord(record);
-                              setShowReceiptModal(true);
-                            }}
-                              className={`text-blue-600 hover:text-blue-800 ${
-                                theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
-                              }`}
-                            >
-                              View Receipt
+                          <td className="px-4 py-3">
+                            <button onClick={() => setSelectedRecord(r)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="View Details">
+                              <Eye className="w-4 h-4" />
                             </button>
                           </td>
                         </tr>
@@ -175,92 +183,65 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Pagination */}
+                <div className={`flex items-center justify-between px-4 py-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <span className={`text-sm ${txtSec}`}>
+                    {totalRecords > 0 ? `Showing ${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, totalRecords)} of ${totalRecords} records` : 'No records'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                      className={`p-1.5 rounded ${page === 1 ? 'opacity-40 cursor-not-allowed' : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const n = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
+                      return <button key={n} onClick={() => setPage(n)} className={`px-3 py-1 rounded text-sm ${n === page ? 'bg-blue-600 text-white' : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'}`}>{n}</button>;
+                    })}
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                      className={`p-1.5 rounded ${page >= totalPages ? 'opacity-40 cursor-not-allowed' : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Pagination Controls */}
-              <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                <div className="text-sm">
-                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredFeeRecords?.length || 0)} of {filteredFeeRecords?.length || 0} records
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded ${
-                      currentPage === 1
-                        ? theme === 'dark' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, Math.ceil((filteredFeeRecords?.length || 0) / pageSize)) }, (_, i) => {
-                      const totalPages = Math.ceil((filteredFeeRecords?.length || 0) / pageSize);
-                      let pageNum;
-                      
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-1 rounded ${
-                            currentPage === pageNum
-                              ? 'bg-blue-600 text-white'
-                              : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
+              {/* Record Detail Modal */}
+              {selectedRecord && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                  <div className={`w-full max-w-lg rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                    <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className={`text-lg font-bold ${txt}`}>📋 Fee Record Details</h3>
+                      <button onClick={() => setSelectedRecord(null)} className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>✕</button>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      {[
+                        ['Student',      selectedRecord.student?.name || '-'],
+                        ['Class',        `${selectedRecord.student?.class || '-'}${selectedRecord.student?.section ? ` - ${selectedRecord.student.section}` : ''}`],
+                        ['Roll No',      selectedRecord.student?.rollNo || '-'],
+                        ['Fee Type',     selectedRecord.feeStructure?.name || '-'],
+                        ['Category',     selectedRecord.feeStructure?.category || '-'],
+                        ['Academic Year',selectedRecord.academicYear || '-'],
+                        ['Total Amount', `₹${(selectedRecord.amount || 0).toLocaleString()}`],
+                        ['Paid Amount',  `₹${(selectedRecord.paidAmount || 0).toLocaleString()}`],
+                        ['Discount',     `₹${(selectedRecord.discount || 0).toLocaleString()}`],
+                        ['Pending',      `₹${pending(selectedRecord).toLocaleString()}`],
+                        ['Due Date',     selectedRecord.dueDate ? new Date(selectedRecord.dueDate).toLocaleDateString('en-IN') : '-'],
+                        ['Status',       selectedRecord.status || '-'],
+                        ['Payments',     `${selectedRecord.paymentCount || 0} payment(s)`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex justify-between items-center">
+                          <span className={`text-sm ${txtSec}`}>{label}</span>
+                          <span className={`text-sm font-medium ${txt}`}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                      <button onClick={() => setSelectedRecord(null)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Close</button>
+                    </div>
                   </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(Math.min(Math.ceil((filteredFeeRecords?.length || 0) / pageSize), currentPage + 1))}
-                    disabled={currentPage >= Math.ceil((filteredFeeRecords?.length || 0) / pageSize)}
-                    className={`px-3 py-1 rounded ${
-                      currentPage >= Math.ceil((filteredFeeRecords?.length || 0) / pageSize)
-                        ? theme === 'dark' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    Next
-                  </button>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">Show:</label>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(parseInt(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className={`px-2 py-1 rounded text-sm ${
-                      theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <option key="page-size-10" value={10}>10</option>
-                    <option key="page-size-25" value={25}>25</option>
-                    <option key="page-size-50" value={50}>50</option>
-                    <option key="page-size-100" value={100}>100</option>
-                  </select>
-                </div>
-              </div>
+              )}
             </motion.div>
           )}
 
