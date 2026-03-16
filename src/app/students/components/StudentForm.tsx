@@ -121,6 +121,13 @@ export default function StudentForm({
 
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [feesLoading, setFeesLoading] = useState(false);
+  const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
+  const [transportInfo, setTransportInfo] = useState({
+    routeId: '',
+    pickupStop: '',
+    dropStop: '',
+    monthlyFee: 0,
+  });
   const [discountData, setDiscountData] = useState({
     hasDiscount: false,
     discountCategory: '',
@@ -148,6 +155,14 @@ export default function StudentForm({
       : [],
     [sections, formData.classId]
   );
+
+  // Load transport routes once
+  useEffect(() => {
+    fetch('/api/transport/routes?isActive=true')
+      .then(r => r.json())
+      .then(data => setTransportRoutes(data.routes || []))
+      .catch(() => {});
+  }, []);
 
   // Load fee structures when class changes
   useEffect(() => {
@@ -282,6 +297,9 @@ export default function StudentForm({
             ...discountData, 
             feeStructureIds: selectedDiscountFeeIds 
           },
+        }),
+        ...(transportInfo.routeId && {
+          _transportInfo: transportInfo,
         }),
       } as any);
     } catch (error) {
@@ -967,6 +985,45 @@ export default function StudentForm({
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🚌 Transport & Hostel</p>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className={labelCls}>Assign Transport Route</label>
+                    <select
+                      value={transportInfo.routeId}
+                      onChange={e => {
+                        const r = transportRoutes.find((x: any) => x.id === e.target.value);
+                        setTransportInfo({ routeId: e.target.value, pickupStop: '', dropStop: '', monthlyFee: r?.monthlyFee || 0 });
+                        set('transport', e.target.value ? 'Yes' : 'No');
+                        set('transportRoute', r?.routeName || '');
+                      }}
+                      className={inputCls}
+                    >
+                      <option value="">No transport</option>
+                      {transportRoutes.map((r: any) => (
+                        <option key={r.id} value={r.id}>{r.routeNumber} — {r.routeName} (₹{r.monthlyFee}/mo)</option>
+                      ))}
+                    </select>
+                  </div>
+                  {transportInfo.routeId && (() => {
+                    const selRoute = transportRoutes.find((r: any) => r.id === transportInfo.routeId);
+                    const stops = (() => { try { return JSON.parse(selRoute?.stops || '[]'); } catch { return []; } })();
+                    return (<>
+                      <div>
+                        <label className={labelCls}>Pickup Stop *</label>
+                        {stops.length > 0 ? (
+                          <select value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} className={inputCls}>
+                            <option value="">Select stop...</option>
+                            {stops.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        ) : (
+                          <input className={inputCls} value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} placeholder="Enter stop name" />
+                        )}
+                      </div>
+                      <div>
+                        <label className={labelCls}>Monthly Fee (₹)</label>
+                        <input type="number" className={inputCls} value={transportInfo.monthlyFee} onChange={e => setTransportInfo(p => ({ ...p, monthlyFee: Number(e.target.value) }))} />
+                      </div>
+                    </>);
+                  })()}
                   <div>
                     <label className={labelCls}>Transport</label>
                     <select value={formData.transport} onChange={e => set('transport', e.target.value)} className={inputCls}>

@@ -297,6 +297,7 @@ model Student {
   academicYearRef       AcademicYear?      @relation("StudentAcademicYear", fields: [academicYearId], references: [id])
   school                School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   promotions            StudentPromotion[]
+  transportAssignments  StudentTransport[]
 
   @@index([schoolId])
   @@index([class])
@@ -942,5 +943,70 @@ model TokenBlacklist {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+  @@schema("school")
+}
+
+model Vehicle {
+  id              String           @id @default(cuid())
+  vehicleNumber   String
+  vehicleType     String           @default("bus")
+  capacity        Int              @default(40)
+  driverName      String
+  driverPhone     String
+  registrationNo  String?
+  insuranceExpiry String?
+  fitnessExpiry   String?
+  isActive        Boolean          @default(true)
+  schoolId        String
+  routes          TransportRoute[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([schoolId])
+  @@index([isActive])
+  @@schema("school")
+}
+
+model TransportRoute {
+  id             String             @id @default(cuid())
+  routeNumber    String
+  routeName      String
+  description    String?
+  stops          String             @default("[]")
+  vehicleId      String?
+  driverName     String?
+  driverPhone    String?
+  capacity       Int                @default(40)
+  monthlyFee     Float              @default(0)
+  isActive       Boolean            @default(true)
+  schoolId       String
+  academicYearId String?
+  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id])
+  students       StudentTransport[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([schoolId])
+  @@index([isActive])
+  @@index([schoolId, academicYearId])
+  @@schema("school")
+}
+
+model StudentTransport {
+  id             String         @id @default(cuid())
+  studentId      String
+  routeId        String
+  pickupStop     String
+  dropStop       String?
+  monthlyFee     Float
+  academicYearId String?
+  isActive       Boolean        @default(true)
+  assignedAt     DateTime       @default(now())
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  route          TransportRoute @relation(fields: [routeId], references: [id])
+
+  @@index([studentId])
+  @@index([routeId])
+  @@index([academicYearId])
   @@schema("school")
 }

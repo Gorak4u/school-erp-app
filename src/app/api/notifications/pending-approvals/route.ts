@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        studentName: true,
+        name: true,
         discountType: true,
         discountValue: true,
         reason: true,
-        requestedBy: true,
+        requestedByName: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       approvals: pendingDiscounts.map((d: any) => ({
         id: d.id,
         type: 'discount_request',
-        title: `Discount Request - ${d.studentName}`,
+        title: `Discount Request - ${d.name}`,
         description: `${d.discountType} discount of ${d.discountValue}${d.discountType === 'percentage' ? '%' : ''}`,
         reason: d.reason,
         createdAt: d.createdAt,

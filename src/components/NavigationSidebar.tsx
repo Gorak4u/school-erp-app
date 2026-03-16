@@ -150,6 +150,22 @@ export default function NavigationSidebar({
             <span className="font-medium">Fees</span>
           </Link>
 
+          <Link
+            href="/transport"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPage === 'transport'
+                ? theme === 'dark' 
+                  ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-400' 
+                  : 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                : theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <span className="text-lg">🚌</span>
+            <span className="font-medium">Transport</span>
+          </Link>
+
           <div className={`text-xs font-semibold uppercase tracking-wider ${
             theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
           } mb-4 mt-6`}>

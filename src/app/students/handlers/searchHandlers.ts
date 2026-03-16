@@ -421,9 +421,29 @@ export function createSearchHandlers(ctx: any) {
   const handleAddStudent = async (studentData: Partial<Student>) => {
     try {
       const { studentsApi } = await import('@/lib/apiClient');
-      const { _discountInfo, ...cleanStudentData } = studentData as any;
+      const { _discountInfo, _transportInfo, ...cleanStudentData } = studentData as any;
       const result = await studentsApi.create(cleanStudentData);
       if (result.student) {
+        // Auto-assign transport route if provided
+        if (_transportInfo?.routeId && _transportInfo?.pickupStop) {
+          try {
+            await fetch('/api/transport/students', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                studentId: result.student.id,
+                routeId: _transportInfo.routeId,
+                pickupStop: _transportInfo.pickupStop,
+                dropStop: _transportInfo.dropStop || null,
+                monthlyFee: Number(_transportInfo.monthlyFee) || 0,
+                generateFeeRecord: true,
+              }),
+            });
+          } catch (transportErr) {
+            console.error('Transport assignment failed:', transportErr);
+          }
+        }
+
         // Create discount request if provided
         let discountCreated = false;
         if (_discountInfo?.hasDiscount) {
