@@ -116,8 +116,16 @@ export async function POST(req: Request) {
 
       await Promise.all(
         defaultSettings.map(setting =>
-          (schoolPrisma as any).schoolSetting.create({
-            data: {
+          (schoolPrisma as any).schoolSetting.upsert({
+            where: {
+              schoolId_group_key: {
+                schoolId: createdSchool.id,
+                group: setting.group,
+                key: setting.key
+              }
+            },
+            update: { value: setting.value },
+            create: {
               schoolId: createdSchool.id,
               group: setting.group,
               key: setting.key,
