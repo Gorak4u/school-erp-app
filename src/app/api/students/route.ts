@@ -35,12 +35,14 @@ export async function GET(request: NextRequest) {
     const where: any = { ...tenantWhere(ctx) };
     
     if (search) {
+      // Use startsWith for better performance on 10M+ records
+      // startsWith uses index, contains requires full scan
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { admissionNo: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { rollNo: { contains: search, mode: 'insensitive' } },
-        { parentName: { contains: search, mode: 'insensitive' } },
+        { name: { startsWith: search, mode: 'insensitive' } },
+        { admissionNo: { startsWith: search, mode: 'insensitive' } },
+        { email: { startsWith: search, mode: 'insensitive' } },
+        { rollNo: { startsWith: search, mode: 'insensitive' } },
+        { parentName: { startsWith: search, mode: 'insensitive' } },
       ];
     }
     if (cls) where.class = cls;
@@ -168,13 +170,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       students: shaped,
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
+
+    // Add caching headers for better performance
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    response.headers.set('CDN-Cache-Control', 'max-age=300');
+
+    return response;
   } catch (error: any) {
     console.error('GET /api/students:', error);
     return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });

@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
 
     const where: any = { ...tenantWhere(ctx) };
     if (search) {
+      // Use startsWith for better performance on large datasets
       where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { employeeId: { contains: search } },
-        { subject: { contains: search } },
-        { department: { contains: search } },
+        { name: { startsWith: search, mode: 'insensitive' } },
+        { email: { startsWith: search, mode: 'insensitive' } },
+        { employeeId: { startsWith: search, mode: 'insensitive' } },
+        { subject: { startsWith: search, mode: 'insensitive' } },
+        { department: { startsWith: search, mode: 'insensitive' } },
       ];
     }
     if (status) where.status = status;
@@ -47,13 +48,19 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).teacher.count({ where }),
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       teachers,
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
+
+    // Add caching headers for better performance
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    response.headers.set('CDN-Cache-Control', 'max-age=300');
+
+    return response;
   } catch (error) {
     console.error('GET /api/teachers:', error);
     return NextResponse.json({ error: 'Failed to fetch teachers' }, { status: 500 });
