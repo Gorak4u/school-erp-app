@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/contexts/NotificationContext';
 import Toast from './Toast';
 import TrialBanner from './TrialBanner';
 
@@ -27,9 +28,11 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const { theme: globalTheme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { pendingCount, approvals, showToast, dismissToast } = useNotifications();
   const [isClient, setIsClient] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarTimeout, setSidebarTimeout] = useState<NodeJS.Timeout | null>(null);
 
