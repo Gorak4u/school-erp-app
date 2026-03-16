@@ -402,7 +402,7 @@ export default function SettingsPage() {
       
       // Mark old fee structures as inactive
       for (const fee of feeStructures) {
-        await feeStructuresApi.update({
+        await feeStructuresApi.update(fee.id, {
           ...fee,
           isActive: false
         });
