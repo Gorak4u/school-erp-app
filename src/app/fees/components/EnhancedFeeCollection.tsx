@@ -1376,7 +1376,6 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   onDownload={() => {
                     const receiptNum = selectedHistoryEntry.receiptNumber;
                     const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-                    // PDFGenerator.generateFromElement('receipt-print', filename);
                     alert('PDF download would be implemented here');
                   }}
                 />

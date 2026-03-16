@@ -105,7 +105,6 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
       });
       
       const apiUrl = `/api/fees/students/${sid}/payment-history?${params}`;
-      console.log('Fetching payment history from:', apiUrl);
       
       const response = await fetch(apiUrl);
       const data = await response.json();

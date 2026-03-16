@@ -191,7 +191,6 @@ async function processDiscountApplication(
         
         // Check if student has already paid full amount
         if (paidAmount >= totalFee) {
-          console.log(`SKIPPING: Student already paid full amount. Fee: ${totalFee}, Paid: ${paidAmount}, Current Discount: ${currentDiscount}`);
           return {
             id: record.id,
             skipUpdate: true,
@@ -219,7 +218,6 @@ async function processDiscountApplication(
         
         // Skip if discount would create negative pending amount
         if (newPendingAmount < 0) {
-          console.log(`SKIPPING: Discount would create negative pending amount. Fee: ${totalFee}, Paid: ${paidAmount}, New Discount: ${newDiscount}, New Pending: ${newPendingAmount}`);
           return {
             id: record.id,
             skipUpdate: true,
@@ -229,7 +227,6 @@ async function processDiscountApplication(
         
         // Only apply discount if it actually reduces the pending amount
         if (newPendingAmount >= remainingBalance) {
-          console.log(`SKIPPING: Discount doesn't benefit student. Current Pending: ${remainingBalance}, New Pending: ${newPendingAmount}`);
           return {
             id: record.id,
             skipUpdate: true,
