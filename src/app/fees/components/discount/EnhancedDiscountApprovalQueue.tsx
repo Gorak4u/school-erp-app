@@ -106,8 +106,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
       
       const data = await res.json();
         
-      if (data.success && data.data && Array.isArray(data.data.requests)) {
-        setRequests(data.data.requests);
+      if (data.success && data.data && Array.isArray(data.data)) {
+        setRequests(data.data);
         setTotalRecords(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 0);
       } else {
@@ -588,10 +588,19 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                     )}
                     <div>
                       <span className={`text-sm ${textSecondary}`}>Scope:</span>
-                      <p className={`capitalize ${textPrimary}`}>
-                        {selectedRequest.scope === 'student' ? 'Single Student' : 
-                         selectedRequest.scope === 'bulk' ? 'Bulk Students' : 
-                         selectedRequest.scope} • {selectedRequest.targetType.replace('_', ' ')}
+                      <div className={`mt-1 inline-flex items-center px-3 py-2 rounded-full text-base font-bold ${
+                        selectedRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        selectedRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        selectedRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {selectedRequest.scope === 'student' ? '👤 Single Student' : 
+                         selectedRequest.scope === 'class' ? '🏫 Class' :
+                         selectedRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                         selectedRequest.scope}
+                      </div>
+                      <p className={`text-sm ${textSecondary} mt-1`}>
+                        Target: {selectedRequest.targetType.replace('_', ' ')}
                       </p>
                     </div>
                     {selectedRequest.targetType === 'fee_structure' && (
@@ -614,7 +623,12 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                                   <div key={structure.id} className="flex flex-col sm:flex-row sm:items-center justify-between border-b last:border-0 pb-2 last:pb-0 border-gray-200 dark:border-gray-700">
                                     <div className="flex flex-col">
                                       <span className={`font-medium ${textPrimary}`}>{structure.name}</span>
-                                      <span className={`text-xs ${textSecondary}`}>For Student Only</span>
+                                      <span className={`text-xs ${textSecondary}`}>
+                                        {selectedRequest.scope === 'student' ? 'For Student Only' : 
+                                         selectedRequest.scope === 'class' ? 'For Class' :
+                                         selectedRequest.scope === 'bulk' ? 'For Selected Students' : 
+                                         'For Students'}
+                                      </span>
                                     </div>
                                   </div>
                                 ))}
