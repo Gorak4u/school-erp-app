@@ -12,8 +12,14 @@ export async function GET() {
   }
 
   try {
+    // Step 1: Fetch academic years first to find the active one
+    const academicYears = await (schoolPrisma as any).academicYear.findMany({ orderBy: { year: 'desc' } });
+    const activeAcademicYear = academicYears.find((a: any) => a.isActive) || null;
+    const activeAYId = activeAcademicYear?.id;
+
+    // Step 2: Fetch other entities filtered by active academic year
+    // This ensures dropdowns only show current year's active data
     const [
-      academicYears,
       boards,
       mediums,
       classes,
@@ -21,20 +27,28 @@ export async function GET() {
       timings,
       settingsRaw,
     ] = await Promise.all([
-      (schoolPrisma as any).academicYear.findMany({ orderBy: { year: 'desc' } }),
       (schoolPrisma as any).board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       (schoolPrisma as any).medium.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          ...(activeAYId && { academicYearId: activeAYId })
+        },
         orderBy: { name: 'asc' },
         include: { academicYear: true },
       }),
       (schoolPrisma as any).class.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          ...(activeAYId && { academicYearId: activeAYId })
+        },
         orderBy: { name: 'asc' },
         include: { medium: true, academicYear: true, sections: { where: { isActive: true }, orderBy: { name: 'asc' } } },
       }),
       (schoolPrisma as any).section.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          ...(activeAYId && { academicYearId: activeAYId })
+        },
         orderBy: { name: 'asc' },
         include: { class: { include: { medium: true } } },
       }),
@@ -48,8 +62,6 @@ export async function GET() {
       if (!settings[s.group]) settings[s.group] = {};
       settings[s.group][s.key] = s.value;
     }
-
-    const activeAcademicYear = academicYears.find((a: any) => a.isActive) || null;
 
     // Pre-built dropdown options for direct consumption by UI components
     const dropdowns = {
