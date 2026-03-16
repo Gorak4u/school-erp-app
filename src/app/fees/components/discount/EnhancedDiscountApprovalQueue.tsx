@@ -105,16 +105,9 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
       }
       
       const data = await res.json();
-      
-      if (data.success) {
-        console.log('DEBUG API Response:', { 
-          totalRecords: data.pagination?.total, 
-          totalPages: data.pagination?.totalPages,
-          currentPage,
-          pageSize,
-          dataLength: data.data?.length 
-        });
-        setRequests(data.data);
+        
+      if (data.success && data.data && Array.isArray(data.data.requests)) {
+        setRequests(data.data.requests);
         setTotalRecords(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 0);
       } else {

@@ -58,14 +58,7 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
       const res = await fetch(url);
       const data = await res.json();
       
-      if (data.success) {
-        console.log('DEBUG Audit API Response:', { 
-          totalRecords: data.pagination?.total, 
-          totalPages: data.pagination?.totalPages,
-          currentPage,
-          pageSize,
-          dataLength: data.data?.length 
-        });
+      if (data.success && Array.isArray(data.data)) {
         setLogs(data.data);
         setTotalRecords(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 0);

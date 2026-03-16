@@ -49,12 +49,9 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
         }
 
         // Fetch fee structures
-        console.log('Fetching fee structures...');
         const feesRes = await fetch('/api/fees/structures');
-        console.log('Fee structures response status:', feesRes.status);
         if (feesRes.ok) {
           const feesData = await feesRes.json();
-          console.log('Fee structures data:', feesData);
           setFeeStructures(feesData.feeStructures || []);
         } else {
           const errorData = await feesRes.json();
@@ -63,14 +60,11 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
 
         // Fetch student fee data
         if (studentId) {
-          console.log('Fetching student fee data for:', studentId);
           const studentFeesRes = await fetch(`/api/fees/students/${studentId}/summary`);
           if (studentFeesRes.ok) {
             const studentFeesData = await studentFeesRes.json();
-            console.log('Student fee data:', studentFeesData);
             setStudentFeeData(studentFeesData.feeBreakdown || []);
           } else {
-            console.log('No student fee data available, using fee structure amounts');
           }
         }
       } catch (err) {

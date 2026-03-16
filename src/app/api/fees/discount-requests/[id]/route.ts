@@ -81,7 +81,6 @@ export async function PATCH(
     }
 
     const approverName = await resolveUserDisplayName(ctx.userId, ctx.email);
-    console.log('DEBUG resolveUserDisplayName (approver):', { userId: ctx.userId, email: ctx.email, approverName });
 
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'cancelled';

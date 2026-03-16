@@ -60,12 +60,9 @@ export default function BulkFeeOperations({ theme, selectedStudents, onClose, on
   useEffect(() => {
     const fetchFeeStructures = async () => {
       try {
-        console.log('Bulk operations: Fetching fee structures...');
         const res = await fetch('/api/fees/structures');
-        console.log('Bulk operations: Fee structures response status:', res.status);
         if (res.ok) {
           const data = await res.json();
-          console.log('Bulk operations: Fee structures data:', data);
           setFeeStructures(data.feeStructures || []);
         } else {
           const errorData = await res.json();

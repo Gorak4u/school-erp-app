@@ -89,7 +89,6 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   // Lazy load payment history when tab is clicked
   const fetchPaymentHistory = async () => {
     if (!studentId && !studentData?.id) {
-      console.log('No student ID available:', { studentId, studentDataId: studentData?.id });
       return;
     }
     
@@ -111,7 +110,6 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
       const response = await fetch(apiUrl);
       const data = await response.json();
       
-      console.log('Payment history API response:', data);
       
       if (data.success) {
         setPaymentHistoryData(data.data);
@@ -127,9 +125,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
 
   // Fetch payment history when tab is activated or filters change
   useEffect(() => {
-    console.log('Tab changed to:', activeTab);
     if (activeTab === 'payment-history') {
-      console.log('Payment history tab activated - fetching data');
       fetchPaymentHistory();
     }
   }, [activeTab, paymentHistoryPage, paymentHistorySearch, paymentHistoryFilters]);

@@ -101,7 +101,6 @@ export async function POST(
       select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true, pendingAmount: true }
     });
 
-    console.log('DEBUG: Discount Application Query', {
       discountReqId: id,
       academicYear: discountReq.academicYear,
       scope: discountReq.scope,
@@ -123,7 +122,6 @@ export async function POST(
       },
       select: { id: true, status: true, academicYear: true, feeStructureId: true }
     });
-    console.log('DEBUG: All student fee records:', allStudentRecords);
 
     // Debug: Check if student has any fee records in any academic year
     const anyYearRecords = await (schoolPrisma as any).FeeRecord.findMany({
@@ -133,7 +131,6 @@ export async function POST(
       select: { id: true, status: true, academicYear: true, feeStructureId: true },
       take: 5
     });
-    console.log('DEBUG: Student fee records in any year:', anyYearRecords);
 
     if (targetRecords.length === 0) {
       return NextResponse.json({ error: 'No matching fee records found to apply discount' }, { status: 404 });
@@ -239,7 +236,6 @@ export async function POST(
       );
     }
 
-    console.log(`DISCOUNT APPLICATION SUMMARY:`, {
       totalRecords: targetRecords.length,
       appliedCount: applications.length,
       skippedCount: skippedRecords.length,

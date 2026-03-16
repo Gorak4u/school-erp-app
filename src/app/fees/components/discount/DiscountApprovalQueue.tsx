@@ -265,22 +265,16 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                   <p className={textSecondary}>Fee Structures</p>
                   <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                     {(() => {
-                      console.log('DEBUG - targetType:', selectedRequest.targetType);
-                      console.log('DEBUG - feeStructureIds:', selectedRequest.feeStructureIds);
-                      console.log('DEBUG - feeStructures available:', feeStructures.length);
                       
                       if (selectedRequest.targetType === 'fee_structure') {
                         let feeStructureIds = [];
                         try {
                           feeStructureIds = JSON.parse(selectedRequest.feeStructureIds || '[]');
-                          console.log('DEBUG - Parsed IDs:', feeStructureIds);
                         } catch (e) {
-                          console.error('DEBUG - Parse error:', e);
                           feeStructureIds = [];
                         }
                         
                         const structures = getFeeStructureNames(feeStructureIds);
-                        console.log('DEBUG - Mapped structures:', structures);
                         
                         if (structures.length > 0) {
                           return (

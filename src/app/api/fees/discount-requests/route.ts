@@ -320,7 +320,6 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).DiscountRequest.count({ where }),
     ]);
 
-    console.log('DEBUG - Discount Requests Query:', {
       where,
       page,
       pageSize,
@@ -396,11 +395,9 @@ export async function POST(request: NextRequest) {
 
     // Log validation results for audit purposes
     if (discountValidation.warning) {
-      console.log('DISCOUNT REQUEST VALIDATION WARNING:', discountValidation.warning);
     }
 
     const requesterName = await resolveUserDisplayName(ctx.userId, ctx.email);
-    console.log('DEBUG resolveUserDisplayName:', { userId: ctx.userId, email: ctx.email, requesterName });
 
     // Create request in transaction to ensure audit log is also created
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
