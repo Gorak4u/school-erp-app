@@ -35,6 +35,10 @@ export default function StudentForm({
 }) {
   const { mediums, classes, sections, dropdowns, loading } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState('admission');
+  
+  // Initialize mediumId if only one medium exists
+  const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
+  const initialLanguageMedium = !student && mediums.length === 1 ? mediums[0].name : (student?.languageMedium || '');
 
   const inputCls = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
     theme === 'dark'
@@ -71,12 +75,12 @@ export default function StudentForm({
     pinCode: student?.pinCode || '',
     admissionNo: student?.admissionNo || `${new Date().getFullYear()}0001`,
     admissionDate: student?.admissionDate || new Date().toISOString().split('T')[0],
-    mediumId: student?._mediumId || '',
+    mediumId: initialMediumId,
     classId: student?._classId || '',
     sectionId: student?._sectionId || '',
     class: student?.class || '',
     section: student?.section || '',
-    languageMedium: student?.languageMedium || '',
+    languageMedium: initialLanguageMedium,
     rollNo: student?.rollNo || '',
     board: student?.board || '',
     previousSchool: student?.previousSchool || '',
@@ -142,20 +146,6 @@ export default function StudentForm({
       : [],
     [sections, formData.classId]
   );
-
-  // Auto-select medium when only one exists
-  useEffect(() => {
-    console.log('Medium auto-selection check:', { mediums: mediums.length, loading, currentMediumId: formData.mediumId });
-    if (!loading && mediums.length === 1 && !formData.mediumId) {
-      const medium = mediums[0];
-      console.log('Auto-selecting medium:', medium);
-      setFormData(prev => ({ 
-        ...prev, 
-        mediumId: medium.id, 
-        languageMedium: medium.name || ''
-      }));
-    }
-  }, [mediums, loading, formData.mediumId]);
 
   // Load fee structures when class changes
   useEffect(() => {
