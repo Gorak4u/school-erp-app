@@ -69,6 +69,16 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
         throw new Error(data.error || `Failed to ${action} request`);
       }
 
+      // Show success toast
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Success',
+          message: data.message || `Request ${action}d successfully`,
+          duration: 3000
+        });
+      }
+
       setSelectedRequest(null);
       setApprovalNote('');
       fetchRequests(); // Refresh list

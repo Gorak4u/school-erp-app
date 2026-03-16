@@ -170,7 +170,13 @@ export async function PATCH(
       }
     }
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({ 
+      success: true, 
+      data: result,
+      message: action === 'approve' ? 'Discount request approved successfully' : 
+               action === 'reject' ? 'Discount request rejected' : 
+               'Discount request cancelled'
+    });
   } catch (err) {
     console.error('PATCH /api/fees/discount-requests/[id]:', err);
     return NextResponse.json({ error: 'Failed to update discount request' }, { status: 500 });
