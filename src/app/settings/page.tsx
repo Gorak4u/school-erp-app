@@ -99,7 +99,7 @@ export default function SettingsPage() {
       if (secRes.status === 'fulfilled') setSections(secRes.value.sections || []);
       if (tRes.status === 'fulfilled') setTimings(tRes.value.timings || []);
       if (sRes.status === 'fulfilled') setSettingsMap(sRes.value.settings || {});
-      if (fsRes.status === 'fulfilled') setFeeStructures(fsRes.value.structures || []);
+      if (fsRes.status === 'fulfilled') setFeeStructures(fsRes.value.feeStructures || []);
     } catch (e: any) {
       showToast({ type: 'error', title: 'Failed to load data', message: e.message });
     } finally {
