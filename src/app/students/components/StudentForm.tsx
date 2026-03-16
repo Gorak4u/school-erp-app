@@ -1,12 +1,13 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 const TABS = [
   { id: 'admission', label: 'Admission' },
+  { id: 'fees', label: 'Fee Information' },
   { id: 'personal', label: 'Personal' },
   { id: 'contact', label: 'Contact' },
   { id: 'parents', label: 'Father Mother Name' },
@@ -114,6 +115,19 @@ export default function StudentForm({
 
   const set = (key: string, val: any) => setFormData(prev => ({ ...prev, [key]: val }));
 
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [feesLoading, setFeesLoading] = useState(false);
+  const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([]);
+  const [discountData, setDiscountData] = useState({
+    hasDiscount: false,
+    discountType: 'percentage',
+    discountValue: 0,
+    maxCapAmount: '',
+    reason: '',
+    validFrom: new Date().toISOString().split('T')[0],
+    validTo: '',
+  });
+
   // Cascaded dropdown data
   const filteredClasses = formData.mediumId
     ? classes.filter(c => c.mediumId === formData.mediumId)
@@ -121,6 +135,21 @@ export default function StudentForm({
   const filteredSections = formData.classId
     ? sections.filter(s => s.classId === formData.classId)
     : [];
+
+  // Load fee structures when class changes
+  useEffect(() => {
+    if (!formData.classId) { setFeeStructures([]); setSelectedFeeIds([]); return; }
+    setFeesLoading(true);
+    fetch(`/api/fees/structures?classId=${formData.classId}`)
+      .then(r => r.json())
+      .then(data => {
+        const structs = data.feeStructures || [];
+        setFeeStructures(structs);
+        setSelectedFeeIds(structs.map((f: any) => f.id));
+      })
+      .catch(() => setFeeStructures([]))
+      .finally(() => setFeesLoading(false));
+  }, [formData.classId]);
 
   // Auto-save
   useEffect(() => {
@@ -141,14 +170,46 @@ export default function StudentForm({
     } catch {}
   }, []);
 
+  const feeCalcs = useMemo(() => {
+    const selected = feeStructures.filter(f => selectedFeeIds.includes(f.id));
+    const baseTotal = selected.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+    if (!discountData.hasDiscount || !discountData.discountValue) {
+      return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected };
+    }
+    let discountAmount = 0;
+    if (discountData.discountType === 'percentage') {
+      discountAmount = (baseTotal * Number(discountData.discountValue)) / 100;
+      if (discountData.maxCapAmount) discountAmount = Math.min(discountAmount, Number(discountData.maxCapAmount));
+    } else if (discountData.discountType === 'fixed') {
+      discountAmount = Math.min(Number(discountData.discountValue), baseTotal);
+    } else if (discountData.discountType === 'full_waiver') {
+      discountAmount = baseTotal;
+    }
+    return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected };
+  }, [feeStructures, selectedFeeIds, discountData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { alert('Full Name is required'); return; }
     if (!formData.dateOfBirth) { alert('Date of Birth is required'); return; }
     if (!formData.mediumId) { alert('Please select a Language Medium'); return; }
     if (!formData.classId) { alert('Please select a Class'); return; }
+    if (discountData.hasDiscount) {
+      if (discountData.discountType !== 'full_waiver' && (!discountData.discountValue || Number(discountData.discountValue) <= 0)) {
+        alert('Please enter a valid discount amount'); return;
+      }
+      if (!discountData.reason.trim()) { alert('Please provide a reason for the discount'); return; }
+      if (discountData.discountType === 'percentage' && Number(discountData.discountValue) > 100) {
+        alert('Percentage discount cannot exceed 100%'); return;
+      }
+    }
     localStorage.removeItem('studentFormAutoSave');
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      ...(discountData.hasDiscount && {
+        _discountInfo: { ...discountData, feeStructureIds: selectedFeeIds },
+      }),
+    } as any);
   };
 
   const tabBtnCls = (id: string) =>
@@ -304,6 +365,236 @@ export default function StudentForm({
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── TAB: FEE INFORMATION ─────────────────────── */}
+          {activeTab === 'fees' && (
+            <div className="space-y-4">
+              {/* Fee Structure List */}
+              <div className={sectionCls}>
+                <p className={sectionTitleCls}>💰 Fee Structure{formData.class ? ` — ${formData.class}` : ''}</p>
+                {!formData.classId ? (
+                  <div className={`text-sm p-3 rounded-lg text-center ${theme === 'dark' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
+                    ⚠️ Please select a Class in the Admission tab first to load fee structures
+                  </div>
+                ) : feesLoading ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">Loading fee structures…</div>
+                ) : feeStructures.length === 0 ? (
+                  <div className={`text-sm p-3 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                    No fee structures configured for this class.{' '}
+                    <a href="/settings" className="text-blue-500 underline">Configure in Settings</a>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {feeStructures.map((fee: any) => (
+                      <label key={fee.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedFeeIds.includes(fee.id)
+                          ? theme === 'dark' ? 'border-blue-500 bg-blue-900/20' : 'border-blue-400 bg-blue-50'
+                          : theme === 'dark' ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedFeeIds.includes(fee.id)}
+                            onChange={e => setSelectedFeeIds(prev => e.target.checked ? [...prev, fee.id] : prev.filter((id: string) => id !== fee.id))}
+                            className="w-4 h-4 accent-blue-600"
+                          />
+                          <div>
+                            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{fee.name}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{fee.category || fee.feeCategory || 'General'}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                            ₹{Number(fee.amount || 0).toLocaleString('en-IN')}
+                          </p>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>per year</p>
+                        </div>
+                      </label>
+                    ))}
+                    <div className={`flex justify-between items-center p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <span className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Selected Total:</span>
+                      <span className="text-blue-500 text-lg font-bold">₹{feeCalcs.baseTotal.toLocaleString('en-IN')}/year</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Discount Toggle */}
+              <div className={sectionCls}>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <div className="relative flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={discountData.hasDiscount}
+                      onChange={e => setDiscountData(prev => ({ ...prev, hasDiscount: e.target.checked }))}
+                    />
+                    <div className={`w-11 h-6 rounded-full transition-colors ${discountData.hasDiscount ? 'bg-green-500' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${discountData.hasDiscount ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </div>
+                  <div>
+                    <p className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Apply Discount / Scholarship</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Creates a discount request pending admin approval • Email will be sent to approvers</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Discount Details Form */}
+              {discountData.hasDiscount && (
+                <div className={sectionCls}>
+                  <p className={sectionTitleCls}>🎫 Discount Details</p>
+                  <div className="space-y-3">
+                    {/* Type */}
+                    <div>
+                      <label className={labelCls}>Discount Type</label>
+                      <div className="flex gap-4 mt-1 flex-wrap">
+                        {[
+                          { value: 'percentage', label: '% Percentage' },
+                          { value: 'fixed', label: '₹ Fixed Amount' },
+                          { value: 'full_waiver', label: '🎓 Full Waiver' },
+                        ].map(opt => (
+                          <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="discountType"
+                              value={opt.value}
+                              checked={discountData.discountType === opt.value}
+                              onChange={() => setDiscountData(prev => ({ ...prev, discountType: opt.value, discountValue: 0 }))}
+                              className="accent-blue-600"
+                            />
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Amount */}
+                    {discountData.discountType !== 'full_waiver' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelCls}>{discountData.discountType === 'percentage' ? 'Discount (%)' : 'Discount Amount (₹)'}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={discountData.discountType === 'percentage' ? 100 : undefined}
+                            placeholder={discountData.discountType === 'percentage' ? 'e.g. 10' : 'e.g. 5000'}
+                            value={discountData.discountValue || ''}
+                            onChange={e => setDiscountData(prev => ({ ...prev, discountValue: Number(e.target.value) }))}
+                            className={inputCls}
+                          />
+                        </div>
+                        {discountData.discountType === 'percentage' && (
+                          <div>
+                            <label className={labelCls}>Max Cap (₹) <span className={`normal-case font-normal ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>optional</span></label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 10000"
+                              value={discountData.maxCapAmount || ''}
+                              onChange={e => setDiscountData(prev => ({ ...prev, maxCapAmount: e.target.value }))}
+                              className={inputCls}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Reason */}
+                    <div>
+                      <label className={labelCls}>Reason / Scholarship Type *</label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Merit scholarship, Financial aid, Sibling discount, Sports quota…"
+                        value={discountData.reason}
+                        onChange={e => setDiscountData(prev => ({ ...prev, reason: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </div>
+
+                    {/* Validity dates */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>Valid From *</label>
+                        <input type="date" value={discountData.validFrom} onChange={e => setDiscountData(prev => ({ ...prev, validFrom: e.target.value }))} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Valid To <span className={`normal-case font-normal ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>optional</span></label>
+                        <input type="date" value={discountData.validTo} onChange={e => setDiscountData(prev => ({ ...prev, validTo: e.target.value }))} className={inputCls} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Live Fee Breakdown */}
+              {feeCalcs.selected.length > 0 && (
+                <div className={`${sectionCls} ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? theme === 'dark' ? 'border-green-700' : 'border-green-300' : ''}`}>
+                  <p className={sectionTitleCls}>📊 Fee Summary</p>
+                  <div className="space-y-2">
+                    {feeCalcs.selected.map((fee: any) => {
+                      const perFeeDiscount = feeCalcs.discountAmount > 0 ? Math.round(Number(fee.amount) * (feeCalcs.discountAmount / feeCalcs.baseTotal)) : 0;
+                      return (
+                        <div key={fee.id} className="flex justify-between items-center py-1">
+                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{fee.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>₹{Number(fee.amount).toLocaleString('en-IN')}</span>
+                            {perFeeDiscount > 0 && <span className="text-xs text-green-500">(-₹{perFeeDiscount.toLocaleString('en-IN')})</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
+                    <div className="flex justify-between">
+                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Total Fees:</span>
+                      <span className={`text-sm font-semibold ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                        ₹{feeCalcs.baseTotal.toLocaleString('en-IN')}/year
+                      </span>
+                    </div>
+                    {discountData.hasDiscount && feeCalcs.discountAmount > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-green-600 dark:text-green-400">Discount Applied:</span>
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">-₹{feeCalcs.discountAmount.toLocaleString('en-IN')}/year</span>
+                        </div>
+                        <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Final Annual Fees:</span>
+                          <span className="text-base font-bold text-blue-500">₹{feeCalcs.finalTotal.toLocaleString('en-IN')}/year</span>
+                        </div>
+                        <div className={`flex items-center justify-center gap-2 p-2 rounded-lg mt-1 ${theme === 'dark' ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
+                          <span className="text-sm font-semibold">🎉 Savings: ₹{feeCalcs.discountAmount.toLocaleString('en-IN')} ({feeCalcs.savingsPercent}% off)</span>
+                        </div>
+                      </>
+                    )}
+                    {/* Payment breakdowns */}
+                    <div className={`mt-3 p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                      <p className={`text-xs font-semibold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>PAYMENT OPTIONS</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        {[
+                          { label: 'Annual', divisor: 1 },
+                          { label: 'Quarterly', divisor: 4 },
+                          { label: 'Monthly', divisor: 12 },
+                        ].map(opt => (
+                          <div key={opt.label} className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{opt.label}</p>
+                            <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                              ₹{Math.round(feeCalcs.finalTotal / opt.divisor).toLocaleString('en-IN')}
+                            </p>
+                            {opt.divisor > 1 && <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>× {opt.divisor}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {discountData.hasDiscount && (
+                    <p className={`text-xs mt-3 flex items-center gap-1 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                      ⚠️ Discount request will be submitted for admin approval. An email notification will be sent to all approvers.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

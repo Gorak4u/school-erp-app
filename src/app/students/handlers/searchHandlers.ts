@@ -421,8 +421,43 @@ export function createSearchHandlers(ctx: any) {
   const handleAddStudent = async (studentData: Partial<Student>) => {
     try {
       const { studentsApi } = await import('@/lib/apiClient');
-      const result = await studentsApi.create(studentData);
+      const { _discountInfo, ...cleanStudentData } = studentData as any;
+      const result = await studentsApi.create(cleanStudentData);
       if (result.student) {
+        // Create discount request if provided
+        let discountCreated = false;
+        if (_discountInfo?.hasDiscount) {
+          try {
+            const academicYear = result.student.academicYear ||
+              `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+            const discountRes = await fetch('/api/fees/discount-requests', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: `Discount for ${result.student.name}`,
+                description: _discountInfo.reason,
+                discountType: _discountInfo.discountType,
+                discountValue: Number(_discountInfo.discountValue) || 0,
+                maxCapAmount: _discountInfo.maxCapAmount ? Number(_discountInfo.maxCapAmount) : null,
+                scope: 'student',
+                targetType: 'individual',
+                studentIds: [result.student.id],
+                classIds: [],
+                sectionIds: [],
+                feeStructureIds: _discountInfo.feeStructureIds || [],
+                academicYear,
+                reason: _discountInfo.reason,
+                validFrom: _discountInfo.validFrom,
+                validTo: _discountInfo.validTo || null,
+              }),
+            });
+            if (discountRes.ok) discountCreated = true;
+            else console.error('Discount request failed:', await discountRes.text());
+          } catch (discountErr) {
+            console.error('Discount request creation failed:', discountErr);
+          }
+        }
+
         // Refresh the student list to get updated data
         const updatedResult = await studentsApi.list({ page: '1', pageSize: '50' });
         if (updatedResult.students) {
@@ -433,8 +468,10 @@ export function createSearchHandlers(ctx: any) {
           (window as any).toast({
             type: 'success',
             title: 'Student Added',
-            message: `${result.student.name} has been added successfully with admission number ${result.student.admissionNo}`,
-            duration: 4000
+            message: discountCreated
+              ? `${result.student.name} added (${result.student.admissionNo}). Discount request created & sent for approval.`
+              : `${result.student.name} has been added successfully with admission number ${result.student.admissionNo}`,
+            duration: 5000
           });
         }
       }

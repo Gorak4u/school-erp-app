@@ -6,10 +6,21 @@ async function request<T>(
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
+    credentials: 'include', // Ensure cookies are sent
     ...options,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+  if (!res.ok) {
+    // Enhanced error logging for debugging
+    console.error(`API Error: ${res.status} ${res.statusText}`, {
+      path,
+      status: res.status,
+      statusText: res.statusText,
+      data,
+      headers: Object.fromEntries(res.headers.entries())
+    });
+    throw new Error(data.error || `API error ${res.status}`);
+  }
   return data as T;
 }
 
