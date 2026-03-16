@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -140,8 +141,15 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status } = useSession();
 
   const refresh = useCallback(async () => {
+    // Only fetch if authenticated
+    if (status !== 'authenticated') {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);

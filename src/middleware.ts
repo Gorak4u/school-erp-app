@@ -10,7 +10,7 @@ import { extractSubdomain } from '@/lib/subdomain';
 export const runtime = 'nodejs';
 
 // Routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login', '/api/plans', '/api/auth'];
+const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login', '/api/plans', '/api/auth', '/api/register', '/api/forgot-password', '/api/reset-password'];
 
 // Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {

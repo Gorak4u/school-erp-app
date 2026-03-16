@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface Approval {
   id: string;
@@ -30,7 +31,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [showToast, setShowToast] = useState(false);
   const [previousCount, setPreviousCount] = useState(0);
 
+  const { status } = useSession();
+  
   const refresh = useCallback(async () => {
+    // Only fetch if authenticated
+    if (status !== 'authenticated') {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const response = await fetch('/api/notifications/pending-approvals');
