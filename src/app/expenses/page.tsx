@@ -55,6 +55,24 @@ export default function ExpensesPage() {
 
   // Filters
   const [expFilters, setExpFilters] = useState({ status: 'all', categoryId: '', dateFrom: '', dateTo: '', search: '', priority: 'all', academicYear: 'all' });
+  
+  // Budget filters
+  const [budgetSearch, setBudgetSearch] = useState('');
+  const [budgetStatusFilter, setBudgetStatusFilter] = useState('all');
+  const [budgetCategoryFilter, setBudgetCategoryFilter] = useState('');
+  const [budgetSortBy, setBudgetSortBy] = useState('name');
+  const [budgetSortOrder, setBudgetSortOrder] = useState('asc');
+  
+  // Category filters
+  const [catSearch, setCatSearch] = useState('');
+  const [catStatusFilter, setCatStatusFilter] = useState('all');
+  const [catSortBy, setCatSortBy] = useState('name');
+  const [catSortOrder, setCatSortOrder] = useState('asc');
+  
+  // Reports filters
+  const [reportDateFrom, setReportDateFrom] = useState('');
+  const [reportDateTo, setReportDateTo] = useState('');
+  const [reportCategoryFilter, setReportCategoryFilter] = useState('');
 
   // Expense form
   const [expFormShow, setExpFormShow] = useState(false);
@@ -338,7 +356,12 @@ export default function ExpensesPage() {
 
         {/* Tab Content */}
         {activeTab === 'dashboard' && (
-          <ExpenseDashboard analytics={analytics} isDark={isDark} onAddExpense={openAddExpense} />
+          <ExpenseReports 
+            analytics={analytics} isDark={isDark} onExport={exportCSV} academicYear={selectedAY}
+            dateFrom={reportDateFrom} dateTo={reportDateTo} setDateFrom={setReportDateFrom} setDateTo={setReportDateTo}
+            categoryFilter={reportCategoryFilter} setCategoryFilter={setReportCategoryFilter} categories={categories}
+            refreshAnalytics={fetchAnalytics}
+          />
         )}
 
         {activeTab === 'expenses' && (
@@ -365,36 +388,26 @@ export default function ExpensesPage() {
 
         {activeTab === 'budgets' && (
           <BudgetManager
-            budgets={budgets}
-            loading={loading}
-            isDark={isDark}
-            categories={categories}
-            form={budgetForm}
-            setForm={setBudgetForm}
-            showForm={budgetFormShow}
-            setShowForm={setBudgetFormShow}
-            editing={editingBudget}
-            setEditing={setEditingBudget}
-            onSave={saveBudget}
-            onDelete={deleteBudget}
-            saving={saving}
+            budgets={budgets} loading={loading} isDark={isDark} categories={categories}
+            form={budgetForm} setForm={setBudgetForm} showForm={budgetFormShow} setShowForm={setBudgetFormShow}
+            editing={editingBudget} setEditing={setEditingBudget} onSave={saveBudget} onDelete={deleteBudget} saving={saving}
+            search={budgetSearch} setSearch={setBudgetSearch}
+            statusFilter={budgetStatusFilter} setStatusFilter={setBudgetStatusFilter}
+            categoryFilter={budgetCategoryFilter} setCategoryFilter={setBudgetCategoryFilter}
+            sortBy={budgetSortBy} setSortBy={setBudgetSortBy}
+            sortOrder={budgetSortOrder} setSortOrder={setBudgetSortOrder}
           />
         )}
 
         {activeTab === 'categories' && (
           <CategoryManager
-            categories={categories}
-            isDark={isDark}
-            form={catForm}
-            setForm={setCatForm}
-            showForm={catFormShow}
-            setShowForm={setCatFormShow}
-            editing={editingCat}
-            setEditing={setEditingCat}
-            onSave={saveCategory}
-            onDelete={deleteCategory}
-            onSeedDefaults={seedCategories}
-            saving={saving}
+            categories={categories} isDark={isDark}
+            form={catForm} setForm={setCatForm} showForm={catFormShow} setShowForm={setCatFormShow}
+            editing={editingCat} setEditing={setEditingCat} onSave={saveCategory} onDelete={deleteCategory} onSeedDefaults={seedCategories} saving={saving}
+            search={catSearch} setSearch={setCatSearch}
+            statusFilter={catStatusFilter} setStatusFilter={setCatStatusFilter}
+            sortBy={catSortBy} setSortBy={setCatSortBy}
+            sortOrder={catSortOrder} setSortOrder={setCatSortOrder}
           />
         )}
 

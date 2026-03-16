@@ -15,6 +15,14 @@ interface Props {
   onDelete: (id: string) => void;
   onSeedDefaults: () => void;
   saving: boolean;
+  search: string;
+  setSearch: (s: string) => void;
+  statusFilter: string;
+  setStatusFilter: (s: string) => void;
+  sortBy: string;
+  setSortBy: (s: string) => void;
+  sortOrder: string;
+  setSortOrder: (s: string) => void;
 }
 
 const ICON_OPTIONS = ['📦','👥','🏗️','📚','🚌','⚡','🎉','🗂️','💊','🖥️','🏆','🎨','🔧','📋','🏫','🌿'];
@@ -22,6 +30,7 @@ const COLOR_OPTIONS = ['#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec489
 
 export default function CategoryManager({
   categories, isDark, form, setForm, showForm, setShowForm, editing, setEditing, onSave, onDelete, onSeedDefaults, saving,
+  search, setSearch, statusFilter, setStatusFilter, sortBy, setSortBy, sortOrder, setSortOrder,
 }: Props) {
   const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const text = isDark ? 'text-white' : 'text-gray-900';
@@ -43,12 +52,29 @@ export default function CategoryManager({
 
   const parentCats = categories.filter(c => !c.parentId);
 
+  // Filter and sort categories
+  const filteredCategories = categories.filter(c => {
+    const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.description && c.description.toLowerCase().includes(search.toLowerCase()));
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' && c.isActive) || (statusFilter === 'inactive' && !c.isActive);
+    return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    const aValue = a[sortBy as keyof typeof a] || '';
+    const bValue = b[sortBy as keyof typeof b] || '';
+    const modifier = sortOrder === 'desc' ? -1 : 1;
+    if (sortBy === '_count') {
+      const aCount = a._count?.expenses || 0;
+      const bCount = b._count?.expenses || 0;
+      return (aCount - bCount) * modifier;
+    }
+    return String(aValue).localeCompare(String(bValue)) * modifier;
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className={`text-lg font-bold ${text}`}>Expense Categories</h2>
-          <p className={`text-sm ${sub}`}>{categories.length} categor{categories.length !== 1 ? 'ies' : 'y'} configured</p>
+          <p className={`text-sm ${sub}`}>{filteredCategories.length} of {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'} shown</p>
         </div>
         <div className="flex gap-2">
           {categories.length === 0 && (
@@ -60,6 +86,39 @@ export default function CategoryManager({
           <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">+ New Category</button>
         </div>
       </div>
+
+      {/* Filters Bar */}
+      {categories.length > 0 && (
+        <div className={`rounded-xl border p-4 ${card}`}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-2">
+              <input className={`${inp} w-full`} placeholder="🔍 Search category name or description..." value={search}
+                onChange={e => setSearch(e.target.value)} />
+            </div>
+            <select className={`${inp} w-full`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <div className="flex gap-2">
+              <select className={`${inp} flex-1`} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="name">Name</option>
+                <option value="createdAt">Created</option>
+                <option value="_count">Expense Count</option>
+              </select>
+              <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} className={`px-3 py-2 rounded-lg border text-sm ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <span className={`text-xs ${sub}`}>Showing {filteredCategories.length} of {categories.length} categories</span>
+            <button onClick={() => { setSearch(''); setStatusFilter('all'); setSortBy('name'); setSortOrder('asc'); }} className={`text-xs ${sub} hover:text-blue-500 transition-colors`}>
+              Clear filters
+            </button>
+          </div>
+        </div>
+      )}
 
       {categories.length === 0 ? (
         <div className={`rounded-xl border p-12 text-center ${card}`}>
@@ -73,9 +132,16 @@ export default function CategoryManager({
             <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">+ Custom Category</button>
           </div>
         </div>
+      ) : filteredCategories.length === 0 ? (
+        <div className={`rounded-xl border p-12 text-center ${card}`}>
+          <div className="text-5xl mb-3">🗂️</div>
+          <p className={`font-medium ${text}`}>No categories found</p>
+          <p className={`text-sm mt-1 ${sub}`}>Try adjusting your search or filters</p>
+          <button onClick={() => { setSearch(''); setStatusFilter('all'); setSortBy('name'); setSortOrder('asc'); }} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Clear Filters</button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {categories.map(c => (
+          {filteredCategories.map(c => (
             <div key={c.id} className={`rounded-xl border p-4 group hover:shadow-md transition-shadow ${card}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">

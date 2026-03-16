@@ -7,9 +7,17 @@ interface Props {
   isDark: boolean;
   onExport: () => void;
   academicYear: string;
+  dateFrom: string;
+  dateTo: string;
+  setDateFrom: (d: string) => void;
+  setDateTo: (d: string) => void;
+  categoryFilter: string;
+  setCategoryFilter: (c: string) => void;
+  categories: any[];
+  refreshAnalytics: () => void;
 }
 
-export default function ExpenseReports({ analytics, isDark, onExport, academicYear }: Props) {
+export default function ExpenseReports({ analytics, isDark, onExport, academicYear, dateFrom, dateTo, setDateFrom, setDateTo, categoryFilter, setCategoryFilter, categories, refreshAnalytics }: Props) {
   const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const sub  = isDark ? 'text-gray-400' : 'text-gray-500';
@@ -33,8 +41,55 @@ export default function ExpenseReports({ analytics, isDark, onExport, academicYe
   const { summary, categoryBreakdown, statusBreakdown, priorityBreakdown, monthlyTrend } = analytics;
   const totalCatAmount = categoryBreakdown?.reduce((s: number, c: any) => s + c.total, 0) || 1;
 
+  const clearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setCategoryFilter('');
+  };
+
+  const hasFilters = dateFrom || dateTo || categoryFilter;
+
   return (
     <div className="space-y-6">
+      {/* Filters Bar */}
+      <div className={`rounded-xl border p-4 ${card}`}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className={`block text-xs font-semibold uppercase tracking-wide mb-1 ${sub}`}>From Date</label>
+            <input type="date" className={`${inp} w-full`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div>
+            <label className={`block text-xs font-semibold uppercase tracking-wide mb-1 ${sub}`}>To Date</label>
+            <input type="date" className={`${inp} w-full`} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+          <div>
+            <label className={`block text-xs font-semibold uppercase tracking-wide mb-1 ${sub}`}>Category</label>
+            <select className={`${inp} w-full`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </select>
+          </div>
+          <div className="flex items-end gap-2">
+            <button onClick={refreshAnalytics} className={`flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors`}>
+              🔄 Refresh
+            </button>
+            {hasFilters && (
+              <button onClick={clearFilters} className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        {hasFilters && (
+          <div className="flex items-center gap-2 mt-3">
+            <span className={`text-xs ${sub}`}>Active filters:</span>
+            {dateFrom && <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">From: {dateFrom}</span>}
+            {dateTo && <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">To: {dateTo}</span>}
+            {categoryFilter && <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">{categories.find(c => c.id === categoryFilter)?.name || 'Category'}</span>}
+          </div>
+        )}
+      </div>
+
       {/* Summary Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

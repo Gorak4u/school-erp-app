@@ -52,13 +52,58 @@ export default function TransportPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // Student filter
+  // Filters and Search
+  const [routeSearch, setRouteSearch] = useState('');
+  const [routeStatusFilter, setRouteStatusFilter] = useState('all');
+  const [routeAYFilter, setRouteAYFilter] = useState('all');
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
+  const [vehicleStatusFilter, setVehicleStatusFilter] = useState('all');
+  const [studentSearch, setStudentSearch] = useState('');
   const [studentRouteFilter, setStudentRouteFilter] = useState('');
+  const [studentStatusFilter, setStudentStatusFilter] = useState('all');
 
   const showMsg = (msg: string, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 4000); }
     else { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); }
   };
+
+  // Filter functions
+  const filteredRoutes = routes.filter(r => {
+    const matchesSearch = !routeSearch || 
+      r.routeNumber.toLowerCase().includes(routeSearch.toLowerCase()) ||
+      r.routeName.toLowerCase().includes(routeSearch.toLowerCase()) ||
+      r.description?.toLowerCase().includes(routeSearch.toLowerCase());
+    const matchesStatus = routeStatusFilter === 'all' || 
+      (routeStatusFilter === 'active' && r.isActive) ||
+      (routeStatusFilter === 'inactive' && !r.isActive);
+    const matchesAY = routeAYFilter === 'all' || r.academicYearId === routeAYFilter;
+    return matchesSearch && matchesStatus && matchesAY;
+  });
+
+  const filteredVehicles = vehicles.filter(v => {
+    const matchesSearch = !vehicleSearch ||
+      v.vehicleNumber.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+      v.driverName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+      v.registrationNo?.toLowerCase().includes(vehicleSearch.toLowerCase());
+    const matchesType = vehicleTypeFilter === 'all' || v.vehicleType === vehicleTypeFilter;
+    const matchesStatus = vehicleStatusFilter === 'all' ||
+      (vehicleStatusFilter === 'active' && v.isActive) ||
+      (vehicleStatusFilter === 'inactive' && !v.isActive);
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = !studentSearch ||
+      s.student?.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      s.student?.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      s.pickupStop.toLowerCase().includes(studentSearch.toLowerCase());
+    const matchesRoute = !studentRouteFilter || s.routeId === studentRouteFilter;
+    const matchesStatus = studentStatusFilter === 'all' ||
+      (studentStatusFilter === 'active' && s.isActive) ||
+      (studentStatusFilter === 'inactive' && !s.isActive);
+    return matchesSearch && matchesRoute && matchesStatus;
+  });
 
   const fetchStats = useCallback(async () => {
     try {
@@ -359,11 +404,53 @@ export default function TransportPage() {
         {/* ── ROUTES ──────────────────────────────────────────────────────── */}
         {activeTab === 'routes' && (
           <div>
-            <div className="flex justify-end mb-4">
-              <button onClick={openCreateRoute} className={btnPrimary}>+ Add Route</button>
+            {/* Search and Filters */}
+            <div className={`rounded-xl border p-4 mb-4 ${card}`}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className={label}>Search Routes</label>
+                  <input
+                    type="text"
+                    placeholder="Route number, name, description..."
+                    value={routeSearch}
+                    onChange={(e) => setRouteSearch(e.target.value)}
+                    className={input}
+                  />
+                </div>
+                <div>
+                  <label className={label}>Academic Year</label>
+                  <select value={routeAYFilter} onChange={(e) => setRouteAYFilter(e.target.value)} className={input}>
+                    <option value="all">All Years</option>
+                    {academicYears.map(ay => (
+                      <option key={ay.id} value={ay.id}>{ay.name || ay.year}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={label}>Status</label>
+                  <select value={routeStatusFilter} onChange={(e) => setRouteStatusFilter(e.target.value)} className={input}>
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <button 
+                    onClick={() => { setRouteSearch(''); setRouteAYFilter('all'); setRouteStatusFilter('all'); }}
+                    className={btnSecondary}
+                  >
+                    Clear Filters
+                  </button>
+                  <button onClick={openCreateRoute} className={btnPrimary}>+ Add Route</button>
+                </div>
+              </div>
+              <div className={`text-xs ${subtext} mt-2`}>
+                Showing {filteredRoutes.length} of {routes.length} routes
+              </div>
             </div>
+
             <div className={`rounded-xl border overflow-hidden ${card}`}>
-              {routes.length === 0 ? (
+              {filteredRoutes.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No routes found. Create your first transport route.</div>
               ) : (
                 <table className="w-full text-sm">
@@ -375,7 +462,7 @@ export default function TransportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {routes.map(r => {
+                    {filteredRoutes.map(r => {
                       const stopsArr = (() => { try { return JSON.parse(r.stops || '[]'); } catch { return []; } })();
                       return (
                         <tr key={r.id} className={`border-t ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-100 hover:bg-gray-50'}`}>
@@ -420,11 +507,53 @@ export default function TransportPage() {
         {/* ── VEHICLES ────────────────────────────────────────────────────── */}
         {activeTab === 'vehicles' && (
           <div>
-            <div className="flex justify-end mb-4">
-              <button onClick={openCreateVehicle} className={btnPrimary}>+ Add Vehicle</button>
+            {/* Search and Filters */}
+            <div className={`rounded-xl border p-4 mb-4 ${card}`}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className={label}>Search Vehicles</label>
+                  <input
+                    type="text"
+                    placeholder="Vehicle number, driver, registration..."
+                    value={vehicleSearch}
+                    onChange={(e) => setVehicleSearch(e.target.value)}
+                    className={input}
+                  />
+                </div>
+                <div>
+                  <label className={label}>Vehicle Type</label>
+                  <select value={vehicleTypeFilter} onChange={(e) => setVehicleTypeFilter(e.target.value)} className={input}>
+                    <option value="all">All Types</option>
+                    {VEHICLE_TYPES.map(type => (
+                      <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={label}>Status</label>
+                  <select value={vehicleStatusFilter} onChange={(e) => setVehicleStatusFilter(e.target.value)} className={input}>
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <button 
+                    onClick={() => { setVehicleSearch(''); setVehicleTypeFilter('all'); setVehicleStatusFilter('all'); }}
+                    className={btnSecondary}
+                  >
+                    Clear Filters
+                  </button>
+                  <button onClick={openCreateVehicle} className={btnPrimary}>+ Add Vehicle</button>
+                </div>
+              </div>
+              <div className={`text-xs ${subtext} mt-2`}>
+                Showing {filteredVehicles.length} of {vehicles.length} vehicles
+              </div>
             </div>
+
             <div className={`rounded-xl border overflow-hidden ${card}`}>
-              {vehicles.length === 0 ? (
+              {filteredVehicles.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No vehicles found. Add your first vehicle.</div>
               ) : (
                 <table className="w-full text-sm">
@@ -436,7 +565,7 @@ export default function TransportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {vehicles.map(v => (
+                    {filteredVehicles.map(v => (
                       <tr key={v.id} className={`border-t ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-100 hover:bg-gray-50'}`}>
                         <td className={`px-4 py-3 font-medium ${text}`}>{v.vehicleNumber}</td>
                         <td className={`px-4 py-3 capitalize ${subtext}`}>{v.vehicleType}</td>
@@ -469,21 +598,57 @@ export default function TransportPage() {
         {/* ── STUDENTS ────────────────────────────────────────────────────── */}
         {activeTab === 'students' && (
           <div>
-            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-              <select
-                value={studentRouteFilter}
-                onChange={e => setStudentRouteFilter(e.target.value)}
-                className={`${input} w-auto min-w-[200px]`}
-              >
-                <option value="">All Routes</option>
-                {routes.map(r => <option key={r.id} value={r.id}>{r.routeNumber} — {r.routeName}</option>)}
-              </select>
-              <button onClick={() => { setAssignForm({ studentSearch: '', studentId: '', routeId: '', pickupStop: '', dropStop: '', monthlyFee: 0 }); setSearchResults([]); setShowAssignModal(true); }} className={btnPrimary}>
-                + Assign Student
-              </button>
+            {/* Search and Filters */}
+            <div className={`rounded-xl border p-4 mb-4 ${card}`}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className={label}>Search Students</label>
+                  <input
+                    type="text"
+                    placeholder="Name, admission no, pickup stop..."
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    className={input}
+                  />
+                </div>
+                <div>
+                  <label className={label}>Filter by Route</label>
+                  <select
+                    value={studentRouteFilter}
+                    onChange={e => setStudentRouteFilter(e.target.value)}
+                    className={input}
+                  >
+                    <option value="">All Routes</option>
+                    {routes.map(r => <option key={r.id} value={r.id}>{r.routeNumber} — {r.routeName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={label}>Status</label>
+                  <select value={studentStatusFilter} onChange={(e) => setStudentStatusFilter(e.target.value)} className={input}>
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <button 
+                    onClick={() => { setStudentSearch(''); setStudentRouteFilter(''); setStudentStatusFilter('all'); }}
+                    className={btnSecondary}
+                  >
+                    Clear Filters
+                  </button>
+                  <button onClick={() => { setAssignForm({ studentSearch: '', studentId: '', routeId: '', pickupStop: '', dropStop: '', monthlyFee: 0 }); setSearchResults([]); setShowAssignModal(true); }} className={btnPrimary}>
+                    + Assign Student
+                  </button>
+                </div>
+              </div>
+              <div className={`text-xs ${subtext} mt-2`}>
+                Showing {filteredStudents.length} of {students.length} student assignments
+              </div>
             </div>
+
             <div className={`rounded-xl border overflow-hidden ${card}`}>
-              {students.length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No student transport assignments found.</div>
               ) : (
                 <table className="w-full text-sm">
@@ -495,7 +660,7 @@ export default function TransportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map(a => (
+                    {filteredStudents.map(a => (
                       <tr key={a.id} className={`border-t ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-100 hover:bg-gray-50'}`}>
                         <td className={`px-4 py-3 ${text}`}>
                           {a.student?.name}<br />

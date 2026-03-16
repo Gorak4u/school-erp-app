@@ -16,10 +16,21 @@ interface Props {
   onSave: () => void;
   onDelete: (id: string) => void;
   saving: boolean;
+  search: string;
+  setSearch: (s: string) => void;
+  statusFilter: string;
+  setStatusFilter: (s: string) => void;
+  categoryFilter: string;
+  setCategoryFilter: (s: string) => void;
+  sortBy: string;
+  setSortBy: (s: string) => void;
+  sortOrder: string;
+  setSortOrder: (s: string) => void;
 }
 
 export default function BudgetManager({
   budgets, loading, isDark, categories, form, setForm, showForm, setShowForm, editing, setEditing, onSave, onDelete, saving,
+  search, setSearch, statusFilter, setStatusFilter, categoryFilter, setCategoryFilter, sortBy, setSortBy, sortOrder, setSortOrder,
 }: Props) {
   const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const text = isDark ? 'text-white' : 'text-gray-900';
@@ -39,14 +50,68 @@ export default function BudgetManager({
     setShowForm(true);
   };
 
+  // Filter and sort budgets
+  const filteredBudgets = budgets.filter(b => {
+    const matchesSearch = !search || b.name.toLowerCase().includes(search.toLowerCase()) || (b.description && b.description.toLowerCase().includes(search.toLowerCase()));
+    const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+    const matchesCategory = !categoryFilter || b.categoryId === categoryFilter;
+    return matchesSearch && matchesStatus && matchesCategory;
+  }).sort((a, b) => {
+    const aValue = a[sortBy as keyof typeof a] || '';
+    const bValue = b[sortBy as keyof typeof b] || '';
+    const modifier = sortOrder === 'desc' ? -1 : 1;
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return (aValue - bValue) * modifier;
+    }
+    return String(aValue).localeCompare(String(bValue)) * modifier;
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className={`text-lg font-bold ${text}`}>Budget Management</h2>
-          <p className={`text-sm ${sub}`}>{budgets.length} budget{budgets.length !== 1 ? 's' : ''} configured</p>
+          <p className={`text-sm ${sub}`}>{filteredBudgets.length} of {budgets.length} budget{budgets.length !== 1 ? 's' : ''} shown</p>
         </div>
         <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">+ New Budget</button>
+      </div>
+
+      {/* Filters Bar */}
+      <div className={`rounded-xl border p-4 ${card}`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="md:col-span-2">
+            <input className={`${inp} w-full`} placeholder="🔍 Search budget name or description..." value={search}
+              onChange={e => setSearch(e.target.value)} />
+          </div>
+          <select className={`${inp} w-full`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="expired">Expired</option>
+          </select>
+          <select className={`${inp} w-full`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <select className={`${inp} flex-1`} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="name">Name</option>
+              <option value="totalAmount">Amount</option>
+              <option value="utilization">Utilization</option>
+              <option value="startDate">Start Date</option>
+              <option value="endDate">End Date</option>
+            </select>
+            <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} className={`px-3 py-2 rounded-lg border text-sm ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-3">
+          <span className={`text-xs ${sub}`}>Showing {filteredBudgets.length} of {budgets.length} budgets</span>
+          <button onClick={() => { setSearch(''); setStatusFilter('all'); setCategoryFilter(''); setSortBy('name'); setSortOrder('asc'); }} className={`text-xs ${sub} hover:text-blue-500 transition-colors`}>
+            Clear filters
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -61,9 +126,16 @@ export default function BudgetManager({
           <p className={`text-sm mt-1 ${sub}`}>Create budgets to track spending limits by category</p>
           <button onClick={openAdd} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Create First Budget</button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {budgets.map(b => {
+      ) : filteredBudgets.length === 0 ? (
+          <div className={`rounded-xl border p-12 text-center ${card}`}>
+            <div className="text-5xl mb-3">🎯</div>
+            <p className={`font-medium ${text}`}>No budgets found</p>
+            <p className={`text-sm mt-1 ${sub}`}>Try adjusting your filters or create your first budget</p>
+            <button onClick={openAdd} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Create First Budget</button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredBudgets.map(b => {
             const pct = b.utilization || 0;
             const isOver = b.isOverBudget;
             const isNear = b.isNearLimit && !isOver;
