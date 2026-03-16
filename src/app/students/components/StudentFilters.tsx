@@ -47,6 +47,8 @@ interface StudentFiltersProps {
   showColumnSettings: boolean;
   students: Student[];
   theme: 'dark' | 'light';
+  onPromoteBulk?: () => void;
+  onPromoteClass?: (cls: string, section: string) => void;
 }
 
 export default function StudentFilters({
@@ -54,12 +56,12 @@ export default function StudentFilters({
   clearAdvancedFilters, deleteSavedFilter, exportAllFilteredStudents,
   exportSelectedStudents, filteredStudents, isMobile, mobileView, pageSize,
   performAdvancedSearch, savedFilters, searchTerm, selectedClass, selectedGender,
-  selectedLanguage, selectedStatus, selectedStudents, setAdvancedFilters,
-  setAdvancedSearch, setAttendanceFilter, setCurrentPage, setMobileView,
+  selectedLanguage, selectedStatus, selectedStudents, setAdvancedFilters, setAdvancedSearch, setAttendanceFilter, setCurrentPage, setMobileView,
   setPageSize, setSearchTerm, setSelectedClass, setSelectedGender,
   setSelectedLanguage, setSelectedStatus, setSelectedStudents,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowColumnSettings,
-  setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme
+  setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme,
+  onPromoteBulk, onPromoteClass
 }: StudentFiltersProps) {
   const { dropdowns } = useSchoolConfig();
   const dbClasses = dropdowns.classes;
@@ -308,6 +310,11 @@ export default function StudentFilters({
             <button onClick={() => setShowColumnSettings(true)} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`} title="Column Settings">
               ⚙️
             </button>
+            {onPromoteClass && selectedClass && selectedClass !== 'all' && (
+              <button onClick={() => onPromoteClass(selectedClass, '')} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
+                🎓 Promote {selectedClass}
+              </button>
+            )}
             <button onClick={exportAllFilteredStudents} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
               📥 Export ({filteredStudents.length})
             </button>
@@ -323,6 +330,11 @@ export default function StudentFilters({
             <button onClick={exportSelectedStudents} className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
               📥 Export Selected
             </button>
+            {onPromoteBulk && (
+              <button onClick={onPromoteBulk} className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
+                🎓 Promote Selected
+              </button>
+            )}
             <button onClick={() => setShowBulkOperationModal(true)} className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}>
               ⚙️ Bulk Operations
             </button>

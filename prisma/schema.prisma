@@ -292,6 +292,8 @@ model Student {
   attendanceRecords     AttendanceRecord[]
   examResults           ExamResult[]
   feeRecords            FeeRecord[]
+  promotions            StudentPromotion[]
+  arrears               FeeArrears[]
   school                School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
@@ -901,6 +903,59 @@ model DiscountRequestAuditLog {
   @@index([schoolId, createdAt])
   @@index([actorEmail])
   @@index([action])
+  @@schema("school")
+}
+
+model StudentPromotion {
+  id               String   @id @default(cuid())
+  schoolId         String
+  studentId        String
+  fromClass        String
+  toClass          String
+  fromSection      String
+  toSection        String
+  fromAcademicYear String
+  toAcademicYear   String
+  promotedBy       String
+  promotedByEmail  String
+  promotedByName   String
+  promotionType    String   @default("regular")
+  arrearsAmount    Float    @default(0)
+  remarks          String?
+  promotionDate    DateTime @default(now())
+  createdAt        DateTime @default(now())
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([schoolId])
+  @@index([fromAcademicYear])
+  @@index([toAcademicYear])
+  @@index([promotionDate])
+  @@schema("school")
+}
+
+model FeeArrears {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  studentId           String
+  originalFeeRecordId String
+  fromAcademicYear    String
+  toAcademicYear      String
+  amount              Float
+  paidAmount          Float    @default(0)
+  pendingAmount       Float
+  dueDate             String
+  status              String   @default("pending")
+  remarks             String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  student             Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([schoolId])
+  @@index([fromAcademicYear])
+  @@index([toAcademicYear])
+  @@index([status])
   @@schema("school")
 }
 

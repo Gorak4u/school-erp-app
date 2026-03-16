@@ -25,13 +25,16 @@ interface StudentTableProps {
   toggleStudentSelection: (id: number) => void;
   totalPages: number;
   visibleColumns: string[];
+  onPromoteSingle?: (studentId: string) => void;
+  onPromoteClass?: (cls: string, section: string) => void;
 }
 
 export default function StudentTable({
   activeTab, currentPage, filteredStudents, handleDeleteStudent, isMobile,
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
-  toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns
+  toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns,
+  onPromoteSingle, onPromoteClass
 }: StudentTableProps) {
 
   const handleSort = (key: string) => {
@@ -344,6 +347,15 @@ export default function StudentTable({
                             >
                               ✏️
                             </button>
+                            {onPromoteSingle && (
+                              <button
+                                onClick={() => onPromoteSingle(student.id)}
+                                className="p-1 rounded hover:bg-purple-500/10 text-purple-500 transition-colors"
+                                title="Promote Student"
+                              >
+                                🎓
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 if (window.confirm(`Delete ${student.name}?`)) {

@@ -199,6 +199,13 @@ export function useStudentState() {
     ]
   });
   
+  // Promotion State
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
+  const [promotionMode, setPromotionMode] = useState<'single' | 'bulk' | 'class'>('bulk');
+  const [promotionSingleStudentId, setPromotionSingleStudentId] = useState<string | undefined>(undefined);
+  const [promotionFromClass, setPromotionFromClass] = useState<string | undefined>(undefined);
+  const [promotionFromSection, setPromotionFromSection] = useState<string | undefined>(undefined);
+
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -329,5 +336,10 @@ export function useStudentState() {
     sidebarOpen, setSidebarOpen,
     mobileView, setMobileView,
     mouseX, mouseY,
+    showPromotionModal, setShowPromotionModal,
+    promotionMode, setPromotionMode,
+    promotionSingleStudentId, setPromotionSingleStudentId,
+    promotionFromClass, setPromotionFromClass,
+    promotionFromSection, setPromotionFromSection,
   };
 }
