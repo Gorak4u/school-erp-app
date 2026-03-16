@@ -200,6 +200,31 @@ export default function SettingsPage() {
     try {
       console.log(`🔄 Copying data from academic year ${previousYearId} to ${newYearId}`);
       
+      // 0. Copy boards (boards are not year-specific, so just copy them as-is)
+      console.log('🏫 Copying boards...');
+      const boardsResponse = await boardsApi.list();
+      const boards = boardsResponse.boards || [];
+      
+      for (const board of boards) {
+        // Check if board already exists (boards are global, not year-specific)
+        try {
+          await boardsApi.create({
+            code: board.code,
+            name: board.name,
+            description: board.description,
+            isActive: board.isActive
+          });
+          console.log(`  ✅ Copied board: ${board.name}`);
+        } catch (error: any) {
+          // Board might already exist, which is fine
+          if (error.message.includes('already exists')) {
+            console.log(`  ⚠️ Board already exists: ${board.name}`);
+          } else {
+            throw error;
+          }
+        }
+      }
+      
       // 1. Copy mediums
       console.log('📖 Copying mediums...');
       const mediumsResponse = await mediumsApi.list({ academicYearId: previousYearId });
@@ -289,7 +314,48 @@ export default function SettingsPage() {
         console.log(`  ✅ Copied fee structure: ${fee.name}`);
       }
 
+      // 5. Mark old academic year entities as inactive (optional - based on business logic)
+      console.log('🔄 Marking previous year entities as inactive...');
+      
+      // Mark old mediums as inactive
+      for (const medium of mediums) {
+        await mediumsApi.update({
+          ...medium,
+          isActive: false
+        });
+        console.log(`  ✅ Marked medium as inactive: ${medium.name}`);
+      }
+      
+      // Mark old classes as inactive
+      for (const cls of classes) {
+        await classesApi.update({
+          ...cls,
+          isActive: false
+        });
+        console.log(`  ✅ Marked class as inactive: ${cls.name}`);
+      }
+      
+      // Mark old sections as inactive
+      for (const section of sections) {
+        await sectionsApi.update({
+          ...section,
+          isActive: false
+        });
+        console.log(`  ✅ Marked section as inactive: ${section.name}`);
+      }
+      
+      // Mark old fee structures as inactive
+      for (const fee of feeStructures) {
+        await feeStructuresApi.update({
+          ...fee,
+          isActive: false
+        });
+        console.log(`  ✅ Marked fee structure as inactive: ${fee.name}`);
+      }
+
       console.log('🎉 Copy process completed successfully!');
+      console.log(`✅ Created new entities for ${newYearId}`);
+      console.log(`✅ Marked old entities from ${previousYearId} as inactive`);
       
     } catch (error) {
       console.error('Failed to copy data from previous year:', error);
