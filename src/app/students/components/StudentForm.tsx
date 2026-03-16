@@ -151,16 +151,33 @@ export default function StudentForm({
   useEffect(() => {
     if (!formData.classId) { setFeeStructures([]); setSelectedFeeIds([]); return; }
     setFeesLoading(true);
-    fetch(`/api/fees/structures?classId=${formData.classId}`)
+    
+    // Fetch active academic year first, then fee structures
+    fetch('/api/school-structure/academic-years')
+      .then(r => r.json())
+      .then(data => {
+        const activeYear = (data.academicYears || []).find((y: any) => y.isActive);
+        const params = new URLSearchParams({
+          classId: formData.classId,
+          ...(formData.mediumId && { mediumId: formData.mediumId }),
+          ...(activeYear?.id && { academicYearId: activeYear.id }),
+          isActive: 'true'
+        });
+        return fetch(`/api/fees/structures?${params}`);
+      })
       .then(r => r.json())
       .then(data => {
         const structs = data.feeStructures || [];
+        console.log('Loaded fee structures:', structs);
         setFeeStructures(structs);
         setSelectedFeeIds(structs.map((f: any) => f.id));
       })
-      .catch(() => setFeeStructures([]))
+      .catch(err => {
+        console.error('Failed to load fee structures:', err);
+        setFeeStructures([]);
+      })
       .finally(() => setFeesLoading(false));
-  }, [formData.classId]);
+  }, [formData.classId, formData.mediumId]);
 
   // Auto-save
   useEffect(() => {

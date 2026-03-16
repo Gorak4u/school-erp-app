@@ -28,7 +28,13 @@ export async function GET(request: NextRequest) {
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     if (mediumId) where.mediumId = mediumId;
-    if (classId) where.classId = classId;
+    // Include fee structures for specific class OR those that apply to all classes (classId is null)
+    if (classId) {
+      where.OR = [
+        { classId: classId },
+        { classId: null }
+      ];
+    }
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
 
