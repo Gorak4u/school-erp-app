@@ -155,16 +155,26 @@ export default function SettingsPage() {
       } else {
         // Special handling for academic year creation
         if (modalEntity === 'academicYear') {
-          // Check if there are previous academic years
-          const previousYears = academicYears.filter((ay: any) => ay.isActive && ay.id !== formData.id);
+          // Check if there are previous academic years (get the most recent one)
+          const previousYears = academicYears
+            .filter((ay: any) => ay.id !== formData.id)
+            .sort((a: any, b: any) => b.year.localeCompare(a.year)); // Sort by year descending
+          
+          console.log('🔍 Academic Year Creation Check:', {
+            totalAcademicYears: academicYears.length,
+            previousYearsFound: previousYears.length,
+            previousYear: previousYears[0]
+          });
           
           if (previousYears.length > 0) {
             // Store data for modal and show copy confirmation modal
+            console.log('✅ Showing copy modal for previous year:', previousYears[0].name);
             setPreviousYearForCopy(previousYears[0]);
             setPendingAcademicYear(formData);
             setShowCopyModal(true);
             return; // Don't close the main modal yet
           } else {
+            console.log('ℹ️ No previous years found, creating fresh academic year');
             await api.create(formData);
             showToast({ type: 'success', title: 'Academic Year created' });
           }
@@ -1196,7 +1206,7 @@ export default function SettingsPage() {
       {/* ─── Copy Confirmation Modal ─────────────────────────────────────────── */}
       <AnimatePresence>
         {showCopyModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleCancelCopy}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4" onClick={handleCancelCopy}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-md rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
               <div className="text-center mb-6">
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-900/50' : 'bg-blue-100'}`}>
