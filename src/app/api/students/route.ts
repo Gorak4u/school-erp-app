@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       schoolPrisma.feeRecord.groupBy({
         by: ['studentId'],
         where: { studentId: { in: studentIds } },
-        _sum: { amount: true, paidAmount: true },
+        _sum: { amount: true, paidAmount: true, discount: true },
       }),
       // Last payment date per student
       schoolPrisma.feeRecord.findMany({
@@ -131,7 +131,8 @@ export async function GET(request: NextRequest) {
         fees: {
           total: fees.amount || 0,
           paid: fees.paidAmount || 0,
-          pending: (fees.amount || 0) - (fees.paidAmount || 0),
+          discount: fees.discount || 0,
+          pending: (fees.amount || 0) - (fees.paidAmount || 0) - (fees.discount || 0),
           lastPaymentDate: lastPayMap.get(s.id) || '',
         },
         attendance: {
