@@ -80,7 +80,11 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
     if (req.scope === 'student') {
       let ids: string[] = []; try { ids = JSON.parse(req.studentIds || '[]'); } catch {}
       if (!ids.length) return '-';
-      const names = ids.slice(0, 2).map((id: string) => students.find(s => s.id === id)?.name || id);
+      const names = ids.slice(0, 2).map((id: string) => {
+        const student = students.find(s => s.id === id);
+        if (!student) return id;
+        return student.class ? `${student.name} (${student.class})` : student.name;
+      });
       return names.join(', ') + (ids.length > 2 ? ` +${ids.length - 2} more` : '');
     }
     if (req.scope === 'class') {

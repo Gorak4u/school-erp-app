@@ -102,7 +102,11 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
 
   const resolveStudentNames = (studentIds: string[]): string => {
     if (!studentIds?.length) return '-';
-    const names = studentIds.slice(0, 3).map(id => students.find(s => s.id === id)?.name || id);
+    const names = studentIds.slice(0, 3).map(id => {
+      const student = students.find(s => s.id === id);
+      if (!student) return id;
+      return student.class ? `${student.name} (${student.class})` : student.name;
+    });
     const suffix = studentIds.length > 3 ? ` +${studentIds.length - 3} more` : '';
     return names.join(', ') + suffix;
   };

@@ -47,7 +47,11 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              status: true
+              status: true,
+              scope: true,
+              studentIds: true,
+              classIds: true,
+              academicYear: true
             }
           }
         }
