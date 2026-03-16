@@ -39,6 +39,23 @@ export const studentsApi = {
   bulkLock: (action: 'lock' | 'unlock' | 'preview', opts: Record<string, any> = {}) =>
     request<any>('/api/students/bulk-lock', { method: 'POST', body: JSON.stringify({ action, ...opts }) }),
   bulkLockStatus: () => request<any>('/api/students/bulk-lock'),
+  exitPreview: (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request<any>(`/api/students/exit${qs ? `?${qs}` : ''}`);
+  },
+  exit: (data: any) => request<any>('/api/students/exit', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ─── ALUMNI ───────────────────────────────────────────────────────────────────
+
+export const alumniApi = {
+  list: (params: Record<string, string | number> = {}) => {
+    const qs = new URLSearchParams(params as any).toString();
+    return request<any>(`/api/alumni${qs ? `?${qs}` : ''}`);
+  },
+  get: (id: string) => request<any>(`/api/alumni/${id}`),
+  update: (id: string, data: any) => request<any>(`/api/alumni/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getDues: (id: string) => request<any>(`/api/alumni/${id}/dues`),
 };
 
 // ─── TEACHERS ─────────────────────────────────────────────────────────────────

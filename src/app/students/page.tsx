@@ -31,6 +31,7 @@ import BulkOperationsModal from './components/BulkOperationsModal';
 import ColumnSettingsModal from './components/ColumnSettingsModal';
 import SaveFilterModal from './components/SaveFilterModal';
 import PromotionModal from './components/PromotionModal';
+import ExitStudentModal from './components/ExitStudentModal';
 
 export default function StudentsPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
@@ -245,19 +246,18 @@ export default function StudentsPage() {
     setPromotionCount(count);
   }, [students]);
 
-  // Mark student as exit (transferred)
-  const handleMarkExit = useCallback(async (studentId: string) => {
-    try {
-      const { studentsApi } = await import('@/lib/apiClient');
-      await studentsApi.update(studentId, { status: 'transferred', _bypassLock: true });
-      loadStudents();
-      if ((window as any).toast) {
-        (window as any).toast({ type: 'success', title: 'Marked as Exit', message: 'Student has been marked as transferred/exit.', duration: 3000 });
-      }
-    } catch (err: any) {
-      console.error('Failed to mark exit:', err);
-    }
-  }, [loadStudents]);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [exitStudentIds, setExitStudentIds] = useState<string[]>([]);
+
+  const handleExitSingle = useCallback((studentId: string) => {
+    setExitStudentIds([studentId]);
+    setShowExitModal(true);
+  }, []);
+
+  const handleMarkExit = useCallback((studentId: string) => {
+    setExitStudentIds([studentId]);
+    setShowExitModal(true);
+  }, []);
 
   return (
     <AppLayout currentPage="students" title="Students Management">
@@ -281,7 +281,7 @@ export default function StudentsPage() {
         )}
         <StudentDashboard dashboardStats={dashboardStats} filteredStudents={filteredStudents} selectedStudents={selectedStudents} setBulkOperations={setBulkOperations} setShowAddModal={setShowAddModal} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowDashboard={setShowDashboard} showAdvancedFilters={showAdvancedFilters} showDashboard={showDashboard} students={students} theme={theme} />
         <StudentFilters advancedFilters={advancedFilters} advancedSearch={advancedSearch} applySavedFilter={applySavedFilter} attendanceFilter={attendanceFilter} clearAdvancedFilters={clearAdvancedFilters} deleteSavedFilter={deleteSavedFilter} exportAllFilteredStudents={exportAllFilteredStudents} exportSelectedStudents={exportSelectedStudents} filteredStudents={filteredStudents} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} performAdvancedSearch={performAdvancedSearch} savedFilters={savedFilters} searchTerm={searchTerm} selectedClass={selectedClass} selectedGender={selectedGender} selectedLanguage={selectedLanguage} selectedStatus={selectedStatus} selectedStudents={selectedStudents} setAdvancedFilters={setAdvancedFilters} setAdvancedSearch={setAdvancedSearch} setAttendanceFilter={setAttendanceFilter} setCurrentPage={setCurrentPage} setMobileView={setMobileView} setPageSize={setPageSize} setSearchTerm={setSearchTerm} setSelectedClass={setSelectedClass} setSelectedGender={setSelectedGender} setSelectedLanguage={setSelectedLanguage} setSelectedStatus={setSelectedStatus} setSelectedStudents={setSelectedStudents} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowColumnSettings={setShowColumnSettings} setShowSaveFilterModal={setShowSaveFilterModal} showAdvancedFilters={showAdvancedFilters} showColumnSettings={showColumnSettings} students={students} theme={theme} onPromoteBulk={() => { setPromotionMode('bulk'); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} />
-        <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} />
+        <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} onExitSingle={handleExitSingle} />
       </div>
       {/* Add/Edit Modal */}
       <AnimatePresence>
@@ -369,6 +369,13 @@ export default function StudentsPage() {
         singleStudentId={promotionSingleStudentId}
         fromClass={promotionFromClass}
         fromSection={promotionFromSection}
+        theme={theme}
+        onSuccess={() => { loadStudents(); }}
+      />
+      <ExitStudentModal
+        isOpen={showExitModal}
+        onClose={() => { setShowExitModal(false); setExitStudentIds([]); }}
+        studentIds={exitStudentIds}
         theme={theme}
         onSuccess={() => { loadStudents(); }}
       />

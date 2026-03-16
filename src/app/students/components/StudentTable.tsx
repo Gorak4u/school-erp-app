@@ -27,6 +27,7 @@ interface StudentTableProps {
   visibleColumns: string[];
   onPromoteSingle?: (studentId: string) => void;
   onPromoteClass?: (cls: string, section: string) => void;
+  onExitSingle?: (studentId: string) => void;
 }
 
 export default function StudentTable({
@@ -34,7 +35,7 @@ export default function StudentTable({
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns,
-  onPromoteSingle, onPromoteClass
+  onPromoteSingle, onPromoteClass, onExitSingle
 }: StudentTableProps) {
 
   const handleSort = (key: string) => {
@@ -400,6 +401,15 @@ export default function StudentTable({
                                     title="Promote Student"
                                   >
                                     🎓
+                                  </button>
+                                )}
+                                {onExitSingle && (
+                                  <button
+                                    onClick={() => onExitSingle(student.id)}
+                                    className="p-1 rounded hover:bg-orange-500/10 text-orange-500 transition-colors"
+                                    title="Mark Exit / Graduate"
+                                  >
+                                    🚪
                                   </button>
                                 )}
                                 <button

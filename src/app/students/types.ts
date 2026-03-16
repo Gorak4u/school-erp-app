@@ -7,7 +7,7 @@ export interface Student {
   rollNo: string;
   phone: string;
   gpa: number;
-  status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended' | 'locked';
+  status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended' | 'locked' | 'exit';
   admissionNo: string;
   dateOfBirth: string;
   gender: 'Male' | 'Female' | 'Other';
@@ -105,6 +105,17 @@ export interface Student {
   academicYear?: string;         // string label, e.g. '2025-26'
   academicYearId?: string;       // FK id of the AcademicYear record
   needsPromotion?: boolean;      // true when academicYearId != active AY id
+
+  // Exit / Alumni fields
+  exitDate?: string;
+  exitReason?: string;
+  tcNumber?: string;
+  exitRemarks?: string;
+  higherEducation?: { institution?: string; degree?: string; field?: string; year?: string } | null;
+  employment?: { company?: string; position?: string; industry?: string; location?: string } | null;
+  contactPreference?: 'public' | 'alumni_only' | 'private';
+  socialLinks?: { linkedin?: string; twitter?: string; email?: string; phone?: string };
+  mentorshipAreas?: string[];
 
   // Remarks
   remarks?: string;
