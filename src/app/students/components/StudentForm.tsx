@@ -123,6 +123,7 @@ export default function StudentForm({
   const [feesLoading, setFeesLoading] = useState(false);
   const [discountData, setDiscountData] = useState({
     hasDiscount: false,
+    discountCategory: '',
     discountType: 'percentage',
     discountValue: 0,
     maxCapAmount: '',
@@ -130,6 +131,7 @@ export default function StudentForm({
     validFrom: new Date().toISOString().split('T')[0],
     validTo: '',
   });
+  const [selectedDiscountFeeIds, setSelectedDiscountFeeIds] = useState<string[]>([]);
 
   // Cascaded dropdown data
   const filteredClasses = useMemo(() => {
@@ -169,6 +171,7 @@ export default function StudentForm({
         const structs = data.feeStructures || [];
         console.log('Loaded fee structures:', structs);
         setFeeStructures(structs);
+        setSelectedDiscountFeeIds([]);
       })
       .catch(err => {
         console.error('Failed to load fee structures:', err);
@@ -196,10 +199,38 @@ export default function StudentForm({
     } catch {}
   }, []);
 
+  // Auto-select fees when discount category is selected
+  useEffect(() => {
+    if (discountData.discountCategory && feeStructures.length > 0) {
+      const categoryFees = feeStructures.filter(fee => {
+        const feeCategory = fee.category || fee.feeCategory || 'General';
+        return feeCategory === discountData.discountCategory;
+      });
+      setSelectedDiscountFeeIds(categoryFees.map(f => f.id));
+    } else {
+      setSelectedDiscountFeeIds([]);
+    }
+  }, [discountData.discountCategory, feeStructures]);
+
+  // Get unique categories from fee structures
+  const feeCategories = useMemo(() => {
+    const categories = new Set<string>();
+    feeStructures.forEach(fee => {
+      const category = fee.category || fee.feeCategory || 'General';
+      categories.add(category);
+    });
+    return Array.from(categories).sort();
+  }, [feeStructures]);
+
   const feeCalcs = useMemo(() => {
-    const baseTotal = feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+    const selectedFees = feeStructures.filter(f => {
+      const feeCategory = f.category || f.feeCategory || 'General';
+      return selectedDiscountFeeIds.includes(f.id) && 
+             (!discountData.discountCategory || discountData.discountCategory === feeCategory);
+    });
+    const baseTotal = selectedFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     if (!discountData.hasDiscount || !discountData.discountValue) {
-      return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected: feeStructures };
+      return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected: selectedFees };
     }
     let discountAmount = 0;
     if (discountData.discountType === 'percentage') {
@@ -210,8 +241,8 @@ export default function StudentForm({
     } else if (discountData.discountType === 'full_waiver') {
       discountAmount = baseTotal;
     }
-    return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected };
-  }, [feeStructures, discountData]);
+    return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected: selectedFees };
+  }, [feeStructures, selectedDiscountFeeIds, discountData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,6 +251,12 @@ export default function StudentForm({
     if (!formData.mediumId) { alert('Please select a Language Medium'); return; }
     if (!formData.classId) { alert('Please select a Class'); return; }
     if (discountData.hasDiscount) {
+      if (!discountData.discountCategory) {
+        alert('Please select a discount category'); return;
+      }
+      if (selectedDiscountFeeIds.length === 0) {
+        alert('Please select at least one fee type for discount'); return;
+      }
       if (discountData.discountType !== 'full_waiver' && (!discountData.discountValue || Number(discountData.discountValue) <= 0)) {
         alert('Please enter a valid discount amount'); return;
       }
@@ -232,7 +269,10 @@ export default function StudentForm({
     onSubmit({
       ...formData,
       ...(discountData.hasDiscount && {
-        _discountInfo: { ...discountData },
+        _discountInfo: { 
+          ...discountData, 
+          feeStructureIds: selectedDiscountFeeIds 
+        },
       }),
     } as any);
   };
@@ -484,6 +524,63 @@ export default function StudentForm({
                         ))}
                       </div>
                     </div>
+
+                    {/* Category */}
+                    <div>
+                      <label className={labelCls}>Discount Category</label>
+                      <select
+                        value={discountData.discountCategory}
+                        onChange={e => setDiscountData(prev => ({ ...prev, discountCategory: e.target.value }))}
+                        className={`${inputCls} capitalize`}
+                      >
+                        <option value="">Select category...</option>
+                        {feeCategories.map(category => (
+                          <option key={category} value={category} className="capitalize">
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Fee Types for Selected Category */}
+                    {discountData.discountCategory && (
+                      <div>
+                        <label className={labelCls}>Fee Types for {discountData.discountCategory}</label>
+                        <div className={`space-y-2 max-h-32 overflow-y-auto p-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+                          {feeStructures
+                            .filter(fee => {
+                              const feeCategory = fee.category || fee.feeCategory || 'General';
+                              return feeCategory === discountData.discountCategory;
+                            })
+                            .map(fee => (
+                              <label key={fee.id} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedDiscountFeeIds.includes(fee.id)}
+                                  onChange={e => setSelectedDiscountFeeIds(prev => 
+                                    e.target.checked 
+                                      ? [...prev, fee.id] 
+                                      : prev.filter(id => id !== fee.id)
+                                  )}
+                                  className="w-4 h-4 accent-blue-600"
+                                />
+                                <div className="flex-1">
+                                  <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{fee.name}</p>
+                                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>₹{Number(fee.amount || 0).toLocaleString('en-IN')}/year</p>
+                                </div>
+                              </label>
+                            ))}
+                          {feeStructures.filter(fee => {
+                            const feeCategory = fee.category || fee.feeCategory || 'General';
+                            return feeCategory === discountData.discountCategory;
+                          }).length === 0 && (
+                            <p className={`text-sm text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                              No fees found for this category
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Amount */}
                     {discountData.discountType !== 'full_waiver' && (
