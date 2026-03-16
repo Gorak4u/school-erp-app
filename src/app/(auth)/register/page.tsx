@@ -39,7 +39,7 @@ function RegisterContent() {
 
   // Fetch plans from database
   useEffect(() => {
-    fetch('/api/admin/plans?cache=true')
+    fetch('/api/plans?cache=true')
       .then(res => res.json())
       .then(data => {
         const activePlans = (data.plans || []).filter((p: PlanFromDB) => p.isActive);
@@ -239,9 +239,18 @@ function RegisterContent() {
         return;
       }
 
+      // For trial users, skip payment and go to dashboard
+      if (isTrial) {
+        setSuccess('Trial account created! Redirecting to dashboard...');
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1500);
+        return;
+      }
+
       setSuccess('Account created! Initializing payment...');
 
-      // Now create payment order
+      // Now create payment order (only for paid plans)
       const response = await fetch('/api/create-payment-order', {
         method: 'POST',
         headers: {

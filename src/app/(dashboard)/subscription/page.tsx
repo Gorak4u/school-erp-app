@@ -71,7 +71,7 @@ export default function SubscriptionPage() {
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch('/api/admin/plans?cache=true');
+      const response = await fetch('/api/plans?cache=true');
       const data = await response.json();
       if (data.plans) {
         setPlans(data.plans.filter((p: PlanFromDB) => p.isActive));

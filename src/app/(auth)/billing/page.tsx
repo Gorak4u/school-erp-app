@@ -66,7 +66,7 @@ export default function BillingPage() {
         }
 
         // Fetch plans from database
-        const plansResponse = await fetch('/api/admin/plans?cache=true');
+        const plansResponse = await fetch('/api/plans?cache=true');
         const plansData = await plansResponse.json();
         setPlans((plansData.plans || []).filter((p: PlanFromDB) => p.isActive));
       } catch (error) {
