@@ -356,12 +356,7 @@ export default function ExpensesPage() {
 
         {/* Tab Content */}
         {activeTab === 'dashboard' && (
-          <ExpenseReports 
-            analytics={analytics} isDark={isDark} onExport={exportCSV} academicYear={selectedAY}
-            dateFrom={reportDateFrom} dateTo={reportDateTo} setDateFrom={setReportDateFrom} setDateTo={setReportDateTo}
-            categoryFilter={reportCategoryFilter} setCategoryFilter={setReportCategoryFilter} categories={categories}
-            refreshAnalytics={fetchAnalytics}
-          />
+          <ExpenseDashboard analytics={analytics} isDark={isDark} categories={categories} academicYear={selectedAY} />
         )}
 
         {activeTab === 'expenses' && (
@@ -390,7 +385,7 @@ export default function ExpensesPage() {
           <BudgetManager
             budgets={budgets} loading={loading} isDark={isDark} categories={categories}
             form={budgetForm} setForm={setBudgetForm} showForm={budgetFormShow} setShowForm={setBudgetFormShow}
-            editing={editingBudget} setEditing={setEditingBudget} onSave={saveBudget} onDelete={deleteBudget} saving={saving}
+            editing={editingBudget} setEditing={setEditingBudget} onSave={handleSaveBudget} onDelete={handleDeleteBudget} saving={saving}
             search={budgetSearch} setSearch={setBudgetSearch}
             statusFilter={budgetStatusFilter} setStatusFilter={setBudgetStatusFilter}
             categoryFilter={budgetCategoryFilter} setCategoryFilter={setBudgetCategoryFilter}
@@ -403,7 +398,7 @@ export default function ExpensesPage() {
           <CategoryManager
             categories={categories} isDark={isDark}
             form={catForm} setForm={setCatForm} showForm={catFormShow} setShowForm={setCatFormShow}
-            editing={editingCat} setEditing={setEditingCat} onSave={saveCategory} onDelete={deleteCategory} onSeedDefaults={seedCategories} saving={saving}
+            editing={editingCat} setEditing={setEditingCat} onSave={handleSaveCategory} onDelete={handleDeleteCategory} onSeedDefaults={handleSeedCategories} saving={saving}
             search={catSearch} setSearch={setCatSearch}
             statusFilter={catStatusFilter} setStatusFilter={setCatStatusFilter}
             sortBy={catSortBy} setSortBy={setCatSortBy}
@@ -412,11 +407,11 @@ export default function ExpensesPage() {
         )}
 
         {activeTab === 'reports' && (
-          <ExpenseReports
-            analytics={analytics}
-            isDark={isDark}
-            onExport={exportCSV}
-            academicYear={selectedAY}
+          <ExpenseReports 
+            analytics={analytics} isDark={isDark} onExport={exportCSV} academicYear={selectedAY}
+            dateFrom={reportDateFrom} dateTo={reportDateTo} setDateFrom={setReportDateFrom} setDateTo={setReportDateTo}
+            categoryFilter={reportCategoryFilter} setCategoryFilter={setReportCategoryFilter} categories={categories}
+            refreshAnalytics={loadAnalytics}
           />
         )}
       </div>
