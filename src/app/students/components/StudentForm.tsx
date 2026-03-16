@@ -645,14 +645,32 @@ export default function StudentForm({
                 <div className={`${sectionCls} ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? theme === 'dark' ? 'border-green-700' : 'border-green-300' : ''}`}>
                   <p className={sectionTitleCls}>📊 Fee Summary</p>
                   <div className="space-y-2">
-                    {feeCalcs.selected.map((fee: any) => {
-                      const perFeeDiscount = feeCalcs.discountAmount > 0 ? Math.round(Number(fee.amount) * (feeCalcs.discountAmount / feeCalcs.baseTotal)) : 0;
+                    {feeStructures.map((fee: any) => {
+                      const feeCategory = fee.category || fee.feeCategory || 'General';
+                      const isSelectedForDiscount = selectedDiscountFeeIds.includes(fee.id);
+                      const isInDiscountCategory = discountData.discountCategory === feeCategory;
+                      const hasDiscount = discountData.hasDiscount && isSelectedForDiscount && isInDiscountCategory;
+                      const perFeeDiscount = hasDiscount && feeCalcs.discountAmount > 0 ? Math.round(Number(fee.amount) * (feeCalcs.discountAmount / feeCalcs.baseTotal)) : 0;
+                      const finalFeeAmount = Number(fee.amount) - perFeeDiscount;
+                      
                       return (
                         <div key={fee.id} className="flex justify-between items-center py-1">
-                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{fee.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>₹{Number(fee.amount).toLocaleString('en-IN')}</span>
-                            {perFeeDiscount > 0 && <span className="text-xs text-green-500">(-₹{perFeeDiscount.toLocaleString('en-IN')})</span>}
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{fee.name}</span>
+                            {hasDiscount && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded">DISCOUNT</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${hasDiscount ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                              ₹{Number(fee.amount).toLocaleString('en-IN')}
+                            </span>
+                            {hasDiscount && (
+                              <>
+                                <span className="text-xs text-green-500">(-₹{perFeeDiscount.toLocaleString('en-IN')})</span>
+                                <span className={`text-sm font-bold text-green-600 dark:text-green-400`}>
+                                  ₹{finalFeeAmount.toLocaleString('en-IN')}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
@@ -661,7 +679,7 @@ export default function StudentForm({
                     <div className="flex justify-between">
                       <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Total Fees:</span>
                       <span className={`text-sm font-semibold ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-                        ₹{feeCalcs.baseTotal.toLocaleString('en-IN')}/year
+                        ₹{feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0).toLocaleString('en-IN')}/year
                       </span>
                     </div>
                     {discountData.hasDiscount && feeCalcs.discountAmount > 0 && (
@@ -673,7 +691,9 @@ export default function StudentForm({
                         <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
                         <div className="flex justify-between items-center">
                           <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Final Annual Fees:</span>
-                          <span className="text-base font-bold text-blue-500">₹{feeCalcs.finalTotal.toLocaleString('en-IN')}/year</span>
+                          <span className="text-base font-bold text-blue-500">
+                            ₹{(feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0) - feeCalcs.discountAmount).toLocaleString('en-IN')}/year
+                          </span>
                         </div>
                         <div className={`flex items-center justify-center gap-2 p-2 rounded-lg mt-1 ${theme === 'dark' ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
                           <span className="text-sm font-semibold">🎉 Savings: ₹{feeCalcs.discountAmount.toLocaleString('en-IN')} ({feeCalcs.savingsPercent}% off)</span>
@@ -692,7 +712,7 @@ export default function StudentForm({
                           <div key={opt.label} className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{opt.label}</p>
                             <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-                              ₹{Math.round(feeCalcs.finalTotal / opt.divisor).toLocaleString('en-IN')}
+                              ₹{Math.round((feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0) - feeCalcs.discountAmount) / opt.divisor).toLocaleString('en-IN')}
                             </p>
                             {opt.divisor > 1 && <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>× {opt.divisor}</p>}
                           </div>
