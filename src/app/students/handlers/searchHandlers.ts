@@ -542,11 +542,25 @@ export function createSearchHandlers(ctx: any) {
       }
     } catch (err: any) {
       console.error('Failed to update student:', err);
-      let errorMessage = 'Something went wrong';
       
-      if (err.message.includes('not found')) {
+      // Handle NEEDS_PROMOTION lock — student is from a previous AY
+      if (err.status === 409 || err.message?.includes('NEEDS_PROMOTION') || err.message?.includes('locked')) {
+        const ayInfo = err.currentAcademicYear ? ` (AY: ${err.currentAcademicYear})` : '';
+        if ((window as any).toast) {
+          (window as any).toast({
+            type: 'warning',
+            title: 'Student Record Locked',
+            message: `This student${ayInfo} needs to be promoted to the current academic year before editing. Use the 🎓 Promote button.`,
+            duration: 6000
+          });
+        }
+        return;
+      }
+
+      let errorMessage = 'Something went wrong';
+      if (err.message?.includes('not found')) {
         errorMessage = 'Student not found. Please refresh the page.';
-      } else if (err.message.includes('required')) {
+      } else if (err.message?.includes('required')) {
         errorMessage = 'Please fill in all required fields.';
       }
       

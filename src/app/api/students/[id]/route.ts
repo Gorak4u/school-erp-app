@@ -59,11 +59,30 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const body = await request.json();
-    const { documents, fees, attendance, academics, behavior, feeRecords, attendanceRecords, examResults, ...data } = body;
+    const { documents, fees, attendance, academics, behavior, feeRecords, attendanceRecords, examResults, _bypassLock, ...data } = body;
 
     // Verify ownership before update
     const existing = await (schoolPrisma as any).student.findFirst({ where: { id, ...tenantWhere(ctx) } });
     if (!existing) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
+    // ── Lock guard ──────────────────────────────────────────────────────────
+    // If student has an academicYearId, check it matches the current active AY.
+    // Status-only updates (promote/exit) and explicit _bypassLock flag bypass this.
+    const isStatusOnlyUpdate = Object.keys(data).length === 1 && 'status' in data;
+    if (!isStatusOnlyUpdate && !_bypassLock && existing.academicYearId) {
+      const activeAY = await (schoolPrisma as any).academicYear.findFirst({
+        where: { isActive: true }, orderBy: { createdAt: 'desc' }, select: { id: true, year: true }
+      });
+      if (activeAY && existing.academicYearId !== activeAY.id) {
+        return NextResponse.json({
+          error: 'Student record is locked. Please promote or mark as exit before editing.',
+          code: 'NEEDS_PROMOTION',
+          currentAcademicYear: existing.academicYear,
+          activeAcademicYear: activeAY.year,
+        }, { status: 409 });
+      }
+    }
+    // ── End lock guard ───────────────────────────────────────────────────────
 
     const student = await (schoolPrisma as any).student.update({
       where: { id },

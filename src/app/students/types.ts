@@ -7,7 +7,7 @@ export interface Student {
   rollNo: string;
   phone: string;
   gpa: number;
-  status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended';
+  status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended' | 'locked';
   admissionNo: string;
   dateOfBirth: string;
   gender: 'Male' | 'Female' | 'Other';
@@ -101,6 +101,11 @@ export interface Student {
   previousSchoolEmail?: string;
   transferCertificateNo?: string;
   
+  // Academic year tracking
+  academicYear?: string;         // string label, e.g. '2025-26'
+  academicYearId?: string;       // FK id of the AcademicYear record
+  needsPromotion?: boolean;      // true when academicYearId != active AY id
+
   // Remarks
   remarks?: string;
   guardianName: string;

@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { Student } from './types';
@@ -237,9 +237,48 @@ export default function StudentsPage() {
     setTotalPages(Math.ceil((filteredStudents?.length || 0) / pageSize));
   }, [filteredStudents, pageSize]);
 
+  // ── Promotion count banner ──────────────────────────────────────────────────
+  const [promotionCount, setPromotionCount] = useState(0);
+
+  useEffect(() => {
+    const count = (students || []).filter((s: any) => s.needsPromotion || s.status === 'locked').length;
+    setPromotionCount(count);
+  }, [students]);
+
+  // Mark student as exit (transferred)
+  const handleMarkExit = useCallback(async (studentId: string) => {
+    try {
+      const { studentsApi } = await import('@/lib/apiClient');
+      await studentsApi.update(studentId, { status: 'transferred', _bypassLock: true });
+      loadStudents();
+      if ((window as any).toast) {
+        (window as any).toast({ type: 'success', title: 'Marked as Exit', message: 'Student has been marked as transferred/exit.', duration: 3000 });
+      }
+    } catch (err: any) {
+      console.error('Failed to mark exit:', err);
+    }
+  }, [loadStudents]);
+
   return (
     <AppLayout currentPage="students" title="Students Management">
       <div className="space-y-4 pb-6">
+        {/* ── Promotion Alert Banner ─────────────────────────────────────── */}
+        {promotionCount > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+            <div className="flex items-center gap-2">
+              <span className="text-orange-500 text-lg">🔒</span>
+              <p className={`text-sm font-medium ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'}`}>
+                <span className="font-bold">{promotionCount} student{promotionCount !== 1 ? 's' : ''}</span> from a previous academic year {promotionCount !== 1 ? 'need' : 'needs'} promotion or exit action before they can be edited.
+              </p>
+            </div>
+            <button
+              onClick={() => { setPromotionMode('class'); setShowPromotionModal(true); }}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0"
+            >
+              🎓 Promote All
+            </button>
+          </div>
+        )}
         <StudentDashboard dashboardStats={dashboardStats} filteredStudents={filteredStudents} selectedStudents={selectedStudents} setBulkOperations={setBulkOperations} setShowAddModal={setShowAddModal} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowDashboard={setShowDashboard} showAdvancedFilters={showAdvancedFilters} showDashboard={showDashboard} students={students} theme={theme} />
         <StudentFilters advancedFilters={advancedFilters} advancedSearch={advancedSearch} applySavedFilter={applySavedFilter} attendanceFilter={attendanceFilter} clearAdvancedFilters={clearAdvancedFilters} deleteSavedFilter={deleteSavedFilter} exportAllFilteredStudents={exportAllFilteredStudents} exportSelectedStudents={exportSelectedStudents} filteredStudents={filteredStudents} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} performAdvancedSearch={performAdvancedSearch} savedFilters={savedFilters} searchTerm={searchTerm} selectedClass={selectedClass} selectedGender={selectedGender} selectedLanguage={selectedLanguage} selectedStatus={selectedStatus} selectedStudents={selectedStudents} setAdvancedFilters={setAdvancedFilters} setAdvancedSearch={setAdvancedSearch} setAttendanceFilter={setAttendanceFilter} setCurrentPage={setCurrentPage} setMobileView={setMobileView} setPageSize={setPageSize} setSearchTerm={setSearchTerm} setSelectedClass={setSelectedClass} setSelectedGender={setSelectedGender} setSelectedLanguage={setSelectedLanguage} setSelectedStatus={setSelectedStatus} setSelectedStudents={setSelectedStudents} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowColumnSettings={setShowColumnSettings} setShowSaveFilterModal={setShowSaveFilterModal} showAdvancedFilters={showAdvancedFilters} showColumnSettings={showColumnSettings} students={students} theme={theme} onPromoteBulk={() => { setPromotionMode('bulk'); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} />
         <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} />
@@ -309,7 +348,15 @@ export default function StudentsPage() {
       <AttendanceModal attendanceTracking={attendanceTracking} bulkMarkAttendance={bulkMarkAttendance} getAttendanceStats={getAttendanceStats} markAttendance={markAttendance} selectedStudents={selectedStudents} setAttendanceTracking={setAttendanceTracking} setSelectedStudents={setSelectedStudents} students={students} theme={theme} />
       <AcademicModal academicPerformance={academicPerformance} analyzePerformance={analyzePerformance} generateTrendAnalysis={generateTrendAnalysis} getPerformanceColor={getPerformanceColor} selectedStudents={selectedStudents} setAcademicPerformance={setAcademicPerformance} theme={theme} />
       <FeeModal createInstallmentPlan={createInstallmentPlan} feeManagement={feeManagement} generateFeeReport={generateFeeReport} processPayment={processPayment} selectedStudents={selectedStudents} sendAutomatedReminders={sendAutomatedReminders} setFeeManagement={setFeeManagement} students={students} theme={theme} />
-      <StudentProfileModal activeTab={activeTab} printStudentProfile={printStudentProfile} selectedStudent={selectedStudent} sendStudentSMS={sendStudentSMS} setAcademicPerformance={setAcademicPerformance} setActiveTab={setActiveTab} setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter} setEditingStudent={setEditingStudent} setFeeManagement={setFeeManagement} setParentPortal={setParentPortal} setSelectedStudent={setSelectedStudent} theme={theme} students={students} />
+      <StudentProfileModal
+        activeTab={activeTab} printStudentProfile={printStudentProfile} selectedStudent={selectedStudent}
+        sendStudentSMS={sendStudentSMS} setAcademicPerformance={setAcademicPerformance} setActiveTab={setActiveTab}
+        setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter}
+        setEditingStudent={setEditingStudent} setFeeManagement={setFeeManagement} setParentPortal={setParentPortal}
+        setSelectedStudent={setSelectedStudent} theme={theme} students={students}
+        onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }}
+        onMarkExit={handleMarkExit}
+      />
       <BulkOperationsModal bulkOperationData={bulkOperationData} bulkOperationProgress={bulkOperationProgress} bulkOperationType={bulkOperationType} executeBulkOperation={executeBulkOperation} selectedStudents={selectedStudents} setBulkOperationData={setBulkOperationData} setBulkOperationType={setBulkOperationType} setShowBulkOperationModal={setShowBulkOperationModal} showBulkOperationModal={showBulkOperationModal} students={students} theme={theme} />
       <ColumnSettingsModal columnSettings={columnSettings} resetColumns={resetColumns} setShowColumnSettings={setShowColumnSettings} showColumnSettings={showColumnSettings} theme={theme} toggleColumn={toggleColumn} visibleColumns={visibleColumns} moveColumn={moveColumn} reorderColumns={reorderColumns} />
       <SaveFilterModal filterName={filterName} saveCurrentFilter={saveCurrentFilter} setFilterName={setFilterName} setShowSaveFilterModal={setShowSaveFilterModal} showSaveFilterModal={showSaveFilterModal} theme={theme} />

@@ -78,6 +78,7 @@ export default function StudentTable({
       case 'graduated': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       case 'transferred': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
       case 'suspended': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'locked': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
       default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
     }
   };
@@ -259,13 +260,26 @@ export default function StudentTable({
                       )}
                       {visibleColumns.includes('name') && (
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => setSelectedStudent(student)}
-                            className={`font-semibold hover:text-blue-500 transition-colors text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            {student.name}
-                          </button>
-                          <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{student.email}</div>
+                          <div className="flex items-center gap-1.5">
+                            {(student.needsPromotion || student.status === 'locked') && (
+                              <span title="Needs promotion to current AY" className="text-orange-500 text-sm">🔒</span>
+                            )}
+                            <div>
+                              <button
+                                onClick={() => setSelectedStudent(student)}
+                                className={`font-semibold hover:text-blue-500 transition-colors text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                {student.name}
+                              </button>
+                              {(student.needsPromotion || student.status === 'locked') ? (
+                                <div className="text-xs text-orange-500 font-medium">
+                                  AY: {student.academicYear} — promote required
+                                </div>
+                              ) : (
+                                <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{student.email}</div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       )}
                       {visibleColumns.includes('parents') && (
@@ -326,47 +340,79 @@ export default function StudentTable({
                       {visibleColumns.includes('actions') && (
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => window.location.href = `/fee-collection?studentId=${student.id}`}
-                              className="p-1 rounded hover:bg-green-500/10 text-green-500 transition-colors"
-                              title="Collect Fee"
-                            >
-                              💰
-                            </button>
-                            <button
-                              onClick={() => setSelectedStudent(student)}
-                              className="p-1 rounded hover:bg-blue-500/10 text-blue-500 transition-colors"
-                              title="View Profile"
-                            >
-                              👁️
-                            </button>
-                            <button
-                              onClick={() => setEditingStudent(student)}
-                              className="p-1 rounded hover:bg-amber-500/10 text-amber-500 transition-colors"
-                              title="Edit"
-                            >
-                              ✏️
-                            </button>
-                            {onPromoteSingle && (
-                              <button
-                                onClick={() => onPromoteSingle(student.id)}
-                                className="p-1 rounded hover:bg-purple-500/10 text-purple-500 transition-colors"
-                                title="Promote Student"
-                              >
-                                🎓
-                              </button>
+                            {(student.needsPromotion || student.status === 'locked') ? (
+                              /* Locked student: promote is the primary action */
+                              <>
+                                {onPromoteSingle && (
+                                  <button
+                                    onClick={() => onPromoteSingle(student.id)}
+                                    className="px-2 py-1 rounded text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+                                    title="Promote to current AY"
+                                  >
+                                    🎓 Promote
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setSelectedStudent(student)}
+                                  className="p-1 rounded hover:bg-blue-500/10 text-blue-500 transition-colors"
+                                  title="View Profile"
+                                >
+                                  👁️
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Delete ${student.name}?`)) handleDeleteStudent(student.id);
+                                  }}
+                                  className="p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors"
+                                  title="Delete"
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            ) : (
+                              /* Normal student: full actions */
+                              <>
+                                <button
+                                  onClick={() => window.location.href = `/fee-collection?studentId=${student.id}`}
+                                  className="p-1 rounded hover:bg-green-500/10 text-green-500 transition-colors"
+                                  title="Collect Fee"
+                                >
+                                  💰
+                                </button>
+                                <button
+                                  onClick={() => setSelectedStudent(student)}
+                                  className="p-1 rounded hover:bg-blue-500/10 text-blue-500 transition-colors"
+                                  title="View Profile"
+                                >
+                                  👁️
+                                </button>
+                                <button
+                                  onClick={() => setEditingStudent(student)}
+                                  className="p-1 rounded hover:bg-amber-500/10 text-amber-500 transition-colors"
+                                  title="Edit"
+                                >
+                                  ✏️
+                                </button>
+                                {onPromoteSingle && (
+                                  <button
+                                    onClick={() => onPromoteSingle(student.id)}
+                                    className="p-1 rounded hover:bg-purple-500/10 text-purple-500 transition-colors"
+                                    title="Promote Student"
+                                  >
+                                    🎓
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Delete ${student.name}?`)) handleDeleteStudent(student.id);
+                                  }}
+                                  className="p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors"
+                                  title="Delete"
+                                >
+                                  🗑️
+                                </button>
+                              </>
                             )}
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Delete ${student.name}?`)) {
-                                  handleDeleteStudent(student.id);
-                                }
-                              }}
-                              className="p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors"
-                              title="Delete"
-                            >
-                              🗑️
-                            </button>
                           </div>
                         </td>
                       )}

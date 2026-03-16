@@ -65,6 +65,11 @@ export default function SettingsPage() {
   const [previousYearForCopy, setPreviousYearForCopy] = useState<any>(null);
   const [pendingAcademicYear, setPendingAcademicYear] = useState<any>(null);
 
+  // ─── Student lock dialog (shown when activating a new AY) ────────────────────
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const [lockDialogData, setLockDialogData] = useState<{ ay: any; count: number; byAY: any[] } | null>(null);
+  const [lockingSaving, setLockingSaving] = useState(false);
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
   const isDark = theme === 'dark';
   const card = `rounded-xl border p-6 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
@@ -574,6 +579,54 @@ export default function SettingsPage() {
     }
   };
 
+  // ─── Activate Academic Year with auto-lock dialog ──────────────────────────
+  const handleActivateAcademicYear = async (ay: any) => {
+    try {
+      // 1. Preview how many students would need locking
+      const res = await fetch('/api/students/bulk-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'preview' }),
+      });
+      const data = await res.json();
+
+      // 2. Activate the AY first
+      await academicYearsApi.update({ id: ay.id, isActive: true });
+      fetchAll();
+      refreshSchoolConfig();
+      showToast({ type: 'success', title: `${ay.name} is now the active academic year` });
+
+      // 3. If there are students to lock, show the lock dialog
+      if (data.count > 0) {
+        setLockDialogData({ ay, count: data.count, byAY: data.byAcademicYear || [] });
+        setShowLockDialog(true);
+      }
+    } catch (err: any) {
+      showToast({ type: 'error', title: 'Failed to activate academic year', message: err.message });
+    }
+  };
+
+  const handleConfirmLock = async (doLock: boolean) => {
+    if (doLock) {
+      setLockingSaving(true);
+      try {
+        const res = await fetch('/api/students/bulk-lock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'lock' }),
+        });
+        const data = await res.json();
+        showToast({ type: 'success', title: `${data.count} student(s) locked`, message: 'They must be promoted before any edits.' });
+      } catch (err: any) {
+        showToast({ type: 'error', title: 'Lock failed', message: err.message });
+      } finally {
+        setLockingSaving(false);
+      }
+    }
+    setShowLockDialog(false);
+    setLockDialogData(null);
+  };
+
   // ─── Active academic year (newest active year wins) ────────────────────────
   const activeAY = [...academicYears]
     .filter((a: any) => a.isActive)
@@ -688,6 +741,15 @@ export default function SettingsPage() {
               <span className={badge(ay.isActive)}>{ay.isActive ? 'Active' : 'Inactive'}</span>
             </div>
             <div className="flex gap-2">
+              {!ay.isActive && (
+                <button
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => handleActivateAcademicYear(ay)}
+                  title="Set as active academic year"
+                >
+                  ⚡ Activate
+                </button>
+              )}
               <button className={btnSecondary} onClick={() => openEdit('academicYear', ay)}>Edit</button>
               <button className={btnDanger} onClick={() => handleDelete('academicYear', ay.id, ay.name)}>Delete</button>
             </div>
@@ -1433,6 +1495,64 @@ export default function SettingsPage() {
                   onClick={handleCancelCopy}
                 >
                   Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Student Lock Dialog (shown when activating a new AY) ────────── */}
+      <AnimatePresence>
+        {showLockDialog && lockDialogData && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"
+            onClick={() => handleConfirmLock(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className={`w-full max-w-md rounded-xl p-6 ${card}`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="text-center mb-5">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDark ? 'bg-orange-900/50' : 'bg-orange-100'}`}>
+                  <span className="text-3xl">🔒</span>
+                </div>
+                <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Lock Previous-Year Students?
+                </h3>
+                <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <span className="font-bold text-orange-500">{lockDialogData.count} active student{lockDialogData.count !== 1 ? 's' : ''}</span> still belong to a previous academic year.
+                </p>
+                {lockDialogData.byAY.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {lockDialogData.byAY.map((r: any) => (
+                      <div key={r.year} className={`flex justify-between text-xs px-3 py-1 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>AY {r.year}</span>
+                        <span className="font-medium text-orange-500">{r.count} student{r.count !== 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Locking prevents any edits or new fee assignments until they are promoted to <strong>{lockDialogData.ay.year}</strong> or marked as exit.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+                  disabled={lockingSaving}
+                  onClick={() => handleConfirmLock(true)}
+                >
+                  {lockingSaving ? 'Locking...' : `🔒 Lock ${lockDialogData.count} Student${lockDialogData.count !== 1 ? 's' : ''}`}
+                </button>
+                <button
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                  disabled={lockingSaving}
+                  onClick={() => handleConfirmLock(false)}
+                >
+                  Skip for Now
                 </button>
               </div>
             </motion.div>

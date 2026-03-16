@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const gender = searchParams.get('gender') || '';
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+    const needsPromotion = searchParams.get('needsPromotion') || '';
     
     // Validate and sanitize pagination parameters
     const { page, pageSize } = sanitizePaginationParams(
@@ -45,6 +46,16 @@ export async function GET(request: NextRequest) {
     if (cls) where.class = cls;
     if (status) where.status = status;
     if (gender) where.gender = gender;
+    // Filter for students who need promotion: have academicYearId set but it differs from active AY
+    if (needsPromotion === 'true') {
+      const activeAY = await schoolPrisma.academicYear.findFirst({
+        where: { isActive: true }, orderBy: { createdAt: 'desc' }
+      });
+      if (activeAY) {
+        where.academicYearId = { not: activeAY.id };
+        where.status = 'active';
+      }
+    }
 
     const allowedSortFields: Record<string, boolean> = {
       name: true, class: true, status: true, gender: true,
@@ -71,6 +82,7 @@ export async function GET(request: NextRequest) {
           gpa: true, rank: true, disciplineScore: true, incidents: true, achievements: true,
           documents: true, remarks: true, admissionDate: true, enrollmentDate: true,
           createdAt: true, updatedAt: true,
+          academicYear: true, academicYearId: true,
         },
       }),
       schoolPrisma.student.count({ where }),
@@ -79,6 +91,11 @@ export async function GET(request: NextRequest) {
     if (students.length === 0) {
       return NextResponse.json({ students: [], total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
     }
+
+    // Fetch active AY once for needsPromotion computation
+    const activeAYForLock = await schoolPrisma.academicYear.findFirst({
+      where: { isActive: true }, orderBy: { createdAt: 'desc' }, select: { id: true }
+    });
 
     // 2. Batch aggregate fee and attendance data for the page's students only
     const studentIds = students.map(s => s.id);
@@ -125,8 +142,15 @@ export async function GET(request: NextRequest) {
       const late = attMap.get(s.id)?.late || 0;
       const totalAtt = present + absent + late;
 
+      // A student needs promotion if:
+      // - academicYearId is set (admitted after this feature) AND
+      // - it doesn't match the current active AY AND
+      // - their status is 'active' (not already graduated/transferred etc)
+      const needsPromotion = !!(s.academicYearId && activeAYForLock && s.academicYearId !== activeAYForLock.id && s.status === 'active');
+
       return {
         ...s,
+        needsPromotion,
         documents: s.documents && s.documents !== "NULL" ? JSON.parse(s.documents) : {},
         fees: {
           total: fees.amount || 0,
@@ -358,6 +382,7 @@ export async function POST(request: NextRequest) {
         transferCertificateNo: transferCertificateNumber, // Map the field name
         documents: documents ? JSON.stringify(documents) : null,
         academicYear: academicYear, // FIX: Use dynamic academic year from DB
+        academicYearId: activeAcademicYear.id, // FK to AcademicYear — tracks which AY this student belongs to
         gpa: academics?.gpa ?? 0,
         rank: academics?.rank ?? 0,
         disciplineScore: behavior?.disciplineScore ?? 100,

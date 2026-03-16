@@ -10,9 +10,11 @@ import StudentMedicalInfo from './StudentMedicalInfo';
 
 interface StudentProfileModalProps {
   activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
+  onPromoteSingle?: (studentId: string) => void;
+  onMarkExit?: (studentId: string) => void;
 }
 
-export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [] }: StudentProfileModalProps) {
+export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], onPromoteSingle, onMarkExit }: StudentProfileModalProps) {
   return (
     <>
       {/* Student Profile Modal */}
@@ -113,6 +115,43 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                   </div>
                 </div>
               </div>
+
+              {/* ── Lock Banner ──────────────────────────────────────────── */}
+              {(selectedStudent?.needsPromotion || selectedStudent?.status === 'locked') && (
+                <div className="px-6 py-3 bg-orange-500/10 border-b border-orange-500/20">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-500 text-lg">🔒</span>
+                      <div>
+                        <p className="text-sm font-semibold text-orange-600">
+                          Student record is locked — from AY {selectedStudent.academicYear}
+                        </p>
+                        <p className="text-xs text-orange-500">
+                          Editing and new fee assignments are blocked until you promote this student to the current academic year or mark them as exit.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {onPromoteSingle && (
+                        <button
+                          onClick={() => { setSelectedStudent(null); onPromoteSingle(selectedStudent.id); }}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+                        >
+                          🎓 Promote Now
+                        </button>
+                      )}
+                      {onMarkExit && (
+                        <button
+                          onClick={() => { onMarkExit(selectedStudent.id); setSelectedStudent(null); }}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-500 hover:bg-gray-600 text-white transition-colors"
+                        >
+                          🚪 Mark Exit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Profile Navigation Tabs */}
               <div className={`px-6 py-3 border-b ${

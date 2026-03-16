@@ -17,6 +17,7 @@ async function promoteStudents(
     toClass: string;
     toSection: string;
     toAcademicYear: string;
+    toAcademicYearId: string;  // FK id of the target AY
     promotionType: string;
     remarks: string;
     promotedBy: string;
@@ -91,13 +92,15 @@ async function promoteStudents(
         });
       }
 
-      // 2. Update student record
+      // 2. Update student record — set academicYearId so the lock is cleared
       await db.student.update({
         where: { id: studentId },
         data: {
           class: promotionPayload.toClass,
           section: promotionPayload.toSection,
           academicYear: promotionPayload.toAcademicYear,
+          academicYearId: promotionPayload.toAcademicYearId,  // clear lock by updating to new AY id
+          status: 'active', // ensure status is active after promotion
         }
       });
 
@@ -271,6 +274,7 @@ export async function POST(request: NextRequest) {
       toClass,
       toSection,
       toAcademicYear,
+      toAcademicYearId: targetAcademicYear.id,  // pass the FK id
       promotionType,
       remarks,
       promotedBy: ctx.userId,

@@ -35,6 +35,10 @@ export const studentsApi = {
   create: (data: any) => request<any>('/api/students', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) => request<any>(`/api/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => request<any>(`/api/students/${id}`, { method: 'DELETE' }),
+  promote: (data: any) => request<any>('/api/students/promote', { method: 'POST', body: JSON.stringify(data) }),
+  bulkLock: (action: 'lock' | 'unlock' | 'preview', opts: Record<string, any> = {}) =>
+    request<any>('/api/students/bulk-lock', { method: 'POST', body: JSON.stringify({ action, ...opts }) }),
+  bulkLockStatus: () => request<any>('/api/students/bulk-lock'),
 };
 
 // ─── TEACHERS ─────────────────────────────────────────────────────────────────
