@@ -588,7 +588,11 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                     )}
                     <div>
                       <span className={`text-sm ${textSecondary}`}>Scope:</span>
-                      <p className={`${textPrimary}`}>{selectedRequest.scope} • {selectedRequest.targetType}</p>
+                      <p className={`capitalize ${textPrimary}`}>
+                        {selectedRequest.scope === 'student' ? 'Single Student' : 
+                         selectedRequest.scope === 'bulk' ? 'Bulk Students' : 
+                         selectedRequest.scope} • {selectedRequest.targetType.replace('_', ' ')}
+                      </p>
                     </div>
                     {selectedRequest.targetType === 'fee_structure' && (
                       <div>
@@ -605,12 +609,12 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                             const structures = getFeeStructureNames(feeStructureIds);
                             
                             return structures.length > 0 ? (
-                              <div className="space-y-2">
+                              <div className="space-y-3">
                                 {structures.map(structure => (
-                                  <div key={structure.id} className="flex items-center justify-between">
-                                    <div>
+                                  <div key={structure.id} className="flex flex-col sm:flex-row sm:items-center justify-between border-b last:border-0 pb-2 last:pb-0 border-gray-200 dark:border-gray-700">
+                                    <div className="flex flex-col">
                                       <span className={`font-medium ${textPrimary}`}>{structure.name}</span>
-                                      <span className={`ml-2 text-xs ${textSecondary}`}>For Student Only</span>
+                                      <span className={`text-xs ${textSecondary}`}>For Student Only</span>
                                     </div>
                                   </div>
                                 ))}
