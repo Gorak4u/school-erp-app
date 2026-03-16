@@ -21,6 +21,7 @@ export default function ExpenseReports({ analytics, isDark, onExport, academicYe
   const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const sub  = isDark ? 'text-gray-400' : 'text-gray-500';
+  const inp  = `px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
 
   const statusColors: Record<string, string> = {
     pending:  'bg-yellow-500',
