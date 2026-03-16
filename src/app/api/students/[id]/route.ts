@@ -110,13 +110,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    // Check permissions for custom roles
-    if (ctx.customRoleId && ctx.permissions) {
-      if (!ctx.permissions.includes('delete_students')) {
-        return NextResponse.json({ error: 'Insufficient permissions to delete students' }, { status: 403 });
-      }
-    }
-
     const { id } = await params;
     // Verify ownership before delete
     const existing = await (schoolPrisma as any).student.findFirst({ where: { id, ...tenantWhere(ctx) } });

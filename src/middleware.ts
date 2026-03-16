@@ -210,11 +210,66 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ── API Route Permission Checks ───────────────────────────────────────
+  if (pathname.startsWith('/api/')) {
+    // Student operations
+    if (pathname.startsWith('/api/students')) {
+      if (pathname.includes('/delete') || request.method === 'DELETE') {
+        if (userCustomRoleId && !userPermissions.includes('delete_students')) {
+          return NextResponse.json({ error: 'Insufficient permissions to delete students' }, { status: 403 });
+        }
+      }
+      if (pathname.includes('/create') || (pathname.endsWith('/students') && request.method === 'POST')) {
+        if (userCustomRoleId && !userPermissions.includes('create_students')) {
+          return NextResponse.json({ error: 'Insufficient permissions to create students' }, { status: 403 });
+        }
+      }
+      if (request.method === 'PUT' || request.method === 'PATCH') {
+        if (userCustomRoleId && !userPermissions.includes('edit_students')) {
+          return NextResponse.json({ error: 'Insufficient permissions to edit students' }, { status: 403 });
+        }
+      }
+    }
+    
+    // Teacher operations
+    if (pathname.startsWith('/api/teachers')) {
+      if (pathname.includes('/delete') || request.method === 'DELETE') {
+        if (userCustomRoleId && !userPermissions.includes('delete_teachers')) {
+          return NextResponse.json({ error: 'Insufficient permissions to delete teachers' }, { status: 403 });
+        }
+      }
+      if (pathname.includes('/create') || (pathname.endsWith('/teachers') && request.method === 'POST')) {
+        if (userCustomRoleId && !userPermissions.includes('create_teachers')) {
+          return NextResponse.json({ error: 'Insufficient permissions to create teachers' }, { status: 403 });
+        }
+      }
+      if (request.method === 'PUT' || request.method === 'PATCH') {
+        if (userCustomRoleId && !userPermissions.includes('edit_teachers')) {
+          return NextResponse.json({ error: 'Insufficient permissions to edit teachers' }, { status: 403 });
+        }
+      }
+    }
+    
+    // Fee operations
+    if (pathname.startsWith('/api/fees')) {
+      if (userCustomRoleId && !userPermissions.includes('manage_fees')) {
+        return NextResponse.json({ error: 'Insufficient permissions to manage fees' }, { status: 403 });
+      }
+    }
+    
+    // Settings operations
+    if (pathname.startsWith('/api/school-structure') || pathname.startsWith('/api/settings')) {
+      if (userCustomRoleId && !userPermissions.includes('manage_settings')) {
+        return NextResponse.json({ error: 'Insufficient permissions to manage settings' }, { status: 403 });
+      }
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|uploads).*)',
+    '/((?!_next/static|_next/image|favicon.ico|uploads).*)',
   ],
 };
