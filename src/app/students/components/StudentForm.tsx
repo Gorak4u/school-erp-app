@@ -121,7 +121,6 @@ export default function StudentForm({
 
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [feesLoading, setFeesLoading] = useState(false);
-  const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([]);
   const [discountData, setDiscountData] = useState({
     hasDiscount: false,
     discountType: 'percentage',
@@ -149,7 +148,7 @@ export default function StudentForm({
 
   // Load fee structures when class changes
   useEffect(() => {
-    if (!formData.classId) { setFeeStructures([]); setSelectedFeeIds([]); return; }
+    if (!formData.classId) { setFeeStructures([]); return; }
     setFeesLoading(true);
     
     // Fetch active academic year first, then fee structures
@@ -170,7 +169,6 @@ export default function StudentForm({
         const structs = data.feeStructures || [];
         console.log('Loaded fee structures:', structs);
         setFeeStructures(structs);
-        setSelectedFeeIds(structs.map((f: any) => f.id));
       })
       .catch(err => {
         console.error('Failed to load fee structures:', err);
@@ -199,10 +197,9 @@ export default function StudentForm({
   }, []);
 
   const feeCalcs = useMemo(() => {
-    const selected = feeStructures.filter(f => selectedFeeIds.includes(f.id));
-    const baseTotal = selected.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+    const baseTotal = feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     if (!discountData.hasDiscount || !discountData.discountValue) {
-      return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected };
+      return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected: feeStructures };
     }
     let discountAmount = 0;
     if (discountData.discountType === 'percentage') {
@@ -235,7 +232,7 @@ export default function StudentForm({
     onSubmit({
       ...formData,
       ...(discountData.hasDiscount && {
-        _discountInfo: { ...discountData, feeStructureIds: selectedFeeIds },
+        _discountInfo: { ...discountData },
       }),
     } as any);
   };
@@ -415,23 +412,13 @@ export default function StudentForm({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {feeStructures.map((fee: any) => (
-                      <label key={fee.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedFeeIds.includes(fee.id)
-                          ? theme === 'dark' ? 'border-blue-500 bg-blue-900/20' : 'border-blue-400 bg-blue-50'
-                          : theme === 'dark' ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                    {feeStructures.map(fee => (
+                      <div key={fee.id} className={`flex justify-between items-center p-3 rounded-lg border ${
+                        theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'
                       }`}>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedFeeIds.includes(fee.id)}
-                            onChange={e => setSelectedFeeIds(prev => e.target.checked ? [...prev, fee.id] : prev.filter((id: string) => id !== fee.id))}
-                            className="w-4 h-4 accent-blue-600"
-                          />
-                          <div>
-                            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{fee.name}</p>
-                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{fee.category || fee.feeCategory || 'General'}</p>
-                          </div>
+                        <div>
+                          <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{fee.name}</p>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{fee.category || fee.feeCategory || 'General'}</p>
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
@@ -439,10 +426,10 @@ export default function StudentForm({
                           </p>
                           <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>per year</p>
                         </div>
-                      </label>
+                      </div>
                     ))}
                     <div className={`flex justify-between items-center p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                      <span className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Selected Total:</span>
+                      <span className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Total Fees:</span>
                       <span className="text-blue-500 text-lg font-bold">₹{feeCalcs.baseTotal.toLocaleString('en-IN')}/year</span>
                     </div>
                   </div>
