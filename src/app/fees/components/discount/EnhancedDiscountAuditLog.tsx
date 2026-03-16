@@ -288,7 +288,7 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
               <th className="px-4 py-3">Timestamp</th>
               <th className="px-4 py-3">Action</th>
               <th className="px-4 py-3">Actor</th>
-              <th className="px-4 py-3">Request Name</th>
+              <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Details</th>
             </tr>
           </thead>

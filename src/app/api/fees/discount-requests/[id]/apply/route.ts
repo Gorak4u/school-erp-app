@@ -139,35 +139,83 @@ export async function POST(
       return NextResponse.json({ error: 'No matching fee records found to apply discount' }, { status: 404 });
     }
 
-    // 3. Calculate new discounts
+    // 3. Calculate new discounts with payment validation
     const applications = [];
     const updates = [];
+    const skippedRecords = [];
 
     for (const record of targetRecords) {
+      const totalFee = record.amount;
+      const paidAmount = record.paidAmount || 0;
+      const currentDiscount = record.discount || 0;
+      const remainingBalance = totalFee - paidAmount - currentDiscount;
+      
+      // Check if student has already paid full amount
+      if (paidAmount >= totalFee) {
+        console.log(`SKIPPING: Student already paid full amount. Fee: ${totalFee}, Paid: ${paidAmount}, Current Discount: ${currentDiscount}`);
+        skippedRecords.push({
+          id: record.id,
+          studentId: record.studentId,
+          reason: 'Student already paid full amount'
+        });
+        continue;
+      }
+      
       let calcDiscount = 0;
       
       if (discountReq.discountType === 'percentage') {
-        calcDiscount = (record.amount * discountReq.discountValue) / 100;
+        calcDiscount = (totalFee * discountReq.discountValue) / 100;
         if (discountReq.maxCapAmount) {
           calcDiscount = Math.min(calcDiscount, discountReq.maxCapAmount);
         }
       } else if (discountReq.discountType === 'fixed') {
         calcDiscount = discountReq.discountValue;
       } else if (discountReq.discountType === 'full_waiver') {
-        calcDiscount = record.amount;
+        calcDiscount = totalFee;
       }
 
       // Ensure discount doesn't exceed amount
-      calcDiscount = Math.min(calcDiscount, record.amount);
-      const previousDiscount = record.discount || 0;
-      const totalNewDiscount = previousDiscount + calcDiscount;
+      calcDiscount = Math.min(calcDiscount, totalFee);
+      const totalNewDiscount = currentDiscount + calcDiscount;
 
       // Ensure total discount doesn't exceed total amount
-      if (totalNewDiscount > record.amount) {
-        calcDiscount = record.amount - previousDiscount;
+      if (totalNewDiscount > totalFee) {
+        calcDiscount = totalFee - currentDiscount;
       }
 
-      if (calcDiscount <= 0) continue;
+      // Calculate new pending amount
+      const newPendingAmount = totalFee - paidAmount - totalNewDiscount;
+      
+      // Skip if discount would create negative pending amount
+      if (newPendingAmount < 0) {
+        console.log(`SKIPPING: Discount would create negative pending amount. Fee: ${totalFee}, Paid: ${paidAmount}, New Discount: ${totalNewDiscount}, New Pending: ${newPendingAmount}`);
+        skippedRecords.push({
+          id: record.id,
+          studentId: record.studentId,
+          reason: 'Discount would create negative pending amount'
+        });
+        continue;
+      }
+      
+      // Only apply discount if it actually reduces the pending amount
+      if (newPendingAmount >= remainingBalance) {
+        console.log(`SKIPPING: Discount doesn't benefit student. Current Pending: ${remainingBalance}, New Pending: ${newPendingAmount}`);
+        skippedRecords.push({
+          id: record.id,
+          studentId: record.studentId,
+          reason: 'Discount provides no benefit'
+        });
+        continue;
+      }
+
+      if (calcDiscount <= 0) {
+        skippedRecords.push({
+          id: record.id,
+          studentId: record.studentId,
+          reason: 'Calculated discount is zero or negative'
+        });
+        continue;
+      }
 
       applications.push({
         schoolId: ctx.schoolId,
@@ -176,19 +224,30 @@ export async function POST(
         feeRecordId: record.id,
         feeStructureId: record.feeStructureId,
         discountAmount: calcDiscount,
-        previousDiscount: previousDiscount,
+        previousDiscount: currentDiscount,
         appliedBy: ctx.userId,
         appliedByEmail: ctx.email
       });
 
       updates.push(
         (schoolPrisma as any).$executeRawUnsafe(
-          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = GREATEST(0, "amount" - "paidAmount" - ("discount" + $1)) WHERE id = $2`,
+          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = $2 WHERE id = $3`,
           calcDiscount,
+          newPendingAmount,
           record.id
         )
       );
     }
+
+    console.log(`DISCOUNT APPLICATION SUMMARY:`, {
+      totalRecords: targetRecords.length,
+      appliedCount: applications.length,
+      skippedCount: skippedRecords.length,
+      skippedReasons: skippedRecords.reduce((acc: any, record: any) => {
+        acc[record.reason] = (acc[record.reason] || 0) + 1;
+        return acc;
+      }, {})
+    });
 
     if (applications.length === 0) {
       return NextResponse.json({ error: 'No valid records found to apply this discount (might already be fully discounted)' }, { status: 400 });
@@ -224,7 +283,23 @@ export async function POST(
       })
     ]);
 
-    return NextResponse.json({ success: true, data: { appliedCount: applications.length } });
+    return NextResponse.json({ 
+      success: true, 
+      data: { 
+        appliedCount: applications.length,
+        skippedCount: skippedRecords.length,
+        skippedRecords: skippedRecords,
+        summary: {
+          totalRecords: targetRecords.length,
+          appliedCount: applications.length,
+          skippedCount: skippedRecords.length,
+          skippedReasons: skippedRecords.reduce((acc: any, record: any) => {
+            acc[record.reason] = (acc[record.reason] || 0) + 1;
+            return acc;
+          }, {})
+        }
+      } 
+    });
   } catch (err) {
     console.error('POST /api/fees/discount-requests/[id]/apply:', err);
     return NextResponse.json({ error: 'Failed to apply discount' }, { status: 500 });

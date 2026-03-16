@@ -16,6 +16,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -38,10 +39,22 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         const res = await fetch('/api/school-structure/classes');
         if (res.ok) {
           const data = await res.json();
-          setClasses(data.data || []);
+          setClasses(data.classes || []);
         }
       } catch (err) {
         console.error('Failed to fetch classes:', err);
+      }
+    };
+
+    const fetchSections = async () => {
+      try {
+        const res = await fetch('/api/school-structure/sections');
+        if (res.ok) {
+          const data = await res.json();
+          setSections(data.sections || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch sections:', err);
       }
     };
 
@@ -59,6 +72,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     
     fetchFeeStructures();
     fetchClasses();
+    fetchSections();
     fetchAcademicYears();
   }, []);
 
@@ -67,12 +81,22 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       const fetchStudents = async () => {
         try {
           const res = await fetch(`/api/students?search=${encodeURIComponent(searchTerm)}`);
-          if (res.ok) {
-            const data = await res.json();
-            setStudents(data.data || []);
+          
+          if (res.status === 429) {
+            setError('Too many search requests. Please wait a moment.');
+            return;
           }
-        } catch (err) {
+          
+          if (res.ok) {
+            const result = await res.json();
+            setStudents(result.students || []);
+          } else {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to search students');
+          }
+        } catch (err: any) {
           console.error('Failed to search students:', err);
+          setError(err.message || 'Failed to search students');
         }
       };
       const timeoutId = setTimeout(fetchStudents, 500);
@@ -169,7 +193,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       </div>
 
       {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg text-sm">
+        <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg">
           {error}
         </div>
       )}
@@ -180,14 +204,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Request Name</label>
+              <label className="block text-sm font-medium mb-1">Reason <span className="text-red-500">*</span></label>
               <input
                 type="text"
-                placeholder="e.g., Sibling Discount Q1"
+                placeholder="e.g., Financial hardship, merit scholarship, sibling discount..."
                 className={inputCls}
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
               />
+              {formData.name.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">Reason is required</p>
+              )}
             </div>
 
             <div>
@@ -278,35 +306,128 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
             )}
             
             {formData.scope === 'class' && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium">Select Classes <span className="text-red-500">*</span></label>
-                <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                  {classes.map((cls: any) => (
-                    <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Select Classes <span className="text-red-500">*</span></label>
+                  <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    {classes.map((cls: any) => (
+                      <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.classIds.includes(cls.id)}
+                          onChange={(e) => {
+                            const newIds = e.target.checked
+                              ? [...formData.classIds, cls.id]
+                              : formData.classIds.filter(id => id !== cls.id);
+                            setFormData({...formData, classIds: newIds});
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{cls.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            ({cls.medium?.name || 'No Medium'})
+                          </span>
+                          <div className="text-xs text-gray-400">
+                            Code: {cls.code} | Level: {cls.level}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Select Sections (Optional)</label>
+                  <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.classIds.includes(cls.id)}
+                        checked={formData.sectionIds.length === 0}
                         onChange={(e) => {
-                          const newIds = e.target.checked
-                            ? [...formData.classIds, cls.id]
-                            : formData.classIds.filter(id => id !== cls.id);
-                          setFormData({...formData, classIds: newIds});
+                          setFormData({...formData, sectionIds: []});
                         }}
                         className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                       />
-                      <span className="text-sm font-medium">{cls.name}</span>
+                      <span className="text-sm font-medium">All Sections</span>
                     </label>
-                  ))}
+                    {sections.map((section: any) => (
+                      <label key={section.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.sectionIds.includes(section.id)}
+                          onChange={(e) => {
+                            const newIds = e.target.checked
+                              ? [...formData.sectionIds, section.id]
+                              : formData.sectionIds.filter(id => id !== section.id);
+                            setFormData({...formData, sectionIds: newIds});
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium">{section.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+                
+                {(formData.classIds.length > 0 || formData.sectionIds.length > 0) && (
+                  <div className="text-sm text-green-600">
+                    {formData.classIds.length} class(es) and {formData.sectionIds.length} section(s) selected
+                  </div>
+                )}
               </div>
             )}
             
             {formData.scope === 'bulk' && (
-              <div className="p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center bg-gray-50 dark:bg-gray-800">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Bulk application will apply to all students in the school. 
-                  Proceed with caution.
-                </p>
+              <div className="space-y-4">
+                <div className="p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Bulk application will apply to all students in the school. 
+                    You can search below to see which students will be affected.
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Search Students (Preview)</label>
+                  <input
+                    type="text"
+                    placeholder="Search by name, admission no, email..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
+                  />
+                  
+                  {searchTerm.length >= 2 && (
+                    <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Showing {students.length} students (this is a preview - bulk discount will apply to ALL students)
+                      </p>
+                      {students.length > 0 ? (
+                        <>
+                          {students.slice(0, 10).map((student) => (
+                            <div key={student.id} className="p-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                              <div className="font-medium text-sm">{student.name}</div>
+                              <div className="text-xs text-gray-500">
+                                Class: {student.class?.name || student.class} | Adm No: {student.admissionNo}
+                              </div>
+                            </div>
+                          ))}
+                          {students.length > 10 && (
+                            <p className="text-xs text-gray-500 p-2 text-center">
+                              ... and {students.length - 10} more students
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-500 p-2 text-center">
+                          No students found matching "{searchTerm}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -479,8 +600,54 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
         {step < 3 ? (
           <button
-            onClick={() => setStep(step + 1)}
-            disabled={step === 1 && !formData.name}
+            onClick={() => {
+              // Validate step 1 before proceeding
+              if (step === 1) {
+                if (!formData.name.trim()) {
+                  setError('Reason is required');
+                  return;
+                }
+                if (!formData.academicYear) {
+                  setError('Academic year is required');
+                  return;
+                }
+                if (!formData.scope) {
+                  setError('Scope selection is required');
+                  return;
+                }
+                if (formData.scope === 'student' && formData.studentIds.length === 0) {
+                  setError('Please select at least one student');
+                  return;
+                }
+                if (formData.scope === 'class' && formData.classIds.length === 0) {
+                  setError('Please select at least one class');
+                  return;
+                }
+                setError('');
+              }
+              // Validate step 2 before proceeding
+              if (step === 2) {
+                if (!formData.targetType) {
+                  setError('Target type selection is required');
+                  return;
+                }
+                if (formData.targetType === 'fee_structure' && formData.feeStructureIds.length === 0) {
+                  setError('Please select at least one fee structure');
+                  return;
+                }
+                if (!formData.discountValue || parseFloat(formData.discountValue) <= 0) {
+                  setError('Discount value must be greater than 0');
+                  return;
+                }
+                if (!formData.validFrom || !formData.validTo) {
+                  setError('Validity dates are required');
+                  return;
+                }
+                setError('');
+              }
+              setStep(step + 1);
+            }}
+            disabled={step === 1 && (!formData.name.trim() || !formData.academicYear || !formData.scope)}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
             Continue
@@ -488,7 +655,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !formData.reason}
+            disabled={isSubmitting || !formData.name.trim()}
             className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}

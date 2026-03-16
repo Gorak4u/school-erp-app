@@ -2,30 +2,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
+import { validateSearchQuery, rateLimit, getClientIdentifier, sanitizePaginationParams } from '@/lib/apiSecurity';
 
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
+    // Rate limiting check
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = rateLimit(clientId, 200, 60000); // 200 requests per minute for students API
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
+    const search = validateSearchQuery(searchParams.get('search') || '');
     const cls = searchParams.get('class') || '';
     const status = searchParams.get('status') || '';
     const gender = searchParams.get('gender') || '';
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
+    
+    // Validate and sanitize pagination parameters
+    const { page, pageSize } = sanitizePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    );
 
     const where: any = { ...tenantWhere(ctx) };
+    console.log('DEBUG: Students API - search:', search, 'where clause:', where);
+    
     if (search) {
       where.OR = [
-        { name: { contains: search } },
-        { admissionNo: { contains: search } },
-        { email: { contains: search } },
-        { rollNo: { contains: search } },
-        { parentName: { contains: search } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { admissionNo: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { rollNo: { contains: search, mode: 'insensitive' } },
+        { parentName: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (cls) where.class = cls;
@@ -36,15 +50,13 @@ export async function GET(request: NextRequest) {
       name: true, class: true, status: true, gender: true,
       admissionNo: true, createdAt: true, gpa: true, rollNo: true,
     };
-    const orderBy: any = allowedSortFields[sortBy]
-      ? { [sortBy]: sortOrder }
-      : { createdAt: 'desc' };
+    const sortField = allowedSortFields[sortBy] ? sortBy : 'createdAt';
+    const sortOrderValue = sortOrder === 'asc' ? 'asc' : 'desc';
 
-    // 1. Fetch the page of students (no heavy includes)
     const [students, total] = await Promise.all([
       schoolPrisma.student.findMany({
         where,
-        orderBy,
+        orderBy: { [sortField]: sortOrderValue },
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {
@@ -61,6 +73,12 @@ export async function GET(request: NextRequest) {
       }),
       schoolPrisma.student.count({ where }),
     ]);
+
+    console.log('DEBUG: Students API - query results:', { 
+      studentsCount: students.length, 
+      total,
+      firstStudent: students[0] ? { name: students[0].name, id: students[0].id } : null 
+    });
 
     if (students.length === 0) {
       return NextResponse.json({ students: [], total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
@@ -87,36 +105,37 @@ export async function GET(request: NextRequest) {
       schoolPrisma.attendanceRecord.groupBy({
         by: ['studentId', 'status'],
         where: { studentId: { in: studentIds } },
-        _count: { status: true },
+        _count: true,
       }),
     ]);
 
-    // Build lookup maps
+    // 3. Build lookup maps
     const feeMap = new Map(feeAgg.map(f => [f.studentId, f._sum]));
-    const lastPayMap = new Map(feeLastPayment.map(f => [f.studentId, f.paidDate]));
-    const attMap = new Map<string, Record<string, number>>();
-    for (const a of attendanceAgg) {
-      if (!attMap.has(a.studentId)) attMap.set(a.studentId, {});
-      attMap.get(a.studentId)![a.status] = a._count.status;
-    }
+    const lastPayMap = new Map(
+      feeLastPayment.map(p => [p.studentId, p.paidDate?.toISOString().split('T')[0]])
+    );
+    const attMap = new Map();
+    attendanceAgg.forEach(att => {
+      const studentAtt = attMap.get(att.studentId) || { present: 0, absent: 0, late: 0 };
+      studentAtt[att.status] = (studentAtt[att.status] || 0) + att._count;
+      attMap.set(att.studentId, studentAtt);
+    });
 
+    // 4. Shape the final response
     const shaped = students.map(s => {
-      const fees = feeMap.get(s.id);
-      const totalFees = fees?.amount || 0;
-      const paidFees = fees?.paidAmount || 0;
-      const att = attMap.get(s.id) || {};
-      const present = att['present'] || 0;
-      const absent = att['absent'] || 0;
-      const late = att['late'] || 0;
+      const fees = feeMap.get(s.id) || { amount: 0, paidAmount: 0 };
+      const present = attMap.get(s.id)?.present || 0;
+      const absent = attMap.get(s.id)?.absent || 0;
+      const late = attMap.get(s.id)?.late || 0;
       const totalAtt = present + absent + late;
 
       return {
         ...s,
         documents: s.documents && s.documents !== "NULL" ? JSON.parse(s.documents) : {},
         fees: {
-          total: totalFees,
-          paid: paidFees,
-          pending: totalFees - paidFees,
+          total: fees.amount || 0,
+          paid: fees.paidAmount || 0,
+          pending: (fees.amount || 0) - (fees.paidAmount || 0),
           lastPaymentDate: lastPayMap.get(s.id) || '',
         },
         attendance: {
@@ -135,8 +154,8 @@ export async function GET(request: NextRequest) {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
-  } catch (error) {
-    console.error('GET /api/students error:', error);
+  } catch (error: any) {
+    console.error('GET /api/students:', error);
     return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });
   }
 }
@@ -257,6 +276,22 @@ export async function POST(request: NextRequest) {
 
     // Auto-apply fee structures based on student's class, category, and medium
     try {
+      // Get the active academic year from database
+      const activeAcademicYear = await schoolPrisma.academicYear.findFirst({
+        where: { isActive: true }
+      });
+      
+      if (!activeAcademicYear) {
+        console.error('No active academic year found in database');
+        return NextResponse.json({ 
+          error: 'No active academic year found. Please set an active academic year in Settings > School Structure > Academic Years before admitting students.',
+          code: 'NO_ACTIVE_ACADEMIC_YEAR'
+        }, { status: 400 });
+      }
+      
+      const academicYear = activeAcademicYear.year;
+      console.log('DEBUG: Using academic year for fee records:', academicYear);
+      
       // Find fee structures matching the student's class (by classId or no class restriction)
       const feeStructures = await schoolPrisma.feeStructure.findMany({
         where: { isActive: true },
@@ -284,7 +319,7 @@ export async function POST(request: NextRequest) {
               pendingAmount: structure.amount,
               dueDate: dueDate.toISOString().split('T')[0],
               status: 'pending',
-              academicYear: currentYear.toString(),
+              academicYear: academicYear, // Use dynamic academic year from DB
               receiptNumber: `FEE-${currentYear}-${student.admissionNo}-${structure.name.replace(' ', '').toUpperCase()}`,
               remarks: `Auto-applied during admission for ${student.name}`
             }

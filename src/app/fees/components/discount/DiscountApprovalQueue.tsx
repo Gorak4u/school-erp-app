@@ -103,7 +103,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
         <table className="w-full text-sm text-left">
           <thead className={`text-xs uppercase ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
             <tr>
-              <th className="px-4 py-3">Request Name</th>
+              <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Requested By</th>
               <th className="px-4 py-3">Scope</th>
               <th className="px-4 py-3">Discount</th>
@@ -168,7 +168,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className={textSecondary}>Request Name</p>
+                  <p className={textSecondary}>Reason</p>
                   <p className={`font-medium ${textPrimary}`}>{selectedRequest.name}</p>
                 </div>
                 <div>

@@ -16,6 +16,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [approvalNote, setApprovalNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<any>(null);
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,9 +64,15 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      setError('');
       const url = `/api/fees/discount-requests${queryParams ? '?' + queryParams : ''}`;
       
       const res = await fetch(url);
+      
+      if (res.status === 429) {
+        throw new Error('Too many requests. Please wait a moment and try again.');
+      }
+      
       const data = await res.json();
       
       if (data.success) {
@@ -82,7 +90,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
         throw new Error(data.error || 'Failed to load requests');
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error('Fetch requests error:', err);
+      setError(err.message || 'Failed to load requests');
     } finally {
       setLoading(false);
     }
@@ -91,17 +100,79 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   const handleAction = async (requestId: string, action: 'approve' | 'reject' | 'apply', reason?: string) => {
     try {
       setIsProcessing(true);
+      
+      if (action === 'apply') {
+        // Use batch apply API for better performance
+        const res = await fetch(`/api/fees/discount-requests/${requestId}/apply-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to start discount application');
+        }
+        
+        // Start tracking the batch job
+        setBatchJobId(data.jobId);
+        setBatchProgress({ status: 'pending', progress: 0, message: 'Starting...' });
+        
+        // Poll for progress
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`/api/fees/discount-requests/${requestId}/apply-batch?jobId=${data.jobId}`);
+            const statusData = await statusRes.json();
+            
+            if (statusData.success) {
+              setBatchProgress(statusData.job);
+              
+              if (statusData.job.status === 'completed') {
+                clearInterval(pollInterval);
+                setBatchJobId(null);
+                setBatchProgress(null);
+                
+                if ((window as any).toast) {
+                  (window as any).toast({
+                    type: 'success',
+                    title: 'Success',
+                    message: statusData.job.message,
+                    duration: 5000
+                  });
+                }
+                
+                setSelectedRequest(null);
+                fetchRequests(); // Refresh list
+              } else if (statusData.job.status === 'failed') {
+                clearInterval(pollInterval);
+                setBatchJobId(null);
+                setBatchProgress(null);
+                
+                if ((window as any).toast) {
+                  (window as any).toast({
+                    type: 'error',
+                    title: 'Error',
+                    message: statusData.job.error || 'Discount application failed',
+                    duration: 5000
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Failed to check job status:', error);
+          }
+        }, 2000); // Poll every 2 seconds
+        
+        return;
+      }
+      
+      // Handle approve/reject actions (existing logic)
       let url = `/api/fees/discount-requests/${requestId}`;
       let options: RequestInit = {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, note: reason, rejectionReason: reason })
       };
-
-      if (action === 'apply') {
-        url = `/api/fees/discount-requests/${requestId}/apply`;
-        options = { method: 'POST' };
-      }
 
       const res = await fetch(url, options);
       const data = await res.json();
@@ -298,7 +369,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
         <table className="w-full text-sm text-left">
           <thead className={`text-xs uppercase ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
             <tr>
-              <th className="px-4 py-3">Request Name</th>
+              <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Requested By</th>
               <th className="px-4 py-3">Discount</th>
               <th className="px-4 py-3">Scope</th>
@@ -555,6 +626,56 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Progress Modal */}
+      {batchJobId && batchProgress && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl p-6 ${bgCard}`}>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 relative">
+                <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
+                <div 
+                  className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent absolute top-0 left-0 animate-spin"
+                  style={{
+                    clipPath: `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos(2 * Math.PI * batchProgress.progress / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin(2 * Math.PI * batchProgress.progress / 100 - Math.PI / 2)}%, 50% 50%)`
+                  }}
+                ></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className={`text-sm font-bold ${textPrimary}`}>{batchProgress.progress}%</span>
+                </div>
+              </div>
+              
+              <h3 className={`text-lg font-bold ${textPrimary} mb-2`}>
+                Applying Discount
+              </h3>
+              
+              <p className={`text-sm ${textSecondary} mb-4`}>
+                {batchProgress.message}
+              </p>
+              
+              {batchProgress.total > 0 && (
+                <div className={`text-xs ${textSecondary} mb-4`}>
+                  Processing {batchProgress.progress}% of {batchProgress.total} records
+                </div>
+              )}
+              
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${batchProgress.progress}%` }}
+                ></div>
+              </div>
+              
+              <div className={`text-xs ${textSecondary}`}>
+                {batchProgress.status === 'running' && 'Please do not close this window...'}
+                {batchProgress.status === 'pending' && 'Starting...'}
+                {batchProgress.status === 'completed' && 'Completed!'}
+                {batchProgress.status === 'failed' && 'Failed!'}
+              </div>
             </div>
           </div>
         </div>
