@@ -5,11 +5,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { ensureSuperAdmin } from '@/lib/super-admin-init';
+import { extractSubdomain } from '@/lib/subdomain';
 
 export const runtime = 'nodejs';
 
 // Routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required'];
+const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login'];
 
 // Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {
@@ -43,6 +44,35 @@ let superAdminChecked = false;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+
+  // ── Subdomain Detection ──────────────────────────────────────────────────
+  const schoolSubdomain = extractSubdomain(hostname);
+
+  if (schoolSubdomain) {
+    // Inject subdomain into request headers so pages can read it
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-school-subdomain', schoolSubdomain);
+
+    // On a subdomain, only allow: school-login page, forgot/reset-password, and API routes
+    const subdomainPublic = ['/school-login', '/forgot-password', '/reset-password', '/api/'];
+    const isPublicOnSubdomain = subdomainPublic.some(r => pathname === r || pathname.startsWith(r));
+
+    if (isPublicOnSubdomain) {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
+    // Unauthenticated → redirect to school login
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token) {
+      const loginUrl = new URL('/school-login', request.url);
+      loginUrl.searchParams.set('subdomain', schoolSubdomain);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Authenticated → pass through (inject header)
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   // Check super admin on every app restart (first request)
   // This ensures super admin always exists based on .env configuration

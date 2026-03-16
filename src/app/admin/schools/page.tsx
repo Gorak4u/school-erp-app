@@ -8,6 +8,7 @@ interface School {
   id: string;
   name: string;
   slug: string;
+  subdomain: string | null;
   email: string;
   phone: string;
   city: string;
@@ -69,6 +70,43 @@ export default function AdminSchoolsPage() {
     schoolName: '', email: '', phone: '', city: '', state: '', plan: 'trial', billingCycle: 'monthly' as 'monthly' | 'yearly',
     adminFirstName: '', adminLastName: '', adminEmail: '', adminPassword: ''
   });
+
+  // Subdomain edit state
+  const [editingSubdomain, setEditingSubdomain] = useState<Record<string, string>>({});
+  const [subdomainLoading, setSubdomainLoading] = useState<string | null>(null);
+
+  const getSubdomainUrl = (subdomain: string) => {
+    const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
+    const port = process.env.NEXT_PUBLIC_APP_PORT || '3000';
+    const portStr = port && port !== '80' && port !== '443' ? `:${port}` : '';
+    const protocol = domain === 'localhost' ? 'http' : 'https';
+    return `${protocol}://${subdomain}.${domain}${portStr}`;
+  };
+
+  const handleSaveSubdomain = async (schoolId: string) => {
+    const newSubdomain = editingSubdomain[schoolId]?.trim();
+    if (!newSubdomain) return;
+    setSubdomainLoading(schoolId);
+    try {
+      const res = await fetch('/api/admin/schools', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: schoolId, action: 'update_subdomain', subdomain: newSubdomain }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showSuccessToast('Success', `Subdomain updated: ${newSubdomain}`);
+        setEditingSubdomain(prev => { const n = { ...prev }; delete n[schoolId]; return n; });
+        load();
+      } else {
+        showErrorToast('Error', data.error || 'Failed to update subdomain');
+      }
+    } catch {
+      showErrorToast('Network Error', 'Please check your connection');
+    } finally {
+      setSubdomainLoading(null);
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -406,6 +444,27 @@ export default function AdminSchoolsPage() {
                           <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {school.email} · {school.city || '—'}, {school.state || '—'} · /{school.slug}
                           </div>
+                          {/* Subdomain URL */}
+                          {school.subdomain ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-mono">
+                                🌐 {getSubdomainUrl(school.subdomain)}
+                              </span>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(getSubdomainUrl(school.subdomain!)); showSuccessToast('Copied', 'Login URL copied to clipboard'); }}
+                                className="text-xs text-gray-500 hover:text-gray-300"
+                                title="Copy URL"
+                              >📋</button>
+                              <a href={getSubdomainUrl(school.subdomain)} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-gray-500 hover:text-blue-400" title="Open">
+                                ↗
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="mt-1">
+                              <span className="text-xs text-gray-600 italic">No subdomain set</span>
+                            </div>
+                          )}
                           <div className={`flex items-center gap-4 mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                             <span>👥 {school._count.users}</span>
                             <span>🎓 {school._count.students}</span>
@@ -458,6 +517,33 @@ export default function AdminSchoolsPage() {
                           className={btnCls('bg-red-600 text-white hover:bg-red-700')}>
                           🗑️ Delete
                         </button>
+
+                        {/* Edit subdomain inline */}
+                        {editingSubdomain[school.id] !== undefined ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={editingSubdomain[school.id]}
+                              onChange={e => setEditingSubdomain(prev => ({ ...prev, [school.id]: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                              placeholder="my-school"
+                              className={`${inputCls} py-1 w-36 font-mono text-xs`}
+                            />
+                            <button onClick={() => handleSaveSubdomain(school.id)} disabled={subdomainLoading === school.id}
+                              className={btnCls('bg-indigo-600 text-white hover:bg-indigo-700')}>
+                              {subdomainLoading === school.id ? '...' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingSubdomain(prev => { const n = { ...prev }; delete n[school.id]; return n; })}
+                              className={btnCls(isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')}>
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingSubdomain(prev => ({ ...prev, [school.id]: school.subdomain || '' }))}
+                            className={btnCls(isDark ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100')}>
+                            🌐 {school.subdomain ? 'Edit URL' : 'Set URL'}
+                          </button>
+                        )}
 
                         {(school.subscription?.status === 'trial' || school.subscription?.status === 'expired') && (
                           <div className="flex items-center gap-1">
