@@ -183,7 +183,7 @@ async function processDiscountApplication(
       });
 
       // Calculate new discount for each record
-      const updates = batch.map(record => {
+      const updates = batch.map((record: any) => {
         const currentDiscount = record.discount || 0;
         const totalFee = record.amount;
         const paidAmount = record.paidAmount || 0;
@@ -257,7 +257,7 @@ async function processDiscountApplication(
       // Update only valid records
       if (validUpdates.length > 0) {
         await Promise.all(
-          validUpdates.map(update =>
+          validUpdates.map((update: any) =>
             (schoolPrisma as any).FeeRecord.update({
               where: { id: update.id },
               data: {

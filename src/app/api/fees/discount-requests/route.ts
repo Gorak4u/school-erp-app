@@ -470,9 +470,9 @@ export async function POST(request: NextRequest) {
           
           await sendSchoolEmail({
             to: approver.email || '',
-            subject,
-            html,
-            schoolId: ctx.schoolId
+            subject: subject,
+            html: html,
+            schoolId: ctx.schoolId || undefined
           });
           
           console.log(`✅ Discount pending email sent to approver: ${approver.email}`);
@@ -492,7 +492,7 @@ export async function POST(request: NextRequest) {
             to: submitter.email || '',
             subject: submitterSubject.replace('Pending Approval', 'Submitted - Pending Approval'),
             html: submitterHtml.replace('requires your approval', 'has been submitted and is pending approval'),
-            schoolId: ctx.schoolId
+            schoolId: ctx.schoolId || undefined
           });
         
         console.log(`✅ Discount submission confirmation email sent to: ${submitter.email}`);

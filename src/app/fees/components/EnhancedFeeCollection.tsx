@@ -231,22 +231,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     }
     
     return studentData.feeRecords.map((record: any) => {
-      // Quick debug to see actual data structure
-      console.log('RECORD DEBUG:', {
-        id: record.id,
-        hasFeeStructure: !!record.feeStructure,
-        feeStructureCategory: record.feeStructure?.category,
-        recordCategory: record.category,
-        allKeys: Object.keys(record)
-      });
-      
-      const structureCategory = record.feeStructure?.category;
-      const fallbackName = (record as any).feeStructureName;
-      const category = normalizeCategory(structureCategory || fallbackName) || 'academic';
+      const category = normalizeCategory(record.category || record.feeStructure?.category || (record as any).feeStructureName) || 'academic';
       
       return {
         id: record.id,
-        name: record.feeStructure?.name || record.feeStructureName || 'Fee',
+        name: record.feeStructure?.name || record.name || (record as any).feeStructureName || 'Fee',
         category: category,
         amount: record.amount || 0,
         dueDate: record.dueDate || '',

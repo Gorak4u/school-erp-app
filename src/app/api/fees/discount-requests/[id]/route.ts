@@ -159,7 +159,7 @@ export async function PATCH(
             to: submitter.email || '',
             subject,
             html,
-            schoolId: ctx.schoolId
+            schoolId: ctx.schoolId || undefined
           });
           
           console.log(`✅ Discount approval email sent to submitter: ${submitter.email}`);

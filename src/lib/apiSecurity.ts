@@ -58,7 +58,7 @@ export function rateLimit(
 export function getClientIdentifier(request: NextRequest): string {
   // Try to get user ID from session, fallback to IP
   const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : request.ip || 'unknown';
+  const ip = forwarded ? forwarded.split(',')[0] : (request as any).ip || 'unknown';
   return ip;
 }
 

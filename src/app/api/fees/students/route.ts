@@ -187,7 +187,8 @@ export async function GET(request: NextRequest) {
             paymentMethod: fr.paymentMethod,
             payments: fr.payments,
             academicYear: normalizedAcademicYear, // Use normalized academic year
-            category: fr.feeStructure?.category || 'academic'
+            category: fr.feeStructure?.category || 'academic',
+            feeStructure: fr.feeStructure || null
           };
         }),
         // Additional student info
