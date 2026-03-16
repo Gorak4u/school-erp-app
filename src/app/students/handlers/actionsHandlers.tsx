@@ -8,14 +8,15 @@ export function createActionsHandlers(ctx: any) {
   // Quick Action Functions (Legacy - replaced by bulk operations)
   const exportStudentsLegacy = () => {
     const csvContent = [
-      ['ID', 'Name', 'Class', 'Roll No', 'Phone', 'Parents', 'Address', 'Status', 'Language Medium'],
+      ['ID', 'Name', 'Class', 'Roll No', 'Phone', 'Father Name', 'Mother Name', 'Address', 'Status', 'Language Medium'],
       ...filteredStudents.map(student => [
         student.id,
         student.name,
         student.class,
         student.rollNo,
         student.phone,
-        `${student.fatherName} / ${student.motherName}`,
+        student.fatherName || student.parentName || 'N/A',
+        student.motherName || 'N/A',
         `${student.city}, ${student.state}`,
         student.status,
         student.languageMedium
@@ -65,7 +66,8 @@ export function createActionsHandlers(ctx: any) {
                 <th>Class</th>
                 <th>Roll No</th>
                 <th>Phone</th>
-                <th>Parents</th>
+                <th>Father Name</th>
+                <th>Mother Name</th>
                 <th>Address</th>
                 <th>Status</th>
                 <th>Language</th>

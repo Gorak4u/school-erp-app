@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface BulkFeeOperationsProps {
@@ -16,15 +16,32 @@ export default function BulkFeeOperations({ theme, selectedStudents, onClose, on
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
+  const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; amount: number; class?: {name: string}}>>([]);
   const [formData, setFormData] = useState({
     amount: 0,
     discountType: 'percentage' as 'percentage' | 'fixed',
     discountValue: 0,
+    targetType: 'total' as 'total' | 'fee_structure',
+    feeStructureIds: [] as string[],
     message: '',
     paymentMethod: 'cash' as 'cash' | 'online' | 'upi' | 'cheque',
     dueDate: '',
     reason: ''
   });
+
+  // Helper function to get fee data for a structure (bulk operations use structure amounts)
+  const getFeeDataForStructure = (structureId: string) => {
+    const structure = feeStructures.find(fs => fs.id === structureId);
+    return structure ? {
+      totalAmount: structure.amount,
+      pendingAmount: structure.amount, // For bulk, assume full amount is pending
+      paidAmount: 0
+    } : {
+      totalAmount: 0,
+      pendingAmount: 0,
+      paidAmount: 0
+    };
+  };
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -38,6 +55,29 @@ export default function BulkFeeOperations({ theme, selectedStudents, onClose, on
     { value: 'upi', label: 'UPI', icon: '📱' },
     { value: 'cheque', label: 'Cheque', icon: '📄' }
   ];
+
+  // Fetch fee structures
+  useEffect(() => {
+    const fetchFeeStructures = async () => {
+      try {
+        console.log('Bulk operations: Fetching fee structures...');
+        const res = await fetch('/api/fees/structures');
+        console.log('Bulk operations: Fee structures response status:', res.status);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('Bulk operations: Fee structures data:', data);
+          setFeeStructures(data.feeStructures || []);
+        } else {
+          const errorData = await res.json();
+          console.error('Bulk operations: Fee structures error:', errorData);
+        }
+      } catch (err) {
+        console.error('Bulk operations: Failed to fetch fee structures:', err);
+      }
+    };
+    
+    fetchFeeStructures();
+  }, []);
 
   const handleBulkOperation = async () => {
     setIsProcessing(true);
@@ -142,6 +182,96 @@ export default function BulkFeeOperations({ theme, selectedStudents, onClose, on
                 className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
               />
             </div>
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${textPrimary}`}>Apply To</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setFormData({ ...formData, targetType: 'total', feeStructureIds: [] })}
+                  className={`p-2 rounded-lg border text-center transition-colors text-sm ${
+                    formData.targetType === 'total'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : cardCls
+                  }`}
+                >
+                  Total Fees
+                </button>
+                <button
+                  onClick={() => setFormData({ ...formData, targetType: 'fee_structure' })}
+                  className={`p-2 rounded-lg border text-center transition-colors text-sm ${
+                    formData.targetType === 'fee_structure'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : cardCls
+                  }`}
+                >
+                  Specific Fee Structures
+                </button>
+              </div>
+            </div>
+            
+            {formData.targetType === 'fee_structure' && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textPrimary}`}>Select Fee Structures</label>
+                <div className={`max-h-32 overflow-y-auto border rounded-lg p-2 space-y-1 ${
+                  isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'
+                }`}>
+                  {feeStructures.length === 0 ? (
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      No fee structures available
+                    </p>
+                  ) : (
+                    feeStructures.map((structure) => {
+                      const feeData = getFeeDataForStructure(structure.id);
+                      return (
+                        <label key={structure.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.feeStructureIds.includes(structure.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  feeStructureIds: [...prev.feeStructureIds, structure.id]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  feeStructureIds: prev.feeStructureIds.filter(id => id !== structure.id)
+                                }));
+                              }
+                            }}
+                            className="rounded text-xs"
+                          />
+                          <div className="flex-1">
+                            <div className={`text-xs font-medium ${textPrimary}`}>
+                              {structure.name}
+                            </div>
+                            {structure.class && (
+                              <div className={`text-xs ${textSecondary}`}>
+                                {structure.class.name}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-1">
+                              <div className={`text-xs ${textSecondary}`}>
+                                Total: <span className="font-medium">₹{feeData.totalAmount.toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className={`text-xs text-orange-500 font-medium`}>
+                                Pending: ₹{feeData.pendingAmount.toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                {formData.feeStructureIds.length > 0 && (
+                  <div className={`mt-1 text-xs ${textSecondary}`}>
+                    {formData.feeStructureIds.length} fee structure(s) selected
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div>
               <label className={`block text-sm font-medium mb-2 ${textPrimary}`}>Reason</label>
               <textarea

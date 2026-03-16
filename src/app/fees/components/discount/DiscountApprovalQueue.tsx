@@ -16,6 +16,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [approvalNote, setApprovalNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; class?: {name: string}}>>([]);
 
   const isDark = theme === 'dark';
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
@@ -25,18 +26,53 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
     fetchRequests();
   }, [viewMode]);
 
+  useEffect(() => {
+    fetchFeeStructures();
+  }, []);
+
+  const fetchFeeStructures = async () => {
+    try {
+      const res = await fetch('/api/fees/structures');
+      if (res.ok) {
+        const data = await res.json();
+        setFeeStructures(data.feeStructures || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch fee structures:', err);
+    }
+  };
+
+  // Helper function to get fee structure names
+  const getFeeStructureNames = (feeStructureIds: string[]) => {
+    if (!feeStructureIds || feeStructureIds.length === 0) return [];
+    
+    return feeStructureIds.map(id => {
+      const structure = feeStructures.find(fs => fs.id === id);
+      return structure ? {
+        id: structure.id,
+        name: structure.name,
+        class: structure.class?.name || 'All Classes'
+      } : { id, name: 'Unknown Structure', class: 'N/A' };
+    });
+  };
+
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const url = viewMode === 'my_requests' 
+      
+      const baseUrl = viewMode === 'my_requests' 
         ? '/api/fees/discount-requests' 
-        : '/api/fees/discount-requests?status=pending';
+        : '/api/fees/discount-requests';
+      
+      const url = viewMode === 'my_requests' 
+        ? baseUrl 
+        : `${baseUrl}?status=pending`;
         
       const res = await fetch(url);
       const data = await res.json();
       
       if (data.success) {
-        setRequests(data.data);
+        setRequests(data.data || []);
       } else {
         throw new Error(data.error || 'Failed to load requests');
       }
@@ -89,6 +125,15 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
     }
   };
 
+  // Handle modal open with fee structure fetch
+  const handleViewDetails = async (request: any) => {
+    setSelectedRequest(request);
+    // Ensure fee structures are loaded when opening modal
+    if (feeStructures.length === 0) {
+      await fetchFeeStructures();
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>;
   }
@@ -106,6 +151,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
               <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Requested By</th>
               <th className="px-4 py-3">Scope</th>
+              <th className="px-4 py-3">Fee Structures</th>
               <th className="px-4 py-3">Discount</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Action</th>
@@ -114,7 +160,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
           <tbody>
             {requests.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                   No {viewMode === 'my_requests' ? 'requests found' : 'pending approvals'}
                 </td>
               </tr>
@@ -127,6 +173,23 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                     <span className="block text-xs text-gray-500">{new Date(req.createdAt).toLocaleDateString()}</span>
                   </td>
                   <td className="px-4 py-3 capitalize">{req.scope}</td>
+                  <td className="px-4 py-3">
+                    {req.targetType === 'total' ? (
+                      <span className="text-xs font-medium text-blue-600">All Fees</span>
+                    ) : (
+                      (() => {
+                        const structures = getFeeStructureNames(JSON.parse(req.feeStructureIds || '[]'));
+                        const count = structures.length;
+                        return count > 0 ? (
+                          <span className="text-xs font-medium text-purple-600">
+                            {count} {count === 1 ? 'Structure' : 'Structures'}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">None</span>
+                        );
+                      })()
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {req.discountType === 'percentage' ? `${req.discountValue}%` : 
                      req.discountType === 'fixed' ? `₹${req.discountValue}` : 'Full Waiver'}
@@ -143,7 +206,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => setSelectedRequest(req)}
+                      onClick={() => handleViewDetails(req)}
                       className="text-blue-600 hover:text-blue-800 font-medium"
                     >
                       View Details
@@ -176,6 +239,15 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                   <p className={`font-medium ${textPrimary}`}>{selectedRequest.requestedByName} ({selectedRequest.requestedByEmail})</p>
                 </div>
                 <div>
+                  <p className={textSecondary}>Created By</p>
+                  <p className={`font-medium ${textPrimary}`}>
+                    {selectedRequest.requestedByName} ({selectedRequest.requestedByEmail})
+                  </p>
+                  <p className={`text-xs ${textSecondary}`}>
+                    Created: {new Date(selectedRequest.createdAt).toLocaleDateString()} at {new Date(selectedRequest.createdAt).toLocaleTimeString()}
+                  </p>
+                </div>
+                <div>
                   <p className={textSecondary}>Discount Value</p>
                   <p className={`font-medium ${textPrimary}`}>
                     {selectedRequest.discountType === 'percentage' ? `${selectedRequest.discountValue}%` : 
@@ -187,6 +259,66 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                   <p className={textSecondary}>Target</p>
                   <p className={`font-medium ${textPrimary} capitalize`}>{selectedRequest.scope} - {selectedRequest.targetType.replace('_', ' ')}</p>
                 </div>
+                
+                {/* Fee Structures Information */}
+                <div className="col-span-2">
+                  <p className={textSecondary}>Fee Structures</p>
+                  <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                    {(() => {
+                      console.log('DEBUG - targetType:', selectedRequest.targetType);
+                      console.log('DEBUG - feeStructureIds:', selectedRequest.feeStructureIds);
+                      console.log('DEBUG - feeStructures available:', feeStructures.length);
+                      
+                      if (selectedRequest.targetType === 'fee_structure') {
+                        let feeStructureIds = [];
+                        try {
+                          feeStructureIds = JSON.parse(selectedRequest.feeStructureIds || '[]');
+                          console.log('DEBUG - Parsed IDs:', feeStructureIds);
+                        } catch (e) {
+                          console.error('DEBUG - Parse error:', e);
+                          feeStructureIds = [];
+                        }
+                        
+                        const structures = getFeeStructureNames(feeStructureIds);
+                        console.log('DEBUG - Mapped structures:', structures);
+                        
+                        if (structures.length > 0) {
+                          return (
+                            <div className="space-y-2">
+                              {structures.map(structure => (
+                                <div key={structure.id} className="flex items-center justify-between">
+                                  <div>
+                                    <span className={`font-medium ${textPrimary}`}>{structure.name}</span>
+                                    <span className={`ml-2 text-xs ${textSecondary}`}>({structure.class})</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div>
+                              <p className={textSecondary}>No specific fee structures selected</p>
+                              <p className={`text-xs ${textSecondary} mt-2`}>
+                                Raw IDs: {selectedRequest.feeStructureIds}
+                              </p>
+                            </div>
+                          );
+                        }
+                      } else {
+                        return (
+                          <div>
+                            <p className={`font-medium ${textPrimary}`}>All Fee Structures</p>
+                            <p className={`text-xs ${textSecondary} mt-1`}>
+                              (Total Fees option - applies to all fee structures)
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                </div>
+                
                 <div className="col-span-2">
                   <p className={textSecondary}>Reason / Justification</p>
                   <div className={`mt-1 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>

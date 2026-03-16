@@ -92,6 +92,7 @@ export default function StudentTable({
     { key: 'rollNo', label: 'Roll No', sortable: true },
     { key: 'name', label: 'Student Name', sortable: true },
     { key: 'parents', label: 'Parents', sortable: false },
+    { key: 'phoneNumbers', label: 'Phone Numbers', sortable: false },
     { key: 'class', label: 'Class', sortable: true },
     { key: 'address', label: 'Address', sortable: false },
     { key: 'attendance', label: 'Attendance', sortable: false },
@@ -266,8 +267,26 @@ export default function StudentTable({
                       )}
                       {visibleColumns.includes('parents') && (
                         <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          <div>{student.parentName}</div>
-                          <div className="text-xs opacity-70">{student.parentPhone}</div>
+                          <div className="font-medium">{student.fatherName || student.parentName || 'N/A'}</div>
+                          <div className="text-xs opacity-70">{student.motherName || 'N/A'}</div>
+                        </td>
+                      )}
+                      {visibleColumns.includes('phoneNumbers') && (
+                        <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <div className="font-medium">
+                            {student.fatherPhone ? (
+                              <>
+                                <span className="text-blue-500">Father:</span> {student.fatherPhone}
+                              </>
+                            ) : 'N/A'}
+                          </div>
+                          <div className="text-xs opacity-70">
+                            {student.emergencyContact ? (
+                              <>
+                                <span className="text-red-500">Emergency:</span> {student.emergencyContact}
+                              </>
+                            ) : 'N/A'}
+                          </div>
                         </td>
                       )}
                       {visibleColumns.includes('class') && (

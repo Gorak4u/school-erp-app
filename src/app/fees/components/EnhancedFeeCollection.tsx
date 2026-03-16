@@ -74,6 +74,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [historySearch, setHistorySearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [feeCategories, setFeeCategories] = useState<Array<string>>([]);
+
+  const normalizeCategory = (value?: string) => {
+    if (!value || typeof value !== 'string') return '';
+    return value.trim().toLowerCase();
+  };
   const [customAmounts, setCustomAmounts] = useState<{[key: string]: number}>({});
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -104,7 +110,29 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       }
     };
 
+    // Fetch fee categories from database
+    const fetchFeeCategories = async () => {
+      try {
+        const response = await fetch('/api/fees/structures');
+        if (response.ok) {
+          const data = await response.json();
+          const structures = data.feeStructures || [];
+          const dbCategories = [...new Set(structures
+            .map((fs: any) => normalizeCategory(fs.category))
+            .filter(Boolean))];
+          const fallbackCategories = ['academic', 'transport', 'extracurricular', 'other'];
+          const allCategories = [...new Set([...dbCategories, ...fallbackCategories])];
+          setFeeCategories(allCategories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch fee categories:', error);
+        // Set fallback categories on error
+        setFeeCategories(['academic', 'transport', 'extracurricular', 'other']);
+      }
+    };
+
     fetchAcademicYears();
+    fetchFeeCategories();
   }, []);
 
   useEffect(() => {
@@ -202,22 +230,37 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       return [];
     }
     
-    return studentData.feeRecords.map((record: any) => ({
-      id: record.id,
-      name: record.feeStructure?.name || record.feeStructureName || 'Fee',
-      category: record.feeStructure?.category || 'academic',
-      amount: record.amount || 0,
-      dueDate: record.dueDate || '',
-      status: record.status || 'pending',
-      paidAmount: record.paidAmount || 0,
-      discount: record.discount || 0,
-      frequency: record.feeStructure?.frequency || 'one-time',
-      academicYear: record.academicYear || '2024-25',
-      description: record.feeStructure?.description || '',
-      priority: record.status === 'overdue' ? 'high' : 'medium',
-      lateFee: record.feeStructure?.lateFee || 0,
-      discountAvailable: false,
-    }));
+    return studentData.feeRecords.map((record: any) => {
+      // Quick debug to see actual data structure
+      console.log('RECORD DEBUG:', {
+        id: record.id,
+        hasFeeStructure: !!record.feeStructure,
+        feeStructureCategory: record.feeStructure?.category,
+        recordCategory: record.category,
+        allKeys: Object.keys(record)
+      });
+      
+      const structureCategory = record.feeStructure?.category;
+      const fallbackName = (record as any).feeStructureName;
+      const category = normalizeCategory(structureCategory || fallbackName) || 'academic';
+      
+      return {
+        id: record.id,
+        name: record.feeStructure?.name || record.feeStructureName || 'Fee',
+        category: category,
+        amount: record.amount || 0,
+        dueDate: record.dueDate || '',
+        status: record.status || 'pending',
+        paidAmount: record.paidAmount || 0,
+        discount: record.discount || 0,
+        frequency: record.feeStructure?.frequency || 'one-time',
+        academicYear: record.academicYear || '2025-26',
+        description: record.feeStructure?.description || '',
+        priority: record.status === 'overdue' ? 'high' : 'medium',
+        lateFee: record.feeStructure?.lateFee || 0,
+        discountAvailable: false,
+      };
+    });
   }, [studentData]);
 
   // Computed values for enhanced UI
@@ -225,9 +268,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     const filtered = allFeeData.filter(fee => {
       const yearMatch = selectedYear === 'all' || fee.academicYear === selectedYear;
       const categoryMatch = selectedCategory === 'all' || fee.category === selectedCategory;
+      
       return yearMatch && categoryMatch;
     });
-        return filtered;
+    
+    return filtered;
   }, [allFeeData, selectedYear, selectedCategory]);
 
   const totalAmount = useMemo(() => {
@@ -239,9 +284,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   }, [filteredFees]);
 
   const totalPending = useMemo(() => {
-    const result = filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount - (fee.discount || 0)), 0);
-    console.log('DEBUG fee-collect totalPending:', { filteredFeesCount: filteredFees.length, result });
-    return result;
+    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount - (fee.discount || 0)), 0);
   }, [filteredFees]);
 
   const selectedFeesTotal = useMemo(() => {
@@ -255,13 +298,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   }, [filteredFees]);
 
   const totalDiscount = useMemo(() => {
-    const result = filteredFees.reduce((sum, fee) => sum + (fee.discount || 0), 0);
-    console.log('DEBUG fee-collect totalDiscount:', { 
-      filteredFeesCount: filteredFees.length, 
-      result,
-      feeDetails: filteredFees.map(f => ({ name: f.name, discount: f.discount }))
-    });
-    return result;
+    return filteredFees.reduce((sum, fee) => sum + (fee.discount || 0), 0);
   }, [filteredFees]);
 
   const stats = useMemo(() => ({
@@ -611,11 +648,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   className={`px-4 py-2 rounded-lg border ${inputCls}`}
                 >
                   <option value="all">All Categories</option>
-                  <option value="academic">Academic</option>
-                  <option value="transport">Transport</option>
-                  <option value="extracurricular">Extracurricular</option>
-                  <option value="other">Other</option>
-                  <option value="accommodation">Accommodation</option>
+                  {feeCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -661,7 +698,6 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
               {filteredFees.map((fee) => {
                 const isSelected = selectedFees.includes(fee.id);
                 const pendingAmount = fee.amount - fee.paidAmount - (fee.discount || 0);
-                console.log('DEBUG fee card pending:', { feeName: fee.name, amount: fee.amount, paidAmount: fee.paidAmount, pendingAmount });
                 
                 return (
                   <motion.div

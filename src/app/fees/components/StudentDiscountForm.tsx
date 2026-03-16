@@ -14,6 +14,8 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
+  const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; amount: number; class?: {name: string}}>>([]);
+  const [studentFeeData, setStudentFeeData] = useState<Array<{feeStructureId: string; totalAmount: number; pendingAmount: number; paidAmount: number}>>([]);
   
   const [formData, setFormData] = useState({
     name: `Discount for ${studentName}`,
@@ -29,27 +31,54 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
     validTo: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
   });
 
-  // Fetch academic years
+  // Fetch academic years, fee structures, and student fee data
   useEffect(() => {
-    const fetchAcademicYears = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/school-structure/academic-years');
-        if (res.ok) {
-          const data = await res.json();
-          setAcademicYears(data.academicYears || []);
+        // Fetch academic years
+        const yearsRes = await fetch('/api/school-structure/academic-years');
+        if (yearsRes.ok) {
+          const yearsData = await yearsRes.json();
+          setAcademicYears(yearsData.academicYears || []);
           // Set default academic year
-          if (data.academicYears?.length > 0 && !formData.academicYear) {
+          if (yearsData.academicYears?.length > 0 && !formData.academicYear) {
             const currentYear = new Date().getFullYear();
-            const currentAcademicYear = data.academicYears.find((ay: any) => ay.year.includes(currentYear.toString())) || data.academicYears[0];
+            const currentAcademicYear = yearsData.academicYears.find((ay: any) => ay.year.includes(currentYear.toString())) || yearsData.academicYears[0];
             setFormData(prev => ({ ...prev, academicYear: currentAcademicYear.year }));
           }
         }
+
+        // Fetch fee structures
+        console.log('Fetching fee structures...');
+        const feesRes = await fetch('/api/fees/structures');
+        console.log('Fee structures response status:', feesRes.status);
+        if (feesRes.ok) {
+          const feesData = await feesRes.json();
+          console.log('Fee structures data:', feesData);
+          setFeeStructures(feesData.feeStructures || []);
+        } else {
+          const errorData = await feesRes.json();
+          console.error('Fee structures error:', errorData);
+        }
+
+        // Fetch student fee data
+        if (studentId) {
+          console.log('Fetching student fee data for:', studentId);
+          const studentFeesRes = await fetch(`/api/fees/students/${studentId}/summary`);
+          if (studentFeesRes.ok) {
+            const studentFeesData = await studentFeesRes.json();
+            console.log('Student fee data:', studentFeesData);
+            setStudentFeeData(studentFeesData.feeBreakdown || []);
+          } else {
+            console.log('No student fee data available, using fee structure amounts');
+          }
+        }
       } catch (err) {
-        console.error('Failed to fetch academic years:', err);
+        console.error('Failed to fetch data:', err);
       }
     };
     
-    fetchAcademicYears();
+    fetchData();
   }, []);
 
   const isDark = theme === 'dark';
@@ -58,6 +87,33 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
       ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' 
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   }`;
+
+  // Helper function to get fee data for a structure
+  const getFeeDataForStructure = (structureId: string) => {
+    const studentFee = studentFeeData.find(fee => fee.feeStructureId === structureId);
+    const structure = feeStructures.find(fs => fs.id === structureId);
+    
+    if (studentFee) {
+      return {
+        totalAmount: studentFee.totalAmount,
+        pendingAmount: studentFee.pendingAmount,
+        paidAmount: studentFee.paidAmount
+      };
+    } else if (structure) {
+      // Fallback to fee structure amount if no student-specific data
+      return {
+        totalAmount: structure.amount,
+        pendingAmount: structure.amount, // Assume full amount is pending
+        paidAmount: 0
+      };
+    }
+    
+    return {
+      totalAmount: 0,
+      pendingAmount: 0,
+      paidAmount: 0
+    };
+  };
 
   const handleSubmit = async () => {
     try {
@@ -203,6 +259,75 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
           </div>
         </div>
 
+        {formData.targetType === 'fee_structure' && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Select Fee Structures</label>
+            <div className={`max-h-40 overflow-y-auto border rounded-lg p-3 space-y-2 ${
+              isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'
+            }`}>
+              {feeStructures.length === 0 ? (
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No fee structures available
+                </p>
+              ) : (
+                feeStructures.map((structure) => {
+                  const feeData = getFeeDataForStructure(structure.id);
+                  return (
+                    <label key={structure.id} className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.feeStructureIds.includes(structure.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({
+                              ...prev,
+                              feeStructureIds: [...prev.feeStructureIds, structure.id]
+                            }));
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              feeStructureIds: prev.feeStructureIds.filter(id => id !== structure.id)
+                            }));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <div className="flex-1">
+                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {structure.name}
+                        </div>
+                        {structure.class && (
+                          <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Class: {structure.class.name}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-1">
+                          <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Total: <span className="font-medium">₹{feeData.totalAmount.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className={`text-xs ${feeData.pendingAmount > 0 ? 'text-orange-500 font-medium' : 'text-green-500'}`}>
+                            {feeData.pendingAmount > 0 ? `Pending: ₹${feeData.pendingAmount.toLocaleString('en-IN')}` : 'Paid'}
+                          </div>
+                        </div>
+                        {feeData.paidAmount > 0 && (
+                          <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
+                            Paid: ₹{feeData.paidAmount.toLocaleString('en-IN')}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {formData.feeStructureIds.length > 0 && (
+              <div className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                {formData.feeStructureIds.length} fee structure(s) selected
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Valid From</label>
@@ -249,6 +374,47 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
             {formData.maxCapAmount && ` (max ₹${formData.maxCapAmount})`}
           </li>
           <li><span className="opacity-70">Target:</span> {formData.targetType.replace('_', ' ')}</li>
+          {formData.targetType === 'fee_structure' && formData.feeStructureIds.length > 0 && (
+            <li>
+              <span className="opacity-70">Fee Structures:</span>
+              <div className="mt-1 space-y-1">
+                {formData.feeStructureIds.map(id => {
+                  const structure = feeStructures.find(fs => fs.id === id);
+                  const feeData = getFeeDataForStructure(id);
+                  return structure ? (
+                    <div key={id} className="text-xs pl-4">
+                      • {structure.name} {structure.class && `(${structure.class.name})`}
+                      <div className="flex items-center gap-4 mt-1 pl-4 text-xs opacity-70">
+                        <span>Total: ₹{feeData.totalAmount.toLocaleString('en-IN')}</span>
+                        <span className={feeData.pendingAmount > 0 ? 'text-orange-500' : 'text-green-500'}>
+                          {feeData.pendingAmount > 0 ? `Pending: ₹${feeData.pendingAmount.toLocaleString('en-IN')}` : 'Paid'}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null;
+                })}
+                {/* Total summary for selected structures */}
+                <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span>Total Selected Amount:</span>
+                    <span>₹{formData.feeStructureIds.reduce((sum, id) => {
+                      const feeData = getFeeDataForStructure(id);
+                      return sum + feeData.totalAmount;
+                    }, 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs mt-1">
+                    <span>Total Pending:</span>
+                    <span className="text-orange-500">
+                      ₹{formData.feeStructureIds.reduce((sum, id) => {
+                        const feeData = getFeeDataForStructure(id);
+                        return sum + feeData.pendingAmount;
+                      }, 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </li>
+          )}
           <li><span className="opacity-70">Validity:</span> {formData.validFrom} to {formData.validTo}</li>
         </ul>
       </div>

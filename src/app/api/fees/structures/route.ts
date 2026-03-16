@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    return NextResponse.json({ structures });
+    return NextResponse.json({ feeStructures: structures });
   } catch (error) {
     console.error('GET /api/fees/structures:', error);
     return NextResponse.json({ error: 'Failed to fetch fee structures' }, { status: 500 });

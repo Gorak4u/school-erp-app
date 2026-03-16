@@ -144,10 +144,15 @@ export function createMobileHandlers(ctx: any) {
   };
 
   const resetColumns = () => {
-    setVisibleColumns([
-      'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
+    const defaultColumns = [
+      'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 'phoneNumbers',
       'class', 'address', 'attendance', 'grade', 'status', 'actions'
-    ]);
+    ];
+    setVisibleColumns(defaultColumns);
+    // Clear localStorage to force refresh
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('students-page-visibleColumns');
+    }
   };
 
   // CSV/Excel Import Functions

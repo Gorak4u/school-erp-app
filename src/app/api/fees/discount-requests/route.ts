@@ -305,6 +305,21 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).DiscountRequest.count({ where }),
     ]);
 
+    console.log('DEBUG - Discount Requests Query:', {
+      where,
+      page,
+      pageSize,
+      foundRequests: requests.length,
+      total,
+      requests: requests.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        status: r.status,
+        feeStructureIds: r.feeStructureIds,
+        targetType: r.targetType
+      }))
+    });
+
     return NextResponse.json({
       success: true,
       data: requests,

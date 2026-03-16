@@ -18,6 +18,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   const [isProcessing, setIsProcessing] = useState(false);
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<any>(null);
+  const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; class?: {name: string}}>>([]);
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +61,36 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
   useEffect(() => {
     fetchRequests();
   }, [queryParams]);
+
+  useEffect(() => {
+    fetchFeeStructures();
+  }, []);
+
+  const fetchFeeStructures = async () => {
+    try {
+      const res = await fetch('/api/fees/structures');
+      if (res.ok) {
+        const data = await res.json();
+        setFeeStructures(data.feeStructures || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch fee structures:', err);
+    }
+  };
+
+  // Helper function to get fee structure names
+  const getFeeStructureNames = (feeStructureIds: string[]) => {
+    if (!feeStructureIds || feeStructureIds.length === 0) return [];
+    
+    return feeStructureIds.map(id => {
+      const structure = feeStructures.find(fs => fs.id === id);
+      return structure ? {
+        id: structure.id,
+        name: structure.name,
+        class: structure.class?.name || 'All Classes'
+      } : { id, name: 'Unknown Structure', class: 'N/A' };
+    });
+  };
 
   const fetchRequests = async () => {
     try {
@@ -535,6 +566,11 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                       <span className={`text-sm ${textSecondary}`}>Created:</span>
                       <p className={`${textPrimary}`}>{new Date(selectedRequest.createdAt).toLocaleString()}</p>
                     </div>
+                    <div>
+                      <span className={`text-sm ${textSecondary}`}>Requested By:</span>
+                      <p className={`font-medium ${textPrimary}`}>{selectedRequest.requestedByName}</p>
+                      <p className={`text-xs ${textSecondary}`}>{selectedRequest.requestedByEmail}</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -561,6 +597,45 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                       <span className={`text-sm ${textSecondary}`}>Scope:</span>
                       <p className={`${textPrimary}`}>{selectedRequest.scope} • {selectedRequest.targetType}</p>
                     </div>
+                    {selectedRequest.targetType === 'fee_structure' && (
+                      <div>
+                        <span className={`text-sm ${textSecondary}`}>Fee Structures:</span>
+                        <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                          {(() => {
+                            let feeStructureIds = [];
+                            try {
+                              feeStructureIds = JSON.parse(selectedRequest.feeStructureIds || '[]');
+                            } catch (e) {
+                              feeStructureIds = [];
+                            }
+                            
+                            const structures = getFeeStructureNames(feeStructureIds);
+                            
+                            return structures.length > 0 ? (
+                              <div className="space-y-2">
+                                {structures.map(structure => (
+                                  <div key={structure.id} className="flex items-center justify-between">
+                                    <div>
+                                      <span className={`font-medium ${textPrimary}`}>{structure.name}</span>
+                                      <span className={`ml-2 text-xs ${textSecondary}`}>For Student Only</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className={textSecondary}>No specific fee structures selected</p>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    {selectedRequest.targetType === 'total' && (
+                      <div>
+                        <span className={`text-sm ${textSecondary}`}>Fee Structures:</span>
+                        <p className={`font-medium ${textPrimary}`}>All Fee Structures</p>
+                        <p className={`text-xs ${textSecondary} mt-1`}>(Total Fees option - applies to all fee structures)</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

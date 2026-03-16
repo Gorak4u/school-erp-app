@@ -129,21 +129,36 @@ export function useStudentState() {
   
   // Column Customization State with localStorage persistence
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    if (typeof window === 'undefined') return [
-      'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
+    const defaultColumns = [
+      'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 'phoneNumbers',
       'class', 'attendance', 'status', 'actions'
     ];
+    
+    if (typeof window === 'undefined') return defaultColumns;
+    
     try {
       const saved = localStorage.getItem('students-page-visibleColumns');
-      return saved ? JSON.parse(saved) : [
-        'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
-        'class', 'attendance', 'status', 'actions'
-      ];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Force include phoneNumbers if not present
+        if (!parsed.includes('phoneNumbers')) {
+          const updated = [...parsed];
+          // Insert phoneNumbers after parents
+          const parentsIndex = updated.indexOf('parents');
+          if (parentsIndex !== -1) {
+            updated.splice(parentsIndex + 1, 0, 'phoneNumbers');
+          } else {
+            updated.push('phoneNumbers');
+          }
+          // Save updated config
+          localStorage.setItem('students-page-visibleColumns', JSON.stringify(updated));
+          return updated;
+        }
+        return parsed;
+      }
+      return defaultColumns;
     } catch {
-      return [
-        'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 
-        'class', 'attendance', 'status', 'actions'
-      ];
+      return defaultColumns;
     }
   });
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -160,7 +175,8 @@ export function useStudentState() {
       { key: 'bloodGroup', label: 'Blood Group', fixed: false },
       { key: 'category', label: 'Category', fixed: false },
       { key: 'religion', label: 'Religion', fixed: false },
-      { key: 'parents', label: 'Parents Details', fixed: false },
+      { key: 'parents', label: 'Parents', fixed: false },
+      { key: 'phoneNumbers', label: 'Phone Numbers', fixed: false },
       { key: 'fatherPhone', label: "Father's Phone", fixed: false },
       { key: 'motherPhone', label: "Mother's Phone", fixed: false },
       { key: 'class', label: 'Class / Section', fixed: false },

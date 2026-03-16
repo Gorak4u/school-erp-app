@@ -79,11 +79,12 @@ export async function GET(request: NextRequest) {
       where: whereConditions,
       include: {
         feeRecords: {
-          take: 5, // Limit fee records per student for performance
+          take: 5,
           orderBy: { createdAt: 'desc' },
           include: {
+            feeStructure: true,
             payments: {
-              take: 3, // Limit payments per fee record
+              take: 3,
               orderBy: { createdAt: 'desc' }
             }
           }
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
     const processedStudents = students.map(student => {
       // Calculate fee totals from fee records
       const feeRecords = student.feeRecords || [];
+      
       const totalFees = feeRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
       const totalPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
       const totalPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
@@ -151,6 +153,14 @@ export async function GET(request: NextRequest) {
         lastPaymentDate: latestPayment?.paymentDate || '',
         calculatedPaymentStatus,
         feeRecords: feeRecords.map(fr => {
+          // Normalize academic year to 'YYYY-YY' format
+          let normalizedAcademicYear = fr.academicYear;
+          if (fr.academicYear && fr.academicYear.length === 4 && /^\d{4}$/.test(fr.academicYear)) {
+            // Convert '2026' to '2025-26' format
+            const year = parseInt(fr.academicYear);
+            normalizedAcademicYear = `${year-1}-${fr.academicYear.slice(-2)}`;
+          }
+          
           // Calculate status for each fee record
           let status: string;
           const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0) - (fr.discount || 0);
@@ -175,7 +185,9 @@ export async function GET(request: NextRequest) {
             status,
             dueDate: fr.dueDate,
             paymentMethod: fr.paymentMethod,
-            payments: fr.payments
+            payments: fr.payments,
+            academicYear: normalizedAcademicYear, // Use normalized academic year
+            category: fr.feeStructure?.category || 'academic'
           };
         }),
         // Additional student info

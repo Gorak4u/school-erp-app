@@ -19,6 +19,16 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '25');
 
+    console.log('DEBUG - Fee Records API:', {
+      studentId,
+      status,
+      academicYear,
+      search,
+      page,
+      pageSize,
+      requestUrl: request.url
+    });
+
     // Build WHERE conditions for optimized querying
     const whereConditions = [];
     const havingConditions = [];
@@ -72,21 +82,21 @@ export async function GET(request: NextRequest) {
     const havingClause = havingConditions.length > 0 ? `HAVING ${havingConditions.join(' AND ')}` : '';
 
     // OPTIMIZED: Use database aggregations for 10M record performance
-    const recordsQuery = `
+    const query = `
       SELECT 
         fr.id,
-        fr."receiptNumber",
+        fr."studentId",
+        fr."feeStructureId",
         fr.amount,
         fr."paidAmount",
-        fr."pendingAmount",
         fr.discount,
         fr."dueDate",
         fr."createdAt",
         fr."academicYear",
         s.name as "studentName",
-        s.class as "studentClass",
-        s.section as "studentSection",
-        s."rollNo" as "studentRollNo",
+        s.class,
+        s.section,
+        s."rollNo",
         fs.name as "feeStructureName",
         fs.category as "feeCategory",
         CASE 
@@ -106,6 +116,12 @@ export async function GET(request: NextRequest) {
       ORDER BY fr."createdAt" DESC
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
     `;
+
+    console.log('DEBUG - Fee Records SQL:', {
+      whereClause,
+      havingClause,
+      query: query.substring(0, 200) + '...'
+    });
 
     const countQuery = `
       SELECT COUNT(*) as total
@@ -137,10 +153,21 @@ export async function GET(request: NextRequest) {
 
     // Execute optimized queries in parallel
     const [recordsResult, countResult, summaryResult] = await Promise.all([
-      schoolPrisma.$queryRawUnsafe(recordsQuery),
+      schoolPrisma.$queryRawUnsafe(query),
       schoolPrisma.$queryRawUnsafe(countQuery),
       schoolPrisma.$queryRawUnsafe(summaryQuery)
     ]);
+
+    console.log('DEBUG - Fee Records Results:', {
+      recordsCount: recordsResult.length,
+      sampleRecords: recordsResult.slice(0, 2).map((r: any) => ({
+        id: r.id,
+        academicYear: r.academicYear,
+        studentName: r.studentName,
+        feeStructureName: r.feeStructureName,
+        amount: r.amount
+      }))
+    });
 
     // Handle BigInt serialization
     const safeParseInt = (value: any) => {

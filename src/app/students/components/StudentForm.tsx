@@ -9,7 +9,7 @@ const TABS = [
   { id: 'admission', label: 'Admission' },
   { id: 'personal', label: 'Personal' },
   { id: 'contact', label: 'Contact' },
-  { id: 'parents', label: 'Parents' },
+  { id: 'parents', label: 'Father Mother Name' },
   { id: 'additional', label: 'Additional' },
 ];
 
@@ -114,7 +114,7 @@ export default function StudentForm({
 
   const set = (key: string, val: any) => setFormData(prev => ({ ...prev, [key]: val }));
 
-  // Cascaded dropdown data - computed after useState
+  // Cascaded dropdown data
   const filteredClasses = formData.mediumId
     ? classes.filter(c => c.mediumId === formData.mediumId)
     : classes;
@@ -223,7 +223,8 @@ export default function StudentForm({
                         }}
                         className={inputCls}
                       >
-                        <option value="">Select Medium</option>
+                        {/* Don't show "Select Medium" when only one medium exists */}
+                        {mediums.length > 1 && <option value="">Select Medium</option>}
                         {mediums.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                       {mediums.length === 0 && <p className="text-xs text-yellow-500 mt-1">No mediums configured yet</p>}
@@ -277,8 +278,15 @@ export default function StudentForm({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Board</label>
-                    <select value={formData.board} onChange={e => set('board', e.target.value)} className={inputCls}>
-                      <option value="">Select Board</option>
+                    <select 
+                      value={formData.board} 
+                      onChange={e => {
+                        set('board', e.target.value);
+                      }} 
+                      className={inputCls}
+                    >
+                      {/* Don't show "Select Board" when only one board exists */}
+                      {dropdowns.boards.length > 1 && <option value="">Select Board</option>}
                       {dropdowns.boards.map(b => <option key={b.value} value={b.label}>{b.label}</option>)}
                     </select>
                   </div>
