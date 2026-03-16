@@ -20,11 +20,10 @@ const roleBasedRoutes: Record<string, string[]> = {
   '/dashboard': ['admin', 'teacher', 'student', 'parent'],
   '/students': ['admin', 'teacher'],
   '/teachers': ['admin'],
-  '/assignments': ['admin', 'teacher'],
   '/attendance': ['admin', 'teacher'],
   '/reports': ['admin', 'teacher'],
   '/profile': ['admin', 'teacher', 'student', 'parent'],
-  '/settings': ['admin'],
+  '/settings': ['admin', 'super_admin'],
   '/fees': ['admin'],
   '/fee-collection': ['admin'],
 };

@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
           'arrears' as record_type
         FROM "school"."FeeArrears" fa
         LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
-        WHERE ${whereConditions.filter(c => !c.includes('fr.')).map(c => c.replace('s."', 's."')).join(' AND ')}
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
       )
       ORDER BY "createdAt" DESC
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
@@ -214,30 +214,37 @@ export async function GET(request: NextRequest) {
     };
 
     // Format records for frontend
-    const records = (recordsResult as unknown as any[]).map((record: any) => ({
-      id: record.id,
-      receiptNumber: record.receiptNumber || `INV-${record.id?.slice(-6)}`,
-      amount: safeParseFloat(record.amount),
-      paidAmount: safeParseFloat(record.paidAmount),
-      pendingAmount: safeParseFloat(record.pendingAmount),
-      discount: safeParseFloat(record.discount),
-      dueDate: record.dueDate,
-      createdAt: record.createdAt,
-      academicYear: record.academicYear,
-      student: {
-        name: record.studentName,
-        class: record.class,
-        section: record.section,
-        rollNo: record.rollNo
-      },
-      feeStructure: {
-        name: record.feeStructureName,
-        category: record.feeCategory
-      },
-      status: record.status,
-      totalPayments: safeParseFloat(record.totalPayments),
-      paymentCount: safeParseInt(record.paymentCount)
-    }));
+    const records = (recordsResult as unknown as any[]).map((record: any) => {
+      const amount = safeParseFloat(record.amount);
+      const paidAmount = safeParseFloat(record.paidAmount);
+      const discount = safeParseFloat(record.discount);
+      const pendingAmount = Math.max(0, amount - paidAmount - discount);
+      
+      return {
+        id: record.id,
+        receiptNumber: record.receiptNumber || `INV-${record.id?.slice(-6)}`,
+        amount,
+        paidAmount,
+        pendingAmount,
+        discount,
+        dueDate: record.dueDate,
+        createdAt: record.createdAt,
+        academicYear: record.academicYear,
+        student: {
+          name: record.studentName,
+          class: record.class,
+          section: record.section,
+          rollNo: record.rollNo
+        },
+        feeStructure: {
+          name: record.feeStructureName,
+          category: record.feeCategory
+        },
+        status: record.status,
+        totalPayments: safeParseFloat(record.totalPayments),
+        paymentCount: safeParseInt(record.paymentCount)
+      };
+    });
 
     const total = safeParseInt((countResult as unknown as any[])[0]?.total);
     const totalPages = Math.ceil(total / pageSize);
@@ -254,26 +261,19 @@ export async function GET(request: NextRequest) {
     };
 
     // Handle BigInt serialization in JSON response
-    const jsonString = JSON.stringify({
+    return NextResponse.json({
       success: true,
-      data: {
-        records,
-        pagination: {
-          page,
-          pageSize,
-          total,
-          totalPages,
-          hasNext: page * pageSize < total,
-          hasPrev: page > 1
-        },
-        summary
-      }
+      records,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasNext: page * pageSize < total,
+        hasPrev: page > 1
+      },
+      summary
     }, (key, value) => typeof value === 'bigint' ? Number(value) : value);
-
-    return new Response(jsonString, {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
 
   } catch (error) {
     console.error('GET /api/fees/records:', error);
