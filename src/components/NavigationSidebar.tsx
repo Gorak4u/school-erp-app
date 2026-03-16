@@ -30,7 +30,13 @@ export default function NavigationSidebar({
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    // Debug school details
+    console.log('🏫 School Details in Sidebar:', {
+      name: schoolDetails.name,
+      logo_url: schoolDetails.logo_url,
+      isClient
+    });
+  }, [schoolDetails, isClient]);
 
   return (
     <motion.aside
