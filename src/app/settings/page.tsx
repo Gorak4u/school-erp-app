@@ -457,6 +457,11 @@ export default function SettingsPage() {
       console.log(`✅ Created new entities for ${newYearId}`);
       console.log(`✅ Marked old entities from ${previousYearId} as inactive`);
       
+      // Refresh all data to show newly created entities
+      console.log('🔄 Refreshing UI data...');
+      await fetchAll();
+      console.log('✅ UI data refreshed successfully');
+      
     } catch (error) {
       console.error('Failed to copy data from previous year:', error);
       throw error;
