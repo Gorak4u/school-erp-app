@@ -136,6 +136,18 @@ export default function StudentForm({
     ? sections.filter(s => s.classId === formData.classId)
     : [];
 
+  // Auto-select medium when only one exists
+  useEffect(() => {
+    if (!loading && mediums.length === 1 && !formData.mediumId) {
+      const medium = mediums[0];
+      setFormData(prev => ({ 
+        ...prev, 
+        mediumId: medium.id, 
+        languageMedium: medium.name || ''
+      }));
+    }
+  }, [mediums, loading, formData.mediumId]);
+
   // Load fee structures when class changes
   useEffect(() => {
     if (!formData.classId) { setFeeStructures([]); setSelectedFeeIds([]); return; }
