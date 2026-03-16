@@ -197,30 +197,9 @@ export default function SettingsPage() {
     try {
       console.log(`🔄 Copying data from academic year ${previousYearId} to ${newYearId}`);
       
-      // 0. Copy boards (boards are not year-specific, so just copy them as-is)
-      console.log('🏫 Copying boards...');
-      const boardsResponse = await boardsApi.list();
-      const boards = boardsResponse.boards || [];
-      
-      for (const board of boards) {
-        // Check if board already exists (boards are global, not year-specific)
-        try {
-          await boardsApi.create({
-            code: board.code,
-            name: board.name,
-            description: board.description,
-            isActive: board.isActive
-          });
-          console.log(`  ✅ Copied board: ${board.name}`);
-        } catch (error: any) {
-          // Board might already exist, which is fine
-          if (error.message.includes('already exists')) {
-            console.log(`  ⚠️ Board already exists: ${board.name}`);
-          } else {
-            throw error;
-          }
-        }
-      }
+      // 0. Skip boards - they are global entities, not year-specific
+      // Boards are shared across all academic years, so no need to copy them
+      console.log('🏫 Boards are global entities - skipping copy (they already exist)');
       
       // 1. Copy mediums
       console.log('📖 Copying mediums...');
@@ -1227,10 +1206,6 @@ export default function SettingsPage() {
 
               <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`}></div>
-                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Boards</span>
-                </div>
-                <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-green-400' : 'bg-green-500'}`}></div>
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Mediums</span>
                 </div>
@@ -1247,6 +1222,9 @@ export default function SettingsPage() {
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fee Structures</span>
                 </div>
               </div>
+              <p className={`text-xs text-center mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Note: Boards are global and shared across all years
+              </p>
 
               <div className="flex gap-3">
                 <button 
