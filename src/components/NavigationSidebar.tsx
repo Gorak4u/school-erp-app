@@ -43,9 +43,9 @@ export default function NavigationSidebar({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="p-6">
+      <div className="flex flex-col h-full p-6">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-3 mb-8">
+        <Link href="/dashboard" className="flex items-center gap-3 mb-8 flex-shrink-0">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
             <span className="text-white font-bold text-lg">ERP</span>
           </div>
@@ -54,8 +54,8 @@ export default function NavigationSidebar({
           }`}>School ERP</span>
         </Link>
 
-        {/* Navigation Menu */}
-        <nav className="space-y-2">
+        {/* Navigation Menu - Scrollable */}
+        <nav className="space-y-2 flex-1 overflow-y-auto pr-2">
           <div className={`text-xs font-semibold uppercase tracking-wider ${
             theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
           } mb-4`}>
@@ -255,8 +255,8 @@ export default function NavigationSidebar({
           </Link>
         </nav>
 
-        {/* Quick Stats */}
-        <div className={`mt-8 p-4 rounded-lg border ${
+        {/* Quick Stats - Sticky at bottom */}
+        <div className={`mt-6 p-4 rounded-lg border flex-shrink-0 ${
           theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
         }`}>
           <h4 className={`text-sm font-semibold mb-3 ${
