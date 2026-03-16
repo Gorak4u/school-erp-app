@@ -205,6 +205,75 @@ export async function sendSchoolEmail({
   }
 }
 
+export function welcomeEmailHtml(studentName: string, admissionNo: string, className: string, schoolName: string) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #1e3a5f, #2563eb); padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">${schoolName}</h1>
+        <p style="color: #93c5fd; margin: 8px 0 0;">Welcome to Our School</p>
+      </div>
+      <div style="background: #1e293b; padding: 32px; border-radius: 0 0 12px 12px;">
+        <p style="color: #e2e8f0; font-size: 16px;">Dear ${studentName},</p>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+          We are delighted to welcome you to our school family! Your admission has been successfully completed.
+        </p>
+        <div style="background: #0f172a; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+          <p style="color: #94a3b8; font-size: 13px; margin: 8px 0;">
+            <strong style="color: #e2e8f0;">Admission Number:</strong> ${admissionNo}
+          </p>
+          <p style="color: #94a3b8; font-size: 13px; margin: 8px 0;">
+            <strong style="color: #e2e8f0;">Class:</strong> ${className}
+          </p>
+        </div>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+          We look forward to a wonderful journey with you. If you have any questions or need assistance, please don't hesitate to reach out to our administration office.
+        </p>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-top: 24px;">
+          Best regards,<br/>
+          <strong style="color: #e2e8f0;">${schoolName}</strong><br/>
+          Administration Team
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+export function parentWelcomeEmailHtml(studentName: string, admissionNo: string, className: string, schoolName: string, parentName: string) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #1e3a5f, #2563eb); padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">${schoolName}</h1>
+        <p style="color: #93c5fd; margin: 8px 0 0;">Student Admission Confirmation</p>
+      </div>
+      <div style="background: #1e293b; padding: 32px; border-radius: 0 0 12px 12px;">
+        <p style="color: #e2e8f0; font-size: 16px;">Dear ${parentName},</p>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+          We are pleased to inform you that your child, <strong style="color: #e2e8f0;">${studentName}</strong>, has been successfully admitted to our school.
+        </p>
+        <div style="background: #0f172a; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+          <p style="color: #94a3b8; font-size: 13px; margin: 8px 0;">
+            <strong style="color: #e2e8f0;">Student Name:</strong> ${studentName}
+          </p>
+          <p style="color: #94a3b8; font-size: 13px; margin: 8px 0;">
+            <strong style="color: #e2e8f0;">Admission Number:</strong> ${admissionNo}
+          </p>
+          <p style="color: #94a3b8; font-size: 13px; margin: 8px 0;">
+            <strong style="color: #e2e8f0;">Class:</strong> ${className}
+          </p>
+        </div>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+          We are committed to providing quality education and holistic development for your child. We look forward to a strong partnership with you in this educational journey.
+        </p>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-top: 24px;">
+          Best regards,<br/>
+          <strong style="color: #e2e8f0;">${schoolName}</strong><br/>
+          Administration Team
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export function passwordResetEmailHtml(resetUrl: string, userName: string) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

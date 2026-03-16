@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -91,6 +92,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -98,16 +102,37 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Section ID is required' }, { status: 400 });
     }
 
-    await schoolPrisma.section.delete({
-      where: { id }
-    });
+    // Verify section exists
+    const existing = await schoolPrisma.section.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: 'Section not found' }, { status: 404 });
 
+    // Check for foreign key relationships - students using this section
+    const studentCount = await (schoolPrisma as any).student.count({ 
+      where: { 
+        OR: [
+          { section: existing.name },
+          { section: existing.code }
+        ]
+      } 
+    });
+    if (studentCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete section', 
+        details: `This section is being used by ${studentCount} student(s). Please reassign or remove the students first.`,
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
+
+    await schoolPrisma.section.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting section:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete section', details: error.message },
-      { status: 500 }
-    );
+    if (error.code === 'P2025') return NextResponse.json({ error: 'Section not found' }, { status: 404 });
+    if (error.code === 'P2003') return NextResponse.json({ 
+      error: 'Cannot delete section', 
+      details: 'This section is referenced by other records. Please delete those records first.',
+      code: 'FOREIGN_KEY_CONSTRAINT'
+    }, { status: 400 });
+    return NextResponse.json({ error: 'Failed to delete section' }, { status: 500 });
   }
 }

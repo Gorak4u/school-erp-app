@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,6 +84,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -90,16 +94,40 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Medium ID is required' }, { status: 400 });
     }
 
-    await (schoolPrisma as any).medium.delete({
-      where: { id }
-    });
+    // Verify medium exists
+    const existing = await (schoolPrisma as any).medium.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: 'Medium not found' }, { status: 404 });
 
+    // Check for foreign key relationships - classes using this medium
+    const classCount = await (schoolPrisma as any).class.count({ where: { mediumId: id } });
+    if (classCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete medium', 
+        details: `This medium is being used by ${classCount} class(es). Please delete or reassign the classes first.`,
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
+
+    // Check for fee structures using this medium
+    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { mediumId: id } });
+    if (feeStructureCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete medium', 
+        details: `This medium is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
+
+    await (schoolPrisma as any).medium.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting medium:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete medium', details: error.message },
-      { status: 500 }
-    );
+    if (error.code === 'P2025') return NextResponse.json({ error: 'Medium not found' }, { status: 404 });
+    if (error.code === 'P2003') return NextResponse.json({ 
+      error: 'Cannot delete medium', 
+      details: 'This medium is referenced by other records. Please delete those records first.',
+      code: 'FOREIGN_KEY_CONSTRAINT'
+    }, { status: 400 });
+    return NextResponse.json({ error: 'Failed to delete medium' }, { status: 500 });
   }
 }

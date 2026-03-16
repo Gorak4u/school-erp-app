@@ -4,6 +4,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 import { rateLimit, getClientIdentifier } from '@/lib/apiSecurity';
 import { validateSearchQuery, sanitizePaginationParams } from '@/lib/apiSecurity';
+import { sendSchoolEmail, welcomeEmailHtml, parentWelcomeEmailHtml } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   try {
@@ -450,6 +451,92 @@ export async function POST(request: NextRequest) {
     } catch (feeError) {
       console.error('Failed to auto-apply fees:', feeError);
       // Don't fail student creation if fee application fails
+    }
+
+    // Send welcome emails to student and parents
+    try {
+      const schoolSettings = await (schoolPrisma as any).SchoolSetting.findMany({
+        where: { group: 'school_details', schoolId: ctx.schoolId }
+      });
+      const schoolNameSetting = schoolSettings.find((s: any) => s.key === 'school_name');
+      const schoolName = schoolNameSetting?.value || 'Our School';
+
+      // Send welcome email to student if email is provided
+      if (student.email && student.email.trim()) {
+        const studentEmailHtml = welcomeEmailHtml(
+          student.name,
+          student.admissionNo,
+          student.class,
+          schoolName
+        );
+        await sendSchoolEmail({
+          to: student.email,
+          subject: `Welcome to ${schoolName} - Admission Confirmation`,
+          html: studentEmailHtml,
+          schoolId: ctx.schoolId
+        });
+        console.log(`✅ Welcome email sent to student: ${student.email}`);
+      }
+
+      // Send welcome email to parent/father if email is provided
+      if (student.parentEmail && student.parentEmail.trim()) {
+        const parentName = student.parentName || 'Parent';
+        const parentEmailHtml = parentWelcomeEmailHtml(
+          student.name,
+          student.admissionNo,
+          student.class,
+          schoolName,
+          parentName
+        );
+        await sendSchoolEmail({
+          to: student.parentEmail,
+          subject: `Student Admission Confirmation - ${student.name}`,
+          html: parentEmailHtml,
+          schoolId: ctx.schoolId
+        });
+        console.log(`✅ Welcome email sent to parent: ${student.parentEmail}`);
+      }
+
+      // Send welcome email to father if email is provided and different from parent email
+      if (student.fatherEmail && student.fatherEmail.trim() && student.fatherEmail !== student.parentEmail) {
+        const fatherName = student.fatherName || 'Father';
+        const fatherEmailHtml = parentWelcomeEmailHtml(
+          student.name,
+          student.admissionNo,
+          student.class,
+          schoolName,
+          fatherName
+        );
+        await sendSchoolEmail({
+          to: student.fatherEmail,
+          subject: `Student Admission Confirmation - ${student.name}`,
+          html: fatherEmailHtml,
+          schoolId: ctx.schoolId
+        });
+        console.log(`✅ Welcome email sent to father: ${student.fatherEmail}`);
+      }
+
+      // Send welcome email to mother if email is provided and different from parent/father email
+      if (student.motherEmail && student.motherEmail.trim() && student.motherEmail !== student.parentEmail && student.motherEmail !== student.fatherEmail) {
+        const motherName = student.motherName || 'Mother';
+        const motherEmailHtml = parentWelcomeEmailHtml(
+          student.name,
+          student.admissionNo,
+          student.class,
+          schoolName,
+          motherName
+        );
+        await sendSchoolEmail({
+          to: student.motherEmail,
+          subject: `Student Admission Confirmation - ${student.name}`,
+          html: motherEmailHtml,
+          schoolId: ctx.schoolId
+        });
+        console.log(`✅ Welcome email sent to mother: ${student.motherEmail}`);
+      }
+    } catch (emailError) {
+      console.error('Failed to send welcome emails:', emailError);
+      // Don't fail student creation if email sending fails
     }
 
     // Create audit log for successful student creation
