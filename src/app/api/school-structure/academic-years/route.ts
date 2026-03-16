@@ -26,6 +26,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { year, name, startDate, endDate, isActive } = body;
 
+    // Check if academic year already exists
+    const existingYear = await (schoolPrisma as any).academicYear.findFirst({
+      where: { year }
+    });
+
+    if (existingYear) {
+      return NextResponse.json(
+        { error: 'Academic year already exists', details: `Year '${year}' is already in use` },
+        { status: 409 }
+      );
+    }
+
     // If this is set as active, deactivate all others
     if (isActive) {
       await (schoolPrisma as any).academicYear.updateMany({
@@ -47,6 +59,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ academicYear }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating academic year:', error);
+    
+    // Handle Prisma unique constraint error
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Academic year already exists', details: 'This academic year is already in the system' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create academic year', details: error.message },
       { status: 500 }
