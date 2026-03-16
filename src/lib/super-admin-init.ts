@@ -36,33 +36,22 @@ export async function ensureSuperAdmin() {
       return;
     }
 
-    // Case 2: Check if super admin already exists in SaaS User table
-    console.log('🔍 [SUPER ADMIN] Checking existing super admin in SaaS User table...');
-    const existingUser = await (saasPrisma as any).user.findUnique({
-      where: { email: superAdminEmail },
-    });
-
-    if (existingUser) {
-      console.log('✅ [SUPER ADMIN] Super admin already exists in SaaS User table');
-      console.log(`📧 [SUPER ADMIN] Email: ${existingUser.email}`);
-      console.log(`🆔 [SUPER ADMIN] ID: ${existingUser.id}`);
-      console.log(`👤 [SUPER ADMIN] Role: ${existingUser.role}`);
-      console.log(`📅 [SUPER ADMIN] Created: ${existingUser.createdAt}`);
-      isInitialized = true;
-      return;
-    }
-
-    // Case 3: Super admin doesn't exist, create it
-    console.log('⚠️ [SUPER ADMIN] No super admin found, creating new one...');
-    
-    // Hash the password
+    // Hash the password first
     const hashedPassword = await bcrypt.hash(superAdminPassword, 12);
     console.log('🔐 [SUPER ADMIN] Password hashed successfully');
 
-    // Create super admin user in SaaS User table
+    // Use upsert to handle concurrent creation gracefully
+    console.log('🔍 [SUPER ADMIN] Creating or updating super admin in SaaS User table...');
     try {
-      const superAdmin = await (saasPrisma as any).user.create({
-        data: {
+      const superAdmin = await (saasPrisma as any).user.upsert({
+        where: { email: superAdminEmail },
+        update: {
+          // If user exists, just update the role to ensure it's super_admin
+          role: 'super_admin',
+          isSuperAdmin: true,
+          isActive: true,
+        },
+        create: {
           email: superAdminEmail,
           name: 'Super Admin',
           password: hashedPassword,
@@ -74,37 +63,45 @@ export async function ensureSuperAdmin() {
         },
       });
 
-      // Store password separately in school_User table for authentication
-      const schoolAdmin = await (prisma as any).school_User.create({
-        data: {
-          id: 'super-admin-' + Date.now(),
-          email: superAdminEmail,
-          password: hashedPassword,
-          firstName: 'Super',
-          lastName: 'Admin',
-          role: 'admin',
-          isActive: true,
-          schoolId: null, // Super admin has no school association
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
+      console.log('✅ [SUPER ADMIN] Super admin ready in SaaS User table');
+      console.log(`📧 [SUPER ADMIN] Email: ${superAdmin.email}`);
+      console.log(`🆔 [SUPER ADMIN] ID: ${superAdmin.id}`);
+      console.log(`� [SUPER ADMIN] Role: ${superAdmin.role}`);
 
-      console.log('🎉 [SUPER ADMIN] Super admin created successfully!');
-      console.log(`📧 [SUPER ADMIN] Email: ${superAdminEmail}`);
-      console.log(`🆔 [SUPER ADMIN] SaaS User ID: ${superAdmin.id}`);
-      console.log(`🆔 [SUPER ADMIN] School User ID: ${schoolAdmin.id}`);
-      console.log(`📅 [SUPER ADMIN] Created: ${superAdmin.createdAt}`);
+      // Try to create or update in school_User table
+      try {
+        await (prisma as any).school_User.upsert({
+          where: { email: superAdminEmail },
+          update: {
+            password: hashedPassword,
+            role: 'admin',
+            isActive: true,
+          },
+          create: {
+            id: 'super-admin-' + Date.now(),
+            email: superAdminEmail,
+            password: hashedPassword,
+            firstName: 'Super',
+            lastName: 'Admin',
+            role: 'admin',
+            isActive: true,
+            schoolId: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        console.log('✅ [SUPER ADMIN] Super admin ready in school_User table');
+      } catch (schoolError: any) {
+        console.warn('⚠️ [SUPER ADMIN] Could not sync to school_User table:', schoolError.message);
+      }
+
+      console.log('🎉 [SUPER ADMIN] Super admin initialization complete!');
       console.log('✅ [SUPER ADMIN] Ready for login');
     } catch (createError: any) {
-      // Handle unique constraint error - user might have been created by another process
-      if (createError.code === 'P2002' && createError.meta?.target?.includes('email')) {
-        console.log('✅ [SUPER ADMIN] Super admin already exists (concurrent creation)');
-      } else {
-        console.error('❌ [SUPER ADMIN] Error during super admin creation:', createError);
-        console.error('❌ [SUPER ADMIN] Error details:', createError.message);
-        console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
-      }
+      console.error('❌ [SUPER ADMIN] Error during super admin initialization:', createError);
+      console.error('❌ [SUPER ADMIN] Error code:', createError.code);
+      console.error('❌ [SUPER ADMIN] Error details:', createError.message);
+      console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
     }
     
     isInitialized = true;
