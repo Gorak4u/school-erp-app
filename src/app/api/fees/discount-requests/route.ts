@@ -52,9 +52,16 @@ async function validateDiscountApplication(
       academicYear: discountData.academicYear
     };
 
+    // Build arrears where clause (uses toAcademicYear instead of academicYear)
+    const arrearsWhere: any = {
+      status: { in: ['pending', 'partial'] },
+      toAcademicYear: discountData.academicYear
+    };
+
     // Build query based on scope
     if ((discountData.scope === 'student' || discountData.scope === 'bulk') && discountData.studentIds.length > 0) {
       baseWhere.studentId = { in: discountData.studentIds };
+      arrearsWhere.studentId = { in: discountData.studentIds };
     } else if (discountData.scope === 'class') {
       // Resolve class to student IDs (simplified version)
       if (discountData.classIds.length > 0) {
@@ -87,14 +94,16 @@ async function validateDiscountApplication(
         
         if (studentIds.length > 0) {
           baseWhere.studentId = { in: studentIds };
+          arrearsWhere.studentId = { in: studentIds };
         } else {
           // If no students found, make query fail safely
           baseWhere.studentId = 'impossible-no-students-found';
+          arrearsWhere.studentId = 'impossible-no-students-found';
         }
       }
     }
 
-    // Filter by fee structures
+    // Filter by fee structures (only applies to FeeRecord, not FeeArrears)
     if (discountData.targetType === 'fee_structure' && discountData.feeStructureIds.length > 0) {
       baseWhere.feeStructureId = { in: discountData.feeStructureIds };
     }
@@ -102,27 +111,48 @@ async function validateDiscountApplication(
     // Apply tenant scoping
     if (ctx.schoolId) {
       baseWhere.student = { schoolId: ctx.schoolId };
+      arrearsWhere.student = { schoolId: ctx.schoolId };
     }
 
-    // Get target records for validation
-    const targetRecords = await (schoolPrisma as any).FeeRecord.findMany({
-      where: baseWhere,
-      select: { 
-        id: true, 
-        studentId: true, 
-        amount: true, 
-        paidAmount: true, 
-        discount: true, 
-        pendingAmount: true,
-        student: { select: { id: true, name: true, class: true } }
-      },
-      take: 100 // Limit validation check to 100 records for performance
-    });
+    // Get target records for validation - both FeeRecord and FeeArrears
+    const [feeRecords, arrearsRecords] = await Promise.all([
+      (schoolPrisma as any).FeeRecord.findMany({
+        where: baseWhere,
+        select: { 
+          id: true, 
+          studentId: true, 
+          amount: true, 
+          paidAmount: true, 
+          discount: true, 
+          pendingAmount: true,
+          student: { select: { id: true, name: true, class: true } }
+        },
+        take: 100
+      }),
+      (schoolPrisma as any).FeeArrears.findMany({
+        where: arrearsWhere,
+        select: { 
+          id: true, 
+          studentId: true, 
+          amount: true, 
+          paidAmount: true,
+          pendingAmount: true,
+          student: { select: { id: true, name: true, class: true } }
+        },
+        take: 100
+      })
+    ]);
+
+    // Combine both record types and add metadata
+    const targetRecords = [
+      ...feeRecords.map((r: any) => ({ ...r, recordType: 'fee_record', discount: r.discount || 0 })),
+      ...arrearsRecords.map((r: any) => ({ ...r, recordType: 'arrears', discount: 0 }))
+    ];
 
     if (targetRecords.length === 0) {
       return {
         valid: false,
-        error: 'No matching fee records found for this discount',
+        error: 'No matching fee records or arrears found for this discount',
         details: 'Check the academic year, student/class selection, and fee structure filters'
       };
     }

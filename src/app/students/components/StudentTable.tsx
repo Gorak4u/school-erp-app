@@ -360,6 +360,15 @@ export default function StudentTable({
                                 >
                                   👁️
                                 </button>
+                                {onExitSingle && (
+                                  <button
+                                    onClick={() => onExitSingle(student.id)}
+                                    className="p-1 rounded hover:bg-orange-500/10 text-orange-500 transition-colors"
+                                    title="Mark Exit / Graduate"
+                                  >
+                                    🚪
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => {
                                     if (window.confirm(`Delete ${student.name}?`)) handleDeleteStudent(student.id);

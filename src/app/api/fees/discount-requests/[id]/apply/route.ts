@@ -61,13 +61,22 @@ export async function POST(
     if (!discountReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     if (discountReq.status !== 'approved') return NextResponse.json({ error: 'Only approved requests can be applied' }, { status: 400 });
 
-    // 2. Identify target FeeRecords
+    // 2. Identify target FeeRecords and FeeArrears
     const baseWhere: any = {
-      status: { in: ['pending', 'partial'] }, // Only apply to unpaid/partially paid fees
+      status: { in: ['pending', 'partial'] },
+    };
+
+    const arrearsWhere: any = {
+      status: { in: ['pending', 'partial'] },
+      toAcademicYear: discountReq.academicYear
     };
 
     let feeRecordsQuery: any = {
-      where: baseWhere
+      where: { ...baseWhere, academicYear: discountReq.academicYear }
+    };
+
+    let arrearsQuery: any = {
+      where: arrearsWhere
     };
 
     // Filter by student/class/bulk
@@ -78,14 +87,16 @@ export async function POST(
 
     if ((discountReq.scope === 'student' || discountReq.scope === 'bulk') && studentIds.length > 0) {
       feeRecordsQuery.where.studentId = { in: studentIds };
+      arrearsQuery.where.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
       const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
       if (resolvedStudentIds.length) {
         feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
+        arrearsQuery.where.studentId = { in: resolvedStudentIds };
       }
     }
 
-    // Filter by fee structures
+    // Filter by fee structures (only for FeeRecord, not FeeArrears)
     if (discountReq.targetType === 'fee_structure' && feeStructureIds.length > 0) {
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
@@ -93,34 +104,29 @@ export async function POST(
     // Apply tenant scoping via student relationship
     if (ctx.schoolId) {
       feeRecordsQuery.where.student = { schoolId: ctx.schoolId };
+      arrearsQuery.where.student = { schoolId: ctx.schoolId };
     }
 
-    // Fetch target records
-    const targetRecords = await (schoolPrisma as any).FeeRecord.findMany({
-      where: feeRecordsQuery.where,
-      select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true, pendingAmount: true }
-    });
+    // Fetch both FeeRecords and FeeArrears
+    const [feeRecords, arrearsRecords] = await Promise.all([
+      (schoolPrisma as any).FeeRecord.findMany({
+        where: feeRecordsQuery.where,
+        select: { id: true, studentId: true, feeStructureId: true, amount: true, paidAmount: true, discount: true, pendingAmount: true }
+      }),
+      (schoolPrisma as any).FeeArrears.findMany({
+        where: arrearsQuery.where,
+        select: { id: true, studentId: true, amount: true, paidAmount: true, pendingAmount: true }
+      })
+    ]);
 
-    // Debug: Check if any fee records exist for this student at all
-    const allStudentRecords = await (schoolPrisma as any).FeeRecord.findMany({
-      where: { 
-        studentId: { in: studentIds },
-        academicYear: discountReq.academicYear 
-      },
-      select: { id: true, status: true, academicYear: true, feeStructureId: true }
-    });
-
-    // Debug: Check if student has any fee records in any academic year
-    const anyYearRecords = await (schoolPrisma as any).FeeRecord.findMany({
-      where: { 
-        studentId: { in: studentIds }
-      },
-      select: { id: true, status: true, academicYear: true, feeStructureId: true },
-      take: 5
-    });
+    // Combine both record types with metadata
+    const targetRecords = [
+      ...feeRecords.map((r: any) => ({ ...r, recordType: 'fee_record', discount: r.discount || 0 })),
+      ...arrearsRecords.map((r: any) => ({ ...r, recordType: 'arrears', discount: 0 }))
+    ];
 
     if (targetRecords.length === 0) {
-      return NextResponse.json({ error: 'No matching fee records found to apply discount' }, { status: 404 });
+      return NextResponse.json({ error: 'No matching fee records or arrears found to apply discount' }, { status: 404 });
     }
 
     // 3. Calculate new discounts with payment validation
@@ -205,22 +211,37 @@ export async function POST(
         schoolId: ctx.schoolId,
         discountRequestId: id,
         studentId: record.studentId,
-        feeRecordId: record.id,
-        feeStructureId: record.feeStructureId,
+        feeRecordId: record.recordType === 'fee_record' ? record.id : null,
+        feeArrearsId: record.recordType === 'arrears' ? record.id : null,
+        feeStructureId: record.feeStructureId || null,
         discountAmount: calcDiscount,
         previousDiscount: currentDiscount,
         appliedBy: ctx.userId,
-        appliedByEmail: ctx.email
+        appliedByEmail: ctx.email,
+        recordType: record.recordType
       });
 
-      updates.push(
-        (schoolPrisma as any).$executeRawUnsafe(
-          `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = $2 WHERE id = $3`,
-          calcDiscount,
-          newPendingAmount,
-          record.id
-        )
-      );
+      // Update the appropriate table based on record type
+      if (record.recordType === 'fee_record') {
+        updates.push(
+          (schoolPrisma as any).$executeRawUnsafe(
+            `UPDATE "school"."FeeRecord" SET "discount" = "discount" + $1, "pendingAmount" = $2 WHERE id = $3`,
+            calcDiscount,
+            newPendingAmount,
+            record.id
+          )
+        );
+      } else if (record.recordType === 'arrears') {
+        // For arrears, we reduce the amount directly since there's no discount field
+        updates.push(
+          (schoolPrisma as any).$executeRawUnsafe(
+            `UPDATE "school"."FeeArrears" SET "amount" = "amount" - $1, "pendingAmount" = $2 WHERE id = $3`,
+            calcDiscount,
+            newPendingAmount,
+            record.id
+          )
+        );
+      }
     }
 
 

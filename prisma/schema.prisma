@@ -855,7 +855,8 @@ model DiscountApplication {
   discountRequest   DiscountRequest @relation(fields: [discountRequestId], references: [id], onDelete: Cascade)
 
   studentId         String
-  feeRecordId       String
+  feeRecordId       String?         // Nullable - either feeRecordId OR feeArrearsId
+  feeArrearsId      String?         // Nullable - for arrears discounts
   feeStructureId    String?
 
   discountAmount    Float
@@ -877,6 +878,7 @@ model DiscountApplication {
   @@index([discountRequestId])
   @@index([studentId])
   @@index([feeRecordId])
+  @@index([feeArrearsId])
   @@index([studentId, feeRecordId])
   @@index([schoolId, isReversed])
   @@schema("school")

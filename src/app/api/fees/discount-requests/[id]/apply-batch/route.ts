@@ -117,18 +117,25 @@ async function processDiscountApplication(
     const classIds = JSON.parse(discountReq.classIds || '[]');
     const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
 
-    // Build query to find target records
+    // Build query to find target records - both FeeRecord and FeeArrears
     const feeRecordsQuery: any = {
       academicYear: discountReq.academicYear,
       status: { in: ['pending', 'partial'] }
     };
 
+    const arrearsQuery: any = {
+      toAcademicYear: discountReq.academicYear,
+      status: { in: ['pending', 'partial'] }
+    };
+
     if (discountReq.scope === 'student' && studentIds.length > 0) {
       feeRecordsQuery.studentId = { in: studentIds };
+      arrearsQuery.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
       const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
       if (resolvedStudentIds.length) {
         feeRecordsQuery.studentId = { in: resolvedStudentIds };
+        arrearsQuery.studentId = { in: resolvedStudentIds };
       }
     }
 
@@ -138,12 +145,16 @@ async function processDiscountApplication(
 
     if (ctx.schoolId) {
       feeRecordsQuery.student = { schoolId: ctx.schoolId };
+      arrearsQuery.student = { schoolId: ctx.schoolId };
     }
 
-    // Get total count first
-    const totalCount = await (schoolPrisma as any).FeeRecord.count({
-      where: feeRecordsQuery
-    });
+    // Get total count from both tables
+    const [feeRecordCount, arrearsCount] = await Promise.all([
+      (schoolPrisma as any).FeeRecord.count({ where: feeRecordsQuery }),
+      (schoolPrisma as any).FeeArrears.count({ where: arrearsQuery })
+    ]);
+
+    const totalCount = feeRecordCount + arrearsCount;
 
     if (totalCount === 0) {
       jobStatus.set(jobId, {
@@ -167,7 +178,8 @@ async function processDiscountApplication(
     const batchSize = 1000;
     let processedCount = 0;
 
-    for (let skip = 0; skip < totalCount; skip += batchSize) {
+    // Process FeeRecords first
+    for (let skip = 0; skip < feeRecordCount; skip += batchSize) {
       const batch = await (schoolPrisma as any).FeeRecord.findMany({
         where: feeRecordsQuery,
         skip,
@@ -182,107 +194,112 @@ async function processDiscountApplication(
         }
       });
 
-      // Calculate new discount for each record
       const updates = batch.map((record: any) => {
         const currentDiscount = record.discount || 0;
         const totalFee = record.amount;
         const paidAmount = record.paidAmount || 0;
-        const remainingBalance = totalFee - paidAmount - currentDiscount;
         
-        // Check if student has already paid full amount
-        if (paidAmount >= totalFee) {
-          return {
-            id: record.id,
-            skipUpdate: true,
-            reason: 'Student already paid full amount'
-          };
-        }
+        if (paidAmount >= totalFee) return { id: record.id, skipUpdate: true, reason: 'Already paid' };
         
-        // Check if discount would create negative pending amount
-        let newDiscount = currentDiscount;
-        
+        let calcDiscount = 0;
         if (discountReq.discountType === 'percentage') {
-          const discountAmount = (totalFee * discountReq.discountValue) / 100;
-          newDiscount = currentDiscount + discountAmount;
-          
-          // Apply max cap if specified
-          if (discountReq.maxCapAmount && newDiscount > discountReq.maxCapAmount) {
-            newDiscount = discountReq.maxCapAmount;
-          }
-        } else {
-          newDiscount = currentDiscount + discountReq.discountValue;
+          calcDiscount = (totalFee * discountReq.discountValue) / 100;
+          if (discountReq.maxCapAmount) calcDiscount = Math.min(calcDiscount, discountReq.maxCapAmount);
+        } else if (discountReq.discountType === 'fixed') {
+          calcDiscount = discountReq.discountValue;
+        } else if (discountReq.discountType === 'full_waiver') {
+          calcDiscount = totalFee;
         }
         
-        // Calculate new pending amount
+        const newDiscount = Math.min(currentDiscount + calcDiscount, totalFee);
         const newPendingAmount = totalFee - paidAmount - newDiscount;
         
-        // Skip if discount would create negative pending amount
-        if (newPendingAmount < 0) {
-          return {
-            id: record.id,
-            skipUpdate: true,
-            reason: 'Discount would create negative pending amount'
-          };
-        }
+        if (newPendingAmount < 0) return { id: record.id, skipUpdate: true, reason: 'Negative balance' };
         
-        // Only apply discount if it actually reduces the pending amount
-        if (newPendingAmount >= remainingBalance) {
-          return {
-            id: record.id,
-            skipUpdate: true,
-            reason: 'Discount provides no benefit'
-          };
-        }
-
-        return {
-          id: record.id,
-          discount: newDiscount,
-          pendingAmount: newPendingAmount,
-          oldPendingAmount: remainingBalance,
-          discountApplied: newDiscount - currentDiscount
-        };
+        return { id: record.id, discount: newDiscount, pendingAmount: newPendingAmount, skipUpdate: false };
       });
 
-      // Filter out records that should be skipped
-      const validUpdates = updates.filter((update: any) => !update.skipUpdate);
-      const skippedRecords = updates.filter((update: any) => update.skipUpdate);
+      const validUpdates = updates.filter((u: any) => !u.skipUpdate);
       
-      if (skippedRecords.length > 0) {
-        console.log(`SKIPPED ${skippedRecords.length} records:`, skippedRecords.map((r: any) => ({ id: r.id, reason: r.reason })));
-      }
-
-      // Update only valid records
       if (validUpdates.length > 0) {
         await Promise.all(
           validUpdates.map((update: any) =>
             (schoolPrisma as any).FeeRecord.update({
               where: { id: update.id },
-              data: {
-                discount: update.discount,
-                pendingAmount: update.pendingAmount
-              }
+              data: { discount: update.discount, pendingAmount: update.pendingAmount }
             })
           )
         );
-        console.log(`UPDATED ${validUpdates.length} fee records with discounts`);
       }
 
       processedCount += batch.length;
-      const progress = Math.round((processedCount / totalCount) * 100);
-
-      // Update progress with skip information
-      const skipMessage = skippedRecords.length > 0 
-        ? ` (${skippedRecords.length} skipped)` 
-        : '';
-      
       jobStatus.set(jobId, {
         ...job,
         progress: processedCount,
-        processedRecords: processedCount,
-        message: `Processed ${processedCount} of ${totalCount} fee records...${skipMessage}`
+        message: `Processed ${processedCount} of ${totalCount} records...`
       });
 
-      // Small delay to prevent overwhelming the database
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Process FeeArrears
+    for (let skip = 0; skip < arrearsCount; skip += batchSize) {
+      const batch = await (schoolPrisma as any).FeeArrears.findMany({
+        where: arrearsQuery,
+        skip,
+        take: batchSize,
+        select: { 
+          id: true, 
+          studentId: true, 
+          amount: true, 
+          paidAmount: true
+        }
+      });
+
+      const updates = batch.map((record: any) => {
+        const totalFee = record.amount;
+        const paidAmount = record.paidAmount || 0;
+        
+        if (paidAmount >= totalFee) return { id: record.id, skipUpdate: true, reason: 'Already paid' };
+        
+        let calcDiscount = 0;
+        if (discountReq.discountType === 'percentage') {
+          calcDiscount = (totalFee * discountReq.discountValue) / 100;
+          if (discountReq.maxCapAmount) calcDiscount = Math.min(calcDiscount, discountReq.maxCapAmount);
+        } else if (discountReq.discountType === 'fixed') {
+          calcDiscount = discountReq.discountValue;
+        } else if (discountReq.discountType === 'full_waiver') {
+          calcDiscount = totalFee;
+        }
+        
+        const newAmount = Math.max(0, totalFee - calcDiscount);
+        const newPendingAmount = newAmount - paidAmount;
+        
+        if (newPendingAmount < 0) return { id: record.id, skipUpdate: true, reason: 'Negative balance' };
+        
+        return { id: record.id, amount: newAmount, pendingAmount: newPendingAmount, skipUpdate: false };
+      });
+
+      const validUpdates = updates.filter((u: any) => !u.skipUpdate);
+      
+      if (validUpdates.length > 0) {
+        await Promise.all(
+          validUpdates.map((update: any) =>
+            (schoolPrisma as any).FeeArrears.update({
+              where: { id: update.id },
+              data: { amount: update.amount, pendingAmount: update.pendingAmount }
+            })
+          )
+        );
+      }
+
+      processedCount += batch.length;
+      jobStatus.set(jobId, {
+        ...job,
+        progress: processedCount,
+        message: `Processed ${processedCount} of ${totalCount} records...`
+      });
+
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
