@@ -59,6 +59,11 @@ export default function SettingsPage() {
   const [modalEntity, setModalEntity] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
+  
+  // ─── Copy confirmation modal state ───────────────────────────────────────────
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [previousYearForCopy, setPreviousYearForCopy] = useState<any>(null);
+  const [pendingAcademicYear, setPendingAcademicYear] = useState<any>(null);
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
   const isDark = theme === 'dark';
@@ -154,29 +159,11 @@ export default function SettingsPage() {
           const previousYears = academicYears.filter((ay: any) => ay.isActive && ay.id !== formData.id);
           
           if (previousYears.length > 0) {
-            // Show confirmation dialog for copying data
-            const shouldCopy = window.confirm(
-              `Previous academic year found: ${previousYears[0].name}\n\n` +
-              `Would you like to copy the medium, class, section & fee structure from the previous year?` +
-              `\n\nClick OK to copy, or Cancel to create fresh.`
-            );
-            
-            if (shouldCopy) {
-              // Create academic year first
-              const newAcademicYear = await api.create(formData);
-              
-              // Then copy data from previous year
-              await copyDataFromPreviousYear(previousYears[0].id, newAcademicYear.id);
-              
-              showToast({ 
-                type: 'success', 
-                title: 'Academic Year Created', 
-                message: 'Successfully created and copied data from previous year' 
-              });
-            } else {
-              await api.create(formData);
-              showToast({ type: 'success', title: 'Academic Year created' });
-            }
+            // Store data for modal and show copy confirmation modal
+            setPreviousYearForCopy(previousYears[0]);
+            setPendingAcademicYear(formData);
+            setShowCopyModal(true);
+            return; // Don't close the main modal yet
           } else {
             await api.create(formData);
             showToast({ type: 'success', title: 'Academic Year created' });
@@ -361,6 +348,66 @@ export default function SettingsPage() {
       console.error('Failed to copy data from previous year:', error);
       throw error;
     }
+  };
+
+  // ─── Copy modal handlers ─────────────────────────────────────────────────────
+  const handleCopyWithPreviousYear = async () => {
+    try {
+      setSaving(true);
+      
+      // Create academic year first
+      const newAcademicYear = await academicYearsApi.create(pendingAcademicYear);
+      
+      // Then copy data from previous year
+      await copyDataFromPreviousYear(previousYearForCopy.id, newAcademicYear.id);
+      
+      showToast({ 
+        type: 'success', 
+        title: 'Academic Year Created', 
+        message: 'Successfully created and copied data from previous year' 
+      });
+      
+      // Reset modal state
+      setShowCopyModal(false);
+      setPreviousYearForCopy(null);
+      setPendingAcademicYear(null);
+      setShowModal(false);
+      
+      fetchAll();
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Failed', message: error.message || 'Something went wrong' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateFreshYear = async () => {
+    try {
+      setSaving(true);
+      
+      // Create academic year without copying
+      await academicYearsApi.create(pendingAcademicYear);
+      
+      showToast({ type: 'success', title: 'Academic Year created' });
+      
+      // Reset modal state
+      setShowCopyModal(false);
+      setPreviousYearForCopy(null);
+      setPendingAcademicYear(null);
+      setShowModal(false);
+      
+      fetchAll();
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Failed', message: error.message || 'Something went wrong' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelCopy = () => {
+    setShowCopyModal(false);
+    setPreviousYearForCopy(null);
+    setPendingAcademicYear(null);
   };
 
   const handleDelete = async (entity: string, id: string, name: string) => {
@@ -1140,6 +1187,84 @@ export default function SettingsPage() {
                   {saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
                 </button>
                 <button className={btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Copy Confirmation Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showCopyModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleCancelCopy}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-md rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
+              <div className="text-center mb-6">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-900/50' : 'bg-blue-100'}`}>
+                  <svg className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                  </svg>
+                </div>
+                <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Copy Data from Previous Year?
+                </h3>
+                <p className={`text-sm mb-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Previous academic year found: <span className="font-semibold">{previousYearForCopy?.name}</span>
+                </p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Would you like to copy the following from the previous year?
+                </p>
+              </div>
+
+              <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`}></div>
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Boards</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-green-400' : 'bg-green-500'}`}></div>
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Mediums</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-yellow-400' : 'bg-yellow-500'}`}></div>
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Classes</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-purple-400' : 'bg-purple-500'}`}></div>
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Sections</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-red-400' : 'bg-red-500'}`}></div>
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fee Structures</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`} 
+                  disabled={saving} 
+                  onClick={handleCopyWithPreviousYear}
+                >
+                  {saving ? 'Creating...' : 'Copy & Create'}
+                </button>
+                <button 
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`} 
+                  disabled={saving} 
+                  onClick={handleCreateFreshYear}
+                >
+                  {saving ? 'Creating...' : 'Create Fresh'}
+                </button>
+                <button 
+                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                  }`} 
+                  onClick={handleCancelCopy}
+                >
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </motion.div>
