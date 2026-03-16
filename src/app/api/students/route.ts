@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     // 3. Build lookup maps
     const feeMap = new Map(feeAgg.map(f => [f.studentId, f._sum]));
     const lastPayMap = new Map(
-      feeLastPayment.map(p => [p.studentId, p.paidDate?.toISOString().split('T')[0]])
+      feeLastPayment.map(p => [p.studentId, p.paidDate ? (typeof p.paidDate === 'string' ? p.paidDate.split('T')[0] : p.paidDate.toISOString().split('T')[0]) : ''])
     );
     const attMap = new Map();
     attendanceAgg.forEach(att => {
