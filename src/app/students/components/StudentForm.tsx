@@ -132,6 +132,7 @@ export default function StudentForm({
     validTo: '',
   });
   const [selectedDiscountFeeIds, setSelectedDiscountFeeIds] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Cascaded dropdown data
   const filteredClasses = useMemo(() => {
@@ -244,8 +245,10 @@ export default function StudentForm({
     return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected: selectedFees };
   }, [feeStructures, selectedDiscountFeeIds, discountData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent multiple submissions
+    
     if (!formData.name.trim()) { alert('Full Name is required'); return; }
     if (!formData.dateOfBirth) { alert('Date of Birth is required'); return; }
     if (!formData.mediumId) { alert('Please select a Language Medium'); return; }
@@ -266,15 +269,24 @@ export default function StudentForm({
       }
     }
     localStorage.removeItem('studentFormAutoSave');
-    onSubmit({
-      ...formData,
-      ...(discountData.hasDiscount && {
-        _discountInfo: { 
-          ...discountData, 
-          feeStructureIds: selectedDiscountFeeIds 
-        },
-      }),
-    } as any);
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        ...formData,
+        ...(discountData.hasDiscount && {
+          _discountInfo: { 
+            ...discountData, 
+            feeStructureIds: selectedDiscountFeeIds 
+          },
+        }),
+      } as any);
+    } catch (error) {
+      console.error('Error submitting student form:', error);
+      alert('Failed to submit student. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const tabBtnCls = (id: string) =>
@@ -1009,8 +1021,23 @@ export default function StudentForm({
             </button>
             {isLastTab && (
               <button type="submit"
-                className="px-6 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow">
-                {student ? 'Update Student' : 'Add Student'}
+                disabled={isSubmitting}
+                className={`px-6 py-2 text-sm rounded-lg font-semibold shadow transition-all ${
+                  isSubmitting 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}>
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                    {student ? 'Updating...' : 'Adding...'}
+                  </span>
+                ) : (
+                  student ? 'Update Student' : 'Add Student'
+                )}
               </button>
             )}
           </div>
