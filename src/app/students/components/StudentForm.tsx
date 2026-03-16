@@ -151,26 +151,21 @@ export default function StudentForm({
 
   // Load fee structures when class changes
   useEffect(() => {
-    if (!formData.classId) { setFeeStructures([]); return; }
+    if (!formData.classId || !activeAcademicYear?.id) { setFeeStructures([]); return; }
     setFeesLoading(true);
     
-    // Use SchoolConfigContext to get active academic year (already filtered)
+    // MUST pass academicYearId to only get current year's fee structures
     const params = new URLSearchParams({
       classId: formData.classId,
+      academicYearId: activeAcademicYear.id,
+      isActive: 'true',
       ...(formData.mediumId && { mediumId: formData.mediumId }),
-      ...(activeAcademicYear?.id && { academicYearId: activeAcademicYear.id }),
-      isActive: 'true'
     });
-    
-    console.log('🔍 Fetching fee structures with params:', params.toString());
-    console.log('🎓 Active Academic Year:', activeAcademicYear);
     
     fetch(`/api/fees/structures?${params}`)
       .then(r => r.json())
       .then(data => {
-        const structs = data.feeStructures || [];
-        console.log('Loaded fee structures for active AY:', structs);
-        setFeeStructures(structs);
+        setFeeStructures(data.feeStructures || []);
         setSelectedDiscountFeeIds([]);
       })
       .catch(err => {

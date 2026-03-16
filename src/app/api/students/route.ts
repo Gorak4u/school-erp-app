@@ -367,13 +367,22 @@ export async function POST(request: NextRequest) {
       // academicYear is already defined above from activeAcademicYear.year
       
       // Find fee structures matching the student's class for the ACTIVE academic year only
+      const feeStructureWhere: any = { 
+        isActive: true,
+        academicYearId: activeAcademicYear.id,
+      };
+      if (ctx.schoolId) feeStructureWhere.schoolId = ctx.schoolId;
+      
+      console.log('📋 Auto-apply fees - query:', feeStructureWhere);
+      
       const feeStructures = await schoolPrisma.feeStructure.findMany({
-        where: { 
-          isActive: true,
-          academicYearId: activeAcademicYear.id  // Filter by active academic year
-        },
-        include: { class: true },
+        where: feeStructureWhere,
+        include: { class: true, academicYear: true },
       });
+      
+      console.log(`📋 Auto-apply fees - found ${feeStructures.length} structures for AY ${activeAcademicYear.year} (${activeAcademicYear.id}):`,
+        feeStructures.map((s: any) => ({ name: s.name, amount: s.amount, ayId: s.academicYearId, ay: s.academicYear?.year }))
+      );
 
       const currentYear = new Date().getFullYear();
       

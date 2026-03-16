@@ -28,16 +28,6 @@ export async function GET(request: NextRequest) {
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     
-    console.log('🔍 Fee Structures API - Filters:', {
-      academicYearId,
-      boardId,
-      mediumId,
-      classId,
-      isActive,
-      category,
-      schoolId: ctx.schoolId
-    });
-    
     // Handle medium and class filtering together
     // Fee structures can be:
     // 1. Specific to a medium AND class
@@ -78,19 +68,6 @@ export async function GET(request: NextRequest) {
       include: INCLUDE_RELATIONS,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-
-    console.log('📊 Fee Structures API - Final WHERE clause:', where);
-    console.log('📊 Fee Structures API - Results count:', structures.length);
-    console.log('📊 Fee Structures API - Results:', structures.map(s => ({
-      id: s.id,
-      name: s.name,
-      amount: s.amount,
-      academicYearId: s.academicYearId,
-      academicYear: s.academicYear?.year,
-      classId: s.classId,
-      className: s.class?.name,
-      isActive: s.isActive
-    })));
 
     return NextResponse.json({ feeStructures: structures });
   } catch (error) {
