@@ -184,13 +184,22 @@ export default function StudentForm({
   }, [formData]);
 
   // Restore auto-save on mount (new student only)
+  // Clear AY-specific IDs - they belong to old academic year records
   useEffect(() => {
     if (student) return;
     try {
       const saved = localStorage.getItem('studentFormAutoSave');
       if (!saved) return;
       const parsed = JSON.parse(saved);
-      if (Date.now() - parsed._ts < 86400000) setFormData(parsed);
+      if (Date.now() - parsed._ts < 86400000) {
+        setFormData(prev => ({
+          ...prev,
+          ...parsed,
+          classId: '',    // Clear - old AY class IDs are invalid
+          mediumId: prev.mediumId || '', // Keep if already set by context init
+          sectionId: '',  // Clear - old AY section IDs are invalid
+        }));
+      }
     } catch {}
   }, []);
 

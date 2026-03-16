@@ -332,8 +332,11 @@ export async function POST(request: NextRequest) {
     } = data;
 
     // Get the active academic year from database BEFORE creating student
+    // ORDER by createdAt desc to always get the NEWEST active year
+    // (guards against data inconsistency where multiple years are marked active)
     const activeAcademicYear = await schoolPrisma.academicYear.findFirst({
-      where: { isActive: true }
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' }
     });
     
     if (!activeAcademicYear) {
@@ -362,55 +365,53 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Auto-apply fee structures based on student's class, category, and medium
+    // Auto-apply fee structures for the ACTIVE academic year only
     try {
-      // academicYear is already defined above from activeAcademicYear.year
-      
-      // Find fee structures matching the student's class for the ACTIVE academic year only
-      const feeStructureWhere: any = { 
-        isActive: true,
-        academicYearId: activeAcademicYear.id,
-      };
-      if (ctx.schoolId) feeStructureWhere.schoolId = ctx.schoolId;
-      
-      console.log('📋 Auto-apply fees - query:', feeStructureWhere);
-      
-      const feeStructures = await schoolPrisma.feeStructure.findMany({
-        where: feeStructureWhere,
-        include: { class: true, academicYear: true },
+      // Strict filter: MUST match active AY id + isActive + schoolId
+      const feeStructures = await (schoolPrisma as any).feeStructure.findMany({
+        where: {
+          isActive: true,
+          academicYearId: activeAcademicYear.id,  // hard filter to current AY only
+          ...(ctx.schoolId && { schoolId: ctx.schoolId }),
+        },
+        include: { class: true },
       });
-      
-      console.log(`📋 Auto-apply fees - found ${feeStructures.length} structures for AY ${activeAcademicYear.year} (${activeAcademicYear.id}):`,
-        feeStructures.map((s: any) => ({ name: s.name, amount: s.amount, ayId: s.academicYearId, ay: s.academicYear?.year }))
-      );
 
       const currentYear = new Date().getFullYear();
-      
+
       for (const structure of feeStructures) {
-        // Class match: either no specific class (applies to all) or class name matches student's class
+        // Safety check: skip if this structure somehow doesn't belong to the active AY
+        if (structure.academicYearId !== activeAcademicYear.id) continue;
+
+        // Class match: no specific class (applies to all) OR class name matches
         const classMatch = !structure.classId || structure.class?.name === student.class;
-        // Category match: 'all' or student's category is included
+        // Category match: 'all' OR student's category is included
         const cats = structure.applicableCategories || 'all';
         const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-        
-        if (classMatch && categoryMatch) {
-          const dueDate = new Date(currentYear, 3, structure.dueDate); // April or as set
-          
-          await schoolPrisma.feeRecord.create({
-            data: {
-              studentId: student.id,
-              feeStructureId: structure.id,
-              amount: structure.amount,
-              paidAmount: 0,
-              pendingAmount: structure.amount,
-              dueDate: dueDate.toISOString().split('T')[0],
-              status: 'pending',
-              academicYear: academicYear, // Use dynamic academic year from DB
-              receiptNumber: `FEE-${currentYear}-${student.admissionNo}-${structure.name.replace(' ', '').toUpperCase()}`,
-              remarks: `Auto-applied during admission for ${student.name}`
-            }
-          });
-        }
+
+        if (!classMatch || !categoryMatch) continue;
+
+        // Duplicate check: don't create if fee record already exists
+        const existing = await (schoolPrisma as any).feeRecord.findFirst({
+          where: { studentId: student.id, feeStructureId: structure.id }
+        });
+        if (existing) continue;
+
+        const dueDate = new Date(currentYear, 3, structure.dueDate ?? 1);
+        await (schoolPrisma as any).feeRecord.create({
+          data: {
+            studentId: student.id,
+            feeStructureId: structure.id,
+            amount: structure.amount,
+            paidAmount: 0,
+            pendingAmount: structure.amount,
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: 'pending',
+            academicYear: academicYear,
+            receiptNumber: `FEE-${currentYear}-${student.admissionNo}-${structure.name.replace(/\s+/g, '').toUpperCase().slice(0, 10)}-${Date.now()}`,
+            remarks: `Auto-applied on admission (AY: ${academicYear})`
+          }
+        });
       }
     } catch (feeError) {
       console.error('Failed to auto-apply fees:', feeError);
