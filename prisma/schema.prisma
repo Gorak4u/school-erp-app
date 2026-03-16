@@ -998,6 +998,9 @@ model TransportRoute {
   @@index([schoolId])
   @@index([isActive])
   @@index([schoolId, academicYearId])
+  @@index([schoolId, academicYearId, isActive])
+  @@index([routeNumber, academicYearId])
+  @@index([vehicleId])
   @@schema("school")
 }
 
@@ -1017,6 +1020,11 @@ model StudentTransport {
   @@index([studentId])
   @@index([routeId])
   @@index([academicYearId])
+  @@index([studentId, isActive])
+  @@index([routeId, isActive])
+  @@index([academicYearId, isActive])
+  @@index([studentId, routeId, academicYearId])
+  @@index([studentId, academicYearId, isActive])
   @@schema("school")
 }
 
