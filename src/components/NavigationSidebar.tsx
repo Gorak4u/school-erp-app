@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import { useSchoolDetails } from '@/contexts/SchoolConfigContext';
 
 interface NavigationSidebarProps {
   theme: 'dark' | 'light';
@@ -25,6 +26,7 @@ export default function NavigationSidebar({
   const userIsSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
   const userRole = (session?.user as any)?.role || '';
   const isAdmin = userRole === 'admin' || userIsSuperAdmin;
+  const schoolDetails = useSchoolDetails();
 
   useEffect(() => {
     setIsClient(true);
@@ -46,12 +48,28 @@ export default function NavigationSidebar({
       <div className="flex flex-col h-full p-6">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-3 mb-8 flex-shrink-0">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-lg">ERP</span>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+            {schoolDetails.logo_url ? (
+              <img 
+                src={schoolDetails.logo_url} 
+                alt="School Logo" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to default logo if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.parentElement!.innerHTML = '<span class="text-white font-bold text-lg">ERP</span>';
+                }}
+              />
+            ) : (
+              <span className="text-white font-bold text-lg">ERP</span>
+            )}
           </div>
-          <span className={`text-xl font-bold ${
+          <span className={`text-xl font-bold truncate ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>School ERP</span>
+          }`}>
+            {schoolDetails.name || 'School ERP'}
+          </span>
         </Link>
 
         {/* Navigation Menu - Scrollable */}
