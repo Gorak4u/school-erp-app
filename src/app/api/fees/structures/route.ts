@@ -27,14 +27,39 @@ export async function GET(request: NextRequest) {
     if (ctx.schoolId) where.schoolId = ctx.schoolId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
-    if (mediumId) where.mediumId = mediumId;
-    // Include fee structures for specific class OR those that apply to all classes (classId is null)
-    if (classId) {
+    
+    // Handle medium and class filtering together
+    // Fee structures can be:
+    // 1. Specific to a medium AND class
+    // 2. Specific to a medium but applies to all classes (classId = null)
+    // 3. Applies to all mediums and all classes (both null)
+    if (mediumId && classId) {
+      where.AND = [
+        {
+          OR: [
+            { mediumId: mediumId },
+            { mediumId: null }
+          ]
+        },
+        {
+          OR: [
+            { classId: classId },
+            { classId: null }
+          ]
+        }
+      ];
+    } else if (mediumId) {
+      where.OR = [
+        { mediumId: mediumId },
+        { mediumId: null }
+      ];
+    } else if (classId) {
       where.OR = [
         { classId: classId },
         { classId: null }
       ];
     }
+    
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
 
