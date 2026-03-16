@@ -40,6 +40,7 @@ export default function PromotionModal({
     detainedApplyFees: false
   });
   const [schoolConfig, setSchoolConfig] = useState<any>(null);
+  const [activeAcademicYear, setActiveAcademicYear] = useState<any>(null);
 
   // ── Fetch school config (academic years, classes, sections) ─────────────────
   useEffect(() => {
@@ -50,6 +51,9 @@ export default function PromotionModal({
         setSchoolConfig(data);
         setAcademicYears(data.academicYears || []);
         setClasses(data.classes || []);
+        // Set active academic year
+        const active = data.academicYears?.find((ay: any) => ay.isActive);
+        setActiveAcademicYear(active);
       })
       .catch(console.error);
   }, [show]);
@@ -222,9 +226,16 @@ export default function PromotionModal({
                 <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {modeIcon} {modeTitle}
                 </h3>
-                <p className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Promote to next academic year with arrears tracking
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Promote to next academic year with arrears tracking
+                  </p>
+                  {activeAcademicYear && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isDark ? 'bg-green-900/40 text-green-300 border border-green-800' : 'bg-green-100 text-green-700 border border-green-200'}`}>
+                      📅 Active: {activeAcademicYear.name || activeAcademicYear.year}
+                    </span>
+                  )}
+                </div>
               </div>
               <button onClick={onClose} className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>✕</button>
             </div>
@@ -245,6 +256,20 @@ export default function PromotionModal({
               {/* ── Step 1: Config ── */}
               {step === 'config' && (
                 <div className="space-y-4">
+                  {activeAcademicYear && (
+                    <div className={`rounded-lg p-4 ${isDark ? 'bg-blue-900/30 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">📚</span>
+                        <h4 className={`font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Current Academic Year</h4>
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-blue-200' : 'text-blue-800'}`}>
+                        <strong>{activeAcademicYear.name || activeAcademicYear.year}</strong> is currently active
+                      </p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                        Students will be promoted from this academic year to the target year
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>Target Academic Year *</label>
