@@ -70,10 +70,10 @@ async function promoteStudents(
       const unpaidFees = student.feeRecords;
       const totalArrears = unpaidFees.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0);
 
-      await (schoolPrisma as any).$transaction(async (tx: typeof schoolPrisma) => {
+      await (schoolPrisma as any).$transaction(async (tx: any) => {
         // 1. Create FeeArrears for unpaid fees in target academic year
         for (const fee of unpaidFees) {
-          await (tx as any).feeArrears.create({
+          await tx.feeArrears.create({
             data: {
               schoolId: promotionPayload.schoolId,
               studentId,
@@ -91,7 +91,7 @@ async function promoteStudents(
         }
 
         // 2. Update student record
-        await tx.student.update({
+        await (tx as any).student.update({
           where: { id: studentId },
           data: {
             class: promotionPayload.toClass,
@@ -102,7 +102,7 @@ async function promoteStudents(
 
         // 3. Create promotion audit record (if table exists)
         try {
-          await tx.studentPromotion.create({
+          await (tx as any).studentPromotion.create({
             data: {
               schoolId: promotionPayload.schoolId,
               studentId,
@@ -133,19 +133,19 @@ async function promoteStudents(
 
         if (shouldApplyFees) {
           try {
-            const newAcademicYear = await tx.academicYear.findFirst({
+            const newAcademicYear = await (tx as any).academicYear.findFirst({
               where: { year: promotionPayload.toAcademicYear }
             });
 
             if (newAcademicYear) {
-              const newClassRecord = await tx.class.findFirst({
+              const newClassRecord = await (tx as any).class.findFirst({
                 where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
               });
 
               const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
               if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
 
-              const newFeeStructures = await tx.feeStructure.findMany({ where: feeStructureWhere });
+              const newFeeStructures = await (tx as any).feeStructure.findMany({ where: feeStructureWhere });
 
               const currentYear = new Date().getFullYear();
               for (const structure of newFeeStructures) {
@@ -153,12 +153,12 @@ async function promoteStudents(
                 const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
                 if (!categoryMatch) continue;
 
-                const existingRecord = await tx.feeRecord.findFirst({
+                const existingRecord = await (tx as any).feeRecord.findFirst({
                   where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
                 });
                 if (existingRecord) continue;
 
-                await tx.feeRecord.create({
+                await (tx as any).feeRecord.create({
                   data: {
                     studentId,
                     feeStructureId: structure.id,

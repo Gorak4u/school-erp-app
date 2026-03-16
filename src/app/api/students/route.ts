@@ -366,9 +366,12 @@ export async function POST(request: NextRequest) {
     try {
       // academicYear is already defined above from activeAcademicYear.year
       
-      // Find fee structures matching the student's class (by classId or no class restriction)
+      // Find fee structures matching the student's class for the ACTIVE academic year only
       const feeStructures = await schoolPrisma.feeStructure.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          academicYearId: activeAcademicYear.id  // Filter by active academic year
+        },
         include: { class: true },
       });
 
