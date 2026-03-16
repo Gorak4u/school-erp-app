@@ -202,7 +202,8 @@ export default function SettingsPage() {
       
       // 1. Copy mediums
       console.log('📖 Copying mediums...');
-      const mediums = await mediumsApi.list({ academicYearId: previousYearId });
+      const mediumsResponse = await mediumsApi.list({ academicYearId: previousYearId });
+      const mediums = mediumsResponse.mediums || [];
       const mediumMapping: { [key: string]: string } = {};
       
       for (const medium of mediums) {
@@ -219,7 +220,8 @@ export default function SettingsPage() {
 
       // 2. Copy classes
       console.log('📚 Copying classes...');
-      const classes = await classesApi.list({ academicYearId: previousYearId });
+      const classesResponse = await classesApi.list({ academicYearId: previousYearId });
+      const classes = classesResponse.classes || [];
       const classMapping: { [key: string]: string } = {};
       
       for (const cls of classes) {
@@ -240,7 +242,8 @@ export default function SettingsPage() {
 
       // 3. Copy sections
       console.log('📝 Copying sections...');
-      const sections = await sectionsApi.list({ academicYearId: previousYearId });
+      const sectionsResponse = await sectionsApi.list({ academicYearId: previousYearId });
+      const sections = sectionsResponse.sections || [];
       
       for (const section of sections) {
         // Find corresponding class in new year
@@ -260,7 +263,8 @@ export default function SettingsPage() {
 
       // 4. Copy fee structures
       console.log('💰 Copying fee structures...');
-      const feeStructures = await feeStructuresApi.list({ academicYearId: previousYearId });
+      const feeStructuresResponse = await feeStructuresApi.list({ academicYearId: previousYearId });
+      const feeStructures = feeStructuresResponse.feeStructures || [];
       
       for (const fee of feeStructures) {
         // Find corresponding entities in new year
