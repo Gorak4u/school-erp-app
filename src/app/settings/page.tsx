@@ -205,19 +205,47 @@ export default function SettingsPage() {
       // Boards are shared across all academic years, so no need to copy them
       console.log('🏫 Boards are global entities - skipping copy (they already exist)');
       
-      // 1. Copy mediums
-      console.log('📖 Copying mediums...');
-      let mediumsResponse;
+      // 1. First, validate there's data to copy
+      console.log('� Validating data availability in previous academic year...');
+      
+      let mediumsResponse, classesResponse, sectionsResponse, feeStructuresResponse;
+      
       try {
-        mediumsResponse = await mediumsApi.list({ academicYearId: previousYearId });
-        console.log('  📋 Mediums API response:', mediumsResponse);
+        [mediumsResponse, classesResponse, sectionsResponse, feeStructuresResponse] = await Promise.all([
+          mediumsApi.list({ academicYearId: previousYearId }),
+          classesApi.list({ academicYearId: previousYearId }),
+          sectionsApi.list({ academicYearId: previousYearId }),
+          feeStructuresApi.list({ academicYearId: previousYearId })
+        ]);
       } catch (error) {
-        console.error('  ❌ Failed to fetch mediums:', error);
+        console.error('  ❌ Failed to fetch data for validation:', error);
         throw error;
       }
       
       const mediums = mediumsResponse.mediums || [];
-      console.log(`  📊 Found ${mediums.length} mediums to copy`);
+      const classes = classesResponse.classes || [];
+      const sections = sectionsResponse.sections || [];
+      const feeStructures = feeStructuresResponse.feeStructures || [];
+      
+      console.log(`  📊 Data validation results:`);
+      console.log(`    - Mediums: ${mediums.length}`);
+      console.log(`    - Classes: ${classes.length}`);
+      console.log(`    - Sections: ${sections.length}`);
+      console.log(`    - Fee Structures: ${feeStructures.length}`);
+      
+      const totalEntities = mediums.length + classes.length + sections.length + feeStructures.length;
+      
+      if (totalEntities === 0) {
+        console.warn('  ⚠️ No data found to copy from previous academic year');
+        throw new Error(`No data found to copy from previous academic year. The previous year has 0 mediums, 0 classes, 0 sections, and 0 fee structures.`);
+      }
+      
+      console.log(`  ✅ Found ${totalEntities} entities to copy - proceeding with copy process`);
+      
+      // 2. Copy mediums
+      console.log('📖 Copying mediums...');
+      console.log('  📋 Mediums API response:', mediumsResponse);
+      
       const mediumMapping: { [key: string]: string } = {};
       
       // Create a safe year suffix (use last 4 chars or fallback to timestamp)
@@ -227,15 +255,22 @@ export default function SettingsPage() {
       for (const medium of mediums) {
         try {
           console.log(`  📝 Creating medium: ${medium.name} -> ${medium.code}_${yearSuffix}`);
-          const newMedium = await mediumsApi.create({
+          const mediumResponse = await mediumsApi.create({
             code: `${medium.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
             name: medium.name,
             description: medium.description,
             isActive: medium.isActive,
             academicYearId: newYearId
           });
+          
+          // Extract medium from response object
+          const newMedium = mediumResponse.medium || mediumResponse;
           mediumMapping[medium.id] = newMedium.id;
           console.log(`  ✅ Copied medium: ${medium.name} (ID: ${newMedium.id})`);
+          
+          if (!newMedium.id) {
+            console.error(`  ❌ Failed to get new medium ID for ${medium.name}:`, mediumResponse);
+          }
         } catch (error) {
           console.error(`  ❌ Failed to copy medium ${medium.name}:`, error);
           throw error;
@@ -244,17 +279,6 @@ export default function SettingsPage() {
 
       // 2. Copy classes
       console.log('📚 Copying classes...');
-      let classesResponse;
-      try {
-        console.log(`  🔍 Fetching classes for previous academic year: ${previousYearId}`);
-        classesResponse = await classesApi.list({ academicYearId: previousYearId });
-        console.log('  📋 Classes API response:', classesResponse);
-      } catch (error) {
-        console.error('  ❌ Failed to fetch classes:', error);
-        throw error;
-      }
-      
-      const classes = classesResponse.classes || [];
       console.log(`  📊 Found ${classes.length} classes to copy from previous year`);
       console.log('  📋 Medium mapping available:', mediumMapping);
       const classMapping: { [key: string]: string } = {};
@@ -288,9 +312,16 @@ export default function SettingsPage() {
           
           console.log(`  📝 Creating class with data:`, classData);
           
-          const newClass = await classesApi.create(classData);
+          const classResponse = await classesApi.create(classData);
+          
+          // Extract class from response object
+          const newClass = classResponse.class || classResponse;
           classMapping[cls.id] = newClass.id;
           console.log(`  ✅ Copied class: ${cls.name} (ID: ${newClass.id})`);
+          
+          if (!newClass.id) {
+            console.error(`  ❌ Failed to get new class ID for ${cls.name}:`, classResponse);
+          }
         } catch (error) {
           console.error(`  ❌ Failed to copy class ${cls.name}:`, error);
           // Continue with other classes instead of throwing
@@ -303,16 +334,6 @@ export default function SettingsPage() {
 
       // 3. Copy sections
       console.log('📝 Copying sections...');
-      let sectionsResponse;
-      try {
-        sectionsResponse = await sectionsApi.list({ academicYearId: previousYearId });
-        console.log('  📋 Sections API response:', sectionsResponse);
-      } catch (error) {
-        console.error('  ❌ Failed to fetch sections:', error);
-        throw error;
-      }
-      
-      const sections = sectionsResponse.sections || [];
       console.log(`  📊 Found ${sections.length} sections to copy`);
       
       for (const section of sections) {
@@ -327,7 +348,7 @@ export default function SettingsPage() {
             continue; // Skip this section if no class mapping exists
           }
           
-          const newSection = await sectionsApi.create({
+          const sectionResponse = await sectionsApi.create({
             code: `${section.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
             name: section.name,
             capacity: section.capacity,
@@ -336,7 +357,14 @@ export default function SettingsPage() {
             classId: newClassId, // Only set if we have a valid mapping
             academicYearId: newYearId
           });
+          
+          // Extract section from response object
+          const newSection = sectionResponse.section || sectionResponse;
           console.log(`  ✅ Copied section: ${section.name} (ID: ${newSection.id})`);
+          
+          if (!newSection.id) {
+            console.error(`  ❌ Failed to get new section ID for ${section.name}:`, sectionResponse);
+          }
         } catch (error) {
           console.error(`  ❌ Failed to copy section ${section.name}:`, error);
           throw error;
@@ -345,16 +373,6 @@ export default function SettingsPage() {
 
       // 4. Copy fee structures
       console.log('💰 Copying fee structures...');
-      let feeStructuresResponse;
-      try {
-        feeStructuresResponse = await feeStructuresApi.list({ academicYearId: previousYearId });
-        console.log('  📋 Fee structures API response:', feeStructuresResponse);
-      } catch (error) {
-        console.error('  ❌ Failed to fetch fee structures:', error);
-        throw error;
-      }
-      
-      const feeStructures = feeStructuresResponse.feeStructures || [];
       console.log(`  📊 Found ${feeStructures.length} fee structures to copy`);
       
       for (const fee of feeStructures) {
