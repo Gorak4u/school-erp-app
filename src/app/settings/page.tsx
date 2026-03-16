@@ -82,17 +82,28 @@ export default function SettingsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [ayRes, bRes, mRes, cRes, secRes, tRes, sRes, fsRes] = await Promise.allSettled([
-        academicYearsApi.list(),
-        boardsApi.list(),
-        mediumsApi.list(),
-        classesApi.list(),
-        sectionsApi.list(),
+      // Step 1: Fetch academic years first to find the active one
+      const ayRes = await academicYearsApi.list();
+      const academicYearsList = ayRes.academicYears || [];
+      setAcademicYears(academicYearsList);
+      
+      // Find the active academic year
+      const activeAcademicYear = academicYearsList.find((ay: any) => ay.isActive);
+      const activeAYId = activeAcademicYear?.id;
+      
+      console.log('📅 Active Academic Year:', activeAcademicYear?.name, '(ID:', activeAYId, ')');
+      
+      // Step 2: Fetch other entities filtered by active academic year and isActive=true
+      const [bRes, mRes, cRes, secRes, tRes, sRes, fsRes] = await Promise.allSettled([
+        boardsApi.list({ isActive: 'true' }), // Boards are global, just filter by active
+        mediumsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
+        classesApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
+        sectionsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
         schoolTimingsApi.list(),
         schoolSettingsApi.getAll(),
-        feeStructuresApi.list(),
+        feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
       ]);
-      if (ayRes.status === 'fulfilled') setAcademicYears(ayRes.value.academicYears || []);
+      
       if (bRes.status === 'fulfilled') setBoards(bRes.value.boards || []);
       if (mRes.status === 'fulfilled') setMediums(mRes.value.mediums || []);
       if (cRes.status === 'fulfilled') setClasses(cRes.value.classes || []);
@@ -100,6 +111,14 @@ export default function SettingsPage() {
       if (tRes.status === 'fulfilled') setTimings(tRes.value.timings || []);
       if (sRes.status === 'fulfilled') setSettingsMap(sRes.value.settings || {});
       if (fsRes.status === 'fulfilled') setFeeStructures(fsRes.value.feeStructures || []);
+      
+      console.log('✅ Loaded data for active AY:', {
+        boards: bRes.status === 'fulfilled' ? bRes.value.boards?.length : 0,
+        mediums: mRes.status === 'fulfilled' ? mRes.value.mediums?.length : 0,
+        classes: cRes.status === 'fulfilled' ? cRes.value.classes?.length : 0,
+        sections: secRes.status === 'fulfilled' ? secRes.value.sections?.length : 0,
+        feeStructures: fsRes.status === 'fulfilled' ? fsRes.value.feeStructures?.length : 0,
+      });
     } catch (e: any) {
       showToast({ type: 'error', title: 'Failed to load data', message: e.message });
     } finally {
