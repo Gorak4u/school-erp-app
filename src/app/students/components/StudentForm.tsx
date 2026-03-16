@@ -162,6 +162,9 @@ export default function StudentForm({
       isActive: 'true'
     });
     
+    console.log('🔍 Fetching fee structures with params:', params.toString());
+    console.log('🎓 Active Academic Year:', activeAcademicYear);
+    
     fetch(`/api/fees/structures?${params}`)
       .then(r => r.json())
       .then(data => {

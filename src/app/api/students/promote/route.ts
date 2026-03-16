@@ -70,116 +70,113 @@ async function promoteStudents(
       const unpaidFees = student.feeRecords;
       const totalArrears = unpaidFees.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0);
 
-      await (schoolPrisma as any).$transaction(async (tx: any) => {
-        // 1. Create FeeArrears for unpaid fees in target academic year
-        for (const fee of unpaidFees) {
-          await tx.feeArrears.create({
-            data: {
-              schoolId: promotionPayload.schoolId,
-              studentId,
-              originalFeeRecordId: fee.id,
-              fromAcademicYear: fee.academicYear || student.academicYear,
-              toAcademicYear: promotionPayload.toAcademicYear,
-              amount: fee.amount,
-              paidAmount: fee.paidAmount || 0,
-              pendingAmount: fee.pendingAmount || 0,
-              dueDate: fee.dueDate,
-              status: fee.paidAmount > 0 ? 'partial' : 'pending',
-              remarks: `Arrears from ${fee.academicYear || student.academicYear} - ${student.class} ${student.section || ''}`
-            }
-          });
-        }
+      const db = schoolPrisma as any;
 
-        // 2. Update student record
-        await (tx as any).student.update({
-          where: { id: studentId },
+      // 1. Create FeeArrears for unpaid fees
+      for (const fee of unpaidFees) {
+        await db.feeArrears.create({
           data: {
-            class: promotionPayload.toClass,
-            section: promotionPayload.toSection,
-            academicYear: promotionPayload.toAcademicYear,
+            schoolId: promotionPayload.schoolId,
+            studentId,
+            originalFeeRecordId: fee.id,
+            fromAcademicYear: fee.academicYear || student.academicYear,
+            toAcademicYear: promotionPayload.toAcademicYear,
+            amount: fee.amount,
+            paidAmount: fee.paidAmount || 0,
+            pendingAmount: fee.pendingAmount || 0,
+            dueDate: fee.dueDate,
+            status: fee.paidAmount > 0 ? 'partial' : 'pending',
+            remarks: `Arrears from ${fee.academicYear || student.academicYear} - ${student.class} ${student.section || ''}`
           }
         });
+      }
 
-        // 3. Create promotion audit record (if table exists)
-        try {
-          await (tx as any).studentPromotion.create({
-            data: {
-              schoolId: promotionPayload.schoolId,
-              studentId,
-              fromClass: student.class,
-              toClass: promotionPayload.toClass,
-              fromSection: student.section,
-              toSection: promotionPayload.toSection,
-              fromAcademicYear: student.academicYear,
-              toAcademicYear: promotionPayload.toAcademicYear,
-              promotedBy: promotionPayload.promotedBy,
-              promotedByEmail: promotionPayload.promotedByEmail,
-              promotedByName: promotionPayload.promotedByName,
-              promotionType: promotionPayload.promotionType,
-              arrearsAmount: totalArrears,
-              remarks: promotionPayload.remarks || null
-            }
-          });
-        } catch (auditErr) {
-          console.warn('Failed to create promotion audit record:', auditErr);
-          // Continue promotion even if audit record fails
-        }
-
-        // 4. Auto-apply new academic year fee structures for new class
-        // For detained: only apply if detainedApplyFees is true
-        const shouldApplyFees = promotionPayload.promotionType === 'detained' 
-          ? promotionPayload.detainedApplyFees 
-          : true;
-
-        if (shouldApplyFees) {
-          try {
-            const newAcademicYear = await (tx as any).academicYear.findFirst({
-              where: { year: promotionPayload.toAcademicYear }
-            });
-
-            if (newAcademicYear) {
-              const newClassRecord = await (tx as any).class.findFirst({
-                where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
-              });
-
-              const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
-              if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
-
-              const newFeeStructures = await (tx as any).feeStructure.findMany({ where: feeStructureWhere });
-
-              const currentYear = new Date().getFullYear();
-              for (const structure of newFeeStructures) {
-                const cats = structure.applicableCategories || 'all';
-                const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-                if (!categoryMatch) continue;
-
-                const existingRecord = await (tx as any).feeRecord.findFirst({
-                  where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
-                });
-                if (existingRecord) continue;
-
-                await (tx as any).feeRecord.create({
-                  data: {
-                    studentId,
-                    feeStructureId: structure.id,
-                    amount: structure.amount,
-                    paidAmount: 0,
-                    pendingAmount: structure.amount,
-                    dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
-                    status: 'pending',
-                    academicYear: promotionPayload.toAcademicYear,
-                    receiptNumber: `FEE-${promotionPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
-                    remarks: `Auto-applied on promotion to ${promotionPayload.toClass}`
-                  }
-                });
-              }
-            }
-          } catch (feeErr) {
-            console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
-            // Don't fail the promotion if fee application fails
-          }
+      // 2. Update student record
+      await db.student.update({
+        where: { id: studentId },
+        data: {
+          class: promotionPayload.toClass,
+          section: promotionPayload.toSection,
+          academicYear: promotionPayload.toAcademicYear,
         }
       });
+
+      // 3. Create promotion audit record
+      try {
+        await db.studentPromotion.create({
+          data: {
+            schoolId: promotionPayload.schoolId,
+            studentId,
+            fromClass: student.class,
+            toClass: promotionPayload.toClass,
+            fromSection: student.section,
+            toSection: promotionPayload.toSection,
+            fromAcademicYear: student.academicYear,
+            toAcademicYear: promotionPayload.toAcademicYear,
+            promotedBy: promotionPayload.promotedBy,
+            promotedByEmail: promotionPayload.promotedByEmail,
+            promotedByName: promotionPayload.promotedByName,
+            promotionType: promotionPayload.promotionType,
+            arrearsAmount: totalArrears,
+            remarks: promotionPayload.remarks || null
+          }
+        });
+      } catch (auditErr) {
+        console.warn('Failed to create promotion audit record:', auditErr);
+      }
+
+      // 4. Auto-apply new academic year fee structures for new class
+      const shouldApplyFees = promotionPayload.promotionType === 'detained'
+        ? promotionPayload.detainedApplyFees
+        : true;
+
+      if (shouldApplyFees) {
+        try {
+          const newAcademicYear = await db.academicYear.findFirst({
+            where: { year: promotionPayload.toAcademicYear }
+          });
+
+          if (newAcademicYear) {
+            const newClassRecord = await db.class.findFirst({
+              where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
+            });
+
+            const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
+            if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
+
+            const newFeeStructures = await db.feeStructure.findMany({ where: feeStructureWhere });
+
+            const currentYear = new Date().getFullYear();
+            for (const structure of newFeeStructures) {
+              const cats = structure.applicableCategories || 'all';
+              const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
+              if (!categoryMatch) continue;
+
+              const existingRecord = await db.feeRecord.findFirst({
+                where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
+              });
+              if (existingRecord) continue;
+
+              await db.feeRecord.create({
+                data: {
+                  studentId,
+                  feeStructureId: structure.id,
+                  amount: structure.amount,
+                  paidAmount: 0,
+                  pendingAmount: structure.amount,
+                  dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
+                  status: 'pending',
+                  academicYear: promotionPayload.toAcademicYear,
+                  receiptNumber: `FEE-${promotionPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
+                  remarks: `Auto-applied on promotion to ${promotionPayload.toClass}`
+                }
+              });
+            }
+          }
+        } catch (feeErr) {
+          console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
+        }
+      }
 
       results.promoted.push({ studentId, studentName: student.name, fromClass: student.class, toClass: promotionPayload.toClass, arrearsAmount: totalArrears });
       results.totalArrears += totalArrears;
