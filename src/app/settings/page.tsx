@@ -413,13 +413,19 @@ export default function SettingsPage() {
       setSaving(true);
       
       // Create academic year first
-      const newAcademicYear = await academicYearsApi.create(pendingAcademicYear);
+      const response = await academicYearsApi.create(pendingAcademicYear);
       
-      console.log('🔍 Created academic year:', newAcademicYear);
+      console.log('🔍 Academic Year API Response:', response);
+      
+      // Extract academicYear from the response object
+      const newAcademicYear = response.academicYear || response;
       
       if (!newAcademicYear?.id) {
-        throw new Error('Failed to get new academic year ID');
+        console.error('❌ Academic Year response structure:', response);
+        throw new Error('Failed to get new academic year ID from response');
       }
+      
+      console.log('✅ Extracted academic year:', newAcademicYear);
       
       // Then copy data from previous year
       await copyDataFromPreviousYear(previousYearForCopy.id, newAcademicYear.id);
