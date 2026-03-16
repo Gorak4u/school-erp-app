@@ -1,6 +1,7 @@
 import { sendEmail } from './email';
 import { generateWelcomeEmail, WelcomeEmailData } from './email-templates';
 import { School, Subscription, User } from '@prisma/client';
+import { getSubdomainUrl } from './subdomain';
 
 export async function sendWelcomeEmail(
   user: User,
@@ -20,10 +21,20 @@ export async function sendWelcomeEmail(
       return { success: true, skipped: true, reason: 'Email notifications disabled' };
     }
     
-    // Build URLs
+    // Build URLs - use subdomain if available, otherwise main domain
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const loginUrl = `${baseUrl}/login`;
-    const dashboardUrl = `${baseUrl}/dashboard`;
+    let loginUrl: string;
+    let dashboardUrl: string;
+    
+    if (school.subdomain) {
+      const schoolUrl = getSubdomainUrl(school.subdomain);
+      loginUrl = `${schoolUrl}/school-login`;
+      dashboardUrl = `${schoolUrl}/dashboard`;
+    } else {
+      loginUrl = `${baseUrl}/login`;
+      dashboardUrl = `${baseUrl}/dashboard`;
+    }
+    
     const paymentUrl = subscription.plan !== 'trial' ? `${baseUrl}/billing` : undefined;
 
     // Generate email content
