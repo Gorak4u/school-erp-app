@@ -129,17 +129,26 @@ export default function StudentForm({
   });
 
   // Cascaded dropdown data
-  const filteredClasses = formData.mediumId
-    ? classes.filter(c => c.mediumId === formData.mediumId)
-    : classes;
-  const filteredSections = formData.classId
-    ? sections.filter(s => s.classId === formData.classId)
-    : [];
+  const filteredClasses = useMemo(() => {
+    const filtered = formData.mediumId
+      ? classes.filter(c => c.mediumId === formData.mediumId)
+      : classes;
+    console.log('Filtered classes:', { mediumId: formData.mediumId, totalClasses: classes.length, filteredCount: filtered.length, filtered: filtered.map(c => ({ id: c.id, name: c.name, mediumId: c.mediumId })) });
+    return filtered;
+  }, [classes, formData.mediumId]);
+  const filteredSections = useMemo(() => 
+    formData.classId
+      ? sections.filter(s => s.classId === formData.classId)
+      : [],
+    [sections, formData.classId]
+  );
 
   // Auto-select medium when only one exists
   useEffect(() => {
+    console.log('Medium auto-selection check:', { mediums: mediums.length, loading, currentMediumId: formData.mediumId });
     if (!loading && mediums.length === 1 && !formData.mediumId) {
       const medium = mediums[0];
+      console.log('Auto-selecting medium:', medium);
       setFormData(prev => ({ 
         ...prev, 
         mediumId: medium.id, 
