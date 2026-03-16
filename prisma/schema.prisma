@@ -288,6 +288,7 @@ model Student {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   academicYear          String             @default("2024-25")
+  academicYearId        String?            // FK to AcademicYear — set on admission & promotion
   schoolId              String?
   attendanceRecords     AttendanceRecord[]
   examResults           ExamResult[]
@@ -295,6 +296,7 @@ model Student {
   promotions            StudentPromotion[]
   arrears               FeeArrears[]
   school                School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearRef       AcademicYear?      @relation("StudentAcademicYear", fields: [academicYearId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
   @@index([class])
@@ -306,6 +308,7 @@ model Student {
   @@index([createdAt])
   @@index([parentName])
   @@index([academicYear])
+  @@index([academicYearId])
   @@index([class, academicYear])
   @@index([status, academicYear])
   @@index([name, class])
@@ -589,6 +592,7 @@ model AcademicYear {
   feeStructures FeeStructure[]
   mediums       Medium[]
   sections      Section[]
+  students      Student[]      @relation("StudentAcademicYear")
 
   @@index([year])
   @@index([isActive])
