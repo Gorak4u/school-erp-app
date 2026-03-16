@@ -111,6 +111,16 @@ export default function SettingsPage() {
         feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
       ]);
       
+      // Log any rejected promises for debugging
+      const apiNames = ['boards', 'mediums', 'classes', 'sections', 'timings', 'settings', 'feeStructures'];
+      const results = [bRes, mRes, cRes, secRes, tRes, sRes, fsRes];
+      
+      results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+          console.error(`❌ ${apiNames[idx]} API failed:`, res.reason);
+        }
+      });
+      
       if (bRes.status === 'fulfilled') setBoards(bRes.value.boards || []);
       if (mRes.status === 'fulfilled') setMediums(mRes.value.mediums || []);
       if (cRes.status === 'fulfilled') setClasses(cRes.value.classes || []);
