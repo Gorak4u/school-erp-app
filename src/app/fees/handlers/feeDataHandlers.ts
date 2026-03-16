@@ -12,6 +12,7 @@ export function createFeeDataHandlers(ctx: any) {
       const totalFees = studentRecords.reduce((sum, record) => sum + record.amount, 0);
       const totalPaid = studentRecords.reduce((sum, record) => sum + record.paidAmount, 0);
       const totalPending = studentRecords.reduce((sum, record) => sum + record.pendingAmount, 0);
+      const totalDiscount = studentRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
       const totalOverdue = studentRecords
         .filter(record => record.status === 'overdue')
         .reduce((sum, record) => sum + record.pendingAmount, 0);
@@ -25,7 +26,7 @@ export function createFeeDataHandlers(ctx: any) {
         paymentStatus = 'overdue';
       } else if (totalPaid === 0) {
         paymentStatus = 'no_payment';
-      } else if (totalPaid >= totalFees) {
+      } else if (totalPaid >= (totalFees - totalDiscount)) {
         paymentStatus = 'fully_paid';
       } else {
         paymentStatus = 'partially_paid';
@@ -44,11 +45,12 @@ export function createFeeDataHandlers(ctx: any) {
         totalPaid,
         totalPending,
         totalOverdue,
+        totalDiscount,
         feeRecords: studentRecords,
         lastPaymentDate,
         paymentStatus,
-        discountApplied,
-        netPayable
+        discountApplied: totalDiscount, // Use actual discount instead of random
+        netPayable: totalFees - totalDiscount
       };
     });
   };

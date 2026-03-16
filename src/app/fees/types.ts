@@ -44,6 +44,7 @@ export interface StudentFeeSummary {
   totalPaid: number;
   totalPending: number;
   totalOverdue: number;
+  totalDiscount: number;
   feeRecords: FeeRecord[];
   lastPaymentDate?: string;
   paymentStatus: 'fully_paid' | 'partially_paid' | 'no_payment' | 'overdue';

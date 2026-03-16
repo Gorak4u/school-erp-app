@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
+import { sendSchoolEmail } from '@/lib/email';
+import { generateDiscountApprovedEmail } from '@/lib/discount-email-templates';
 
 export async function GET(
   request: NextRequest,
@@ -79,6 +81,7 @@ export async function PATCH(
     }
 
     const approverName = await resolveUserDisplayName(ctx.userId, ctx.email);
+    console.log('DEBUG resolveUserDisplayName (approver):', { userId: ctx.userId, email: ctx.email, approverName });
 
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'cancelled';
@@ -122,6 +125,50 @@ export async function PATCH(
 
       return updatedReq;
     });
+
+    // Send email notification for approval
+    if (action === 'approve') {
+      try {
+        // Get school name for email
+        const schoolSetting = await (schoolPrisma as any).SchoolSetting.findFirst({
+          where: { group: 'school_details', key: 'name', schoolId: ctx.schoolId }
+        });
+        const schoolName = schoolSetting?.value || 'School';
+
+        // Get submitter user details
+        const submitter = await (schoolPrisma as any).school_User.findUnique({
+          where: { id: result.requestedBy }
+        });
+
+        // Get approver user details
+        const approver = await (schoolPrisma as any).school_User.findUnique({
+          where: { id: ctx.userId }
+        });
+
+        if (submitter && approver) {
+          const emailData = {
+            discountRequest: result,
+            submitter,
+            approver,
+            schoolName
+          };
+          
+          const { subject, html } = generateDiscountApprovedEmail(emailData);
+          
+          await sendSchoolEmail({
+            to: submitter.email || '',
+            subject,
+            html,
+            schoolId: ctx.schoolId
+          });
+          
+          console.log(`✅ Discount approval email sent to submitter: ${submitter.email}`);
+        }
+      } catch (emailError) {
+        console.error('Failed to send discount approval email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     return NextResponse.json({ success: true, data: result });
   } catch (err) {

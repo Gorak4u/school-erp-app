@@ -561,7 +561,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Pending</p>
                 <p className={`text-2xl font-bold text-orange-600`}>
-                  ₹{((apiData?.totalFees || 0) - (apiData?.totalPaid || 0)).toLocaleString()}
+                  ₹{((apiData?.totalFees || 0) - (apiData?.totalPaid || 0) - (apiData?.totalDiscount || 0)).toLocaleString()}
                 </p>
               </div>
               <div className={`p-4 rounded-lg border ${cardCls}`}>

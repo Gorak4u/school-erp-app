@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
+import { sendSchoolEmail } from '@/lib/email';
+import { generateDiscountPendingEmail } from '@/lib/discount-email-templates';
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     const requesterName = await resolveUserDisplayName(ctx.userId, ctx.email);
+    console.log('DEBUG resolveUserDisplayName:', { userId: ctx.userId, email: ctx.email, requesterName });
 
     // Create request in transaction to ensure audit log is also created
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
@@ -117,6 +120,74 @@ export async function POST(request: NextRequest) {
 
       return discountReq;
     });
+
+    // Send email notifications after successful creation
+    try {
+      // Get school name for email
+      const schoolSetting = await (schoolPrisma as any).SchoolSetting.findFirst({
+        where: { group: 'school_details', key: 'name', schoolId: ctx.schoolId }
+      });
+      const schoolName = schoolSetting?.value || 'School';
+
+      // Find eligible approvers (admin users)
+      const approvers = await (schoolPrisma as any).school_User.findMany({
+        where: {
+          schoolId: ctx.schoolId,
+          role: 'admin',
+          isActive: true
+        }
+      });
+
+      // Get submitter user details
+      const submitter = await (schoolPrisma as any).school_User.findUnique({
+        where: { id: ctx.userId }
+      });
+
+      if (approvers.length > 0 && submitter) {
+        // Send email to all approvers
+        for (const approver of approvers) {
+          const emailData = {
+            discountRequest: result,
+            submitter,
+            approver,
+            schoolName
+          };
+          
+          const { subject, html } = generateDiscountPendingEmail(emailData);
+          
+          await sendSchoolEmail({
+            to: approver.email || '',
+            subject,
+            html,
+            schoolId: ctx.schoolId
+          });
+          
+          console.log(`✅ Discount pending email sent to approver: ${approver.email}`);
+        }
+
+        // Send confirmation email to submitter
+        const submitterEmailData = {
+          discountRequest: result,
+          submitter,
+          approver: submitter, // Self-reference for submitter email
+          schoolName
+        };
+        
+        const { subject: submitterSubject, html: submitterHtml } = generateDiscountPendingEmail(submitterEmailData);
+        
+        await sendSchoolEmail({
+            to: submitter.email || '',
+            subject: submitterSubject.replace('Pending Approval', 'Submitted - Pending Approval'),
+            html: submitterHtml.replace('requires your approval', 'has been submitted and is pending approval'),
+            schoolId: ctx.schoolId
+          });
+        
+        console.log(`✅ Discount submission confirmation email sent to: ${submitter.email}`);
+      }
+    } catch (emailError) {
+      console.error('Failed to send discount request emails:', emailError);
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {

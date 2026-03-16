@@ -153,17 +153,48 @@ export class PDFGenerator {
         data.paymentData.currentYearFees.forEach((fee: any, index: number) => {
           pdf.setFontSize(9);
           pdf.text(`${fee.name} - ${fee.category}`, 20, yPosition);
-          pdf.text(`₹${fee.totalAmount.toLocaleString()}`, 150, yPosition);
+          pdf.text(`₹${fee.totalAmount.toLocaleString()}`, 120, yPosition);
+          if (fee.discount && fee.discount > 0) {
+            pdf.text(`-₹${fee.discount.toLocaleString()}`, 140, yPosition);
+            pdf.text(`₹${(fee.totalAmount - fee.discount).toLocaleString()}`, 160, yPosition);
+          } else {
+            pdf.text('', 140, yPosition);
+            pdf.text(`₹${fee.totalAmount.toLocaleString()}`, 160, yPosition);
+          }
           yPosition += 6;
         });
       }
+
+      // Header for totals
+      yPosition += 5;
+      pdf.setFontSize(9);
+      pdf.text('Fee Details:', 20, yPosition);
+      pdf.text('Total:', 120, yPosition);
+      pdf.text('Discount:', 140, yPosition);
+      pdf.text('Net:', 160, yPosition);
+      yPosition += 8;
 
       // Total
       pdf.line(20, yPosition + 5, 190, yPosition + 5);
       pdf.setFontSize(11);
       pdf.text('Total Amount:', 120, yPosition + 15);
+      const totalAmount = data.paymentData?.currentYearFees?.reduce((sum: number, fee: any) => sum + (fee.totalAmount || 0), 0) || 0;
+      const totalDiscount = data.paymentData?.currentYearFees?.reduce((sum: number, fee: any) => sum + (fee.discount || 0), 0) || 0;
+      const netAmount = totalAmount - totalDiscount;
+      
       pdf.setFontSize(12);
-      pdf.text(`₹${data.paymentData?.currentYearFees?.reduce((sum: number, fee: any) => sum + fee.totalAmount, 0).toLocaleString() || '0'}`, 150, yPosition + 15);
+      pdf.text(`₹${totalAmount.toLocaleString()}`, 150, yPosition + 15);
+      
+      if (totalDiscount > 0) {
+        yPosition += 8;
+        pdf.setFontSize(10);
+        pdf.text('Less: Discount:', 130, yPosition + 15);
+        pdf.text(`-₹${totalDiscount.toLocaleString()}`, 150, yPosition + 15);
+        yPosition += 8;
+        pdf.setFontSize(11);
+        pdf.text('Net Payable:', 130, yPosition + 15);
+        pdf.text(`₹${netAmount.toLocaleString()}`, 150, yPosition + 15);
+      }
 
       // Footer
       pdf.setFontSize(8);
