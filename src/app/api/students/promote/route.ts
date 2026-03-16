@@ -23,6 +23,7 @@ async function promoteStudents(
     promotedByEmail: string;
     promotedByName: string;
     schoolId: string;
+    detainedApplyFees: boolean;
   }
 ) {
   const results = { promoted: [] as any[], failed: [] as any[], totalArrears: 0 };
@@ -114,51 +115,58 @@ async function promoteStudents(
         });
 
         // 4. Auto-apply new academic year fee structures for new class
-        try {
-          const newAcademicYear = await tx.academicYear.findFirst({
-            where: { year: promotionPayload.toAcademicYear }
-          });
+        // For detained: only apply if detainedApplyFees is true
+        const shouldApplyFees = promotionPayload.promotionType === 'detained' 
+          ? promotionPayload.detainedApplyFees 
+          : true;
 
-          if (newAcademicYear) {
-            const newClassRecord = await tx.class.findFirst({
-              where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
+        if (shouldApplyFees) {
+          try {
+            const newAcademicYear = await tx.academicYear.findFirst({
+              where: { year: promotionPayload.toAcademicYear }
             });
 
-            const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
-            if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
-
-            const newFeeStructures = await tx.feeStructure.findMany({ where: feeStructureWhere });
-
-            const currentYear = new Date().getFullYear();
-            for (const structure of newFeeStructures) {
-              const cats = structure.applicableCategories || 'all';
-              const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-              if (!categoryMatch) continue;
-
-              const existingRecord = await tx.feeRecord.findFirst({
-                where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
+            if (newAcademicYear) {
+              const newClassRecord = await tx.class.findFirst({
+                where: { name: promotionPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
               });
-              if (existingRecord) continue;
 
-              await tx.feeRecord.create({
-                data: {
-                  studentId,
-                  feeStructureId: structure.id,
-                  amount: structure.amount,
-                  paidAmount: 0,
-                  pendingAmount: structure.amount,
-                  dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
-                  status: 'pending',
-                  academicYear: promotionPayload.toAcademicYear,
-                  receiptNumber: `FEE-${promotionPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
-                  remarks: `Auto-applied on promotion to ${promotionPayload.toClass}`
-                }
-              });
+              const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
+              if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
+
+              const newFeeStructures = await tx.feeStructure.findMany({ where: feeStructureWhere });
+
+              const currentYear = new Date().getFullYear();
+              for (const structure of newFeeStructures) {
+                const cats = structure.applicableCategories || 'all';
+                const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
+                if (!categoryMatch) continue;
+
+                const existingRecord = await tx.feeRecord.findFirst({
+                  where: { studentId, feeStructureId: structure.id, academicYear: promotionPayload.toAcademicYear }
+                });
+                if (existingRecord) continue;
+
+                await tx.feeRecord.create({
+                  data: {
+                    studentId,
+                    feeStructureId: structure.id,
+                    amount: structure.amount,
+                    paidAmount: 0,
+                    pendingAmount: structure.amount,
+                    dueDate: new Date(currentYear, 3, structure.dueDate || 1).toISOString().split('T')[0],
+                    status: 'pending',
+                    academicYear: promotionPayload.toAcademicYear,
+                    receiptNumber: `FEE-${promotionPayload.toAcademicYear}-${student.admissionNo}-${structure.name.replace(/\s/g, '').toUpperCase().slice(0, 8)}-${Date.now()}`,
+                    remarks: `Auto-applied on promotion to ${promotionPayload.toClass}`
+                  }
+                });
+              }
             }
+          } catch (feeErr) {
+            console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
+            // Don't fail the promotion if fee application fails
           }
-        } catch (feeErr) {
-          console.error(`Fee auto-apply failed for student ${studentId}:`, feeErr);
-          // Don't fail the promotion if fee application fails
         }
       });
 
@@ -195,7 +203,8 @@ export async function POST(request: NextRequest) {
       toSection,
       toAcademicYear,
       promotionType = 'regular',
-      remarks = ''
+      remarks = '',
+      detainedApplyFees = false
     } = body;
 
     // Validate required fields
@@ -203,9 +212,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'toClass and toAcademicYear are required' }, { status: 400 });
     }
 
-    if (!toSection) {
-      return NextResponse.json({ error: 'toSection is required' }, { status: 400 });
+    // Validate target academic year exists
+    const targetAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
+      where: { year: toAcademicYear }
+    });
+    if (!targetAcademicYear) {
+      return NextResponse.json({ error: `Academic year ${toAcademicYear} not found. Please create it in Settings first.` }, { status: 400 });
     }
+
+    // Validate section is optional (will be checked later based on class configuration)
+    // No hard requirement here
 
     // Resolve student IDs based on mode
     let targetStudentIds: string[] = [];
@@ -252,7 +268,8 @@ export async function POST(request: NextRequest) {
       promotedBy: ctx.userId,
       promotedByEmail: ctx.email,
       promotedByName: promoterName,
-      schoolId: ctx.schoolId!
+      schoolId: ctx.schoolId!,
+      detainedApplyFees
     });
 
     return NextResponse.json({

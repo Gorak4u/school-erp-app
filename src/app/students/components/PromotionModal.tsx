@@ -36,28 +36,67 @@ export default function PromotionModal({
     toSection: '',
     toAcademicYear: '',
     promotionType: 'regular',
-    remarks: ''
+    remarks: '',
+    detainedApplyFees: false
   });
+  const [schoolConfig, setSchoolConfig] = useState<any>(null);
 
-  // ── Fetch dropdowns ─────────────────────────────────────────────────────────
+  // ── Fetch school config (academic years, classes, sections) ─────────────────
   useEffect(() => {
     if (!show) return;
-    Promise.all([
-      fetch('/api/school-structure/academic-years').then(r => r.json()),
-      fetch('/api/school-structure/classes').then(r => r.json())
-    ]).then(([ayData, clsData]) => {
-      setAcademicYears(ayData.academicYears || []);
-      setClasses(clsData.classes || []);
-    }).catch(console.error);
+    fetch('/api/school-config')
+      .then(r => r.json())
+      .then(data => {
+        setSchoolConfig(data);
+        setAcademicYears(data.academicYears || []);
+        setClasses(data.classes || []);
+      })
+      .catch(console.error);
   }, [show]);
 
-  // ── Fetch sections when class changes ───────────────────────────────────────
+  // ── Fetch sections when class + academic year changes ───────────────────────
   useEffect(() => {
-    if (!form.toClass) { setSections([]); return; }
-    const cls = classes.find(c => c.name === form.toClass);
-    if (cls?.sections) setSections(cls.sections);
-    else setSections([]);
-  }, [form.toClass, classes]);
+    if (!form.toClass || !form.toAcademicYear || !schoolConfig) { 
+      setSections([]); 
+      return; 
+    }
+    
+    const targetAcademicYear = academicYears.find(ay => ay.year === form.toAcademicYear);
+    if (!targetAcademicYear) {
+      setSections([]);
+      return;
+    }
+
+    const targetClass = classes.find(c => 
+      c.name === form.toClass && 
+      c.academicYearId === targetAcademicYear.id
+    );
+    
+    if (targetClass?.sections) {
+      setSections(targetClass.sections.filter((s: any) => s.isActive));
+    } else {
+      setSections([]);
+    }
+  }, [form.toClass, form.toAcademicYear, classes, academicYears, schoolConfig]);
+
+  // ── Auto-fill class/section for detained students ──────────────────────────
+  useEffect(() => {
+    if (form.promotionType === 'detained') {
+      let currentStudent = null;
+      if (mode === 'single' && singleStudentId) {
+        currentStudent = students.find(s => s.id === singleStudentId);
+      } else if (mode === 'bulk' && selectedStudents.length > 0) {
+        currentStudent = students.find(s => s.id === selectedStudents[0]);
+      } else if (mode === 'class' && fromClass) {
+        setForm(f => ({ ...f, toClass: fromClass, toSection: fromSection || '' }));
+        return;
+      }
+      
+      if (currentStudent) {
+        setForm(f => ({ ...f, toClass: currentStudent.class, toSection: currentStudent.section || '' }));
+      }
+    }
+  }, [form.promotionType, mode, singleStudentId, selectedStudents, students, fromClass, fromSection]);
 
   // ── Reset on close ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -66,13 +105,15 @@ export default function PromotionModal({
       setPreview([]);
       setResult(null);
       setProgress(0);
-      setForm({ toClass: '', toSection: '', toAcademicYear: '', promotionType: 'regular', remarks: '' });
+      setForm({ toClass: '', toSection: '', toAcademicYear: '', promotionType: 'regular', remarks: '', detainedApplyFees: false });
     }
   }, [show]);
 
   // ── Resolve preview ─────────────────────────────────────────────────────────
   const handlePreview = async () => {
-    if (!form.toClass || !form.toSection || !form.toAcademicYear) return;
+    if (!form.toClass || !form.toAcademicYear) return;
+    if (sections.length > 0 && !form.toSection) return;
+    
     setLoading(true);
     try {
       let url = '/api/students/promote?';
@@ -80,11 +121,28 @@ export default function PromotionModal({
         url += `fromClass=${encodeURIComponent(fromClass || '')}&fromSection=${encodeURIComponent(fromSection || '')}`;
       } else {
         const ids = mode === 'single' ? [singleStudentId] : selectedStudents;
-        const previewItems = students.filter(s => ids.includes(s.id)).map(s => ({
-          id: s.id, name: s.name, admissionNo: s.admissionNo,
-          currentClass: s.class, currentSection: s.section, currentAcademicYear: s.academicYear,
-          arrearsAmount: Math.max(0, (s.fees?.total || 0) - (s.fees?.paid || 0))
-        }));
+        const previewItems = students.filter(s => ids.includes(s.id)).map(s => {
+          const total = s.fees?.total || 0;
+          const paid = s.fees?.paid || 0;
+          const discount = s.fees?.discount || 0;
+          const pending = Math.max(0, total - paid - discount);
+          
+          return {
+            id: s.id, 
+            name: s.name, 
+            admissionNo: s.admissionNo,
+            currentClass: s.class, 
+            currentSection: s.section, 
+            currentAcademicYear: s.academicYear,
+            feeBreakdown: {
+              total,
+              paid,
+              discount,
+              pending
+            },
+            arrearsAmount: pending
+          };
+        });
         setPreview(previewItems);
         setStep('preview');
         setLoading(false);
@@ -108,10 +166,11 @@ export default function PromotionModal({
     const body: any = {
       mode,
       toClass: form.toClass,
-      toSection: form.toSection,
+      toSection: form.toSection || '',
       toAcademicYear: form.toAcademicYear,
       promotionType: form.promotionType,
-      remarks: form.remarks
+      remarks: form.remarks,
+      detainedApplyFees: form.detainedApplyFees
     };
 
     if (mode === 'single') body.studentId = singleStudentId;
@@ -206,20 +265,69 @@ export default function PromotionModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>Promote to Class *</label>
-                      <select className={inputCls} value={form.toClass} onChange={e => setForm(f => ({ ...f, toClass: e.target.value, toSection: '' }))}>
+                      <select 
+                        className={inputCls} 
+                        value={form.toClass} 
+                        onChange={e => setForm(f => ({ ...f, toClass: e.target.value, toSection: '' }))}
+                        disabled={form.promotionType === 'detained'}
+                      >
                         <option value="">Select Class</option>
                         {classes.filter(c => c.isActive).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
+                      {form.promotionType === 'detained' && (
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Detained students stay in same class
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <label className={labelCls}>Promote to Section *</label>
-                      <select className={inputCls} value={form.toSection} onChange={e => setForm(f => ({ ...f, toSection: e.target.value }))}>
-                        <option value="">Select Section</option>
-                        {sections.filter(s => s.isActive).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                        {sections.length === 0 && form.toClass && <option value="A">A</option>}
-                      </select>
+                      <label className={labelCls}>Promote to Section {sections.length > 0 ? '*' : '(Optional)'}</label>
+                      {sections.length > 0 ? (
+                        <select 
+                          className={inputCls} 
+                          value={form.toSection} 
+                          onChange={e => setForm(f => ({ ...f, toSection: e.target.value }))}
+                          disabled={form.promotionType === 'detained'}
+                        >
+                          <option value="">Select Section</option>
+                          {sections.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          className={inputCls}
+                          value={form.toSection}
+                          onChange={e => setForm(f => ({ ...f, toSection: e.target.value }))}
+                          placeholder="Section (optional)"
+                          disabled={form.promotionType === 'detained'}
+                        />
+                      )}
+                      {form.promotionType === 'detained' && (
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Detained students stay in same section
+                        </p>
+                      )}
                     </div>
                   </div>
+                  {form.promotionType === 'detained' && (
+                    <div className={`rounded-lg p-3 ${isDark ? 'bg-purple-900/30 border border-purple-800' : 'bg-purple-50 border border-purple-200'}`}>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.detainedApplyFees}
+                          onChange={e => setForm(f => ({ ...f, detainedApplyFees: e.target.checked }))}
+                          className="w-4 h-4 rounded"
+                        />
+                        <span className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+                          Apply next year fees for detained class?
+                        </span>
+                      </label>
+                      <p className={`text-xs mt-1 ml-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                        If checked, new fee records for {form.toAcademicYear} will be created for the same class.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label className={labelCls}>Remarks (Optional)</label>
                     <textarea
@@ -234,7 +342,7 @@ export default function PromotionModal({
                   <div className={`rounded-lg p-3 ${isDark ? 'bg-blue-900/30 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
                     <p className={`text-xs ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
                       ℹ️ Outstanding fees will be tracked as <strong>Arrears</strong> and remain visible in the student's fee history.
-                      New fee records for the target class will be created automatically.
+                      {form.promotionType !== 'detained' && ' New fee records for the target class will be created automatically.'}
                     </p>
                   </div>
                 </div>
@@ -249,16 +357,16 @@ export default function PromotionModal({
                       Total Arrears: ₹{preview.reduce((s, p) => s + (p.arrearsAmount || 0), 0).toLocaleString()}
                     </span>
                   </div>
-                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                  <div className="space-y-3 max-h-72 overflow-y-auto">
                     {preview.map(p => (
-                      <div key={p.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                        <div>
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{p.name}</p>
-                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {p.admissionNo} · {p.currentClass} {p.currentSection} → {form.toClass} {form.toSection}
-                          </p>
-                        </div>
-                        <div className="text-right">
+                      <div key={p.id} className={`px-3 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{p.name}</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {p.admissionNo} · {p.currentClass} {p.currentSection} → {form.toClass} {form.toSection || 'N/A'}
+                            </p>
+                          </div>
                           {(p.arrearsAmount || 0) > 0 ? (
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-700'}`}>
                               Arrears ₹{(p.arrearsAmount || 0).toLocaleString()}
@@ -269,6 +377,26 @@ export default function PromotionModal({
                             </span>
                           )}
                         </div>
+                        {p.feeBreakdown && (
+                          <div className={`grid grid-cols-4 gap-2 pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <div>
+                              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Total</p>
+                              <p className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>₹{p.feeBreakdown.total.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Paid</p>
+                              <p className={`text-xs font-medium text-green-500`}>₹{p.feeBreakdown.paid.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Discount</p>
+                              <p className={`text-xs font-medium text-blue-500`}>₹{p.feeBreakdown.discount.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Balance</p>
+                              <p className={`text-xs font-medium text-orange-500`}>₹{p.feeBreakdown.pending.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -353,7 +481,7 @@ export default function PromotionModal({
                 {step === 'config' && (
                   <button
                     onClick={handlePreview}
-                    disabled={!form.toClass || !form.toSection || !form.toAcademicYear || loading}
+                    disabled={!form.toClass || !form.toAcademicYear || (sections.length > 0 && !form.toSection) || loading}
                     className="px-5 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Loading...' : 'Preview →'}
