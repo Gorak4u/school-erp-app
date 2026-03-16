@@ -285,6 +285,15 @@ model Student {
   remarks               String?
   admissionDate         String?
   enrollmentDate        String?
+  exitDate              String?
+  exitReason            String?
+  tcNumber              String?
+  exitRemarks           String?
+  higherEducation       String?
+  employment            String?
+  contactPreference     String?
+  socialLinks           String?
+  mentorshipAreas       String?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   academicYear          String             @default("2024-25")
@@ -1008,5 +1017,149 @@ model StudentTransport {
   @@index([studentId])
   @@index([routeId])
   @@index([academicYearId])
+  @@schema("school")
+}
+
+model ExpenseCategory {
+  id            String            @id @default(cuid())
+  name          String
+  description   String?
+  color         String?
+  icon          String?
+  parentId      String?
+  isActive      Boolean           @default(true)
+  schoolId      String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  parent        ExpenseCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories ExpenseCategory[] @relation("CategoryHierarchy")
+  expenses      Expense[]
+  budgets       Budget[]
+
+  @@index([schoolId])
+  @@index([schoolId, isActive])
+  @@index([parentId])
+  @@schema("school")
+}
+
+model Expense {
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  amount         Float
+  categoryId     String
+  dateIncurred   String
+  paymentMethod  String?
+  status         String          @default("pending")
+  priority       String          @default("medium")
+  receiptUrl     String?
+  receiptNumber  String?
+  vendorName     String?
+  vendorDetails  String?
+  tags           String          @default("[]")
+  requestedBy    String
+  requestedByName String?
+  requestedByEmail String?
+  requestedAt    DateTime        @default(now())
+  approvedBy     String?
+  approvedByName String?
+  approvedAt     DateTime?
+  approvalNote   String?
+  rejectedBy     String?
+  rejectedAt     DateTime?
+  rejectionReason String?
+  paidBy         String?
+  paidAt         DateTime?
+  remarks        String?
+  academicYear   String          @default("2024-25")
+  academicYearId String?
+  schoolId       String?
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  category       ExpenseCategory @relation(fields: [categoryId], references: [id])
+  budgetItems    BudgetItem[]
+  auditLogs      ExpenseAuditLog[]
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, academicYear])
+  @@index([schoolId, categoryId])
+  @@index([schoolId, createdAt(sort: Desc)])
+  @@index([schoolId, dateIncurred])
+  @@index([schoolId, status, academicYear])
+  @@index([schoolId, categoryId, dateIncurred])
+  @@index([requestedBy])
+  @@index([deletedAt])
+  @@index([status])
+  @@index([dateIncurred])
+  @@schema("school")
+}
+
+model Budget {
+  id              String          @id @default(cuid())
+  name            String
+  description     String?
+  totalAmount     Float
+  spentAmount     Float           @default(0)
+  remainingAmount Float
+  categoryId      String?
+  academicYear    String          @default("2024-25")
+  academicYearId  String?
+  status          String          @default("active")
+  startDate       String
+  endDate         String
+  alertThreshold  Float           @default(80)
+  createdBy       String
+  createdByName   String?
+  schoolId        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  category        ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  items           BudgetItem[]
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, academicYear])
+  @@index([schoolId, categoryId])
+  @@index([status])
+  @@schema("school")
+}
+
+model BudgetItem {
+  id        String   @id @default(cuid())
+  budgetId  String
+  expenseId String
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+  budget    Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, expenseId])
+  @@index([budgetId])
+  @@index([expenseId])
+  @@schema("school")
+}
+
+model ExpenseAuditLog {
+  id         String   @id @default(cuid())
+  schoolId   String
+  expenseId  String
+  action     String
+  actorId    String
+  actorEmail String
+  actorName  String?
+  actorRole  String?
+  prevStatus String?
+  newStatus  String?
+  details    String?
+  createdAt  DateTime @default(now())
+  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([expenseId])
+  @@index([schoolId, createdAt(sort: Desc)])
+  @@index([actorEmail])
   @@schema("school")
 }

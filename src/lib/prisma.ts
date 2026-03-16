@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Bump this whenever the schema changes to force a fresh client in dev
-const SCHEMA_VERSION = '11'; // Bumped for StudentPromotion + FeeArrears models
+const SCHEMA_VERSION = '12'; // Bumped for Expense, Budget, ExpenseCategory, BudgetItem, ExpenseAuditLog models
 
 function createSaasPrisma() {
   // Add search_path to connection string

@@ -32,6 +32,7 @@ export default function TransportPage() {
   const [routes, setRoutes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
