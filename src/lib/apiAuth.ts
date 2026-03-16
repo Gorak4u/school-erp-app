@@ -33,25 +33,10 @@ export async function getSessionContext(): Promise<
   // Use schoolId from the JWT session
   let schoolId = u.schoolId || null;
   
-  // Fetch user permissions if they have a custom role
-  let customRoleId: string | null = null;
-  let permissions: string[] = [];
-  
-  if (schoolId && u.customRoleId) {
-    try {
-      const user = await (schoolPrisma as any).user.findUnique({
-        where: { id: u.id },
-        include: { customRole: true }
-      });
-      
-      if (user?.customRole) {
-        customRoleId = user.customRole.id;
-        permissions = user.customRole.permissions || [];
-      }
-    } catch (error) {
-      console.error('Error fetching user permissions:', error);
-    }
-  }
+  // Use permissions from JWT token (cached during login)
+  // Don't fetch from database - this eliminates 1 DB query per request
+  const customRoleId = u.customRoleId || null;
+  const permissions = u.permissions || [];
   
   return {
     ctx: {
