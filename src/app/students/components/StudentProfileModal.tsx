@@ -259,38 +259,54 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                         <h3 className={`text-lg font-semibold mb-4 ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
                         }`}>Parents Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div>
-                            <h4 className={`font-medium mb-2 ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                            }`}>Father</h4>
-                            <div className="space-y-2">
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>{selectedStudent.fatherName}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{selectedStudent.fatherPhone}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{selectedStudent.fatherOccupation}</p>
-                            </div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Father Name</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.fatherName || 'N/A'}</p>
                           </div>
                           <div>
-                            <h4 className={`font-medium mb-2 ${
-                              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                            }`}>Mother</h4>
-                            <div className="space-y-2">
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>{selectedStudent.motherName}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{selectedStudent.motherPhone}</p>
-                              <p className={`text-sm ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{selectedStudent.motherOccupation}</p>
-                            </div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Father Phone</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.fatherPhone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Father Email</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.fatherEmail || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Mother Name</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.motherName || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Mother Phone</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.motherPhone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Mother Email</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.motherEmail || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
@@ -301,15 +317,15 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Address Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        }`}>Contact & Address</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div>
                             <label className={`text-sm font-medium ${
                               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                             }`}>Street Address</label>
                             <p className={`mt-1 ${
                               theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{selectedStudent.address}</p>
+                            }`}>{selectedStudent.address || 'N/A'}</p>
                           </div>
                           <div>
                             <label className={`text-sm font-medium ${
@@ -317,7 +333,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                             }`}>City</label>
                             <p className={`mt-1 ${
                               theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{selectedStudent.city}</p>
+                            }`}>{selectedStudent.city || 'N/A'}</p>
                           </div>
                           <div>
                             <label className={`text-sm font-medium ${
@@ -325,15 +341,31 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                             }`}>State</label>
                             <p className={`mt-1 ${
                               theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{selectedStudent.state}</p>
+                            }`}>{selectedStudent.state || 'N/A'}</p>
                           </div>
                           <div>
                             <label className={`text-sm font-medium ${
                               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                            }`}>Pin Code</label>
+                            }`}>Emergency Contact</label>
                             <p className={`mt-1 ${
                               theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>{selectedStudent.pinCode}</p>
+                            }`}>{selectedStudent.emergencyContact || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Emergency Relation</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.emergencyRelation || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Category</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.category || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
@@ -360,7 +392,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
                       
                       {/* Academic Summary Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className={`rounded-lg border p-4 ${
                           theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                         }`}>
@@ -371,7 +403,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                               }`}>Current GPA</p>
                               <p className={`text-2xl font-bold mt-1 ${
                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>3.85</p>
+                              }`}>{selectedStudent.gpa?.toFixed(2) || '0.00'}</p>
                             </div>
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                               theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
@@ -391,9 +423,9 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                               }`}>Class Rank</p>
                               <p className={`text-2xl font-bold mt-1 ${
                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>5/45</p>
+                              }`}>{selectedStudent.rank || 'N/A'}</p>
                             </div>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-between ${
                               theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
                             }`}>
                               🏆
@@ -408,10 +440,10 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                             <div>
                               <p className={`text-sm font-medium ${
                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Attendance Rate</p>
+                              }`}>Attendance</p>
                               <p className={`text-2xl font-bold mt-1 ${
                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>92%</p>
+                              }`}>{selectedStudent.attendance?.percentage || 0}%</p>
                             </div>
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                               theme === 'dark' ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'
@@ -420,93 +452,79 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                             </div>
                           </div>
                         </div>
+                        
+                        <div className={`rounded-lg border p-4 ${
+                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className={`text-sm font-medium ${
+                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                              }`}>Discipline</p>
+                              <p className={`text-2xl font-bold mt-1 ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                              }`}>{selectedStudent.disciplineScore || 100}</p>
+                            </div>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                              theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
+                            }`}>
+                              ⭐
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Recent Grades */}
+                      {/* Academic Stats */}
                       <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
                       }`}>
                         <h4 className={`text-lg font-semibold mb-4 ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Recent Grades</h4>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className={`border-b ${
-                                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                              }`}>
-                                <th className={`text-left py-2 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Subject</th>
-                                <th className={`text-left py-2 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Assessment</th>
-                                <th className={`text-left py-2 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Grade</th>
-                                <th className={`text-left py-2 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Percentage</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr className={`border-b ${
-                                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                              }`}>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Mathematics</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Mid Term Exam</td>
-                                <td className={`py-3 px-4`}>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                  }`}>A+</span>
-                                </td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>92%</td>
-                              </tr>
-                              <tr className={`border-b ${
-                                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                              }`}>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Science</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Mid Term Exam</td>
-                                <td className={`py-3 px-4`}>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                  }`}>A</span>
-                                </td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>88%</td>
-                              </tr>
-                              <tr className={`border-b ${
-                                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                              }`}>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>English</td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Mid Term Exam</td>
-                                <td className={`py-3 px-4`}>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
-                                  }`}>B+</span>
-                                </td>
-                                <td className={`py-3 px-4 ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>78%</td>
-                              </tr>
-                            </tbody>
-                          </table>
+                        }`}>Academic Statistics</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Achievements</label>
+                            <p className={`mt-1 text-lg font-semibold ${
+                              theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                            }`}>🏅 {selectedStudent.achievements || 0} Awards</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Incidents</label>
+                            <p className={`mt-1 text-lg font-semibold ${
+                              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                            }`}>⚠️ {selectedStudent.incidents || 0} Records</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Admission Date</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.admissionDate || selectedStudent.enrollmentDate || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Academic Year</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.academicYear || 'N/A'}</p>
+                          </div>
                         </div>
+                        {selectedStudent.remarks && (
+                          <div className="mt-4">
+                            <label className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Remarks</label>
+                            <p className={`mt-1 ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>{selectedStudent.remarks}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

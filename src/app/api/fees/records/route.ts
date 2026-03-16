@@ -84,67 +84,68 @@ export async function GET(request: NextRequest) {
     // OPTIMIZED: Use database aggregations for 10M record performance
     // Include both FeeRecords and FeeArrears for current academic year
     const query = `
-      SELECT 
-        fr.id,
-        fr."studentId",
-        fr."feeStructureId",
-        fr.amount,
-        fr."paidAmount",
-        fr.discount,
-        fr."dueDate",
-        fr."createdAt",
-        fr."academicYear",
-        s.name as "studentName",
-        s.class,
-        s.section,
-        s."rollNo",
-        fs.name as "feeStructureName",
-        fs.category as "feeCategory",
-        CASE 
-          WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 'paid'
-          WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 'partial'
-          ELSE 'pending'
-        END as status,
-        COALESCE(SUM(p.amount), 0) as "totalPayments",
-        COUNT(p.id) as "paymentCount",
-        'fee_record' as record_type
-      FROM "school"."FeeRecord" fr
-      LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
-      LEFT JOIN "school"."FeeStructure" fs ON fr."feeStructureId" = fs.id
-      LEFT JOIN "school"."Payment" p ON fr.id = p."feeRecordId"
-      WHERE ${whereClause}
-      GROUP BY fr.id, s.name, s.class, s.section, s."rollNo", fs.name, fs.category
-      
-      UNION ALL
-      
-      SELECT 
-        fa.id,
-        fa."studentId",
-        NULL as "feeStructureId",
-        fa.amount,
-        fa."paidAmount",
-        0 as discount,
-        fa."dueDate",
-        fa."createdAt",
-        fa."toAcademicYear" as "academicYear",
-        s.name as "studentName",
-        s.class,
-        s.section,
-        s."rollNo",
-        'Arrears' as "feeStructureName",
-        'Arrears' as "feeCategory",
-        CASE 
-          WHEN fa."paidAmount" >= fa.amount THEN 'paid'
-          WHEN fa."paidAmount" > 0 AND fa."paidAmount" < fa.amount THEN 'partial'
-          ELSE 'pending'
-        END as status,
-        0 as "totalPayments",
-        0 as "paymentCount",
-        'arrears' as record_type
-      FROM "school"."FeeArrears" fa
-      LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
-      WHERE ${whereConditions.filter(c => !c.includes('fr.')).map(c => c.replace('s."', 's."')).join(' AND ')}
-      
+      (
+        SELECT 
+          fr.id,
+          fr."studentId",
+          fr."feeStructureId",
+          fr.amount,
+          fr."paidAmount",
+          fr.discount,
+          fr."dueDate",
+          fr."createdAt",
+          fr."academicYear",
+          s.name as "studentName",
+          s.class,
+          s.section,
+          s."rollNo",
+          fs.name as "feeStructureName",
+          fs.category as "feeCategory",
+          CASE 
+            WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 'paid'
+            WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 'partial'
+            ELSE 'pending'
+          END as status,
+          COALESCE(SUM(p.amount), 0) as "totalPayments",
+          COUNT(p.id) as "paymentCount",
+          'fee_record' as record_type
+        FROM "school"."FeeRecord" fr
+        LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
+        LEFT JOIN "school"."FeeStructure" fs ON fr."feeStructureId" = fs.id
+        LEFT JOIN "school"."Payment" p ON fr.id = p."feeRecordId"
+        WHERE ${whereClause}
+        GROUP BY fr.id, s.name, s.class, s.section, s."rollNo", fs.name, fs.category
+        
+        UNION ALL
+        
+        SELECT 
+          fa.id,
+          fa."studentId",
+          NULL as "feeStructureId",
+          fa.amount,
+          fa."paidAmount",
+          0 as discount,
+          fa."dueDate",
+          fa."createdAt",
+          fa."toAcademicYear" as "academicYear",
+          s.name as "studentName",
+          s.class,
+          s.section,
+          s."rollNo",
+          'Arrears' as "feeStructureName",
+          'Arrears' as "feeCategory",
+          CASE 
+            WHEN fa."paidAmount" >= fa.amount THEN 'paid'
+            WHEN fa."paidAmount" > 0 AND fa."paidAmount" < fa.amount THEN 'partial'
+            ELSE 'pending'
+          END as status,
+          0 as "totalPayments",
+          0 as "paymentCount",
+          'arrears' as record_type
+        FROM "school"."FeeArrears" fa
+        LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).map(c => c.replace('s."', 's."')).join(' AND ')}
+      )
       ORDER BY "createdAt" DESC
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
     `;

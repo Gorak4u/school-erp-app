@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Student } from '../types';
 
 interface StudentProfileTabsProps {
   activeTab: string;
@@ -14,606 +13,376 @@ interface StudentProfileTabsProps {
   theme: 'dark' | 'light';
 }
 
+const card = (theme: string) =>
+  `rounded-lg border p-4 ${theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`;
+
+const label = (theme: string) =>
+  `text-xs font-medium uppercase tracking-wide ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`;
+
+const value = (theme: string) =>
+  `mt-1 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`;
+
+const heading = (theme: string) =>
+  `text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`;
+
+function Field({ lbl, val, theme }: { lbl: string; val: any; theme: string }) {
+  return (
+    <div>
+      <p className={label(theme)}>{lbl}</p>
+      <p className={value(theme)}>{val || '—'}</p>
+    </div>
+  );
+}
+
+function StatCard({ title, val, color, theme }: { title: string; val: string | number; color: string; theme: string }) {
+  return (
+    <div className={card(theme)}>
+      <p className={label(theme)}>{title}</p>
+      <p className={`mt-1 text-2xl font-bold ${color}`}>{val}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status, theme }: { status: string; theme: string }) {
+  const colors: Record<string, string> = {
+    paid: theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
+    partial: theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700',
+    pending: theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700',
+  };
+  const labels: Record<string, string> = { paid: 'Paid', partial: 'Partial', pending: 'Pending' };
+  return (
+    <span className={`px-2 py-1 rounded text-xs font-medium ${colors[status] || colors.pending}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
 export default function StudentProfileTabs({
   activeTab, selectedStudent, setFeeManagement, setAttendanceTracking,
   setParentPortal, setCommunicationCenter, theme
 }: StudentProfileTabsProps) {
-  const [feeData, setFeeData] = useState({
-    totalFees: 0,
-    paidAmount: 0,
-    pendingAmount: 0,
-    overdueAmount: 0,
-    feeRecords: []
-  });
+  const [feeRecords, setFeeRecords] = useState<any[]>([]);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeError, setFeeError] = useState('');
 
-  // Load fee data when student changes
   useEffect(() => {
-    if (selectedStudent && activeTab === 'fees') {
-      loadFeeData();
+    if (selectedStudent?.id && activeTab === 'fees') {
+      setFeeLoading(true);
+      setFeeError('');
+      fetch(`/api/fees/records?studentId=${selectedStudent.id}&pageSize=50`)
+        .then(r => r.json())
+        .then(data => {
+          setFeeRecords(data.records || []);
+        })
+        .catch(() => setFeeError('Failed to load fee records.'))
+        .finally(() => setFeeLoading(false));
     }
-  }, [selectedStudent, activeTab]);
+  }, [selectedStudent?.id, activeTab]);
 
-  const loadFeeData = async () => {
-    try {
-      // Fetch fee records for this student
-      const response = await fetch(`/api/fees/records?studentId=${selectedStudent.id}`);
-      const data = await response.json();
-      
-      if (data.records) {
-        const totalFees = data.records.reduce((sum: number, record: any) => sum + record.amount, 0);
-        const paidAmount = data.records.reduce((sum: number, record: any) => sum + record.paidAmount, 0);
-        const pendingAmount = data.records.reduce((sum: number, record: any) => sum + record.pendingAmount, 0);
-        const overdueAmount = data.records
-          .filter((record: any) => record.status === 'overdue')
-          .reduce((sum: number, record: any) => sum + record.pendingAmount, 0);
+  if (!selectedStudent) return null;
 
-        setFeeData({
-          totalFees,
-          paidAmount,
-          pendingAmount,
-          overdueAmount,
-          feeRecords: data.records
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load fee data:', error);
-    }
-  };
+  const fees = selectedStudent.fees || {};
+  const att = selectedStudent.attendance || {};
+  const totalDays = (att.present || 0) + (att.absent || 0) + (att.late || 0);
+
   return (
     <>
-                  {/* Fees Tab */}
-                  {activeTab === 'fees' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h3 className={`text-xl font-semibold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Fee Management</h3>
-                        <button
-                          onClick={() => setFeeManagement(prev => ({ ...prev, showFeeModal: true, selectedStudent }))}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                            theme === 'dark'
-                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                              : 'bg-green-500 hover:bg-green-600 text-white'
-                          }`}
-                        >
-                          💰 Manage Fees
-                        </button>
-                      </div>
+      {/* ─── FEES TAB ─────────────────────────────────────────────────── */}
+      {activeTab === 'fees' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className={heading(theme)}>Fee Overview</h3>
+            <button
+              onClick={() => setFeeManagement((prev: any) => ({ ...prev, showFeeModal: true, selectedStudent }))}
+              className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              💰 Manage Fees
+            </button>
+          </div>
 
-                      {/* Fee Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Total Fees</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{feeData.totalFees.toLocaleString()}</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Paid Amount</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{feeData.paidAmount.toLocaleString()}</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Pending Amount</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>₹{feeData.pendingAmount.toLocaleString()}</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Next Due Date</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>15 Mar</p>
-                        </div>
-                      </div>
+          {/* Summary from student object — always present */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard title="Total Fees" val={`₹${(fees.total || 0).toLocaleString()}`} color={theme === 'dark' ? 'text-white' : 'text-gray-900'} theme={theme} />
+            <StatCard title="Paid" val={`₹${(fees.paid || 0).toLocaleString()}`} color="text-green-500" theme={theme} />
+            <StatCard title="Pending" val={`₹${(fees.pending || 0).toLocaleString()}`} color="text-yellow-500" theme={theme} />
+            <StatCard title="Discount" val={`₹${(fees.discount || 0).toLocaleString()}`} color="text-blue-500" theme={theme} />
+          </div>
 
-                      {/* Fee Records */}
-                      <div className={`rounded-lg border overflow-hidden ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className={`${
-                              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
-                            }`}>
-                              <tr>
-                                <th className={`text-left py-3 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>Fee Type</th>
-                                <th className={`text-left py-3 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>Amount</th>
-                                <th className={`text-left py-3 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>Due Date</th>
-                                <th className={`text-left py-3 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>Status</th>
-                                <th className={`text-left py-3 px-4 text-sm font-medium ${
-                                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className={`divide-y ${
-                              theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'
-                            }`}>
-                              {feeData.feeRecords.length > 0 ? feeData.feeRecords.map((record: any, index: number) => (
-                                <tr key={index}>
-                                  <td className={`py-3 px-4 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                  }`}>{record.feeStructure?.name || 'Fee'}</td>
-                                  <td className={`py-3 px-4 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                  }`}>₹{record.amount.toLocaleString()}</td>
-                                  <td className={`py-3 px-4 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                  }`}>{new Date(record.dueDate).toLocaleDateString()}</td>
-                                  <td className={`py-3 px-4`}>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                      record.status === 'paid' ? (theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700') :
-                                      record.status === 'partially_paid' ? (theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700') :
-                                      record.status === 'overdue' ? (theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700') :
-                                      (theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
-                                    }`}>
-                                      {record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('_', ' ')}
-                                    </span>
-                                  </td>
-                                  <td className={`py-3 px-4`}>
-                                    <button className={`text-blue-500 hover:text-blue-600 text-sm font-medium`}>
-                                      {record.status === 'paid' ? 'View Receipt' : 'Pay Now'}
-                                    </button>
-                                  </td>
-                                </tr>
-                              )) : (
-                                <tr>
-                                  <td colSpan={5} className={`py-8 text-center ${
-                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                  }`}>
-                                    No fee records found. Click "Manage Fees" to add fee structures.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+          {fees.lastPaymentDate && (
+            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              Last payment: {fees.lastPaymentDate}
+            </p>
+          )}
+
+          {/* Individual fee records */}
+          <div className={`rounded-lg border overflow-hidden ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Fee Records</h4>
+            </div>
+            {feeLoading ? (
+              <div className={`p-8 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Loading fee records...
+              </div>
+            ) : feeError ? (
+              <div className="p-8 text-center text-sm text-red-500">{feeError}</div>
+            ) : feeRecords.length === 0 ? (
+              <div className={`p-8 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                No fee records found. Use "Manage Fees" to assign fee structures.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
+                    <tr>
+                      {['Fee Type', 'Academic Year', 'Amount', 'Paid', 'Pending', 'Due Date', 'Status'].map(h => (
+                        <th key={h} className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                    {feeRecords.map((rec: any) => {
+                      const pending = (rec.amount || 0) - (rec.paidAmount || 0) - (rec.discount || 0);
+                      return (
+                        <tr key={rec.id} className={theme === 'dark' ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}>
+                          <td className={`py-3 px-4 font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {rec.feeStructureName || 'Fee'}
+                            {rec.feeCategory && rec.feeCategory !== rec.feeStructureName && (
+                              <span className={`ml-1 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>({rec.feeCategory})</span>
+                            )}
+                          </td>
+                          <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{rec.academicYear || '—'}</td>
+                          <td className={`py-3 px-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>₹{(rec.amount || 0).toLocaleString()}</td>
+                          <td className="py-3 px-4 text-green-500 font-medium">₹{(rec.paidAmount || 0).toLocaleString()}</td>
+                          <td className={`py-3 px-4 font-medium ${pending > 0 ? 'text-yellow-500' : 'text-green-500'}`}>
+                            ₹{Math.max(0, pending).toLocaleString()}
+                          </td>
+                          <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {rec.dueDate ? new Date(rec.dueDate).toLocaleDateString('en-IN') : '—'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <StatusBadge status={rec.status || 'pending'} theme={theme} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── ATTENDANCE TAB ───────────────────────────────────────────── */}
+      {activeTab === 'attendance' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className={heading(theme)}>Attendance Summary</h3>
+            <button
+              onClick={() => setAttendanceTracking((prev: any) => ({ ...prev, showAttendanceModal: true, selectedStudent }))}
+              className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'
+              }`}
+            >
+              📊 View Detailed Attendance
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard title="Total Days" val={totalDays} color={theme === 'dark' ? 'text-white' : 'text-gray-900'} theme={theme} />
+            <StatCard title="Present" val={att.present || 0} color="text-green-500" theme={theme} />
+            <StatCard title="Absent" val={att.absent || 0} color="text-red-500" theme={theme} />
+            <StatCard title="Late" val={att.late || 0} color="text-yellow-500" theme={theme} />
+          </div>
+
+          <div className={card(theme)}>
+            <div className="flex items-center justify-between mb-3">
+              <p className={label(theme)}>Attendance Percentage</p>
+              <p className={`text-2xl font-bold ${(att.percentage || 0) >= 75 ? 'text-green-500' : 'text-red-500'}`}>
+                {att.percentage || 0}%
+              </p>
+            </div>
+            <div className={`w-full rounded-full h-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+              <div
+                className={`h-3 rounded-full transition-all ${(att.percentage || 0) >= 75 ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.min(att.percentage || 0, 100)}%` }}
+              />
+            </div>
+            {(att.percentage || 0) < 75 && (
+              <p className="mt-2 text-xs text-red-500">⚠️ Attendance below 75% threshold</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── PARENTS TAB ─────────────────────────────────────────────── */}
+      {activeTab === 'parents' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className={heading(theme)}>Parent / Guardian Information</h3>
+            <button
+              onClick={() => setParentPortal((prev: any) => ({ ...prev, showParentPortalModal: true, selectedStudent }))}
+              className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                theme === 'dark' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'
+              }`}
+            >
+              👨‍👩‍👧 Manage Portal
+            </button>
+          </div>
+
+          {/* Primary Contact */}
+          {(selectedStudent.parentName || selectedStudent.parentPhone) && (
+            <div className={card(theme)}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Primary Contact</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Field lbl="Name" val={selectedStudent.parentName} theme={theme} />
+                <Field lbl="Phone" val={selectedStudent.parentPhone} theme={theme} />
+                <Field lbl="Email" val={selectedStudent.parentEmail} theme={theme} />
+              </div>
+            </div>
+          )}
+
+          {/* Father */}
+          {(selectedStudent.fatherName || selectedStudent.fatherPhone) && (
+            <div className={card(theme)}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>👨 Father</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Field lbl="Name" val={selectedStudent.fatherName} theme={theme} />
+                <Field lbl="Phone" val={selectedStudent.fatherPhone} theme={theme} />
+                <Field lbl="Email" val={selectedStudent.fatherEmail} theme={theme} />
+              </div>
+            </div>
+          )}
+
+          {/* Mother */}
+          {(selectedStudent.motherName || selectedStudent.motherPhone) && (
+            <div className={card(theme)}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>👩 Mother</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Field lbl="Name" val={selectedStudent.motherName} theme={theme} />
+                <Field lbl="Phone" val={selectedStudent.motherPhone} theme={theme} />
+                <Field lbl="Email" val={selectedStudent.motherEmail} theme={theme} />
+              </div>
+            </div>
+          )}
+
+          {/* Emergency */}
+          {(selectedStudent.emergencyContact || selectedStudent.emergencyRelation) && (
+            <div className={card(theme)}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>🚨 Emergency Contact</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Field lbl="Contact Number" val={selectedStudent.emergencyContact} theme={theme} />
+                <Field lbl="Relation" val={selectedStudent.emergencyRelation} theme={theme} />
+              </div>
+            </div>
+          )}
+
+          {/* Fallback if no parent info */}
+          {!selectedStudent.parentName && !selectedStudent.fatherName && !selectedStudent.motherName && (
+            <div className={`p-8 text-center text-sm rounded-lg border ${theme === 'dark' ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
+              No parent information on record. Edit student profile to add parent details.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── COMMUNICATION TAB ───────────────────────────────────────── */}
+      {activeTab === 'communication' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className={heading(theme)}>Communication</h3>
+            <button
+              onClick={() => setCommunicationCenter((prev: any) => ({ ...prev, showCommunicationModal: true, selectedStudent }))}
+              className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                theme === 'dark' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-teal-500 hover:bg-teal-600 text-white'
+              }`}
+            >
+              💬 Communication Center
+            </button>
+          </div>
+
+          {/* Student contacts */}
+          <div className={card(theme)}>
+            <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Student Contact</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Field lbl="Phone" val={selectedStudent.phone} theme={theme} />
+              <Field lbl="Email" val={selectedStudent.email} theme={theme} />
+            </div>
+          </div>
+
+          {/* Quick action buttons */}
+          <div className={card(theme)}>
+            <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Quick Actions</h4>
+            <div className="flex flex-wrap gap-3">
+              {selectedStudent.phone && (
+                <a
+                  href={`tel:${selectedStudent.phone}`}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium ${theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                >
+                  📞 Call Student
+                </a>
+              )}
+              {selectedStudent.email && (
+                <a
+                  href={`mailto:${selectedStudent.email}?subject=Regarding ${selectedStudent.name}`}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium ${theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                >
+                  📧 Email Student
+                </a>
+              )}
+              {(selectedStudent.fatherPhone || selectedStudent.parentPhone) && (
+                <a
+                  href={`tel:${selectedStudent.fatherPhone || selectedStudent.parentPhone}`}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium ${theme === 'dark' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}
+                >
+                  📞 Call Parent
+                </a>
+              )}
+              {(selectedStudent.fatherEmail || selectedStudent.motherEmail || selectedStudent.parentEmail) && (
+                <a
+                  href={`mailto:${[selectedStudent.fatherEmail, selectedStudent.motherEmail, selectedStudent.parentEmail].filter(Boolean).join(',')}?subject=Regarding ${selectedStudent.name}`}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
+                >
+                  📧 Email Parent(s)
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Parent contact summary */}
+          {(selectedStudent.fatherName || selectedStudent.motherName) && (
+            <div className={card(theme)}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Parent Contacts</h4>
+              <div className="space-y-3">
+                {selectedStudent.fatherName && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
+                    <div>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedStudent.fatherName} (Father)</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{selectedStudent.fatherPhone || 'No phone'} · {selectedStudent.fatherEmail || 'No email'}</p>
                     </div>
-                  )}
-
-                  {/* Attendance Tab */}
-                  {activeTab === 'attendance' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h3 className={`text-xl font-semibold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Attendance Tracking</h3>
-                        <button
-                          onClick={() => setAttendanceTracking(prev => ({ ...prev, showAttendanceModal: true, selectedStudent }))}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                            theme === 'dark'
-                              ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                              : 'bg-orange-500 hover:bg-orange-600 text-white'
-                          }`}
-                        >
-                          📊 View Detailed Attendance
-                        </button>
-                      </div>
-
-                      {/* Attendance Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Total Days</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>120</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Present</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>110</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Absent</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>8</p>
-                        </div>
-                        <div className={`rounded-lg border p-4 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Late</p>
-                          <p className={`text-xl font-bold mt-1 ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>2</p>
-                        </div>
-                      </div>
-
-                      {/* Recent Attendance */}
-                      <div className={`rounded-lg border p-6 ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <h4 className={`text-lg font-semibold mb-4 ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Recent Attendance</h4>
-                        <div className="space-y-3">
-                          {['Present', 'Present', 'Late', 'Present', 'Absent', 'Present'].map((status, index) => (
-                            <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
-                              theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
-                            }`}>
-                              <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  status === 'Present' ? 'bg-green-500' :
-                                  status === 'Late' ? 'bg-yellow-500' : 'bg-red-500'
-                                }`}></div>
-                                <span className={`text-sm ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>{status}</span>
-                              </div>
-                              <span className={`text-xs ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Mar {10 - index}, 2024</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    {selectedStudent.fatherPhone && (
+                      <a href={`tel:${selectedStudent.fatherPhone}`} className="text-green-500 hover:text-green-600 text-xs font-medium">Call</a>
+                    )}
+                  </div>
+                )}
+                {selectedStudent.motherName && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
+                    <div>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedStudent.motherName} (Mother)</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{selectedStudent.motherPhone || 'No phone'} · {selectedStudent.motherEmail || 'No email'}</p>
                     </div>
-                  )}
-
-                  {/* Parents Tab */}
-                  {activeTab === 'parents' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h3 className={`text-xl font-semibold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Parent Portal</h3>
-                        <button
-                          onClick={() => setParentPortal(prev => ({ ...prev, showParentPortalModal: true, selectedStudent }))}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                            theme === 'dark'
-                              ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                              : 'bg-purple-500 hover:bg-purple-600 text-white'
-                          }`}
-                        >
-                          👨‍👩‍👧 Manage Parent Portal
-                        </button>
-                      </div>
-
-                      {/* Parent Accounts */}
-                      <div className={`rounded-lg border p-6 ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <h4 className={`text-lg font-semibold mb-4 ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Parent Accounts</h4>
-                        <div className="space-y-4">
-                          <div className={`p-4 rounded-lg border ${
-                            theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>{selectedStudent.fatherName}</p>
-                                <p className={`text-sm ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>{selectedStudent.fatherPhone}</p>
-                                <p className={`text-sm ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Username: {selectedStudent.fatherName.toLowerCase().replace(/\s+/g, '.')}.{selectedStudent.id}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                }`}>Active</span>
-                                <button className={`px-3 py-1 rounded text-xs font-medium ${
-                                  theme === 'dark'
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                                }`}>
-                                  Reset Password
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Recent Notifications */}
-                      <div className={`rounded-lg border p-6 ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <h4 className={`text-lg font-semibold mb-4 ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Recent Notifications</h4>
-                        <div className="space-y-3">
-                          <div className={`p-3 rounded-lg ${
-                            theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Grade Posted: Mathematics</p>
-                                <p className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Student received A+ grade in Mid Term Exam</p>
-                              </div>
-                              <span className={`text-xs ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>2 hours ago</span>
-                            </div>
-                          </div>
-                          <div className={`p-3 rounded-lg ${
-                            theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Fee Payment Reminder</p>
-                                <p className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>
-                                  {feeData.overdueAmount > 0 
-                                    ? `₹${feeData.overdueAmount.toLocaleString()} in overdue fees`
-                                    : feeData.pendingAmount > 0 
-                                    ? `₹${feeData.pendingAmount.toLocaleString()} in pending fees`
-                                    : 'All fees are up to date'
-                                  }
-                                </p>
-                              </div>
-                              <span className={`text-xs ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>1 day ago</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Communication Tab */}
-                  {activeTab === 'communication' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h3 className={`text-xl font-semibold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Communication Center</h3>
-                        <button
-                          onClick={() => setCommunicationCenter(prev => ({ ...prev, showCommunicationModal: true, selectedStudent }))}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                            theme === 'dark'
-                              ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                              : 'bg-teal-500 hover:bg-teal-600 text-white'
-                          }`}
-                        >
-                          💬 Open Communication Center
-                        </button>
-                      </div>
-
-                      {/* Communication Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className={`rounded-lg border p-6 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className={`text-sm font-medium ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Messages Sent</p>
-                              <p className={`text-2xl font-bold mt-1 ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>24</p>
-                            </div>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-                            }`}>
-                              💬
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className={`rounded-lg border p-6 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className={`text-sm font-medium ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Parent Responses</p>
-                              <p className={`text-2xl font-bold mt-1 ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>18</p>
-                            </div>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
-                            }`}>
-                              ✅
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className={`rounded-lg border p-6 ${
-                          theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className={`text-sm font-medium ${
-                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Pending Replies</p>
-                              <p className={`text-2xl font-bold mt-1 ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                              }`}>6</p>
-                            </div>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-                            }`}>
-                              ⏰
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Recent Communications */}
-                      <div className={`rounded-lg border p-6 ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <h4 className={`text-lg font-semibold mb-4 ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Recent Communications</h4>
-                        <div className="space-y-3">
-                          <div className={`p-4 rounded-lg border ${
-                            theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Fee Payment Reminder</p>
-                                <p className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Sent to father via SMS and Email</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                }`}>Delivered</span>
-                                <span className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>2 days ago</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className={`p-4 rounded-lg border ${
-                            theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Grade Update Notification</p>
-                                <p className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Mathematics Mid Term Results</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
-                                }`}>Read</span>
-                                <span className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>5 days ago</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className={`p-4 rounded-lg border ${
-                            theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>Attendance Alert</p>
-                                <p className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>Low attendance warning sent</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
-                                }`}>Pending</span>
-                                <span className={`text-xs ${
-                                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>1 week ago</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick Actions */}
-                      <div className={`rounded-lg border p-6 ${
-                        theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <h4 className={`text-lg font-semibold mb-4 ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`}>Quick Actions</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <button
-                            onClick={() => sendStudentSMS(selectedStudent)}
-                            className={`px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
-                              theme === 'dark'
-                                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                : 'bg-orange-500 hover:bg-orange-600 text-white'
-                            }`}
-                          >
-                            📱 Send SMS
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              // Send email to parents
-                              const emailSubject = `Update regarding ${selectedStudent.name}`;
-                              const emailBody = `Dear Parent,\n\nThis is an update regarding ${selectedStudent.name}'s progress at school. Please contact us for more details.\n\nBest regards\nSchool Management`;
-                              window.location.href = `mailto:${selectedStudent.fatherEmail},${selectedStudent.motherEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-                            }}
-                            className={`px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
-                              theme === 'dark'
-                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                : 'bg-blue-500 hover:bg-blue-600 text-white'
-                            }`}
-                          >
-                            📧 Send Email
-                          </button>
-                          
-                          <button
-                            onClick={() => setCommunicationCenter(prev => ({ ...prev, showCommunicationModal: true, selectedStudent }))}
-                            className={`px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
-                              theme === 'dark'
-                                ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                                : 'bg-teal-500 hover:bg-teal-600 text-white'
-                            }`}
-                          >
-                            📋 View All Messages
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    {selectedStudent.motherPhone && (
+                      <a href={`tel:${selectedStudent.motherPhone}`} className="text-green-500 hover:text-green-600 text-xs font-medium">Call</a>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
