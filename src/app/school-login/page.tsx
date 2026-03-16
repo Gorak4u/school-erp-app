@@ -10,7 +10,7 @@ interface SchoolInfo {
   id: string;
   name: string;
   slug: string;
-  subdomain: string;
+  domain: string;
   logo: string | null;
   city: string | null;
   state: string | null;

@@ -11,12 +11,12 @@ export async function GET(request: NextRequest) {
     }
 
     const school = await (saasPrisma as any).school.findUnique({
-      where: { subdomain },
+      where: { domain: subdomain },
       select: {
         id: true,
         name: true,
         slug: true,
-        subdomain: true,
+        domain: true,
         logo: true,
         city: true,
         state: true,

@@ -34,15 +34,15 @@ export async function POST(req: Request) {
     const baseSlug = schoolName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     const slug = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Auto-generate unique subdomain from school name
-    const baseSubdomain = generateSubdomain(schoolName);
-    let subdomain = baseSubdomain;
+    // Auto-generate unique domain from school name
+    const baseDomain = generateSubdomain(schoolName);
+    let domain = baseDomain;
     // Ensure uniqueness by appending a number if taken
-    let subdomainSuffix = 1;
+    let domainSuffix = 1;
     while (true) {
-      const existing = await p.school.findUnique({ where: { subdomain } });
+      const existing = await p.school.findUnique({ where: { domain } });
       if (!existing) break;
-      subdomain = `${baseSubdomain}-${subdomainSuffix++}`;
+      domain = `${baseDomain}-${domainSuffix++}`;
     }
 
     const hashedPassword = await bcrypt.hash(adminPassword, 12);
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       data: {
         name: schoolName,
         slug,
-        subdomain,
+        domain,
         email,
         phone: phone || null,
         city: city || null,
@@ -251,18 +251,18 @@ export async function PUT(req: Request) {
     const schoolName = school?.name || id;
 
     if (action === 'update_subdomain') {
-      const newSubdomain = (data.subdomain || '').toLowerCase().trim();
-      const validation = validateSubdomain(newSubdomain);
+      const newDomain = (data.subdomain || '').toLowerCase().trim();
+      const validation = validateSubdomain(newDomain);
       if (!validation.valid) {
         return NextResponse.json({ error: validation.error }, { status: 400 });
       }
-      const conflict = await p.school.findUnique({ where: { subdomain: newSubdomain } });
+      const conflict = await p.school.findUnique({ where: { domain: newDomain } });
       if (conflict && conflict.id !== id) {
         return NextResponse.json({ error: 'Subdomain already taken' }, { status: 409 });
       }
-      await p.school.update({ where: { id }, data: { subdomain: newSubdomain } });
-      await logAuditAction({ actorEmail: session.user.email, action: 'update_subdomain', target: id, targetName: schoolName, details: { subdomain: newSubdomain } });
-      return NextResponse.json({ success: true, message: 'Subdomain updated', subdomain: newSubdomain });
+      await p.school.update({ where: { id }, data: { domain: newDomain } });
+      await logAuditAction({ actorEmail: session.user.email, action: 'update_subdomain', target: id, targetName: schoolName, details: { subdomain: newDomain } });
+      return NextResponse.json({ success: true, message: 'Subdomain updated', subdomain: newDomain });
     }
     if (action === 'block') {
       await p.school.update({ where: { id }, data: { isActive: false } });

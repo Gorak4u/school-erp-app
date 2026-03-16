@@ -26,8 +26,8 @@ export async function sendWelcomeEmail(
     let loginUrl: string;
     let dashboardUrl: string;
     
-    if (school.subdomain) {
-      const schoolUrl = getSubdomainUrl(school.subdomain);
+    if (school.domain) {
+      const schoolUrl = getSubdomainUrl(school.domain);
       loginUrl = `${schoolUrl}/school-login`;
       dashboardUrl = `${schoolUrl}/dashboard`;
     } else {

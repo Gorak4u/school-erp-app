@@ -8,7 +8,7 @@ interface School {
   id: string;
   name: string;
   slug: string;
-  subdomain: string | null;
+  domain: string | null;
   email: string;
   phone: string;
   city: string;
@@ -445,17 +445,17 @@ export default function AdminSchoolsPage() {
                             {school.email} · {school.city || '—'}, {school.state || '—'} · /{school.slug}
                           </div>
                           {/* Subdomain URL */}
-                          {school.subdomain ? (
+                          {school.domain ? (
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-mono">
-                                🌐 {getSubdomainUrl(school.subdomain)}
+                                🌐 {getSubdomainUrl(school.domain)}
                               </span>
                               <button
-                                onClick={() => { navigator.clipboard.writeText(getSubdomainUrl(school.subdomain!)); showSuccessToast('Copied', 'Login URL copied to clipboard'); }}
+                                onClick={() => { navigator.clipboard.writeText(getSubdomainUrl(school.domain!)); showSuccessToast('Copied', 'Login URL copied to clipboard'); }}
                                 className="text-xs text-gray-500 hover:text-gray-300"
                                 title="Copy URL"
                               >📋</button>
-                              <a href={getSubdomainUrl(school.subdomain)} target="_blank" rel="noopener noreferrer"
+                              <a href={getSubdomainUrl(school.domain)} target="_blank" rel="noopener noreferrer"
                                 className="text-xs text-gray-500 hover:text-blue-400" title="Open">
                                 ↗
                               </a>
@@ -539,9 +539,9 @@ export default function AdminSchoolsPage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => setEditingSubdomain(prev => ({ ...prev, [school.id]: school.subdomain || '' }))}
+                            onClick={() => setEditingSubdomain(prev => ({ ...prev, [school.id]: school.domain || '' }))}
                             className={btnCls(isDark ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100')}>
-                            🌐 {school.subdomain ? 'Edit URL' : 'Set URL'}
+                            🌐 {school.domain ? 'Edit URL' : 'Set URL'}
                           </button>
                         )}
 
