@@ -211,7 +211,7 @@ export default function StudentForm({
       discountAmount = baseTotal;
     }
     return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected };
-  }, [feeStructures, selectedFeeIds, discountData]);
+  }, [feeStructures, discountData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
