@@ -98,6 +98,41 @@ export async function POST(req: Request) {
       }
     });
 
+    // Auto-populate school settings from registration data
+    try {
+      const defaultSettings = [
+        { group: 'school_details', key: 'name', value: schoolName },
+        { group: 'school_details', key: 'email', value: email },
+        { group: 'school_details', key: 'phone', value: phone || '' },
+        { group: 'school_details', key: 'city', value: city || '' },
+        { group: 'school_details', key: 'state', value: state || '' },
+        { group: 'school_details', key: 'address', value: '' },
+        { group: 'school_details', key: 'pincode', value: '' },
+        { group: 'school_details', key: 'principal', value: `${adminFirstName} ${adminLastName}` },
+        { group: 'school_details', key: 'established', value: new Date().getFullYear().toString() },
+        { group: 'school_details', key: 'affiliation_no', value: '' },
+        { group: 'school_details', key: 'website', value: '' },
+      ];
+
+      await Promise.all(
+        defaultSettings.map(setting =>
+          (schoolPrisma as any).schoolSetting.create({
+            data: {
+              schoolId: createdSchool.id,
+              group: setting.group,
+              key: setting.key,
+              value: setting.value,
+            }
+          })
+        )
+      );
+
+      console.log(`✅ Auto-populated school settings for ${schoolName}`);
+    } catch (settingsError) {
+      console.error('Failed to auto-populate school settings:', settingsError);
+      // Don't fail the entire registration if settings creation fails
+    }
+
     // Send welcome email with login credentials
     if (createdSchool && createdUser) {
       try {
