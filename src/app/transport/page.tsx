@@ -65,8 +65,8 @@ export default function TransportPage() {
       const res = await fetch('/api/transport/stats');
       if (res.ok) {
         const data = await res.json();
-        setStats(data.stats);
-        setStatsRoutes(data.routes || []);
+        setStats(data);
+        setStatsRoutes(data.routeUtilization || []);
       }
     } catch {}
   }, []);
@@ -313,10 +313,10 @@ export default function TransportPage() {
             {/* Stats cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'Active Routes', value: stats.totalRoutes, icon: '🗺️', color: 'blue' },
-                { label: 'Vehicles', value: stats.totalVehicles, icon: '🚌', color: 'green' },
-                { label: 'Students', value: stats.totalStudents, icon: '👥', color: 'purple' },
-                { label: 'Pending Fees', value: `₹${(stats.pendingTransportFees || 0).toLocaleString('en-IN')}`, icon: '💰', color: 'orange' },
+                { label: 'Active Routes', value: stats?.totalRoutes || 0, icon: '🗺️', color: 'blue' },
+                { label: 'Vehicles', value: stats?.totalVehicles || 0, icon: '🚌', color: 'green' },
+                { label: 'Students', value: stats?.totalStudents || 0, icon: '👥', color: 'purple' },
+                { label: 'Pending Fees', value: `₹${(stats?.pendingTransportFees || 0).toLocaleString('en-IN')}`, icon: '💰', color: 'orange' },
               ].map(s => (
                 <div key={s.label} className={`rounded-xl border p-4 ${card}`}>
                   <div className="text-2xl mb-2">{s.icon}</div>
