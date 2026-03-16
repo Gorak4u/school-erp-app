@@ -27,7 +27,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         const res = await fetch('/api/fees/structures');
         if (res.ok) {
           const data = await res.json();
-          setFeeStructures(data.structures || []);
+          setFeeStructures(data.feeStructures || data.structures || []);
         }
       } catch (err) {
         console.error('Failed to fetch fee structures:', err);
