@@ -261,7 +261,13 @@ export default function SettingsPage() {
         try {
           // Find corresponding medium in new year
           const newMediumId = mediumMapping[cls.mediumId];
-          console.log(`  📝 Creating class: ${cls.name} -> ${cls.code}_${yearSuffix} (medium: ${newMediumId})`);
+          console.log(`  📝 Creating class: ${cls.name} -> ${cls.code}_${yearSuffix}`);
+          console.log(`  🔗 Original mediumId: ${cls.mediumId} -> New mediumId: ${newMediumId}`);
+          
+          if (!newMediumId) {
+            console.warn(`  ⚠️ Skipping class ${cls.name} - no corresponding medium found (original mediumId: ${cls.mediumId})`);
+            continue; // Skip this class if no medium mapping exists
+          }
           
           const newClass = await classesApi.create({
             code: `${cls.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
@@ -269,7 +275,7 @@ export default function SettingsPage() {
             level: cls.level,
             isActive: cls.isActive,
             academicYearId: newYearId,
-            mediumId: newMediumId || ''
+            mediumId: newMediumId // Only set if we have a valid mapping
           });
           classMapping[cls.id] = newClass.id;
           console.log(`  ✅ Copied class: ${cls.name} (ID: ${newClass.id})`);
@@ -297,7 +303,13 @@ export default function SettingsPage() {
         try {
           // Find corresponding class in new year
           const newClassId = classMapping[section.classId];
-          console.log(`  📝 Creating section: ${section.name} -> ${section.code}_${yearSuffix} (class: ${newClassId})`);
+          console.log(`  📝 Creating section: ${section.name} -> ${section.code}_${yearSuffix}`);
+          console.log(`  🔗 Original classId: ${section.classId} -> New classId: ${newClassId}`);
+          
+          if (!newClassId) {
+            console.warn(`  ⚠️ Skipping section ${section.name} - no corresponding class found (original classId: ${section.classId})`);
+            continue; // Skip this section if no class mapping exists
+          }
           
           const newSection = await sectionsApi.create({
             code: `${section.code}_${yearSuffix}`, // Add year suffix to ensure uniqueness
@@ -305,7 +317,7 @@ export default function SettingsPage() {
             capacity: section.capacity,
             roomNumber: section.roomNumber,
             isActive: section.isActive,
-            classId: newClassId || '',
+            classId: newClassId, // Only set if we have a valid mapping
             academicYearId: newYearId
           });
           console.log(`  ✅ Copied section: ${section.name} (ID: ${newSection.id})`);
