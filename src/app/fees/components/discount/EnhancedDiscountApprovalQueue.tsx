@@ -426,9 +426,20 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs ${textSecondary}`}>
-                    {request.scope} • {request.targetType}
-                  </span>
+                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                    request.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    request.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    request.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                  }`}>
+                    {request.scope === 'student' ? '👤 Single Student' : 
+                     request.scope === 'class' ? '🏫 Class' :
+                     request.scope === 'bulk' ? '👥 Bulk Students' : 
+                     request.scope}
+                  </div>
+                  <div className={`text-xs ${textSecondary} mt-1`}>
+                    {request.targetType.replace('_', ' ')}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(request.status)}`}>

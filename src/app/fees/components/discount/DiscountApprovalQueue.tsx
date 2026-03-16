@@ -172,8 +172,20 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                     {req.requestedByName}
                     <span className="block text-xs text-gray-500">{new Date(req.createdAt).toLocaleDateString()}</span>
                   </td>
-                  <td className="px-4 py-3 capitalize">{req.scope}</td>
                   <td className="px-4 py-3">
+                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                    req.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    req.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    req.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                  }`}>
+                    {req.scope === 'student' ? '👤 Single Student' : 
+                     req.scope === 'class' ? '🏫 Class' :
+                     req.scope === 'bulk' ? '👥 Bulk Students' : 
+                     req.scope}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
                     {req.targetType === 'total' ? (
                       <span className="text-xs font-medium text-blue-600">All Fees</span>
                     ) : (
@@ -257,7 +269,20 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
                 </div>
                 <div>
                   <p className={textSecondary}>Target</p>
-                  <p className={`font-medium ${textPrimary} capitalize`}>{selectedRequest.scope} - {selectedRequest.targetType.replace('_', ' ')}</p>
+                  <div className={`mt-1 inline-flex items-center px-3 py-2 rounded-full text-sm font-bold ${
+                    selectedRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    selectedRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    selectedRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                  }`}>
+                    {selectedRequest.scope === 'student' ? '👤 Single Student' : 
+                     selectedRequest.scope === 'class' ? '🏫 Class' :
+                     selectedRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                     selectedRequest.scope}
+                  </div>
+                  <p className={`text-sm ${textSecondary} mt-1`}>
+                    Type: {selectedRequest.targetType.replace('_', ' ')}
+                  </p>
                 </div>
                 
                 {/* Fee Structures Information */}

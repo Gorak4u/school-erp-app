@@ -110,31 +110,148 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
       
       switch (log.action) {
         case 'created':
-          return `Reason: ${details.reason || 'No reason provided'}`;
+          return (
+            <div className="space-y-1">
+              <div>Reason: {details.reason || 'No reason provided'}</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
         
         case 'approved':
-          return details.note 
-            ? `Approved with note: ${details.note}`
-            : 'Approved';
+          return (
+            <div className="space-y-1">
+              <div>{details.note ? `Approved with note: ${details.note}` : 'Approved'}</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
         
         case 'rejected':
-          return details.note || details.rejectionReason
-            ? `Rejected: ${details.note || details.rejectionReason}`
-            : 'Rejected';
+          return (
+            <div className="space-y-1">
+              <div>{details.note || details.rejectionReason
+                ? `Rejected: ${details.note || details.rejectionReason}`
+                : 'Rejected'}</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
         
         case 'cancelled':
-          return details.note
-            ? `Cancelled: ${details.note}`
-            : 'Cancelled';
+          return (
+            <div className="space-y-1">
+              <div>{details.note
+                ? `Cancelled: ${details.note}`
+                : 'Cancelled'}</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
         
         case 'applied':
-          return `Applied to ${details.appliedCount || 0} fee records`;
+          return (
+            <div className="space-y-1">
+              <div>Applied to {details.appliedCount || 0} fee records</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
         
         default:
-          return details.note || details.reason || JSON.stringify(details);
+          return (
+            <div className="space-y-1">
+              <div>{details.note || details.reason || JSON.stringify(details)}</div>
+              {log.discountRequest?.scope && (
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                  log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                  log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                   log.discountRequest.scope === 'class' ? '🏫 Class' :
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope}
+                </div>
+              )}
+            </div>
+          );
       }
     } catch (error) {
-      return log.details;
+      return (
+        <div className="space-y-1">
+          <div>{log.details}</div>
+          {log.discountRequest?.scope && (
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+              log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+              log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+              log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+              'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+            }`}>
+              {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+               log.discountRequest.scope === 'class' ? '🏫 Class' :
+               log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+               log.discountRequest.scope}
+            </div>
+          )}
+        </div>
+      );
     }
   };
 
