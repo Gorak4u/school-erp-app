@@ -3,53 +3,156 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
-export async function GET(_: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const [totalRoutes, totalVehicles, totalStudents, pendingFees] = await Promise.all([
-      (schoolPrisma as any).transportRoute.count({ where: { schoolId: ctx.schoolId, isActive: true } }),
+    const { searchParams } = new URL(request.url);
+    const academicYearId = searchParams.get('academicYearId');
+
+    // Optimized parallel queries for stats
+    const [totalRoutes, totalVehicles, totalStudents] = await Promise.all([
+      (schoolPrisma as any).transportRoute.count({ 
+        where: { schoolId: ctx.schoolId, ...(academicYearId && { academicYearId }) }
+      }),
       (schoolPrisma as any).vehicle.count({ where: { schoolId: ctx.schoolId, isActive: true } }),
-      (schoolPrisma as any).studentTransport.count({ where: { isActive: true, student: { schoolId: ctx.schoolId } } }),
-      (schoolPrisma as any).feeRecord.aggregate({
-        where: {
-          status: { in: ['pending', 'partial'] },
-          feeStructure: { category: 'transport', schoolId: ctx.schoolId }
-        },
-        _sum: { pendingAmount: true }
+      (schoolPrisma as any).studentTransport.count({ 
+        where: { 
+          student: { schoolId: ctx.schoolId },
+          isActive: true,
+          ...(academicYearId && { academicYearId })
+        }
       })
     ]);
 
+    // Get route utilization with optimized query
     const routes = await (schoolPrisma as any).transportRoute.findMany({
-      where: { schoolId: ctx.schoolId, isActive: true },
-      include: {
-        _count: { select: { students: { where: { isActive: true } } } },
-        vehicle: { select: { vehicleNumber: true, driverName: true } }
+      where: { 
+        schoolId: ctx.schoolId,
+        ...(academicYearId && { academicYearId })
       },
-      orderBy: { routeNumber: 'asc' }
+      select: { id: true, routeNumber: true, routeName: true, capacity: true }
     });
 
-    return NextResponse.json({
-      stats: {
-        totalRoutes,
-        totalVehicles,
-        totalStudents,
-        pendingTransportFees: pendingFees._sum.pendingAmount || 0,
+    const routeIds = routes.map(r => r.id);
+    const studentCounts = await (schoolPrisma as any).studentTransport.groupBy({
+      by: ['routeId'],
+      where: { 
+        routeId: { in: routeIds },
+        isActive: true,
+        ...(academicYearId && { academicYearId })
       },
-      routes: routes.map((r: any) => ({
-        id: r.id,
-        routeNumber: r.routeNumber,
-        routeName: r.routeName,
-        studentCount: r._count.students,
-        capacity: r.capacity,
-        utilization: r.capacity > 0 ? Math.round((r._count.students / r.capacity) * 100) : 0,
-        vehicle: r.vehicle,
-        monthlyFee: r.monthlyFee,
-      }))
+      _count: { _all: true }
+    });
+
+    const countMap = new Map(studentCounts.map(sc => [sc.routeId, sc._count._all]));
+    
+    const routeUtilization = routes.map(route => {
+      const studentCount = countMap.get(route.id) || 0;
+      return {
+        id: route.id,
+        routeNumber: route.routeNumber,
+        routeName: route.routeName,
+        capacity: route.capacity,
+        studentsAssigned: studentCount,
+        utilizationRate: route.capacity > 0 ? Math.round((studentCount / route.capacity) * 100) : 0,
+        status: route.capacity > 0 && studentCount >= route.capacity ? 'full' : 
+               studentCount === 0 ? 'empty' : 'available'
+      };
+    });
+
+    // Get pending transport fees
+    let pendingTransportFees = 0;
+    try {
+      const feeResult = await (schoolPrisma as any).feeRecord.aggregate({
+        where: {
+          student: { schoolId: ctx.schoolId },
+          status: { in: ['pending', 'partial'] },
+          feeStructure: { category: 'transport' },
+          ...(academicYearId && {
+            feeStructure: { academicYearId }
+          })
+        },
+        _sum: { pendingAmount: true }
+      });
+      pendingTransportFees = feeResult._sum.pendingAmount || 0;
+    } catch (feeError) {
+      console.warn('Failed to fetch pending fees:', feeError);
+    }
+
+    return NextResponse.json({
+      totalRoutes,
+      totalVehicles,
+      totalStudents,
+      pendingTransportFees,
+      routeUtilization
     });
   } catch (error: any) {
     console.error('GET /api/transport/stats:', error);
-    return NextResponse.json({ error: 'Failed to fetch transport stats', details: error.message }, { status: 500 });
+    
+    // Fallback to individual queries if the complex query fails
+    try {
+      const [totalRoutes, totalVehicles, totalStudents] = await Promise.all([
+        (schoolPrisma as any).transportRoute.count({ 
+          where: { schoolId: ctx.schoolId, ...(academicYearId && { academicYearId }) }
+        }),
+        (schoolPrisma as any).vehicle.count({ where: { schoolId: ctx.schoolId, isActive: true } }),
+        (schoolPrisma as any).studentTransport.count({ 
+          where: { 
+            student: { schoolId: ctx.schoolId },
+            isActive: true,
+            ...(academicYearId && { academicYearId })
+          }
+        })
+      ]);
+
+      // Simplified route utilization
+      const routes = await (schoolPrisma as any).transportRoute.findMany({
+        where: { 
+          schoolId: ctx.schoolId,
+          ...(academicYearId && { academicYearId })
+        },
+        select: { id: true, routeNumber: true, routeName: true, capacity: true }
+      });
+
+      const routeIds = routes.map(r => r.id);
+      const studentCounts = await (schoolPrisma as any).studentTransport.groupBy({
+        by: ['routeId'],
+        where: { 
+          routeId: { in: routeIds },
+          isActive: true,
+          ...(academicYearId && { academicYearId })
+        },
+        _count: { _all: true }
+      });
+
+      const countMap = new Map(studentCounts.map(sc => [sc.routeId, sc._count._all]));
+      
+      const routeUtilization = routes.map(route => {
+        const studentCount = countMap.get(route.id) || 0;
+        return {
+          id: route.id,
+          routeNumber: route.routeNumber,
+          routeName: route.routeName,
+          capacity: route.capacity,
+          studentsAssigned: studentCount,
+          utilizationRate: route.capacity > 0 ? Math.round((studentCount / route.capacity) * 100) : 0,
+          status: route.capacity > 0 && studentCount >= route.capacity ? 'full' : 
+                 studentCount === 0 ? 'empty' : 'available'
+        };
+      });
+
+      return NextResponse.json({
+        totalRoutes,
+        totalVehicles,
+        totalStudents,
+        pendingTransportFees: 0,
+        routeUtilization
+      });
+    } catch (fallbackError: any) {
+      console.error('Fallback query also failed:', fallbackError);
+      return NextResponse.json({ error: 'Failed to fetch transport statistics', details: error.message }, { status: 500 });
+    }
   }
 }

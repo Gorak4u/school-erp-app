@@ -182,105 +182,9 @@ async function updateStudentStatus(
           }
         }
 
-        // 5. Handle transport route assignment for new AY
-        try {
-          // Check if student has active transport
-          const activeTransport = await db.studentTransport.findFirst({
-            where: { studentId, isActive: true },
-            include: { route: true }
-          });
-
-          if (activeTransport && activeTransport.route) {
-            // Deactivate old transport assignment
-            await db.studentTransport.updateMany({
-              where: { studentId, isActive: true },
-              data: { isActive: false }
-            });
-
-            // Check if route exists in target AY
-            const routeInTargetAY = await db.transportRoute.findFirst({
-              where: {
-                routeNumber: activeTransport.route.routeNumber,
-                academicYearId: statusPayload.toAcademicYearId,
-                schoolId: statusPayload.schoolId,
-                isActive: true
-              }
-            });
-
-            if (routeInTargetAY) {
-              // Auto-assign to route in new AY
-              const newAssignment = await db.studentTransport.create({
-                data: {
-                  studentId,
-                  routeId: routeInTargetAY.id,
-                  pickupStop: activeTransport.pickupStop,
-                  dropStop: activeTransport.dropStop,
-                  monthlyFee: routeInTargetAY.monthlyFee,
-                  academicYearId: statusPayload.toAcademicYearId,
-                  isActive: true
-                }
-              });
-
-              // Create transport FeeStructure if doesn't exist
-              let transportFeeStructure = await db.feeStructure.findFirst({
-                where: {
-                  schoolId: statusPayload.schoolId,
-                  category: 'transport',
-                  name: `Transport - ${routeInTargetAY.routeName}`,
-                  academicYearId: statusPayload.toAcademicYearId
-                }
-              });
-
-              if (!transportFeeStructure) {
-                transportFeeStructure = await db.feeStructure.create({
-                  data: {
-                    name: `Transport - ${routeInTargetAY.routeName}`,
-                    category: 'transport',
-                    amount: routeInTargetAY.monthlyFee,
-                    frequency: 'monthly',
-                    dueDate: 10,
-                    lateFee: 0,
-                    description: `Monthly transport fee for route ${routeInTargetAY.routeNumber} - ${routeInTargetAY.routeName}`,
-                    applicableCategories: 'all',
-                    isActive: true,
-                    schoolId: statusPayload.schoolId,
-                    academicYearId: statusPayload.toAcademicYearId
-                  }
-                });
-              }
-
-              // Create transport FeeRecord
-              const existingTransportFee = await db.feeRecord.findFirst({
-                where: { studentId, feeStructureId: transportFeeStructure.id, academicYear: statusPayload.toAcademicYear }
-              });
-
-              if (!existingTransportFee) {
-                await db.feeRecord.create({
-                  data: {
-                    studentId,
-                    feeStructureId: transportFeeStructure.id,
-                    amount: routeInTargetAY.monthlyFee,
-                    paidAmount: 0,
-                    pendingAmount: routeInTargetAY.monthlyFee,
-                    dueDate: new Date(currentYear, 3, 10).toISOString().split('T')[0],
-                    status: 'pending',
-                    academicYear: statusPayload.toAcademicYear,
-                    receiptNumber: `TRNSP-${statusPayload.toAcademicYear}-${student.admissionNo}-${Date.now()}`,
-                    remarks: `Auto-applied transport fee on promotion - Route ${routeInTargetAY.routeNumber}`
-                  }
-                });
-              }
-            } else {
-              // Route doesn't exist in target AY - update student transport field
-              await db.student.update({
-                where: { id: studentId },
-                data: { transport: 'No', transportRoute: null }
-              });
-            }
-          }
-        } catch (transportErr) {
-          console.error(`Transport auto-assign failed for student ${studentId}:`, transportErr);
-        }
+        // 5. Handle transport route assignment for new AY (optimized for batch)
+        // Note: This is handled in batch after all students are processed
+        // See batch transport processing below
 
         results.updated.push({ studentId, studentName: student.name, action: 'promote', fromClass: student.class, toClass: statusPayload.toClass, arrearsAmount: totalArrears });
         results.totalArrears += totalArrears;
@@ -316,6 +220,197 @@ async function updateStudentStatus(
     } catch (err: any) {
       console.error(`Promotion failed for student ${studentId}:`, err);
       results.failed.push({ studentId, reason: err.message });
+    }
+  }
+
+  // Batch process transport assignments for promoted students (optimized for 10M scale)
+  if (statusPayload.action === 'promote' && results.updated.length > 0) {
+    try {
+      const promotedStudentIds = results.updated.map(r => r.studentId);
+      
+      // Get all active transport assignments for promoted students
+      const activeTransports = await (schoolPrisma as any).studentTransport.findMany({
+        where: { 
+          studentId: { in: promotedStudentIds }, 
+          isActive: true 
+        },
+        include: { route: true }
+      });
+
+      if (activeTransports.length > 0) {
+        // Batch deactivate old assignments
+        await (schoolPrisma as any).studentTransport.updateMany({
+          where: { studentId: { in: promotedStudentIds }, isActive: true },
+          data: { isActive: false }
+        });
+
+        // Get route numbers to find in target AY
+        const routeNumbers = [...new Set(activeTransports.map(t => t.route?.routeNumber).filter(Boolean))];
+        
+        if (routeNumbers.length > 0) {
+          // Find matching routes in target AY
+          const routesInTargetAY = await (schoolPrisma as any).transportRoute.findMany({
+            where: {
+              routeNumber: { in: routeNumbers },
+              academicYearId: statusPayload.toAcademicYearId,
+              schoolId: statusPayload.schoolId,
+              isActive: true
+            }
+          });
+
+          const routeMap = new Map(routesInTargetAY.map(r => [r.routeNumber, r]));
+          
+          // Prepare batch assignments
+          const newAssignments: any[] = [];
+          const feeStructuresToCreate: any[] = [];
+          const feeRecordsToCreate: any[] = [];
+          const studentsWithoutRoute: string[] = [];
+
+          for (const transport of activeTransports) {
+            if (!transport.route) continue;
+            
+            const targetRoute = routeMap.get(transport.route.routeNumber);
+            
+            if (targetRoute) {
+              newAssignments.push({
+                studentId: transport.studentId,
+                routeId: targetRoute.id,
+                pickupStop: transport.pickupStop,
+                dropStop: transport.dropStop,
+                monthlyFee: targetRoute.monthlyFee,
+                academicYearId: statusPayload.toAcademicYearId,
+                isActive: true
+              });
+
+              // Prepare fee structure if needed
+              const feeStructureName = `Transport - ${targetRoute.routeName}`;
+              feeStructuresToCreate.push({
+                name: feeStructureName,
+                category: 'transport',
+                amount: targetRoute.monthlyFee,
+                frequency: 'monthly',
+                dueDate: 10,
+                lateFee: 0,
+                description: `Monthly transport fee for route ${targetRoute.routeNumber} - ${targetRoute.routeName}`,
+                applicableCategories: 'all',
+                isActive: true,
+                schoolId: statusPayload.schoolId,
+                academicYearId: statusPayload.toAcademicYearId
+              });
+
+              // Prepare fee record
+              const student = results.updated.find(r => r.studentId === transport.studentId);
+              if (student) {
+                const academicYearLabel = student.fromAcademicYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1).toString().slice(-2);
+                feeRecordsToCreate.push({
+                  studentId: transport.studentId,
+                  feeStructureName,
+                  amount: targetRoute.monthlyFee,
+                  academicYear: statusPayload.toAcademicYear,
+                  admissionNo: student.studentName, // Will be updated with actual admissionNo
+                  remarks: `Auto-applied transport fee on promotion - Route ${targetRoute.routeNumber}`
+                });
+              }
+            } else {
+              studentsWithoutRoute.push(transport.studentId);
+            }
+          }
+
+          // Batch create assignments
+          if (newAssignments.length > 0) {
+            await (schoolPrisma as any).studentTransport.createMany({ data: newAssignments });
+          }
+
+          // Batch update students with transport info
+          if (newAssignments.length > 0 || studentsWithoutRoute.length > 0) {
+            const studentUpdates = [
+              ...newAssignments.map(a => ({
+                where: { id: a.studentId },
+                data: { transport: 'Yes', transportRoute: routeMap.get(routeNumbers.find(rn => {
+                  const assignment = newAssignments.find(na => na.studentId === a.studentId);
+                  return assignment && routeMap.get(assignment.routeId)?.routeNumber === rn;
+                }))?.routeName || '' }
+              })),
+              ...studentsWithoutRoute.map(studentId => ({
+                where: { id: studentId },
+                data: { transport: 'No', transportRoute: null }
+              }))
+            ];
+
+            for (const update of studentUpdates) {
+              await (schoolPrisma as any).student.update(update);
+            }
+          }
+
+          // Batch create fee structures
+          if (feeStructuresToCreate.length > 0) {
+            // Get existing fee structures to avoid duplicates
+            const existingFeeStructures = await (schoolPrisma as any).feeStructure.findMany({
+              where: {
+                schoolId: statusPayload.schoolId,
+                category: 'transport',
+                name: { in: feeStructuresToCreate.map(fs => fs.name) },
+                academicYearId: statusPayload.toAcademicYearId
+              }
+            });
+            const existingNames = new Set(existingFeeStructures.map(fs => fs.name));
+            
+            const newFeeStructures = feeStructuresToCreate.filter(fs => !existingNames.has(fs.name));
+            if (newFeeStructures.length > 0) {
+              await (schoolPrisma as any).feeStructure.createMany({ data: newFeeStructures });
+            }
+          }
+
+          // Batch create fee records
+          if (feeRecordsToCreate.length > 0) {
+            // Get student admission numbers
+            const students = await (schoolPrisma as any).student.findMany({
+              where: { id: { in: feeRecordsToCreate.map(fr => fr.studentId) } },
+              select: { id: true, admissionNo: true }
+            });
+            const studentMap = new Map(students.map(s => [s.id, s.admissionNo]));
+
+            const actualFeeRecords = feeRecordsToCreate.map(fr => ({
+              studentId: fr.studentId,
+              feeStructureName: fr.feeStructureName,
+              amount: fr.amount,
+              paidAmount: 0,
+              pendingAmount: fr.amount,
+              dueDate: new Date(new Date().getFullYear(), 3, 10).toISOString().split('T')[0],
+              status: 'pending',
+              academicYear: fr.academicYear,
+              receiptNumber: `TRNSP-${fr.academicYear}-${studentMap.get(fr.studentId)}-${Date.now()}`,
+              remarks: fr.remarks
+            }));
+
+            // Create fee records one by one to handle feeStructureId lookup
+            for (const feeRecord of actualFeeRecords) {
+              const feeStructure = await (schoolPrisma as any).feeStructure.findFirst({
+                where: { name: feeRecord.feeStructureName, academicYearId: statusPayload.toAcademicYearId }
+              });
+              if (feeStructure) {
+                await (schoolPrisma as any).feeRecord.create({
+                  data: {
+                    studentId: feeRecord.studentId,
+                    feeStructureId: feeStructure.id,
+                    amount: feeRecord.amount,
+                    paidAmount: feeRecord.paidAmount,
+                    pendingAmount: feeRecord.pendingAmount,
+                    dueDate: feeRecord.dueDate,
+                    status: feeRecord.status,
+                    academicYear: feeRecord.academicYear,
+                    receiptNumber: feeRecord.receiptNumber,
+                    remarks: feeRecord.remarks
+                  }
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (transportErr) {
+      console.error('Batch transport processing failed:', transportErr);
+      // Don't fail the promotion, just log the error
     }
   }
 
