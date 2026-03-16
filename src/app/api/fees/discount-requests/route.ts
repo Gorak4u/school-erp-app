@@ -70,12 +70,27 @@ async function validateDiscountApplication(
         });
 
         const classNames = classRecords.map((c: any) => c.name);
-        baseWhere.studentId = {
-          OR: [
-            { class: { in: discountData.classIds } },
-            { class: { in: classNames } }
-          ]
-        };
+        
+        // Find students in these classes first, then use their IDs
+        const studentsInClasses = await (schoolPrisma as any).Student.findMany({
+          where: {
+            OR: [
+              { class: { in: discountData.classIds } },
+              { class: { in: classNames } }
+            ],
+            ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {})
+          },
+          select: { id: true }
+        });
+        
+        const studentIds = studentsInClasses.map((s: any) => s.id);
+        
+        if (studentIds.length > 0) {
+          baseWhere.studentId = { in: studentIds };
+        } else {
+          // If no students found, make query fail safely
+          baseWhere.studentId = 'impossible-no-students-found';
+        }
       }
     }
 
