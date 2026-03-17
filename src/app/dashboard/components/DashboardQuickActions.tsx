@@ -16,9 +16,10 @@ interface QuickAction {
 
 interface DashboardQuickActionsProps {
   theme: 'dark' | 'light';
+  dashboardData?: any;
 }
 
-export default function DashboardQuickActions({ theme }: DashboardQuickActionsProps) {
+export default function DashboardQuickActions({ theme, dashboardData }: DashboardQuickActionsProps) {
   const [showAll, setShowAll] = useState(false);
 
   const quickActions: QuickAction[] = [
@@ -228,7 +229,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
             theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              24
+              {dashboardData?.pendingApprovals || dashboardData?.students?.inactive || 0}
             </div>
             <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               Pending Approvals
@@ -238,7 +239,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
             theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              8
+              {dashboardData?.newMessages || dashboardData?.notifications?.unread || 0}
             </div>
             <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               New Messages
@@ -248,7 +249,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
             theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              3
+              {dashboardData?.upcomingEvents?.length || dashboardData?.upcomingExams?.length || 0}
             </div>
             <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               Upcoming Events

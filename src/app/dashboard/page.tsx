@@ -205,7 +205,7 @@ export default function DashboardPage() {
           <DashboardKPICards theme={theme} kpiData={kpiData} />
           
           {/* Quick Actions */}
-          <DashboardQuickActions theme={theme} />
+          <DashboardQuickActions theme={theme} dashboardData={dashboardData} />
           
           {/* Charts Section */}
           <DashboardCharts theme={theme} chartData={chartData} />
