@@ -76,7 +76,12 @@ export function useFeeState() {
       const user = localStorage.getItem('user') || sessionStorage.getItem('user');
       if (user) {
         const parsedUser = JSON.parse(user);
-        return parsedUser.email || parsedUser.id || 'anonymous';
+        // Handle null/undefined email with multiple fallbacks
+        return parsedUser.email?.trim() || 
+               parsedUser.id?.toString()?.trim() || 
+               parsedUser.name?.trim() || 
+               parsedUser.role?.trim() || 
+               'anonymous';
       }
       return 'anonymous';
     } catch {

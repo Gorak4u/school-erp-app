@@ -152,11 +152,16 @@ export function createMobileHandlers(ctx: any) {
     // Clear user-specific localStorage to force refresh
     if (typeof window !== 'undefined') {
       try {
-        // Get current user email for user-specific storage
+        // Get current user identifier for user-specific storage
         const user = localStorage.getItem('user') || sessionStorage.getItem('user');
         if (user) {
           const parsedUser = JSON.parse(user);
-          const userKey = parsedUser.email || parsedUser.id || 'anonymous';
+          // Handle null/undefined email with multiple fallbacks
+          const userKey = parsedUser.email?.trim() || 
+                        parsedUser.id?.toString()?.trim() || 
+                        parsedUser.name?.trim() || 
+                        parsedUser.role?.trim() || 
+                        'anonymous';
           localStorage.removeItem(`students-page-visibleColumns-${userKey}`);
         }
       } catch {
