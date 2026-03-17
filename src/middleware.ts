@@ -142,10 +142,13 @@ export async function middleware(request: NextRequest) {
 
   // Live check: if trial, verify expiry date right now
   let effectiveStatus = subStatus;
+  let isExpiredTrial = false;
   if (subStatus === 'trial' && trialEndsAt) {
     const trialEnd = new Date(trialEndsAt);
     if (trialEnd < new Date()) {
-      effectiveStatus = 'expired';
+      // Trial has ended → treat as pending_payment so user can choose a plan
+      effectiveStatus = 'pending_payment';
+      isExpiredTrial = true;
     }
   }
 
@@ -161,30 +164,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Block expired/cancelled users → redirect to appropriate page
-  if (effectiveStatus === 'expired' || effectiveStatus === 'cancelled') {
-    // Allow access to API routes (so subscription check API still works)
+  // Block cancelled subscriptions
+  if (effectiveStatus === 'cancelled') {
     if (pathname.startsWith('/api/')) return NextResponse.next();
-
-    const isTrialExpired = subStatus === 'trial' || (subStatus === 'expired' && trialEndsAt);
-    const redirectPath = isTrialExpired ? '/trial-expired' : '/subscription-required';
-    const redirectUrl = new URL(redirectPath, request.url);
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(new URL('/subscription-required', request.url));
   }
 
-  // Handle pending_payment users - restrict access to billing pages only
-  // BUT: Trial users should NEVER have pending_payment status, so this only applies to paid plans
-  if (effectiveStatus === 'pending_payment' && token.plan !== 'trial') {
+  // Handle pending_payment (both expired trial and incomplete paid plan)
+  if (effectiveStatus === 'pending_payment') {
     // Allow API routes for payment processing
     if (pathname.startsWith('/api/')) return NextResponse.next();
-    
-    // Allow billing and payment pages
-    const allowedRoutes = ['/settings', '/subscription-required', '/profile', '/billing'];
+
+    // Allow billing, pricing, and subscription pages
+    const allowedRoutes = ['/settings', '/subscription-required', '/profile', '/billing', '/pricing'];
     const isAllowed = allowedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
-    
+
     if (!isAllowed) {
-      const billingUrl = new URL('/subscription-required?pending=true', request.url);
-      return NextResponse.redirect(billingUrl);
+      // Expired trial → prompt to choose a plan
+      // Incomplete paid plan → prompt to complete payment
+      const redirectParam = isExpiredTrial ? 'trial_expired=true' : 'pending=true';
+      return NextResponse.redirect(new URL(`/subscription-required?${redirectParam}`, request.url));
     }
     return NextResponse.next();
   }

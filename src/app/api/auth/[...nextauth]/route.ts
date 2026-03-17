@@ -127,6 +127,17 @@ export const authOptions = {
             select: { status: true, trialEndsAt: true, plan: true },
           });
           if (subscription) {
+            // Auto-expire trial: if trial has ended, mark as pending_payment in DB
+            if (subscription.status === 'trial' && subscription.trialEndsAt) {
+              const trialEnd = new Date(subscription.trialEndsAt);
+              if (trialEnd < new Date()) {
+                await (saasPrisma as any).subscription.update({
+                  where: { schoolId: token.schoolId as string },
+                  data: { status: 'pending_payment' },
+                });
+                subscription.status = 'pending_payment';
+              }
+            }
             token.subscriptionStatus = subscription.status;
             token.trialEndsAt = subscription.trialEndsAt;
             token.plan = subscription.plan;
