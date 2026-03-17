@@ -90,6 +90,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
     }
 
+    // Validate and convert minStaffCoverage
+    let convertedMinStaffCoverage = null;
+    if (minStaffCoverage !== null && minStaffCoverage !== undefined && minStaffCoverage !== '') {
+      const parsed = parseInt(minStaffCoverage, 10);
+      if (isNaN(parsed)) {
+        return NextResponse.json({ error: 'minStaffCoverage must be a valid integer or null' }, { status: 400 });
+      }
+      convertedMinStaffCoverage = parsed;
+    }
+
     const settings = await schoolPrisma.leaveSettings.upsert({
       where: {
         schoolId_academicYearId: {
@@ -100,7 +110,7 @@ export async function POST(request: NextRequest) {
       update: {
         autoApproveDays: autoApproveDays ?? 1,
         requireDocumentDays: requireDocumentDays ?? 3,
-        minStaffCoverage,
+        minStaffCoverage: convertedMinStaffCoverage,
         examPeriodRestriction: examPeriodRestriction ?? true,
         notificationEmails: notificationEmails ? JSON.stringify(notificationEmails) : null,
         workingDays: workingDays ? JSON.stringify(workingDays) : JSON.stringify([1, 2, 3, 4, 5]),
@@ -111,7 +121,7 @@ export async function POST(request: NextRequest) {
         academicYearId,
         autoApproveDays: autoApproveDays ?? 1,
         requireDocumentDays: requireDocumentDays ?? 3,
-        minStaffCoverage,
+        minStaffCoverage: convertedMinStaffCoverage,
         examPeriodRestriction: examPeriodRestriction ?? true,
         notificationEmails: notificationEmails ? JSON.stringify(notificationEmails) : null,
         workingDays: workingDays ? JSON.stringify(workingDays) : JSON.stringify([1, 2, 3, 4, 5]),
