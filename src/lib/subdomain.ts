@@ -7,47 +7,69 @@
 
 /** Generate a URL-safe subdomain from a school name */
 export function generateSubdomain(schoolName: string): string {
-  // For long names (>30 chars), create acronym
-  if (schoolName.length > 30) {
+  // For long names (>25 chars) or names with common words, create acronym
+  if (schoolName.length > 25 || hasCommonWords(schoolName)) {
     return generateAcronymSubdomain(schoolName);
   }
   
-  return schoolName
+  // For shorter names, still try to keep them concise
+  const cleanName = schoolName
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/^-+|-+$/g, '');
+  
+  // If cleaned name is still long (>20 chars), truncate it
+  if (cleanName.length > 20) {
+    return cleanName.slice(0, 20).replace(/-+$/, '');
+  }
+  
+  return cleanName
     .slice(0, 63)
     .replace(/^[0-9]/, (match: string) => `s${match}`);
 }
 
+/** Check if school name contains common words that should trigger acronym generation */
+function hasCommonWords(schoolName: string): boolean {
+  const commonWords = ['school', 'college', 'institution', 'academy', 'international', 'public', 'government', 'private', 'higher', 'secondary', 'primary', 'elementary', 'high', 'junior', 'senior', 'sri', 'smt', 'shri', 'shrimati'];
+  
+  const words = schoolName.toLowerCase().split(/\s+/);
+  return words.some(word => commonWords.includes(word));
+}
+
 /** Generate acronym-based subdomain for long school names */
 function generateAcronymSubdomain(schoolName: string): string {
-  // Remove common words and get meaningful words
-  const commonWords = ['school', 'college', 'institution', 'academy', 'international', 'public', 'government', 'private', 'higher', 'secondary', 'primary', 'elementary', 'high', 'junior', 'senior'];
+  // Remove common words and honorifics, get meaningful words
+  const commonWords = ['school', 'college', 'institution', 'academy', 'international', 'public', 'government', 'private', 'higher', 'secondary', 'primary', 'elementary', 'high', 'junior', 'senior', 'sri', 'smt', 'shri', 'shrimati', 'the', 'of', 'and', 'for'];
   
   const words = schoolName
     .toLowerCase()
     .split(/\s+/)
     .filter(word => !commonWords.includes(word) && word.length > 0);
   
-  // If we have enough words, take first letter of first 3-4 words
+  // If we have enough meaningful words, take first letter of first 3-4 words
   if (words.length >= 3) {
     return words.slice(0, 4).map(word => word[0]).join(''); // SVSN for "Sri Veerabhadreswara School Nittur"
   }
   
-  // If less than 3 words, take first 2-3 letters of each word
+  // If 2 words, take first 2 letters of each
   if (words.length === 2) {
-    return words.map(word => word.slice(0, 2)).join(''); // SrVe for "Sri Veerabhadreswara"
+    return words.map(word => word.slice(0, 2)).join(''); // SV for "Sri Veerabhadreswara", or VE for "Veerabhadreswara School"
   }
   
-  // If only one word, take first 4 letters
+  // If 1 meaningful word, take first 4 letters
   if (words.length === 1) {
-    return words[0].slice(0, 4);
+    return words[0].slice(0, 4); // VEEB for "Veerabhadreswara"
   }
   
-  // Fallback to first 6 characters of the full name
+  // Fallback: take first letters of all words (including common ones)
+  const allWords = schoolName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+  if (allWords.length >= 2) {
+    return allWords.slice(0, 3).map(word => word[0]).join('');
+  }
+  
+  // Last resort: first 6 characters
   return schoolName.toLowerCase().slice(0, 6).replace(/[^a-z0-9]/g, '');
 }
 
