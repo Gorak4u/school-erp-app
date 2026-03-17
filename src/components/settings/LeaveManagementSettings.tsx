@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { showMsg, showErrorToast } from '@/lib/toastUtils';
 
 interface LeaveManagementSettingsProps {
   theme: string;
@@ -61,7 +62,6 @@ interface LeaveWorkflow {
 export default function LeaveManagementSettings({ theme, isDark }: LeaveManagementSettingsProps) {
   const [activeTab, setActiveTab] = useState('types');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
   
   // Leave Types State
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
@@ -203,7 +203,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
 
   const saveLeaveType = async () => {
     if (!leaveTypeForm.name || !leaveTypeForm.code) {
-      showMsg('Name and code are required', 'error');
+      showErrorToast('Validation', 'Name and code are required');
       return;
     }
 
@@ -224,7 +224,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       });
 
       if (response.ok) {
-        showMsg(`Leave type ${editingLeaveType ? 'updated' : 'created'} successfully`, 'success');
+        showSuccessToast('Success', `Leave type ${editingLeaveType ? 'updated' : 'created'} successfully`);
         setShowLeaveTypeForm(false);
         setEditingLeaveType(null);
         setLeaveTypeForm({
@@ -241,10 +241,10 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
         fetchLeaveTypes();
       } else {
         const error = await response.json();
-        showMsg(error.error || 'Failed to save leave type', 'error');
+        showErrorToast('Error', error.error || 'Failed to save leave type');
       }
     } catch (error) {
-      showMsg('Failed to save leave type', 'error');
+      showErrorToast('Error', 'Failed to save leave type');
     } finally {
       setLoading(false);
     }
@@ -252,7 +252,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
 
   const saveLeaveSettings = async () => {
     if (!selectedAcademicYear) {
-      showMsg('Please select an academic year', 'error');
+      showErrorToast('Validation', 'Please select an academic year');
       return;
     }
 
@@ -269,14 +269,14 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       });
 
       if (response.ok) {
-        showMsg('Leave settings saved successfully', 'success');
+        showSuccessToast('Success', 'Leave settings saved successfully');
         fetchLeaveSettings();
       } else {
         const error = await response.json();
-        showMsg(error.error || 'Failed to save leave settings', 'error');
+        showErrorToast('Error', error.error || 'Failed to save leave settings');
       }
     } catch (error) {
-      showMsg('Failed to save leave settings', 'error');
+      showErrorToast('Error', 'Failed to save leave settings');
     } finally {
       setLoading(false);
     }
@@ -288,7 +288,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
     // Validate
     for (let i = 0; i < workflows.length; i++) {
       if (!workflows[i].roleId) {
-        showMsg(`Please select a role for step ${i + 1}`, 'error');
+        showErrorToast('Validation', `Please select a role for step ${i + 1}`);
         return;
       }
     }
@@ -308,14 +308,14 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       });
 
       if (response.ok) {
-        showMsg('Leave workflow saved successfully', 'success');
+        showSuccessToast('Success', 'Leave workflow saved successfully');
         fetchWorkflows();
       } else {
         const error = await response.json();
-        showMsg(error.error || 'Failed to save workflows', 'error');
+        showErrorToast('Error', error.error || 'Failed to save workflows');
       }
     } catch (error) {
-      showMsg('Failed to save workflows', 'error');
+      showErrorToast('Error', 'Failed to save workflows');
     } finally {
       setLoading(false);
     }
@@ -348,30 +348,19 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       });
 
       if (response.ok) {
-        showMsg('Leave type deleted successfully', 'success');
+        showSuccessToast('Success', 'Leave type deleted successfully');
         fetchLeaveTypes();
       } else {
         const error = await response.json();
-        showMsg(error.error || 'Failed to delete leave type', 'error');
+        showErrorToast('Error', error.error || 'Failed to delete leave type');
       }
     } catch (error) {
-      showMsg('Failed to delete leave type', 'error');
+      showErrorToast('Error', 'Failed to delete leave type');
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Message */}
-      {message.text && (
-        <div className={`p-4 rounded-xl border ${
-          message.type === 'success' 
-            ? isDark ? 'bg-green-600/20 border-green-600/30 text-green-400' : 'bg-green-100 border-green-200 text-green-700'
-            : isDark ? 'bg-red-600/20 border-red-600/30 text-red-400' : 'bg-red-100 border-red-200 text-red-700'
-        }`}>
-          {message.text}
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
         {[

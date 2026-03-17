@@ -1189,6 +1189,7 @@ model TransportRoute {
   driverPhone    String?
   capacity       Int                @default(40)
   monthlyFee     Float              @default(0)
+  yearlyFee      Float              @default(0)
   isActive       Boolean            @default(true)
   schoolId       String
   academicYearId String?

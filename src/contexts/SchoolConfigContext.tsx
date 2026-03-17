@@ -175,7 +175,7 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [status]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

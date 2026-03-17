@@ -26,14 +26,13 @@ export async function GET() {
     });
     
     // Step 1: Fetch academic years first to find the active one
+    // Note: AcademicYear does not have schoolId; we fetch all and rely on mediums/classes filtering later
     const academicYears = await schoolPrisma.academicYear.findMany({ 
-      where: schoolFilter,
       orderBy: { year: 'desc' } 
     });
     // Use the MOST RECENTLY CREATED active year to guard against multiple active years in DB
-    const activeAcademicYear = [...academicYears]
-      .filter((a) => a.isActive)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+    const sortedYears = [...academicYears].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const activeAcademicYear = sortedYears.find((a) => a.isActive) || sortedYears[0] || null;
     const activeAYId = activeAcademicYear?.id;
 
     // Step 2: Fetch other entities filtered by active academic year
@@ -116,6 +115,14 @@ export async function GET() {
       // Unique class codes for simple filtering
       classCodes: [...new Set(classes.map((c: any) => c.code))],
     };
+
+    console.log('🔍 School Config Response Debug:', {
+      activeAcademicYear,
+      mediumsCount: mediums.length,
+      classesCount: classes.length,
+      sectionsCount: sections.length,
+      activeAYId,
+    });
 
     return NextResponse.json({
       academicYears,

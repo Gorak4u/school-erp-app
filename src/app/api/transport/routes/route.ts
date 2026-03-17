@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
   try {
 
     const body = await request.json();
-    const { routeNumber, routeName, description, stops, vehicleId, driverName, driverPhone, capacity, monthlyFee, academicYearId, isActive } = body;
+    const { routeNumber, routeName, description, stops, vehicleId, driverName, driverPhone, capacity, monthlyFee, yearlyFee, academicYearId, isActive } = body;
 
     if (!routeNumber || !routeName) {
       return NextResponse.json({ error: 'routeNumber and routeName are required' }, { status: 400 });
@@ -118,7 +118,8 @@ export async function POST(request: NextRequest) {
         driverName: driverName || null,
         driverPhone: driverPhone || null,
         capacity: capacity ?? 40,
-        monthlyFee: monthlyFee ?? 0,
+        ...(monthlyFee !== undefined && { monthlyFee }),
+        ...(yearlyFee !== undefined && { yearlyFee }),
         isActive: isActive ?? true,
         schoolId: ctx.schoolId,
         academicYearId: academicYearId || null,

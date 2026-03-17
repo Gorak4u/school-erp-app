@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!existing) return NextResponse.json({ error: 'Route not found' }, { status: 404 });
 
     const body = await request.json();
-    const { routeNumber, routeName, description, stops, vehicleId, driverName, driverPhone, capacity, monthlyFee, academicYearId, isActive } = body;
+    const { routeNumber, routeName, description, stops, vehicleId, driverName, driverPhone, capacity, monthlyFee, yearlyFee, academicYearId, isActive } = body;
 
     const updated = await (schoolPrisma as any).transportRoute.update({
       where: { id },
@@ -49,6 +49,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         ...(driverPhone !== undefined && { driverPhone }),
         ...(capacity !== undefined && { capacity }),
         ...(monthlyFee !== undefined && { monthlyFee }),
+        ...(yearlyFee !== undefined && { yearlyFee }),
         ...(academicYearId !== undefined && { academicYearId }),
         ...(isActive !== undefined && { isActive }),
       },

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { sendLeaveStatusEmail } from '@/lib/leave-email-templates';
+import { saasPrisma } from '@/lib/prisma';
 
 // POST - Reject a leave application
 export async function POST(
@@ -119,8 +121,22 @@ export async function POST(
       },
     });
 
-    // TODO: Send notification to staff member about rejection
-    // This would involve integrating with the notification system
+        // Send notification to staff member
+    if (updatedApplication.staff?.email) {
+      const school = await saasPrisma.school.findUnique({
+        where: { id: session.user.schoolId }
+      });
+      if (school) {
+        await sendLeaveStatusEmail(
+          updatedApplication.staff.email,
+          updatedApplication.staff.name,
+          'rejected',
+          updatedApplication.leaveType.name,
+          session.user.schoolId,
+          school.name
+        );
+      }
+    }
 
     return NextResponse.json({ 
       application: updatedApplication,

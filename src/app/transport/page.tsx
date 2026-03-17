@@ -47,7 +47,7 @@ export default function TransportPage() {
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
 
   // Forms
-  const [routeForm, setRouteForm] = useState<any>({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, academicYearId: '', isActive: true });
+  const [routeForm, setRouteForm] = useState<any>({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, yearlyFee: 0, academicYearId: '', isActive: true });
   const [vehicleForm, setVehicleForm] = useState<any>({ vehicleNumber: '', vehicleType: 'bus', capacity: 40, driverName: '', driverPhone: '', registrationNo: '', insuranceExpiry: '', fitnessExpiry: '' });
   const [assignForm, setAssignForm] = useState<any>({ studentSearch: '', studentId: '', routeId: '', pickupStop: '', dropStop: '', monthlyFee: 0 });
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -160,13 +160,13 @@ export default function TransportPage() {
   // ── Route CRUD ─────────────────────────────────────────────────────────────
   const openCreateRoute = () => {
     setEditingRoute(null);
-    setRouteForm({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, isActive: true });
+    setRouteForm({ routeNumber: '', routeName: '', description: '', stops: '', vehicleId: '', driverName: '', driverPhone: '', capacity: 40, monthlyFee: 0, yearlyFee: 0, isActive: true });
     setShowRouteModal(true);
   };
   const openEditRoute = (r: any) => {
     setEditingRoute(r);
     const stopsArr = (() => { try { return JSON.parse(r.stops || '[]'); } catch { return []; } })();
-    setRouteForm({ routeNumber: r.routeNumber, routeName: r.routeName, description: r.description || '', stops: stopsArr.join(', '), vehicleId: r.vehicleId || '', driverName: r.driverName || '', driverPhone: r.driverPhone || '', capacity: r.capacity, monthlyFee: r.monthlyFee, academicYearId: r.academicYearId || '', isActive: r.isActive });
+    setRouteForm({ routeNumber: r.routeNumber, routeName: r.routeName, description: r.description || '', stops: stopsArr.join(', '), vehicleId: r.vehicleId || '', driverName: r.driverName || '', driverPhone: r.driverPhone || '', capacity: r.capacity, monthlyFee: r.monthlyFee, yearlyFee: r.yearlyFee || 0, academicYearId: r.academicYearId || '', isActive: r.isActive });
     setShowRouteModal(true);
   };
 
@@ -205,6 +205,7 @@ export default function TransportPage() {
         driverPhone: route.driverPhone || null,
         capacity: route.capacity,
         monthlyFee: route.monthlyFee,
+        yearlyFee: route.yearlyFee,
         academicYearId: nextAY.id,
         isActive: true,
       };
@@ -234,7 +235,7 @@ export default function TransportPage() {
     setSaving(true);
     try {
       const stopsArray = routeForm.stops ? routeForm.stops.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-      const payload = { ...routeForm, stops: stopsArray, vehicleId: routeForm.vehicleId || null, capacity: Number(routeForm.capacity), monthlyFee: Number(routeForm.monthlyFee), academicYearId: routeForm.academicYearId };
+      const payload = { ...routeForm, stops: stopsArray, vehicleId: routeForm.vehicleId || null, capacity: Number(routeForm.capacity), monthlyFee: Number(routeForm.monthlyFee), yearlyFee: Number(routeForm.yearlyFee), academicYearId: routeForm.academicYearId };
       const url = editingRoute ? `/api/transport/routes/${editingRoute.id}` : '/api/transport/routes';
       const method = editingRoute ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -640,7 +641,7 @@ export default function TransportPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                      {['Route #', 'Name', 'Academic Year', 'Vehicle / Driver', 'Stops', 'Students', 'Monthly Fee', 'Status', 'Actions'].map(h => (
+                      {['Route #', 'Name', 'Academic Year', 'Vehicle / Driver', 'Stops', 'Students', 'Monthly Fee', 'Yearly Fee', 'Status', 'Actions'].map(h => (
                         <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase ${subtext}`}>{h}</th>
                       ))}
                     </tr>
@@ -664,6 +665,7 @@ export default function TransportPage() {
                           <td className={`px-4 py-3 ${subtext} text-xs`}>{stopsArr.length > 0 ? stopsArr.slice(0, 3).join(', ') + (stopsArr.length > 3 ? ` +${stopsArr.length - 3}` : '') : '—'}</td>
                           <td className={`px-4 py-3 ${text}`}>{r.students?.length || 0}</td>
                           <td className={`px-4 py-3 ${text}`}>₹{r.monthlyFee}</td>
+                          <td className={`px-4 py-3 ${text}`}>₹{r.yearlyFee}</td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                               {r.isActive ? 'Active' : 'Inactive'}
@@ -906,6 +908,7 @@ export default function TransportPage() {
                 </div>
                 <div><label className={label}>Capacity</label><input type="number" className={input} value={routeForm.capacity} onChange={e => setRouteForm({ ...routeForm, capacity: e.target.value })} /></div>
                 <div><label className={label}>Monthly Fee (₹)</label><input type="number" className={input} value={routeForm.monthlyFee} onChange={e => setRouteForm({ ...routeForm, monthlyFee: e.target.value })} /></div>
+                <div><label className={label}>Yearly Fee (₹)</label><input type="number" className={input} value={routeForm.yearlyFee} onChange={e => setRouteForm({ ...routeForm, yearlyFee: e.target.value })} /></div>
                 <div>
                   <label className={label}>Academic Year *</label>
                   <select className={input} value={routeForm.academicYearId} onChange={e => setRouteForm({ ...routeForm, academicYearId: e.target.value })}>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { sendLeaveApprovalRequestEmail } from '@/lib/leave-approval-request-email';
 
 // GET - Fetch leave applications with pagination and filters
 export async function GET(request: NextRequest) {
@@ -223,12 +224,18 @@ export async function POST(request: NextRequest) {
     let status = 'pending';
     let approverId = null;
     
+    let approverCandidates: { id: string; email: string | null }[] = [];
     if (leaveSettings && totalDays <= leaveSettings.autoApproveDays) {
       status = 'approved';
       // Auto-approve to the staff themselves or system admin
     } else {
       // Find next approver based on workflow
-      const workflow = await schoolPrisma.leaveWorkflow.findMany({
+      type WorkflowStep = {
+        leaveTypeId?: string | null;
+        roleId: string;
+      };
+
+      const workflow: WorkflowStep[] = await schoolPrisma.leaveWorkflow.findMany({
         where: {
           schoolId: session.user.schoolId,
           academicYearId,
@@ -241,11 +248,28 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (workflow.length > 0) {
-        // Find first approver with required permission
-        // For now, assign to first workflow step
-        approverId = null; // Will be determined by workflow logic
-      }
+      const primaryWorkflow = workflow.length > 0
+        ? workflow.find(step => step.leaveTypeId && step.leaveTypeId === leaveTypeId)
+          || workflow.find(step => !step.leaveTypeId)
+          || workflow[0]
+        : undefined;
+
+      const findApprovers = async (roleId: string | null) => {
+        if (!roleId) return [] as { id: string; email: string | null }[];
+        if (roleId === 'admin') {
+          return schoolPrisma.school_User.findMany({
+            where: { schoolId: session.user.schoolId, role: 'admin', isActive: true },
+            select: { id: true, email: true },
+          });
+        }
+        return schoolPrisma.school_User.findMany({
+          where: { schoolId: session.user.schoolId, customRoleId: roleId, isActive: true },
+          select: { id: true, email: true },
+        });
+      };
+
+      approverCandidates = await findApprovers(primaryWorkflow?.roleId || null);
+      approverId = approverCandidates[0]?.id || null;
     }
 
     // Create leave application
@@ -319,6 +343,45 @@ export async function POST(request: NextRequest) {
           newStatus: 'approved',
         },
       });
+    }
+
+    if (status === 'pending' && approverCandidates.length > 0) {
+      const school = await schoolPrisma.school.findUnique({
+        where: { id: session.user.schoolId },
+        select: { name: true },
+      });
+
+      await Promise.all(approverCandidates.map(async approver => {
+        const metadata = {
+          applicationId: application.id,
+          staffName: application.staff.name,
+          leaveType: application.leaveType.name,
+          reason: application.reason,
+          link: `/leave?tab=approvals&applicationId=${application.id}`,
+        };
+        await (schoolPrisma as any).notification.create({
+          data: {
+            userId: approver.id,
+            type: 'leave_approval_request',
+            title: 'Leave approval required',
+            message: `${application.staff.name} applied for ${application.leaveType.name} leave`,
+            metadata: JSON.stringify(metadata),
+            schoolId: session.user.schoolId,
+            isRead: false,
+          }
+        });
+
+        if (approver.email && school?.name) {
+          await sendLeaveApprovalRequestEmail({
+            to: approver.email,
+            staffName: application.staff.name,
+            leaveType: application.leaveType.name,
+            schoolName: school.name,
+            applicationId: application.id,
+            schoolId: session.user.schoolId,
+          });
+        }
+      }));
     }
 
     return NextResponse.json({ application }, { status: 201 });
