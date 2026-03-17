@@ -11,7 +11,7 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections } = ctx;
 
   
   // State for date range filtering
@@ -29,6 +29,317 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
     setFromDate(startOfWeek.toISOString().split('T')[0]);
     setToDate(today.toISOString().split('T')[0]);
   }, []);
+
+  // Helper function to render table cell content based on column key
+  const renderTableCell = (student: any, columnKey: string) => {
+    switch (columnKey) {
+      case 'select':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <input
+              type="checkbox"
+              checked={selectedStudents.includes(student.studentId)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedStudents([...selectedStudents, student.studentId]);
+                } else {
+                  setSelectedStudents(selectedStudents.filter(id => id !== student.studentId));
+                }
+              }}
+              className={`rounded border-gray-300 ${
+                theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+              }`}
+            />
+          </td>
+        );
+      
+      case 'studentName':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <div>
+              <div className="font-medium">{student.studentName}</div>
+              <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                {student.rollNo} • {student.studentClass}
+              </div>
+            </div>
+          </td>
+        );
+      
+      case 'admissionNo':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.admissionNo || 'N/A'}
+          </td>
+        );
+      
+      case 'rollNo':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.rollNo || 'N/A'}
+          </td>
+        );
+      
+      case 'studentClass':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.studentClass || 'N/A'}
+          </td>
+        );
+      
+      case 'medium':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.medium || 'N/A'}
+          </td>
+        );
+      
+      case 'parentName':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.parentName || student.fatherName || 'N/A'}
+          </td>
+        );
+      
+      case 'parentPhone':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.parentPhone || 'N/A'}
+          </td>
+        );
+      
+      case 'totalFees':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <div>
+              <div className="font-medium">₹{student.totalFees.toLocaleString()}</div>
+              {/* Show discount if available */}
+              {student.totalDiscount > 0 && (
+                <div className={`text-xs ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                  -₹{student.totalDiscount.toLocaleString()} discount
+                </div>
+              )}
+            </div>
+          </td>
+        );
+      
+      case 'totalPaid':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <span className="text-green-500 font-medium">
+              ₹{student.totalPaid.toLocaleString()}
+            </span>
+          </td>
+        );
+      
+      case 'totalPending':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <span className="text-yellow-500 font-medium">
+              ₹{student.totalPending.toLocaleString()}
+            </span>
+          </td>
+        );
+      
+      case 'totalOverdue':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <span className="text-red-500 font-medium">
+              ₹{student.totalOverdue.toLocaleString()}
+            </span>
+          </td>
+        );
+      
+      case 'discount':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.totalDiscount > 0 ? (
+              <span className="text-green-500 font-medium">
+                ₹{student.totalDiscount.toLocaleString()}
+              </span>
+            ) : (
+              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                No discount
+              </span>
+            )}
+          </td>
+        );
+      
+      case 'fineAmount':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.fineAmount > 0 ? (
+              <span className="text-red-500 font-medium">
+                ₹{student.fineAmount.toLocaleString()}
+              </span>
+            ) : (
+              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                No fine
+              </span>
+            )}
+          </td>
+        );
+      
+      case 'paymentStatus':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap`}>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              student.calculatedPaymentStatus === 'fully_paid'
+                ? 'bg-green-100 text-green-800'
+                : student.calculatedPaymentStatus === 'partially_paid'
+                ? 'bg-yellow-100 text-yellow-800'
+                : student.calculatedPaymentStatus === 'no_payment'
+                ? 'bg-gray-100 text-gray-800'
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {student.calculatedPaymentStatus?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+            </span>
+          </td>
+        );
+      
+      case 'dueDate':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.dueDate || 'N/A'}
+          </td>
+        );
+      
+      case 'lastPaymentDate':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.lastPaymentDate ? (
+              <div>
+                <div className="text-sm">{student.lastPaymentDate}</div>
+                <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {Math.floor(Math.random() * 30) + 1} days ago
+                </div>
+              </div>
+            ) : (
+              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                No payment
+              </span>
+            )}
+          </td>
+        );
+      
+      case 'paymentMode':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.paymentMode || 'N/A'}
+          </td>
+        );
+      
+      case 'receiptNo':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.receiptNo || 'N/A'}
+          </td>
+        );
+      
+      case 'concession':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {student.concession || 'N/A'}
+          </td>
+        );
+      
+      case 'actions':
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap text-center`}>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
+                className={`text-blue-600 hover:text-blue-800 text-lg ${
+                  theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
+                }`}
+                title="Collect Fee"
+              >
+                💰
+              </button>
+              <button
+                onClick={() => setShowReceiptModal(true)}
+                className={`text-green-600 hover:text-green-800 text-lg ${
+                  theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
+                }`}
+                title="View Receipt"
+              >
+                🧾
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedStudents([student.studentId]);
+                  setActiveTab('student-profile');
+                }}
+                className={`text-purple-600 hover:text-purple-800 text-lg ${
+                  theme === 'dark' ? 'text-purple-400 hover:text-purple-300' : ''
+                }`}
+                title="Student Profile"
+              >
+                👤
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedStudents([student.studentId]);
+                  setActiveTab('workflows');
+                }}
+                className={`text-orange-600 hover:text-orange-800 text-lg ${
+                  theme === 'dark' ? 'text-orange-400 hover:text-orange-300' : ''
+                }`}
+                title="Student Workflows"
+              >
+                ⚙️
+              </button>
+            </div>
+          </td>
+        );
+      
+      default:
+        return (
+          <td className={`px-6 py-4 whitespace-nowrap ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            N/A
+          </td>
+        );
+    }
+  };
 
   // Fetch collections data from API
   const fetchCollectionsData = async () => {
@@ -949,48 +1260,46 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                   <table className="w-full">
                     <thead className={theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}>
                       <tr>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>
-                          <input
-                            type="checkbox"
-                            checked={selectedStudents.length === filteredStudentSummaries.length && filteredStudentSummaries.length > 0}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedStudents(filteredStudentSummaries.map(s => s.studentId));
-                              } else {
-                                setSelectedStudents([]);
-                              }
-                            }}
-                            className={`rounded border-gray-300 ${
-                              theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-                            }`}
-                          />
-                        </th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Student</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Total Fees</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Paid</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Pending</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Overdue</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Status</th>
-                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Last Payment</th>
-                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                        }`}>Actions</th>
+                        {selectedColumns.map(columnKey => {
+                          const column = columnSettings.availableColumns.find(c => c.key === columnKey);
+                          if (!column) return null;
+                          
+                          if (column.key === 'select') {
+                            return (
+                              <th key={column.key} className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                              }`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedStudents.length === filteredStudentSummaries.length && filteredStudentSummaries.length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedStudents(filteredStudentSummaries.map(s => s.studentId));
+                                    } else {
+                                      setSelectedStudents([]);
+                                    }
+                                  }}
+                                  className={`rounded border-gray-300 ${
+                                    theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+                                  }`}
+                                />
+                              </th>
+                            );
+                          }
+                          
+                          return (
+                            <th 
+                              key={column.key} 
+                              className={`px-6 py-3 text-xs font-medium uppercase tracking-wider ${
+                                column.key === 'actions' ? 'text-center' : 'text-left'
+                              } ${
+                                theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                              }`}
+                            >
+                              {column.label}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
@@ -1000,143 +1309,9 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                         } transition-colors ${selectedStudents.includes(student.studentId) ? (
                           theme === 'dark' ? 'bg-blue-900/20' : 'bg-blue-50'
                         ) : ''}`}>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedStudents.includes(student.studentId)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedStudents([...selectedStudents, student.studentId]);
-                                } else {
-                                  setSelectedStudents(selectedStudents.filter(id => id !== student.studentId));
-                                }
-                              }}
-                              className={`rounded border-gray-300 ${
-                                theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-                              }`}
-                            />
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <div>
-                              <div className="font-medium">{student.studentName}</div>
-                              <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {student.rollNo} • {student.studentClass}
-                              </div>
-                            </div>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <div>
-                              <div className="font-medium">₹{student.totalFees.toLocaleString()}</div>
-                              {/* Show discount if available */}
-                              {student.totalDiscount > 0 && (
-                                <div className={`text-xs ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                                  -₹{student.totalDiscount.toLocaleString()} discount
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <span className="text-green-500 font-medium">
-                              ₹{student.totalPaid.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <span className="text-yellow-500 font-medium">
-                              ₹{student.totalPending.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            <span className="text-red-500 font-medium">
-                              ₹{student.totalOverdue.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap`}>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              student.calculatedPaymentStatus === 'fully_paid'
-                                ? 'bg-green-100 text-green-800'
-                                : student.calculatedPaymentStatus === 'partially_paid'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : student.calculatedPaymentStatus === 'no_payment'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {student.calculatedPaymentStatus?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${
-                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            {student.lastPaymentDate ? (
-                              <div>
-                                <div className="text-sm">{student.lastPaymentDate}</div>
-                                <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {Math.floor(Math.random() * 30) + 1} days ago
-                                </div>
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                No payment
-                              </span>
-                            )}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-center`}>
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
-                                className={`text-blue-600 hover:text-blue-800 text-lg ${
-                                  theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
-                                }`}
-                                title="Collect Fee"
-                              >
-                                💰
-                              </button>
-                              <button
-                                onClick={() => setShowReceiptModal(true)}
-                                className={`text-green-600 hover:text-green-800 text-lg ${
-                                  theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
-                                }`}
-                                title="View Receipt"
-                              >
-                                🧾
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedStudents([student.studentId]);
-                                  setActiveTab('student-profile');
-                                }}
-                                className={`text-purple-600 hover:text-purple-800 text-lg ${
-                                  theme === 'dark' ? 'text-purple-400 hover:text-purple-300' : ''
-                                }`}
-                                title="Student Profile"
-                              >
-                                👤
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedStudents([student.studentId]);
-                                  setActiveTab('workflows');
-                                }}
-                                className={`text-orange-600 hover:text-orange-800 text-lg ${
-                                  theme === 'dark' ? 'text-orange-400 hover:text-orange-300' : ''
-                                }`}
-                                title="Student Workflows"
-                              >
-                                ⚙️
-                              </button>
-                            </div>
-                          </td>
+                          {selectedColumns.map(columnKey => 
+                            renderTableCell(student, columnKey)
+                          )}
                         </tr>
                       ))}
                     </tbody>
