@@ -71,7 +71,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const isStatusOnlyUpdate = Object.keys(data).length === 1 && 'status' in data;
     if (!isStatusOnlyUpdate && !_bypassLock && existing.academicYearId) {
       const activeAY = await (schoolPrisma as any).academicYear.findFirst({
-        where: { isActive: true }, orderBy: { createdAt: 'desc' }, select: { id: true, year: true }
+        where: { ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {}), isActive: true },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, year: true }
       });
       if (activeAY && existing.academicYearId !== activeAY.id) {
         return NextResponse.json({

@@ -18,6 +18,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
+    const academicYear = await schoolPrisma.academicYear.findFirst({
+      where: {
+        id: academicYearId,
+        schoolId: session.user.schoolId,
+      },
+    });
+
+    if (!academicYear) {
+      return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
+    }
+
     const leaveSettings = await schoolPrisma.leaveSettings.findUnique({
       where: {
         schoolId_academicYearId: {
@@ -79,10 +90,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
-    // Verify academic year exists
-    const academicYear = await schoolPrisma.academicYear.findUnique({
+    const academicYear = await schoolPrisma.academicYear.findFirst({
       where: {
         id: academicYearId,
+        schoolId: session.user.schoolId,
       },
     });
 

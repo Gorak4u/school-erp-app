@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get('academicYearId');
     const mediumId = searchParams.get('mediumId');
+    const isActive = searchParams.get('isActive');
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    const where: any = {};
+    const where: any = { ...schoolFilter };
     if (academicYearId) where.academicYearId = academicYearId;
     if (mediumId) where.mediumId = mediumId;
+    if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
 
     const classes = await (schoolPrisma as any).class.findMany({
       where,
@@ -18,7 +25,7 @@ export async function GET(request: NextRequest) {
       include: {
         medium: true,
         academicYear: true,
-        sections: true
+        sections: { where: schoolFilter }
       }
     });
 
@@ -34,12 +41,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { code, name, level, mediumId, academicYearId, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    // Check if class code already exists
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { academicYearId, mediumId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
     const existingClass = await (schoolPrisma as any).class.findFirst({
-      where: { code }
+      where: { ...schoolFilter, academicYearId, code }
     });
 
     if (existingClass) {
@@ -56,7 +75,8 @@ export async function POST(request: NextRequest) {
         level,
         mediumId,
         academicYearId,
-        isActive: isActive ?? true
+        isActive: isActive ?? true,
+        schoolId: records.academicYear?.schoolId ?? records.medium?.schoolId ?? ctx.schoolId,
       },
       include: {
         medium: true,
@@ -85,22 +105,47 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { id, code, name, level, mediumId, isActive } = body;
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
 
-    // Check if class code already exists (excluding current class)
+    const body = await request.json();
+    const { id, code, name, level, mediumId, academicYearId, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
     const existingClass = await (schoolPrisma as any).class.findFirst({
-      where: { 
-        code,
-        id: { not: id }
-      }
+      where: { id, ...schoolFilter }
     });
+    if (!existingClass) {
+      return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    }
+
+    const nextAcademicYearId = academicYearId || existingClass.academicYearId;
+    const nextMediumId = mediumId || existingClass.mediumId;
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { academicYearId: nextAcademicYearId, mediumId: nextMediumId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
 
     if (existingClass) {
-      return NextResponse.json(
-        { error: 'Class code already exists', details: `A class with code "${code}" already exists. Please use a different code.` },
-        { status: 409 }
-      );
+      const duplicate = await (schoolPrisma as any).class.findFirst({
+        where: { 
+          ...schoolFilter,
+          academicYearId: nextAcademicYearId,
+          code,
+          id: { not: id }
+        }
+      });
+
+      if (duplicate) {
+        return NextResponse.json(
+          { error: 'Class code already exists', details: `A class with code "${code}" already exists. Please use a different code.` },
+          { status: 409 }
+        );
+      }
     }
 
     const classData = await (schoolPrisma as any).class.update({
@@ -109,12 +154,14 @@ export async function PUT(request: NextRequest) {
         code,
         name,
         level,
-        mediumId,
-        isActive
+        mediumId: nextMediumId,
+        academicYearId: nextAcademicYearId,
+        isActive,
+        schoolId: records.academicYear?.schoolId ?? records.medium?.schoolId ?? existingClass.schoolId ?? ctx.schoolId,
       },
       include: {
         medium: true,
-        sections: true
+        sections: { where: schoolFilter }
       }
     });
 
@@ -141,6 +188,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -150,19 +198,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
-    // Verify class exists and get related counts
-    const existing = await (schoolPrisma as any).class.findUnique({ 
-      where: { id },
+    const existing = await (schoolPrisma as any).class.findFirst({
+      where: { id, ...schoolFilter },
       include: {
-        sections: true
+        sections: { where: schoolFilter }
       }
     });
     if (!existing) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-    // Check for students using this class (name or code)
-    // We don't cascade delete students! They must be reassigned.
     const studentCount = await (schoolPrisma as any).student.count({ 
       where: { 
+        ...schoolFilter,
         OR: [
           { class: existing.name },
           { class: existing.code }
@@ -170,13 +216,10 @@ export async function DELETE(request: NextRequest) {
       } 
     });
 
-    // Check for fee structures using this class
-    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { classId: id } });
+    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { ...schoolFilter, classId: id } });
     
-    // Check for sections using this class
     const sectionCount = existing.sections.length;
 
-    // If not cascading, check for foreign key relationships
     if (!cascade) {
       if (studentCount > 0) {
         return NextResponse.json({ 
@@ -198,9 +241,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Perform cascading deletion if requested
     if (cascade) {
-      // Still block if students exist
       if (studentCount > 0) {
         return NextResponse.json({ 
           error: 'Cannot delete class', 
@@ -209,14 +250,12 @@ export async function DELETE(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Delete fee structures for this class
       if (feeStructureCount > 0) {
-        await (schoolPrisma as any).feeStructure.deleteMany({ where: { classId: id } });
+        await (schoolPrisma as any).feeStructure.deleteMany({ where: { ...schoolFilter, classId: id } });
       }
 
-      // Delete sections for this class
       if (sectionCount > 0) {
-        await (schoolPrisma as any).section.deleteMany({ where: { classId: id } });
+        await (schoolPrisma as any).section.deleteMany({ where: { ...schoolFilter, classId: id } });
       }
     }
 

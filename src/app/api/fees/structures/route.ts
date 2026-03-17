@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
 
 const INCLUDE_RELATIONS = {
   academicYear: { select: { id: true, name: true, year: true } },
@@ -23,22 +24,13 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive');
     const category = searchParams.get('category');
 
-    // DEBUG: Log the query parameters
-    console.log('Fee Structures API - Debug Info:');
-    console.log('School ID:', ctx.schoolId);
-    console.log('Academic Year ID:', academicYearId);
-    console.log('Is Super Admin:', ctx.isSuperAdmin);
-    console.log('All params:', { academicYearId, boardId, mediumId, classId, isActive, category });
-
-    const where: any = {};
-    if (ctx.schoolId) where.schoolId = ctx.schoolId;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+    const where: any = { ...schoolFilter };
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
-    
-    // SIMPLIFIED filtering logic - remove complex AND/OR conditions
-    // Fee structures can be filtered by exact match or null for broader scope
+
     if (mediumId) {
       where.mediumId = mediumId;
     }
@@ -46,29 +38,11 @@ export async function GET(request: NextRequest) {
       where.classId = classId;
     }
 
-    // DEBUG: Log the final where clause
-    console.log('Final where clause:', JSON.stringify(where, null, 2));
-
-    // First, let's check if any fee structures exist at all for this school
-    const allSchoolStructures = await (schoolPrisma as any).feeStructure.findMany({
-      where: ctx.schoolId ? { schoolId: ctx.schoolId } : {},
-      take: 3,
-      select: { id: true, name: true, academicYearId: true, schoolId: true, isActive: true }
-    });
-    console.log('Sample fee structures for school:', allSchoolStructures);
-
     const structures = await (schoolPrisma as any).feeStructure.findMany({
       where,
       include: INCLUDE_RELATIONS,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-
-    console.log('Query result count:', structures.length);
-    if (structures.length > 0) {
-      console.log('Sample result:', structures[0]);
-    }
-
-    // Add cache-busting headers
     const headers = new Headers();
     headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     headers.set('Pragma', 'no-cache');
@@ -112,19 +86,55 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    // Handle clone operation: copy all fee structures from one AY to another
     if (body.action === 'clone') {
       const { sourceAcademicYearId, targetAcademicYearId } = body;
       if (!sourceAcademicYearId || !targetAcademicYearId) {
         return NextResponse.json({ error: 'sourceAcademicYearId and targetAcademicYearId required' }, { status: 400 });
       }
-      const sourceWhere: any = { academicYearId: sourceAcademicYearId, isActive: true };
-      if (!ctx.isSuperAdmin && ctx.schoolId) sourceWhere.schoolId = ctx.schoolId;
-      const sourceStructures = await (schoolPrisma as any).feeStructure.findMany({ where: sourceWhere });
+
+      const { records, error: validationError } = await validateSchoolScopedRefs(
+        { academicYearId: sourceAcademicYearId },
+        ctx.schoolId,
+        schoolPrisma
+      );
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+      }
+      const sourceAcademicYear = records.academicYear;
+      const targetAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
+        where: { id: targetAcademicYearId, ...schoolFilter }
+      });
+      if (!targetAcademicYear) {
+        return NextResponse.json({ error: 'Target academic year not found for this school' }, { status: 400 });
+      }
+
+      const sourceWhere: any = { ...schoolFilter, academicYearId: sourceAcademicYearId, isActive: true };
+      const sourceStructures = await (schoolPrisma as any).feeStructure.findMany({
+        where: sourceWhere,
+        include: {
+          medium: { select: { id: true, code: true } },
+          class: { select: { id: true, code: true } },
+        }
+      });
       if (sourceStructures.length === 0) {
         return NextResponse.json({ error: 'No fee structures found in source academic year' }, { status: 404 });
       }
+
+      const [targetMediums, targetClasses] = await Promise.all([
+        (schoolPrisma as any).medium.findMany({
+          where: { ...schoolFilter, academicYearId: targetAcademicYearId },
+          select: { id: true, code: true }
+        }),
+        (schoolPrisma as any).class.findMany({
+          where: { ...schoolFilter, academicYearId: targetAcademicYearId },
+          select: { id: true, code: true }
+        }),
+      ]);
+      const mediumMap = new Map(targetMediums.map((medium: any) => [medium.code, medium.id]));
+      const classMap = new Map(targetClasses.map((cls: any) => [cls.code, cls.id]));
+
       const created = await (schoolPrisma as any).feeStructure.createMany({
         data: sourceStructures.map(s => ({
           name: s.name,
@@ -139,18 +149,30 @@ export async function POST(request: NextRequest) {
           schoolId: ctx.schoolId,
           academicYearId: targetAcademicYearId,
           boardId: s.boardId,
-          mediumId: s.mediumId,
-          classId: s.classId,
+          mediumId: s.medium?.code ? (mediumMap.get(s.medium.code) ?? null) : null,
+          classId: s.class?.code ? (classMap.get(s.class.code) ?? null) : null,
         })),
       });
       return NextResponse.json({ cloned: created.count, message: `${created.count} fee structures cloned` }, { status: 201 });
     }
 
-    // Normal create
     const { id, academicYear, board, medium, class: cls, createdAt, updatedAt, ...data } = body;
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      {
+        academicYearId: data.academicYearId,
+        boardId: data.boardId,
+        mediumId: data.mediumId,
+        classId: data.classId,
+      },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
 
     const structure = await (schoolPrisma as any).feeStructure.create({
-      data: { ...data, schoolId: ctx.schoolId },
+      data: { ...data, schoolId: records.academicYear?.schoolId ?? ctx.schoolId },
       include: INCLUDE_RELATIONS,
     });
 

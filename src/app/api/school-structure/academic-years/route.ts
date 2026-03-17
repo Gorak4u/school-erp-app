@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere } from '@/lib/schoolScope';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
     const academicYears = await (schoolPrisma as any).academicYear.findMany({
+      where: schoolFilter,
       orderBy: { year: 'desc' },
       include: {
-        mediums: true,
-        classes: true,
+        mediums: { where: schoolFilter },
+        classes: { where: schoolFilter },
       }
     });
 
@@ -24,12 +30,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { year, name, startDate, endDate, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    // Check if academic year already exists
     const existingYear = await (schoolPrisma as any).academicYear.findFirst({
-      where: { year }
+      where: { year, ...schoolFilter }
     });
 
     if (existingYear) {
@@ -39,10 +48,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If this is set as active, deactivate all others
     if (isActive) {
       await (schoolPrisma as any).academicYear.updateMany({
-        where: { isActive: true },
+        where: { isActive: true, ...schoolFilter },
         data: { isActive: false }
       });
     }
@@ -53,7 +61,8 @@ export async function POST(request: NextRequest) {
         name,
         startDate,
         endDate,
-        isActive: isActive ?? false
+        isActive: isActive ?? false,
+        schoolId: ctx.schoolId,
       }
     });
 
@@ -78,13 +87,37 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { id, year, name, startDate, endDate, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    // If this is set as active, deactivate all others
+    const existing = await (schoolPrisma as any).academicYear.findFirst({
+      where: { id, ...schoolFilter }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
+    }
+
+    const duplicate = await (schoolPrisma as any).academicYear.findFirst({
+      where: {
+        ...schoolFilter,
+        year,
+        id: { not: id }
+      }
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'Academic year already exists', details: `Year '${year}' is already in use` },
+        { status: 409 }
+      );
+    }
+
     if (isActive) {
       await (schoolPrisma as any).academicYear.updateMany({
-        where: { isActive: true, id: { not: id } },
+        where: { ...schoolFilter, isActive: true, id: { not: id } },
         data: { isActive: false }
       });
     }
@@ -114,6 +147,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -123,15 +157,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
-    // Verify academic year exists
-    const existing = await (schoolPrisma as any).academicYear.findUnique({ 
-      where: { id },
+    const existing = await (schoolPrisma as any).academicYear.findFirst({
+      where: { id, ...schoolFilter },
       include: {
         mediums: {
+          where: schoolFilter,
           include: {
             classes: {
+              where: schoolFilter,
               include: {
-                sections: true
+                sections: { where: schoolFilter }
               }
             }
           }
@@ -140,11 +175,8 @@ export async function DELETE(request: NextRequest) {
     });
     if (!existing) return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
 
-    // Check for students using this academic year
-    const studentCount = await (schoolPrisma as any).student.count({ where: { academicYearId: id } });
-    
-    // Check for fee structures using this academic year
-    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { academicYearId: id } });
+    const studentCount = await (schoolPrisma as any).student.count({ where: { ...schoolFilter, academicYearId: id } });
+    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { ...schoolFilter, academicYearId: id } });
 
     // Calculate other counts for information
     const mediumCount = existing.mediums.length;
@@ -152,7 +184,6 @@ export async function DELETE(request: NextRequest) {
     const sectionCount = existing.mediums.reduce((sum: number, m: any) => 
       sum + m.classes.reduce((s: number, c: any) => s + c.sections.length, 0), 0);
 
-    // If not cascading, check for foreign key relationships
     if (!cascade) {
       if (studentCount > 0) {
         return NextResponse.json({ 
@@ -177,9 +208,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Perform cascading deletion if requested
     if (cascade) {
-      // Still block if students exist
       if (studentCount > 0) {
         return NextResponse.json({ 
           error: 'Cannot delete academic year', 
@@ -188,21 +217,19 @@ export async function DELETE(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Delete fee structures for this academic year
-      await (schoolPrisma as any).feeStructure.deleteMany({ where: { academicYearId: id } });
+      await (schoolPrisma as any).feeStructure.deleteMany({ where: { ...schoolFilter, academicYearId: id } });
 
-      // Delete structure in order: sections -> classes -> mediums
       const mediumIds = existing.mediums.map((m: any) => m.id);
       const classIds: string[] = [];
       existing.mediums.forEach((m: any) => m.classes.forEach((c: any) => classIds.push(c.id)));
 
       if (classIds.length > 0) {
-        await (schoolPrisma as any).section.deleteMany({ where: { classId: { in: classIds } } });
-        await (schoolPrisma as any).class.deleteMany({ where: { id: { in: classIds } } });
+        await (schoolPrisma as any).section.deleteMany({ where: { ...schoolFilter, classId: { in: classIds } } });
+        await (schoolPrisma as any).class.deleteMany({ where: { ...schoolFilter, id: { in: classIds } } });
       }
       
       if (mediumIds.length > 0) {
-        await (schoolPrisma as any).medium.deleteMany({ where: { id: { in: mediumIds } } });
+        await (schoolPrisma as any).medium.deleteMany({ where: { ...schoolFilter, id: { in: mediumIds } } });
       }
     }
 

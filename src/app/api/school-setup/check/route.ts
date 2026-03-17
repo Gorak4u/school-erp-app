@@ -35,7 +35,7 @@ export async function GET() {
 
     console.log('🔍 [SETUP CHECK] Looking up active academic years...');
     const activeAcademicYears = await (schoolPrisma as any).academicYear.findMany({
-      where: { isActive: true },
+      where: { schoolId: schoolUser.schoolId, isActive: true },
       orderBy: { createdAt: 'desc' }
     });
     const hasActiveAcademicYear = activeAcademicYears.length > 0;
@@ -44,7 +44,7 @@ export async function GET() {
     const selectedAcademicYear = activeAcademicYears[0] || null;
     const mediumCount = selectedAcademicYear
       ? await (schoolPrisma as any).medium.count({
-          where: { academicYearId: selectedAcademicYear.id, isActive: true }
+          where: { schoolId: schoolUser.schoolId, academicYearId: selectedAcademicYear.id, isActive: true }
         })
       : 0;
     const hasMediums = mediumCount > 0;
@@ -52,7 +52,7 @@ export async function GET() {
 
     const classCount = selectedAcademicYear
       ? await (schoolPrisma as any).class.count({
-          where: { academicYearId: selectedAcademicYear.id, isActive: true }
+          where: { schoolId: schoolUser.schoolId, academicYearId: selectedAcademicYear.id, isActive: true }
         })
       : 0;
     const hasClasses = classCount > 0;

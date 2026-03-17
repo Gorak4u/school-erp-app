@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 
 /**
  * POST /api/students/bulk-lock
@@ -26,12 +27,7 @@ export async function POST(request: NextRequest) {
 
     const db = schoolPrisma as any;
 
-    // Get current active AY
-    const activeAY = await db.academicYear.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, year: true, name: true }
-    });
+    const activeAY = await getActiveAcademicYearForSchool(ctx.schoolId, db);
 
     if (!activeAY) {
       return NextResponse.json({ error: 'No active academic year found' }, { status: 400 });
@@ -117,11 +113,7 @@ export async function GET(request: NextRequest) {
     const db = schoolPrisma as any;
     const schoolFilter = ctx.schoolId ? { schoolId: ctx.schoolId } : {};
 
-    const activeAY = await db.academicYear.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, year: true, name: true }
-    });
+    const activeAY = await getActiveAcademicYearForSchool(ctx.schoolId, db);
 
     if (!activeAY) {
       return NextResponse.json({ needsPromotion: 0, locked: 0, activeAcademicYear: null });

@@ -79,6 +79,7 @@ async function main() {
       startDate: '2024-04-01',
       endDate: '2025-03-31',
       isActive: true,
+      schoolId: school1.id,
     },
   });
 
@@ -88,6 +89,7 @@ async function main() {
       name: 'English',
       description: 'English Medium',
       academicYearId: dps_ay_2024.id,
+      schoolId: school1.id,
     },
   });
 
@@ -98,6 +100,7 @@ async function main() {
       level: '10',
       mediumId: dps_english.id,
       academicYearId: dps_ay_2024.id,
+      schoolId: school1.id,
     },
   });
 
@@ -108,6 +111,7 @@ async function main() {
       level: '9',
       mediumId: dps_english.id,
       academicYearId: dps_ay_2024.id,
+      schoolId: school1.id,
     },
   });
 
@@ -118,6 +122,7 @@ async function main() {
       classId: dps_class10.id,
       academicYearId: dps_ay_2024.id,
       capacity: 40,
+      schoolId: school1.id,
     },
   });
 
@@ -128,6 +133,7 @@ async function main() {
       classId: dps_class9.id,
       academicYearId: dps_ay_2024.id,
       capacity: 35,
+      schoolId: school1.id,
     },
   });
 
@@ -136,6 +142,7 @@ async function main() {
       code: `DPS-CBSE-${Date.now()}`,
       name: 'CBSE',
       description: 'Central Board of Secondary Education',
+      schoolId: school1.id,
     },
   });
 
@@ -275,6 +282,7 @@ async function main() {
       startDate: '2024-06-01',
       endDate: '2025-04-30',
       isActive: true,
+      schoolId: school2.id,
     },
   });
 
@@ -283,6 +291,7 @@ async function main() {
       code: `XAV-ENG-${Date.now()}`,
       name: 'English',
       academicYearId: xavier_ay_2024.id,
+      schoolId: school2.id,
     },
   });
 
@@ -293,6 +302,7 @@ async function main() {
       level: '12',
       mediumId: xavier_english.id,
       academicYearId: xavier_ay_2024.id,
+      schoolId: school2.id,
     },
   });
 
@@ -303,6 +313,7 @@ async function main() {
       level: '11',
       mediumId: xavier_english.id,
       academicYearId: xavier_ay_2024.id,
+      schoolId: school2.id,
     },
   });
 
@@ -313,6 +324,7 @@ async function main() {
       classId: xavier_class12.id,
       academicYearId: xavier_ay_2024.id,
       capacity: 50,
+      schoolId: school2.id,
     },
   });
 
@@ -323,6 +335,7 @@ async function main() {
       classId: xavier_class11.id,
       academicYearId: xavier_ay_2024.id,
       capacity: 45,
+      schoolId: school2.id,
     },
   });
 
@@ -331,6 +344,7 @@ async function main() {
       code: `XAV-ICSE-${Date.now()}`,
       name: 'ICSE',
       description: 'Indian Certificate of Secondary Education',
+      schoolId: school2.id,
     },
   });
 
@@ -468,6 +482,7 @@ async function main() {
       startDate: '2024-04-01',
       endDate: '2025-03-31',
       isActive: true,
+      schoolId: school3.id,
     },
   });
 
@@ -476,6 +491,7 @@ async function main() {
       code: `DAV-ENG-${Date.now()}`,
       name: 'English',
       academicYearId: dav_ay_2024.id,
+      schoolId: school3.id,
     },
   });
 
@@ -486,6 +502,7 @@ async function main() {
       level: '8',
       mediumId: dav_english.id,
       academicYearId: dav_ay_2024.id,
+      schoolId: school3.id,
     },
   });
 
@@ -496,6 +513,7 @@ async function main() {
       level: '7',
       mediumId: dav_english.id,
       academicYearId: dav_ay_2024.id,
+      schoolId: school3.id,
     },
   });
 
@@ -506,6 +524,7 @@ async function main() {
       classId: dav_class8.id,
       academicYearId: dav_ay_2024.id,
       capacity: 35,
+      schoolId: school3.id,
     },
   });
 
@@ -516,6 +535,7 @@ async function main() {
       classId: dav_class7.id,
       academicYearId: dav_ay_2024.id,
       capacity: 30,
+      schoolId: school3.id,
     },
   });
 
@@ -524,6 +544,7 @@ async function main() {
       code: `DAV-CBSE-${Date.now()}`,
       name: 'CBSE',
       description: 'Central Board of Secondary Education',
+      schoolId: school3.id,
     },
   });
 

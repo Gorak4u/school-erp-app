@@ -33,6 +33,13 @@ model School {
   leaveWorkflows LeaveWorkflow[]
   leaveBalances LeaveBalance[]
   leaveApplications LeaveApplication[]
+  academicYears AcademicYear[]
+  boards       Board[]
+  mediums      Medium[]
+  classes      Class[]
+  sections     Section[]
+  timings      SchoolTiming[]
+  announcements Announcement[]
 
   @@index([slug])
   @@index([isActive])
@@ -779,19 +786,23 @@ model Announcement {
   publishedAt DateTime  @default(now())
   expiresAt   DateTime?
   createdBy   String?
+  schoolId    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  school      School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@index([schoolId])
   @@schema("school")
 }
 
 model AcademicYear {
   id            String         @id @default(cuid())
-  year          String         @unique
+  year          String
   name          String
   startDate     String
   endDate       String
   isActive      Boolean        @default(true)
+  schoolId      String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   classes       Class[]
@@ -803,57 +814,71 @@ model AcademicYear {
   leaveApplications LeaveApplication[]
   leaveWorkflows LeaveWorkflow[]
   leaveSettings LeaveSettings[]
+  school        School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, year])
+  @@index([schoolId])
   @@index([year])
   @@index([isActive])
+  @@index([schoolId, isActive])
   @@schema("school")
 }
 
 model Medium {
   id             String         @id @default(cuid())
-  code           String         @unique
+  code           String
   name           String
   description    String?
   isActive       Boolean        @default(true)
   academicYearId String
+  schoolId       String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   classes        Class[]
   feeStructures  FeeStructure[]
   academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  school         School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, academicYearId, code])
+  @@index([schoolId])
   @@index([code])
   @@index([isActive])
   @@index([academicYearId])
+  @@index([schoolId, academicYearId])
   @@schema("school")
 }
 
 model Class {
   id             String         @id @default(cuid())
-  code           String         @unique
+  code           String
   name           String
   level          String
   mediumId       String
   academicYearId String
   isActive       Boolean        @default(true)
+  schoolId       String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   medium         Medium         @relation(fields: [mediumId], references: [id], onDelete: Cascade)
   feeStructures  FeeStructure[]
   sections       Section[]
+  school         School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, academicYearId, code])
+  @@index([schoolId])
   @@index([code])
   @@index([level])
   @@index([isActive])
   @@index([mediumId])
   @@index([academicYearId])
+  @@index([schoolId, academicYearId])
   @@schema("school")
 }
 
 model Section {
   id             String       @id @default(cuid())
-  code           String       @unique
+  code           String
   name           String
   classId        String
   capacity       Int
@@ -862,13 +887,18 @@ model Section {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   academicYearId String
+  schoolId       String?
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school         School?      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, academicYearId, code])
+  @@index([schoolId])
   @@index([code])
   @@index([isActive])
   @@index([classId])
   @@index([academicYearId])
+  @@index([schoolId, academicYearId])
   @@schema("school")
 }
 
@@ -889,14 +919,18 @@ model SchoolSetting {
 
 model Board {
   id            String         @id @default(cuid())
-  code          String         @unique
+  code          String
   name          String
   description   String?
   isActive      Boolean        @default(true)
+  schoolId      String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   feeStructures FeeStructure[]
+  school        School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, code])
+  @@index([schoolId])
   @@index([code])
   @@index([isActive])
   @@schema("school")
@@ -911,9 +945,12 @@ model SchoolTiming {
   dayOfWeek String
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
+  schoolId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  school    School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@index([schoolId])
   @@index([type])
   @@index([dayOfWeek])
   @@index([sortOrder])

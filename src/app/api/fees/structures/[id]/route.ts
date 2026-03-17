@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
 
 const INCLUDE_RELATIONS = {
   academicYear: { select: { id: true, name: true, year: true } },
@@ -16,21 +17,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (error) return error;
 
     const { id } = await params;
-    const structure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id }, include: INCLUDE_RELATIONS });
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+    const structure = await (schoolPrisma as any).feeStructure.findFirst({ where: { id, ...schoolFilter }, include: INCLUDE_RELATIONS });
     if (!structure) return NextResponse.json({ error: 'Fee structure not found' }, { status: 404 });
-    
-    // Verify structure belongs to user's school - strict isolation
-    if (!ctx.isSuperAdmin) {
-      if (!ctx.schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-      if (structure.schoolId !== ctx.schoolId) {
-        // Structure belongs to different school or has null schoolId
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-    }
-    // Super admins can access all structures including null schoolId
-    
+
     return NextResponse.json(structure);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch fee structure' }, { status: 500 });
@@ -43,23 +33,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (error) return error;
 
     const { id } = await params;
-    
-    // Verify structure belongs to user's school before updating - strict isolation
-    const existingStructure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id } });
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+    const existingStructure = await (schoolPrisma as any).feeStructure.findFirst({ where: { id, ...schoolFilter } });
     if (!existingStructure) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (!ctx.isSuperAdmin) {
-      if (!ctx.schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-      if (existingStructure.schoolId !== ctx.schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-    }
-    
+
     const { id: _id, academicYear, board, medium, class: cls, createdAt, updatedAt, feeRecords, ...data } = await request.json();
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      {
+        academicYearId: data.academicYearId || existingStructure.academicYearId,
+        boardId: data.boardId || existingStructure.boardId,
+        mediumId: data.mediumId || existingStructure.mediumId,
+        classId: data.classId || existingStructure.classId,
+      },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
     const structure = await (schoolPrisma as any).feeStructure.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        schoolId: records.academicYear?.schoolId ?? existingStructure.schoolId ?? ctx.schoolId,
+      },
       include: INCLUDE_RELATIONS,
     });
     return NextResponse.json(structure);
@@ -75,20 +73,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (error) return error;
 
     const { id } = await params;
-    
-    // Verify structure belongs to user's school before deleting - strict isolation
-    const existingStructure = await (schoolPrisma as any).feeStructure.findUnique({ where: { id } });
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+    const existingStructure = await (schoolPrisma as any).feeStructure.findFirst({ where: { id, ...schoolFilter } });
     if (!existingStructure) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (!ctx.isSuperAdmin) {
-      if (!ctx.schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-      if (existingStructure.schoolId !== ctx.schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-    }
-    
-    // Check if there are any fee records using this structure
+
     const feeRecordsCount = await (schoolPrisma as any).feeRecord.count({
       where: { feeStructureId: id }
     });

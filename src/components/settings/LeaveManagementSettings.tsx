@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { showMsg, showErrorToast } from '@/lib/toastUtils';
+import { showErrorToast, showSuccessToast } from '@/lib/toastUtils';
 
 interface LeaveManagementSettingsProps {
   theme: string;
@@ -194,11 +194,6 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
     } catch (error) {
       console.error('Failed to fetch leave settings:', error);
     }
-  };
-
-  const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
   };
 
   const saveLeaveType = async () => {

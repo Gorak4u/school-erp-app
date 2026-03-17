@@ -1,42 +1,24 @@
 import { NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 
 // Single endpoint that returns ALL school configuration data
 // Used by SchoolConfigContext to populate dropdowns across the entire app
 export async function GET() {
-  // Require authentication — never expose school data to unauthenticated requests
   const { ctx, error } = await getSessionContext();
   if (error) return error;
 
   try {
-    // Super admins can see all schools, regular users are scoped to their school
-    // Explicitly handle null schoolId for super admins
-    let schoolFilter = {};
-    if (!ctx.isSuperAdmin && ctx.schoolId) {
-      schoolFilter = { schoolId: ctx.schoolId };
-    }
-    // If ctx.isSuperAdmin is true OR ctx.schoolId is null/undefined, use empty filter (no school restriction)
-    
-    console.log('🔍 School Config Debug:', {
-      isSuperAdmin: ctx.isSuperAdmin,
-      schoolId: ctx.schoolId,
-      email: ctx.email,
-      finalFilter: schoolFilter
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
+    const academicYears = await schoolPrisma.academicYear.findMany({
+      where: schoolFilter,
+      orderBy: [{ isActive: 'desc' }, { year: 'desc' }]
     });
-    
-    // Step 1: Fetch academic years first to find the active one
-    // Note: AcademicYear does not have schoolId; we fetch all and rely on mediums/classes filtering later
-    const academicYears = await schoolPrisma.academicYear.findMany({ 
-      orderBy: { year: 'desc' } 
-    });
-    // Use the MOST RECENTLY CREATED active year to guard against multiple active years in DB
-    const sortedYears = [...academicYears].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const activeAcademicYear = sortedYears.find((a) => a.isActive) || sortedYears[0] || null;
+    const activeAcademicYear = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma) || academicYears[0] || null;
     const activeAYId = activeAcademicYear?.id;
 
-    // Step 2: Fetch other entities filtered by active academic year
-    // This ensures dropdowns only show current year's active data
     const [
       boards,
       mediums,
@@ -77,14 +59,12 @@ export async function GET() {
       schoolPrisma.schoolSetting.findMany({ where: schoolFilter }),
     ]);
 
-    // Group settings into a nested object
     const settings: Record<string, Record<string, string>> = {};
     for (const s of settingsRaw) {
       if (!settings[s.group]) settings[s.group] = {};
       settings[s.group][s.key] = s.value;
     }
 
-    // Pre-built dropdown options for direct consumption by UI components
     const dropdowns = {
       academicYears: academicYears.map((a: any) => ({ value: a.id, label: a.name, year: a.year, isActive: a.isActive })),
       boards: boards.map((b: any) => ({ value: b.id, label: b.name, code: b.code })),
@@ -110,19 +90,9 @@ export async function GET() {
         capacity: s.capacity,
         roomNumber: s.roomNumber,
       })),
-      // Flat list of class names for simple <select> (e.g. "Class 1 - English")
       classNames: classes.map((c: any) => c.name),
-      // Unique class codes for simple filtering
       classCodes: [...new Set(classes.map((c: any) => c.code))],
     };
-
-    console.log('🔍 School Config Response Debug:', {
-      activeAcademicYear,
-      mediumsCount: mediums.length,
-      classesCount: classes.length,
-      sectionsCount: sections.length,
-      activeAYId,
-    });
 
     return NextResponse.json({
       academicYears,

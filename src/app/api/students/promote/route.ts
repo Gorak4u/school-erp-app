@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { sendBulkTransportNotification, sendRouteChangeNotification } from '@/lib/transportNotifications';
+import { findAcademicYearByYear } from '@/lib/schoolScope';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -138,15 +139,21 @@ async function updateStudentStatus(
         if (shouldApplyFees) {
           try {
             const newAcademicYear = await db.academicYear.findFirst({
-              where: { year: statusPayload.toAcademicYear }
+              where: { year: statusPayload.toAcademicYear, schoolId: statusPayload.schoolId }
             });
 
             if (newAcademicYear) {
               const newClassRecord = await db.class.findFirst({
-                where: { name: statusPayload.toClass, academicYearId: newAcademicYear.id, isActive: true }
+                where: {
+                  name: statusPayload.toClass,
+                  academicYearId: newAcademicYear.id,
+                  schoolId: statusPayload.schoolId,
+                  isActive: true
+                }
               });
 
               const feeStructureWhere: any = { isActive: true, academicYearId: newAcademicYear.id };
+              feeStructureWhere.schoolId = statusPayload.schoolId;
               if (newClassRecord) feeStructureWhere.classId = newClassRecord.id;
 
               const newFeeStructures = await db.feeStructure.findMany({ where: feeStructureWhere });
@@ -387,7 +394,11 @@ async function updateStudentStatus(
             // Create fee records one by one to handle feeStructureId lookup
             for (const feeRecord of actualFeeRecords) {
               const feeStructure = await (schoolPrisma as any).feeStructure.findFirst({
-                where: { name: feeRecord.feeStructureName, academicYearId: statusPayload.toAcademicYearId }
+                where: {
+                  name: feeRecord.feeStructureName,
+                  academicYearId: statusPayload.toAcademicYearId,
+                  schoolId: statusPayload.schoolId
+                }
               });
               if (feeStructure) {
                 await (schoolPrisma as any).feeRecord.create({
@@ -475,9 +486,7 @@ export async function POST(request: NextRequest) {
     // Validate target academic year exists (only for promote)
     let targetAcademicYear = null;
     if (action === 'promote') {
-      targetAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
-        where: { year: toAcademicYear }
-      });
+      targetAcademicYear = await findAcademicYearByYear(toAcademicYear, ctx.schoolId, schoolPrisma);
       if (!targetAcademicYear) {
         return NextResponse.json({ error: `Academic year ${toAcademicYear} not found. Please create it in Settings first.` }, { status: 400 });
       }

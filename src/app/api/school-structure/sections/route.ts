@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId');
+    const academicYearId = searchParams.get('academicYearId');
+    const isActive = searchParams.get('isActive');
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    const where = classId ? { classId } : {};
+    const where: any = { ...schoolFilter };
+    if (classId) where.classId = classId;
+    if (academicYearId) where.academicYearId = academicYearId;
+    if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
 
     const sections = await schoolPrisma.section.findMany({
       where,
@@ -33,18 +43,45 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
-    const { code, name, classId, capacity, roomNumber, isActive } = body;
+    const { code, name, classId, academicYearId, capacity, roomNumber, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { classId, academicYearId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const resolvedAcademicYearId = academicYearId || records.class?.academicYearId;
+
+    const duplicate = await (schoolPrisma as any).section.findFirst({
+      where: {
+        ...schoolFilter,
+        academicYearId: resolvedAcademicYearId,
+        code
+      }
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: 'Section code already exists' }, { status: 409 });
+    }
 
     const section = await schoolPrisma.section.create({
       data: {
         code,
         name,
         classId,
+        academicYearId: resolvedAcademicYearId,
         capacity,
         roomNumber,
         isActive: isActive ?? true,
-        academicYear: '2024-25' // Default academic year
+        schoolId: records.class?.schoolId ?? records.academicYear?.schoolId ?? ctx.schoolId,
       } as any,
       include: {
         class: true
@@ -63,17 +100,52 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
-    const { id, code, name, capacity, roomNumber, isActive } = body;
+    const { id, code, name, classId, academicYearId, capacity, roomNumber, isActive } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
+    const existing = await schoolPrisma.section.findFirst({ where: { id, ...schoolFilter } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 });
+    }
+
+    const nextClassId = classId || existing.classId;
+    const nextAcademicYearId = academicYearId || existing.academicYearId;
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { classId: nextClassId, academicYearId: nextAcademicYearId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const duplicate = await (schoolPrisma as any).section.findFirst({
+      where: {
+        ...schoolFilter,
+        academicYearId: nextAcademicYearId,
+        code,
+        id: { not: id }
+      }
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: 'Section code already exists' }, { status: 409 });
+    }
 
     const section = await schoolPrisma.section.update({
       where: { id },
       data: {
         code,
         name,
+        classId: nextClassId,
+        academicYearId: nextAcademicYearId,
         capacity,
         roomNumber,
-        isActive
+        isActive,
+        schoolId: records.class?.schoolId ?? records.academicYear?.schoolId ?? existing.schoolId ?? ctx.schoolId,
       },
       include: {
         class: true
@@ -94,6 +166,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -102,13 +175,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Section ID is required' }, { status: 400 });
     }
 
-    // Verify section exists
-    const existing = await schoolPrisma.section.findUnique({ where: { id } });
+    const existing = await schoolPrisma.section.findFirst({ where: { id, ...schoolFilter } });
     if (!existing) return NextResponse.json({ error: 'Section not found' }, { status: 404 });
 
-    // Check for foreign key relationships - students using this section
     const studentCount = await (schoolPrisma as any).student.count({ 
       where: { 
+        ...schoolFilter,
         OR: [
           { section: existing.name },
           { section: existing.code }

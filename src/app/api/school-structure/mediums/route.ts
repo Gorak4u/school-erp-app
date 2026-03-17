@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
 
 export async function GET(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const academicYearId = searchParams.get('academicYearId');
+    const isActive = searchParams.get('isActive');
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
-    const where = academicYearId ? { academicYearId } : {};
+    const where: any = { ...schoolFilter };
+    if (academicYearId) where.academicYearId = academicYearId;
+    if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
 
     const mediums = await (schoolPrisma as any).medium.findMany({
       where,
@@ -34,8 +42,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
     const { code, name, description, isActive, academicYearId } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { academicYearId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const duplicate = await (schoolPrisma as any).medium.findFirst({
+      where: { ...schoolFilter, academicYearId, code }
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: 'Medium code already exists' }, { status: 409 });
+    }
 
     const medium = await (schoolPrisma as any).medium.create({
       data: {
@@ -43,7 +71,8 @@ export async function POST(request: NextRequest) {
         name,
         description,
         isActive: isActive ?? true,
-        academicYearId
+        academicYearId,
+        schoolId: records.academicYear?.schoolId ?? ctx.schoolId,
       }
     });
 
@@ -59,8 +88,41 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
     const body = await request.json();
-    const { id, code, name, description, isActive } = body;
+    const { id, code, name, description, isActive, academicYearId } = body;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+
+    const existing = await (schoolPrisma as any).medium.findFirst({
+      where: { id, ...schoolFilter }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Medium not found' }, { status: 404 });
+    }
+
+    const nextAcademicYearId = academicYearId || existing.academicYearId;
+    const { records, error: validationError } = await validateSchoolScopedRefs(
+      { academicYearId: nextAcademicYearId },
+      ctx.schoolId,
+      schoolPrisma
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const duplicate = await (schoolPrisma as any).medium.findFirst({
+      where: {
+        ...schoolFilter,
+        academicYearId: nextAcademicYearId,
+        code,
+        id: { not: id }
+      }
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: 'Medium code already exists' }, { status: 409 });
+    }
 
     const medium = await (schoolPrisma as any).medium.update({
       where: { id },
@@ -68,7 +130,9 @@ export async function PUT(request: NextRequest) {
         code,
         name,
         description,
-        isActive
+        isActive,
+        academicYearId: nextAcademicYearId,
+        schoolId: records.academicYear?.schoolId ?? existing.schoolId ?? ctx.schoolId,
       }
     });
 
@@ -86,6 +150,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -95,13 +160,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Medium ID is required' }, { status: 400 });
     }
 
-    // Verify medium exists and get related counts
-    const existing = await (schoolPrisma as any).medium.findUnique({ 
-      where: { id },
+    const existing = await (schoolPrisma as any).medium.findFirst({
+      where: { id, ...schoolFilter },
       include: {
         classes: {
+          where: schoolFilter,
           include: {
-            sections: true
+            sections: { where: schoolFilter }
           }
         }
       }
@@ -111,10 +176,8 @@ export async function DELETE(request: NextRequest) {
     const classCount = existing.classes.length;
     const sectionCount = existing.classes.reduce((sum: number, cls: any) => sum + cls.sections.length, 0);
     
-    // Check for fee structures using this medium
-    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { mediumId: id } });
+    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { ...schoolFilter, mediumId: id } });
 
-    // If not cascading, check for foreign key relationships
     if (!cascade) {
       if (classCount > 0 || feeStructureCount > 0) {
         return NextResponse.json({ 
@@ -130,26 +193,21 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Perform cascading deletion if requested
     if (cascade) {
-      // Delete fee structures for this medium
       if (feeStructureCount > 0) {
-        await (schoolPrisma as any).feeStructure.deleteMany({ where: { mediumId: id } });
+        await (schoolPrisma as any).feeStructure.deleteMany({ where: { ...schoolFilter, mediumId: id } });
       }
 
-      // Delete sections for all classes in this medium
       if (sectionCount > 0) {
         const classIds = existing.classes.map((cls: any) => cls.id);
-        await (schoolPrisma as any).section.deleteMany({ where: { classId: { in: classIds } } });
+        await (schoolPrisma as any).section.deleteMany({ where: { ...schoolFilter, classId: { in: classIds } } });
       }
 
-      // Delete classes for this medium
       if (classCount > 0) {
-        await (schoolPrisma as any).class.deleteMany({ where: { mediumId: id } });
+        await (schoolPrisma as any).class.deleteMany({ where: { ...schoolFilter, mediumId: id } });
       }
     }
 
-    // Delete the medium
     await (schoolPrisma as any).medium.delete({ where: { id } });
     
     return NextResponse.json({ 

@@ -98,10 +98,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
-    // Verify academic year exists
-    const academicYear = await schoolPrisma.academicYear.findUnique({
+    const academicYear = await schoolPrisma.academicYear.findFirst({
       where: {
         id: academicYearId,
+        schoolId: session.user.schoolId,
       },
     });
 
@@ -226,8 +226,8 @@ export async function POST(request: NextRequest) {
       for (const leaveType of leaveTypes) {
         try {
           // Default workflow: Admin approval for all leave types
-          const adminRole = customRoles.find(role => role.name.toLowerCase().includes('admin'));
-          const hodRole = customRoles.find(role => role.name.toLowerCase().includes('hod') || role.name.toLowerCase().includes('head'));
+          const adminRole = customRoles.find((role: any) => role.name.toLowerCase().includes('admin'));
+          const hodRole = customRoles.find((role: any) => role.name.toLowerCase().includes('hod') || role.name.toLowerCase().includes('head'));
           
           if (adminRole) {
             // Create admin approval workflow
@@ -296,6 +296,9 @@ export async function GET(request: NextRequest) {
     });
 
     const academicYears = await schoolPrisma.academicYear.findMany({
+      where: {
+        schoolId: session.user.schoolId,
+      },
       select: {
         id: true,
         name: true,

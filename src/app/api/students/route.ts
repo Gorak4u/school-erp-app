@@ -7,6 +7,7 @@ import { welcomeEmailHtml, parentWelcomeEmailHtml } from '@/lib/email';
 import { apiError } from '@/lib/apiError';
 import { logAuditAction } from '@/lib/auditLog';
 import { enqueueEmailBatch } from '@/lib/queues/emailQueue';
+import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 import {
   isValidEmail,
   isValidPhone,
@@ -66,9 +67,7 @@ export async function GET(request: NextRequest) {
     if (gender) where.gender = gender;
     // Filter for students who need promotion: have academicYearId set but it differs from active AY
     if (needsPromotion === 'true') {
-      const activeAY = await schoolPrisma.academicYear.findFirst({
-        where: { isActive: true }, orderBy: { createdAt: 'desc' }
-      });
+      const activeAY = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma);
       if (activeAY) {
         where.academicYearId = { not: activeAY.id };
         where.status = 'active';
@@ -111,8 +110,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch active AY once for needsPromotion computation
-    const activeAYForLock = await schoolPrisma.academicYear.findFirst({
-      where: { isActive: true }, orderBy: { createdAt: 'desc' }, select: { id: true }
+    const activeAYForLock = await (schoolPrisma as any).academicYear.findFirst({
+      where: { ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {}), isActive: true },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true }
     });
 
     // 2. Batch aggregate fee and attendance data for the page's students only
@@ -297,10 +298,7 @@ export async function POST(request: NextRequest) {
     const effectiveRollNo = rawData.rollNo || await nextRollNumber(rawData.class, rawData.section, ctx.schoolId);
     const sanitizedData = stripUnsupportedFields(rawData);
 
-    const activeAcademicYear = await schoolPrisma.academicYear.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    const activeAcademicYear = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma);
     if (!activeAcademicYear) {
       return apiError(400, {
         message: 'No active academic year found. Please set one before admitting students.',

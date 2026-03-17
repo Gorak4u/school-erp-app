@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext } from '@/lib/apiAuth';
+import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 
 export async function GET() {
   try {
-    // Check if there's an active academic year
-    const activeAcademicYear = await schoolPrisma.academicYear.findFirst({
-      where: { isActive: true },
-      select: {
-        id: true,
-        year: true,
-        name: true,
-        startDate: true,
-        endDate: true
-      }
-    });
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    const activeAcademicYear = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma);
     
     if (!activeAcademicYear) {
       return NextResponse.json({
