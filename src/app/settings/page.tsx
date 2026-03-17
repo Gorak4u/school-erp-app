@@ -1033,8 +1033,10 @@ export default function SettingsPage() {
     const [sectionRows, setSectionRows] = useState([]);
     const [sectionDrafts, setSectionDrafts] = useState({}); // { id: { name, selectedClasses: Set(classIds) } }
     const [savingSections, setSavingSections] = useState(false);
+    const [editingSectionRow, setEditingSectionRow] = useState<{ oldName: string, name: string } | null>(null);
 
     const [savingClasses, setSavingClasses] = useState(false);
+    const [editingClassRow, setEditingClassRow] = useState<{ oldName: string, name: string } | null>(null);
 
     const gridMediums = filterAY ? mediums.filter((m) => m.academicYearId === filterAY) : mediums;
     const gridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY) : classes;
@@ -1115,6 +1117,49 @@ export default function SettingsPage() {
       }
     };
 
+    const saveSectionRowEdit = async (oldName: string) => {
+      if (!editingSectionRow || !editingSectionRow.name.trim()) return;
+      const toUpdate = sections.filter((s: any) => s.name === oldName && sectionGridClasses.some(c => c.id === s.classId));
+      setSavingSections(true);
+      try {
+        await Promise.all(toUpdate.map((s: any) => {
+          const cls = classes.find(c => c.id === s.classId);
+          return sectionsApi.update({
+            id: s.id,
+            name: editingSectionRow.name.trim(),
+            code: `${cls?.code || ''}-${editingSectionRow.name.trim()}`.toUpperCase(),
+            classId: s.classId,
+            capacity: s.capacity,
+            roomNumber: s.roomNumber,
+            isActive: s.isActive,
+            academicYear: s.academicYear
+          });
+        }));
+        await fetchAll();
+        setEditingSectionRow(null);
+        showToast({ type: 'success', title: 'Section row updated' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to update section row' });
+      } finally {
+        setSavingSections(false);
+      }
+    };
+
+    const deleteSectionRow = async (sectionName: string) => {
+      if (!confirm(`Delete all sections named "${sectionName}"?`)) return;
+      const toDelete = sections.filter((s: any) => s.name === sectionName && sectionGridClasses.some(c => c.id === s.classId));
+      setSavingSections(true);
+      try {
+        await Promise.all(toDelete.map((s: any) => sectionsApi.delete(s.id)));
+        await fetchAll();
+        showToast({ type: 'success', title: 'Section row deleted' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to delete section row' });
+      } finally {
+        setSavingSections(false);
+      }
+    };
+
     // ─── Helpers for Medium Grid ────────────────────────────────────────────
     const handleMediumChange = (id: string, field: string, value: string) => {
       setMediumDrafts((prev: any) => ({
@@ -1186,6 +1231,66 @@ export default function SettingsPage() {
       if (/\b(9|10)\b|9th|10th/.test(n)) return 'high';
       if (/\b(11|12)\b|11th|12th|plus/.test(n)) return 'higher_secondary';
       return 'primary';
+    };
+
+    const addClassCell = async (className: string, mediumId: string) => {
+      const med = gridMediums.find(m => m.id === mediumId);
+      try {
+        await classesApi.create({
+          name: className,
+          code: autoCode(className, med?.code || ''),
+          level: autoLevel(className),
+          mediumId,
+          academicYearId: filterAY || activeAY?.id || '',
+          isActive: true
+        });
+        await fetchAll();
+        showToast({ type: 'success', title: 'Class added' });
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to add class', message: e.message });
+      }
+    };
+
+    const saveClassRowEdit = async (oldName: string) => {
+      if (!editingClassRow || !editingClassRow.name.trim()) return;
+      const rowClasses = classes.filter(c => c.name === oldName && (!filterAY || c.academicYearId === filterAY));
+      setSavingClasses(true);
+      try {
+        await Promise.all(rowClasses.map(c => {
+          const med = mediums.find((m) => m.id === c.mediumId);
+          return classesApi.update({ 
+            id: c.id,
+            name: editingClassRow.name.trim(),
+            code: autoCode(editingClassRow.name.trim(), med?.code || ''),
+            level: autoLevel(editingClassRow.name.trim()),
+            mediumId: c.mediumId,
+            academicYearId: c.academicYearId,
+            isActive: c.isActive
+          });
+        }));
+        await fetchAll();
+        setEditingClassRow(null);
+        showToast({ type: 'success', title: 'Class row updated' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to update class row' });
+      } finally {
+        setSavingClasses(false);
+      }
+    };
+
+    const deleteClassRow = async (className: string) => {
+      if (!confirm(`Delete all classes named "${className}"?`)) return;
+      const rowClasses = classes.filter(c => c.name === className && (!filterAY || c.academicYearId === filterAY));
+      setSavingClasses(true);
+      try {
+        await Promise.all(rowClasses.map(c => classesApi.delete(c.id)));
+        await fetchAll();
+        showToast({ type: 'success', title: 'Class row deleted' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to delete class row' });
+      } finally {
+        setSavingClasses(false);
+      }
     };
 
     const bulkSaveClasses = async () => {
@@ -1439,10 +1544,21 @@ export default function SettingsPage() {
             </thead>
             <tbody>
               {/* Existing class rows */}
-              {uniqueClassNames.map((className) => (
+              {uniqueClassNames.map((className) => {
+                const isEditingRow = editingClassRow?.oldName === className;
+                return (
                 <tr key={className} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
                   <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
-                    {className}
+                    {isEditingRow ? (
+                      <input
+                        autoFocus
+                        value={editingClassRow.name}
+                        onChange={e => setEditingClassRow({ ...editingClassRow, name: e.target.value })}
+                        className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    ) : (
+                      className
+                    )}
                   </td>
                   {gridMediums.map((m) => {
                     const entry = gridClasses.find((c) => c.name === className && c.mediumId === m.id);
@@ -1450,13 +1566,13 @@ export default function SettingsPage() {
                       <td key={m.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                         {entry ? (
                           <div className="flex items-center justify-center gap-0.5">
-                            <button onClick={() => openEdit('class', entry)} title="Click to edit" className={`text-green-500 font-bold text-sm hover:text-blue-500 transition-colors`}>✓</button>
-                            <button onClick={() => handleDelete('class', entry.id, entry.name)} title="Delete" className="text-red-400 hover:text-red-500 text-xs leading-none">✕</button>
+                            <button onClick={() => openEdit('class', entry)} title="Edit details" className={`text-blue-500 font-bold text-sm hover:text-blue-600 transition-colors px-1`}>✎</button>
+                            <button onClick={() => handleDelete('class', entry.id, entry.name)} title="Delete cell class" className="text-red-400 hover:text-red-500 text-xs leading-none px-1">✕</button>
                           </div>
                         ) : (
                           <button
                             disabled={!canManageSettings}
-                            onClick={() => openCreate('class', { code: '', name: className, level: 'primary', mediumId: m.id, academicYearId: filterAY || activeAY?.id || '', isActive: true })}
+                            onClick={() => addClassCell(className, m.id)}
                             title={`Add ${className} for ${m.name}`}
                             className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-blue-500 hover:text-blue-400' : 'border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500'}`}
                           >+</button>
@@ -1464,9 +1580,22 @@ export default function SettingsPage() {
                       </td>
                     );
                   })}
-                  <td className={`border ${isDark ? 'border-gray-600' : 'border-gray-300'}`} />
+                  <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    {isEditingRow ? (
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button onClick={() => saveClassRowEdit(className)} disabled={!editingClassRow.name.trim() || savingClasses} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
+                        <button onClick={() => setEditingClassRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button onClick={() => setEditingClassRow({ oldName: className, name: className })} title="Rename Row" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
+                        <button onClick={() => deleteClassRow(className)} title="Delete Row" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
 
               {/* New inline rows */}
               {newRows.map((nr) => (
@@ -1578,10 +1707,21 @@ export default function SettingsPage() {
             </thead>
             <tbody>
               {/* Existing Section Rows */}
-              {uniqueSectionNames.map((sectionName) => (
+              {uniqueSectionNames.map((sectionName) => {
+                const isEditingRow = editingSectionRow?.oldName === sectionName;
+                return (
                 <tr key={sectionName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
                   <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
-                    {sectionName}
+                    {isEditingRow ? (
+                      <input
+                        autoFocus
+                        value={editingSectionRow.name}
+                        onChange={e => setEditingSectionRow({ ...editingSectionRow, name: e.target.value })}
+                        className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    ) : (
+                      sectionName
+                    )}
                   </td>
                   {sectionGridClasses.map((cls) => {
                     const section = sections.find((s: any) => s.name === sectionName && s.classId === cls.id);
@@ -1589,8 +1729,8 @@ export default function SettingsPage() {
                       <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                         {section ? (
                           <div className="flex items-center justify-center gap-0.5">
-                            <button onClick={() => openEdit('section', section)} title="Click to edit" className={`text-green-500 font-bold text-sm hover:text-blue-500 transition-colors`}>✓</button>
-                            <button onClick={() => handleDelete('section', section.id, section.name)} title="Delete" className="text-red-400 hover:text-red-500 text-xs leading-none">✕</button>
+                            <button onClick={() => openEdit('section', section)} title="Edit details" className={`text-blue-500 font-bold text-sm hover:text-blue-600 transition-colors px-1`}>✎</button>
+                            <button onClick={() => handleDelete('section', section.id, section.name)} title="Delete cell section" className="text-red-400 hover:text-red-500 text-xs leading-none px-1">✕</button>
                           </div>
                         ) : (
                           <button
@@ -1613,9 +1753,22 @@ export default function SettingsPage() {
                       </td>
                     );
                   })}
-                  <td className={`border ${isDark ? 'border-gray-600' : 'border-gray-300'}`} />
+                  <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    {isEditingRow ? (
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button onClick={() => saveSectionRowEdit(sectionName)} disabled={!editingSectionRow.name.trim() || savingSections} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
+                        <button onClick={() => setEditingSectionRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button onClick={() => setEditingSectionRow({ oldName: sectionName, name: sectionName })} title="Rename Row" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
+                        <button onClick={() => deleteSectionRow(sectionName)} title="Delete Row" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
 
               {/* New Draft Rows */}
               {sectionRows.map((row: any) => {
@@ -1754,9 +1907,46 @@ export default function SettingsPage() {
     const [newFeeRows, setNewFeeRows] = useState([]);
     const [editingCell, setEditingCell] = useState(null);
     const [addingCell, setAddingCell] = useState(null);
+    const [editingFeeRow, setEditingFeeRow] = useState<{ oldName: string, name: string, category: string, frequency: string } | null>(null);
     const [savingFees, setSavingFees] = useState(false);
 
-    const saveAddingCell = async (feeName, cls) => {
+    const saveFeeRowEdit = async (oldName: string) => {
+      if (!editingFeeRow || !editingFeeRow.name.trim()) return;
+      const rowFs = feeStructures.filter(fs => fs.name === oldName && (!filterAY || fs.academicYearId === filterAY));
+      setSavingFees(true);
+      try {
+        await Promise.all(rowFs.map(fs => feeStructuresApi.update(fs.id, { 
+          ...fs, 
+          name: editingFeeRow.name.trim(),
+          category: editingFeeRow.category,
+          frequency: editingFeeRow.frequency
+        })));
+        await fetchAll();
+        setEditingFeeRow(null);
+        showToast({ type: 'success', title: 'Fee row updated' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to update fee row' });
+      } finally {
+        setSavingFees(false);
+      }
+    };
+
+    const deleteFeeRow = async (feeName: string) => {
+      if (!confirm(`Delete all fee structures for "${feeName}"?`)) return;
+      const rowFs = feeStructures.filter(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
+      setSavingFees(true);
+      try {
+        await Promise.all(rowFs.map(fs => feeStructuresApi.delete(fs.id)));
+        await fetchAll();
+        showToast({ type: 'success', title: 'Fee row deleted' });
+      } catch {
+        showToast({ type: 'error', title: 'Failed to delete fee row' });
+      } finally {
+        setSavingFees(false);
+      }
+    };
+
+    const saveAddingCell = async (feeName: string, cls: any) => {
       if (!addingCell?.amount) { setAddingCell(null); return; }
       const first = feeStructures.find(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
       try {
@@ -2016,14 +2206,38 @@ export default function SettingsPage() {
                 {feeRowNames.map(feeName => {
                   const rowFs = feeStructures.filter(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
                   const first = rowFs[0];
+                  const isEditingRow = editingFeeRow?.oldName === feeName;
                   return (
                     <tr key={feeName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
-                      <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/30 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>{feeName}</td>
+                      <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/30 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
+                        {isEditingRow ? (
+                          <input
+                            autoFocus
+                            value={editingFeeRow.name}
+                            onChange={e => setEditingFeeRow({ ...editingFeeRow, name: e.target.value })}
+                            className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                          />
+                        ) : (
+                          feeName
+                        )}
+                      </td>
                       <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>{first?.category}</span>
+                        {isEditingRow ? (
+                          <select value={editingFeeRow.category} onChange={e => setEditingFeeRow({ ...editingFeeRow, category: e.target.value })} className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+                            {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </select>
+                        ) : (
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>{first?.category}</span>
+                        )}
                       </td>
                       <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
-                        {first?.frequency?.replace('_', ' ')}
+                        {isEditingRow ? (
+                          <select value={editingFeeRow.frequency} onChange={e => setEditingFeeRow({ ...editingFeeRow, frequency: e.target.value })} className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+                            {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                        ) : (
+                          first?.frequency?.replace('_', ' ')
+                        )}
                       </td>
                       {gridClsForFee.map(cls => {
                         const fs = rowFs.find(f => f.classId === cls.id);
@@ -2040,11 +2254,14 @@ export default function SettingsPage() {
                                   className={`w-16 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                                 />
                               ) : (
-                                <button
-                                  onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) })}
-                                  className={`text-xs font-semibold hover:underline ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-700 hover:text-green-800'}`}
-                                  title="Click to edit"
-                                >₹{fs.amount?.toLocaleString()}</button>
+                                <div className="group flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) })}
+                                    className={`text-xs font-semibold hover:underline ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-700 hover:text-green-800'}`}
+                                    title="Edit cell amount"
+                                  >₹{fs.amount?.toLocaleString()}</button>
+                                  <button onClick={() => deleteFee(fs)} className="opacity-0 group-hover:opacity-100 text-red-500 text-[10px] hover:bg-red-500/20 rounded px-1 transition-all" title="Delete cell fee">✕</button>
+                                </div>
                               )
                             ) : (
                               addingCell?.feeName === feeName && addingCell?.classId === cls.id ? (
@@ -2069,10 +2286,17 @@ export default function SettingsPage() {
                         );
                       })}
                       <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => openEditFee(first)} title="Full edit" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
-                          <button onClick={() => deleteFee(first)} title="Delete" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
-                        </div>
+                        {isEditingRow ? (
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button onClick={() => saveFeeRowEdit(feeName)} disabled={!editingFeeRow.name.trim() || savingFees} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
+                            <button onClick={() => setEditingFeeRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button onClick={() => setEditingFeeRow({ oldName: feeName, name: feeName, category: first?.category || 'tuition', frequency: first?.frequency || 'monthly' })} title="Edit Row" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
+                            <button onClick={() => deleteFeeRow(feeName)} title="Delete Row" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
