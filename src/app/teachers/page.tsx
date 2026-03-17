@@ -41,7 +41,8 @@ const EMPTY_FORM = {
   aadharNumber: '',
   emergencyName: '',
   emergencyPhone: '',
-  remarks: ''
+  remarks: '',
+  bloodGroup: ''
 };
 
 export default function StaffPage() {
@@ -798,7 +799,8 @@ export default function StaffPage() {
                                 aadharNumber: teacher.aadharNumber || '',
                                 emergencyName: teacher.emergencyName || '',
                                 emergencyPhone: teacher.emergencyPhone || '',
-                                remarks: teacher.remarks || ''
+                                remarks: teacher.remarks || '',
+                                bloodGroup: teacher.bloodGroup || ''
                               });
                               setShowEditModal(true);
                             }}
@@ -1275,13 +1277,34 @@ export default function StaffPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName || !form.email) { setFormError('First Name, Last Name, and Email are required'); return; }
+                  if (!form.name || !form.email) { setFormError('Name and Email are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     await teachersApi.update(editingTeacher.id, { 
-                      ...form, 
+                      name: form.name,
+                      email: form.email,
+                      phone: form.phone,
+                      gender: form.gender,
+                      dateOfBirth: form.dateOfBirth,
+                      subject: form.subject,
+                      qualification: form.qualification,
                       experience: form.experience ? Number(form.experience) : null,
+                      status: form.status,
+                      address: form.address,
+                      photo: form.photo,
+                      joiningDate: form.joiningDate,
                       salary: form.salary ? Number(form.salary) : null,
+                      department: form.department,
+                      designation: form.designation,
+                      bloodGroup: form.bloodGroup,
+                      aadharNumber: form.aadharNumber,
+                      bankName: form.bankName,
+                      bankAccountNo: form.bankAccountNo,
+                      bankIfsc: form.bankIfsc,
+                      emergencyName: form.emergencyName,
+                      emergencyPhone: form.emergencyPhone,
+                      remarks: form.remarks,
+                      isClassTeacher: form.isClassTeacher,
                     });
                     setShowEditModal(false); setForm({ ...EMPTY_FORM }); refresh();
                   } catch (err: any) { 
@@ -1766,13 +1789,35 @@ export default function StaffPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName) { setFormError('First Name and Last Name are required'); return; }
+                  if (!form.name) { setFormError('Name is required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     const response = await teachersApi.create({ 
-                      ...form, 
+                      name: form.name,
+                      email: form.email,
+                      phone: form.phone,
+                      gender: form.gender,
+                      dateOfBirth: form.dateOfBirth,
+                      subject: form.subject,
+                      qualification: form.qualification,
                       experience: form.experience ? Number(form.experience) : null,
+                      status: form.status,
+                      address: form.address,
+                      photo: form.photo,
+                      joiningDate: form.joiningDate,
                       salary: form.salary ? Number(form.salary) : null,
+                      department: form.department,
+                      designation: form.designation,
+                      bloodGroup: form.bloodGroup,
+                      aadharNumber: form.aadharNumber,
+                      bankName: form.bankName,
+                      bankAccountNo: form.bankAccountNo,
+                      bankIfsc: form.bankIfsc,
+                      emergencyName: form.emergencyName,
+                      emergencyPhone: form.emergencyPhone,
+                      remarks: form.remarks,
+                      isClassTeacher: form.isClassTeacher,
+                      employeeId: form.employeeId,
                     });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
                     
