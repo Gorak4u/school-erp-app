@@ -23,6 +23,13 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive');
     const category = searchParams.get('category');
 
+    // DEBUG: Log the query parameters
+    console.log('Fee Structures API - Debug Info:');
+    console.log('School ID:', ctx.schoolId);
+    console.log('Academic Year ID:', academicYearId);
+    console.log('Is Super Admin:', ctx.isSuperAdmin);
+    console.log('All params:', { academicYearId, boardId, mediumId, classId, isActive, category });
+
     const where: any = {};
     if (ctx.schoolId) where.schoolId = ctx.schoolId;
     if (academicYearId) where.academicYearId = academicYearId;
@@ -63,13 +70,35 @@ export async function GET(request: NextRequest) {
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
 
+    // DEBUG: Log the final where clause
+    console.log('Final where clause:', JSON.stringify(where, null, 2));
+
+    // First, let's check if any fee structures exist at all for this school
+    const allSchoolStructures = await (schoolPrisma as any).feeStructure.findMany({
+      where: ctx.schoolId ? { schoolId: ctx.schoolId } : {},
+      take: 3,
+      select: { id: true, name: true, academicYearId: true, schoolId: true, isActive: true }
+    });
+    console.log('Sample fee structures for school:', allSchoolStructures);
+
     const structures = await (schoolPrisma as any).feeStructure.findMany({
       where,
       include: INCLUDE_RELATIONS,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    return NextResponse.json({ feeStructures: structures });
+    console.log('Query result count:', structures.length);
+    if (structures.length > 0) {
+      console.log('Sample result:', structures[0]);
+    }
+
+    // Add cache-busting headers
+    const headers = new Headers();
+    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+
+    return new NextResponse.json({ feeStructures: structures }, { headers });
   } catch (error) {
     console.error('GET /api/fees/structures:', error);
     return NextResponse.json({ error: 'Failed to fetch fee structures' }, { status: 500 });

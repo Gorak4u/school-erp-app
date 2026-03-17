@@ -118,14 +118,15 @@ export default function SettingsPage() {
       console.log('📅 Active Academic Year:', activeAcademicYear?.name, '(ID:', activeAYId, ')');
       
       // Step 2: Fetch other entities filtered by active academic year and isActive=true
+      const timestamp = Date.now(); // Cache-busting
       const [bRes, mRes, cRes, secRes, tRes, sRes, fsRes] = await Promise.allSettled([
-        boardsApi.list({ isActive: 'true' }), // Boards are global, just filter by active
-        mediumsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
-        classesApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
-        sectionsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
+        boardsApi.list(),
+        mediumsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
+        classesApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
+        sectionsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
         schoolTimingsApi.list(),
         schoolSettingsApi.getAll(),
-        feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true' } : { isActive: 'true' }),
+        feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
       ]);
       
       // Log any rejected promises for debugging
