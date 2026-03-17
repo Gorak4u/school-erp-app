@@ -27,9 +27,10 @@ const PLAN_GRADIENTS: Record<string, string> = {
   basic:        'from-blue-500 to-cyan-500',
   professional: 'from-purple-500 to-indigo-500',
   enterprise:   'from-orange-500 to-red-500',
+  unlimited:    'from-pink-500 to-rose-500',
 };
 const PLAN_ICONS: Record<string, string> = {
-  free: '🆓', trial: '🆓', basic: '📦', professional: '⚡', enterprise: '🏢',
+  free: '🆓', trial: '🆓', basic: '📦', professional: '⚡', enterprise: '🏢', unlimited: '♾️',
 };
 
 const ALL_FEATURES = [
