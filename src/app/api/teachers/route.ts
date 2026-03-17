@@ -106,15 +106,35 @@ export async function POST(request: NextRequest) {
     const defaultPassword = createUserAccount ? (password || `Teach@${Date.now().toString().slice(-6)}`) : '';
     const hashedPassword = createUserAccount ? await bcrypt.hash(defaultPassword, 12) : '';
 
+    // Prepare teacher data with name field and filter only valid fields
+    const teacherName = `${firstName} ${lastName}`.trim();
+    
+    // Only include valid Teacher model fields
+    const validTeacherData: any = {};
+    const allowedFields = [
+      'employeeId', 'department', 'subject', 'qualification', 
+      'experience', 'status', 'joiningDate', 'address', 'photo', 
+      'salary', 'designation', 'bloodGroup', 'aadharNumber', 
+      'bankName', 'bankAccountNo', 'bankIfsc', 'emergencyName', 
+      'emergencyPhone', 'remarks', 'gender', 'dateOfBirth'
+    ];
+    
+    allowedFields.forEach(field => {
+      if (teacherData[field] !== undefined) {
+        validTeacherData[field] = teacherData[field];
+      }
+    });
+
     // Create Teacher and optionally school_User records in transaction
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       // Create Teacher record
       const teacher = await tx.teacher.create({
         data: {
-          ...teacherData,
+          name: teacherName,
           email,
           phone: phone || null,
           schoolId: ctx.schoolId,
+          ...validTeacherData,
         },
       });
 
