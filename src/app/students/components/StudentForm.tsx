@@ -139,6 +139,14 @@ export default function StudentForm({
       ? `${inputCls} border-red-500 focus:border-red-500 focus:ring-red-500/30`
       : inputCls;
   const fmtCurrency = (amount: number) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
+  const formatRouteFee = (route: { monthlyFee?: number; yearlyFee?: number }) => {
+    const monthly = Number(route?.monthlyFee || 0);
+    const yearly = Number(route?.yearlyFee || 0);
+    if (yearly > 0 && monthly === 0) {
+      return `₹${yearly.toLocaleString('en-IN')}/yr`;
+    }
+    return `₹${monthly.toLocaleString('en-IN')}/mo`;
+  };
 
   const [formData, setFormData] = useState({
     photo: student?.photo || '',
@@ -168,6 +176,7 @@ export default function StudentForm({
     languageMedium: initialLanguageMedium,
     rollNo: student?.rollNo || '',
     board: student?.board || '',
+    boardId: (student as any)?._boardId || '',
     previousSchool: student?.previousSchool || '',
     previousClass: student?.previousClass || '',
     fatherName: student?.fatherName || '',
@@ -212,6 +221,7 @@ export default function StudentForm({
     pickupStop: '',
     dropStop: '',
     monthlyFee: 0,
+    yearlyFee: 0,
   });
   const [discountData, setDiscountData] = useState({
     hasDiscount: false,
@@ -277,6 +287,15 @@ export default function StudentForm({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!formData.boardId && formData.board && dropdowns.boards.length) {
+      const match = dropdowns.boards.find(b => b.label === formData.board || b.value === formData.board);
+      if (match?.value) {
+        setFormData(prev => prev.boardId ? prev : ({ ...prev, boardId: match.value }));
+      }
+    }
+  }, [formData.boardId, formData.board, dropdowns.boards]);
+
   // Load fee structures when class changes
   useEffect(() => {
     if (!formData.classId || !activeAcademicYear?.id) { setFeeStructures([]); return; }
@@ -289,6 +308,9 @@ export default function StudentForm({
       isActive: 'true',
       ...(formData.mediumId && { mediumId: formData.mediumId }),
     });
+    if (formData.boardId) {
+      params.append('boardId', formData.boardId);
+    }
     
     fetch(`/api/fees/structures?${params}`)
       .then(r => r.json())
@@ -301,7 +323,7 @@ export default function StudentForm({
         setFeeStructures([]);
       })
       .finally(() => setFeesLoading(false));
-  }, [formData.classId, formData.mediumId, activeAcademicYear]);
+  }, [formData.classId, formData.mediumId, formData.boardId, activeAcademicYear]);
 
   // Auto-save
   useEffect(() => {
@@ -406,7 +428,11 @@ export default function StudentForm({
   }, [feeStructures, selectedDiscountFeeIds, discountData]);
 
   const transportFeeCalcs = useMemo(() => {
-    const baseAnnual = transportInfo.routeId ? Number(transportInfo.monthlyFee || 0) * 12 : 0;
+    const baseAnnual = (() => {
+      if (!transportInfo.routeId) return 0;
+      if (Number(transportInfo.yearlyFee) > 0) return Number(transportInfo.yearlyFee);
+      return Number(transportInfo.monthlyFee || 0) * 12;
+    })();
     if (!transportDiscount.hasDiscount || !transportInfo.routeId) {
       return { baseAnnual, discountAmount: 0, finalAnnual: baseAnnual };
     }
@@ -649,16 +675,19 @@ export default function StudentForm({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Board</label>
-                    <select 
-                      value={formData.board} 
+                    <select
+                      value={formData.boardId}
                       onChange={e => {
-                        set('board', e.target.value);
-                      }} 
+                        const option = dropdowns.boards.find(b => b.value === e.target.value);
+                        set('boardId', e.target.value);
+                        set('board', option?.label || '');
+                      }}
                       className={inputCls}
                     >
-                      {/* Don't show "Select Board" when only one board exists */}
                       {dropdowns.boards.length > 1 && <option value="">Select Board</option>}
-                      {dropdowns.boards.map(b => <option key={b.value} value={b.label}>{b.label}</option>)}
+                      {dropdowns.boards.map(b => (
+                        <option key={b.value} value={b.value}>{b.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1215,48 +1244,20 @@ export default function StudentForm({
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🚌 Transport & Hostel</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className={labelCls}>Assign Transport Route</label>
+                  <div>
+                    <label className={labelCls}>Transport</label>
                     <select
-                      value={transportInfo.routeId}
+                      value={formData.transport}
                       onChange={e => {
-                        const r = transportRoutes.find((x: any) => x.id === e.target.value);
-                        setTransportInfo({ routeId: e.target.value, pickupStop: '', dropStop: '', monthlyFee: r?.monthlyFee || 0 });
-                        set('transport', e.target.value ? 'Yes' : 'No');
-                        set('transportRoute', r?.routeName || '');
+                        const value = e.target.value;
+                        set('transport', value);
+                        if (value !== 'Yes') {
+                          setTransportInfo({ routeId: '', pickupStop: '', dropStop: '', monthlyFee: 0, yearlyFee: 0 });
+                          set('transportRoute', '');
+                        }
                       }}
                       className={inputCls}
                     >
-                      <option value="">No transport</option>
-                      {transportRoutes.map((r: any) => (
-                        <option key={r.id} value={r.id}>{r.routeNumber} — {r.routeName} (₹{r.monthlyFee}/mo)</option>
-                      ))}
-                    </select>
-                  </div>
-                  {transportInfo.routeId && (() => {
-                    const selRoute = transportRoutes.find((r: any) => r.id === transportInfo.routeId);
-                    const stops = (() => { try { return JSON.parse(selRoute?.stops || '[]'); } catch { return []; } })();
-                    return (<>
-                      <div>
-                        <label className={labelCls}>Pickup Stop *</label>
-                        {stops.length > 0 ? (
-                          <select value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} className={inputCls}>
-                            <option value="">Select stop...</option>
-                            {stops.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        ) : (
-                          <input className={inputCls} value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} placeholder="Enter stop name" />
-                        )}
-                      </div>
-                      <div>
-                        <label className={labelCls}>Monthly Fee (₹)</label>
-                        <input type="number" className={inputCls} value={transportInfo.monthlyFee} onChange={e => setTransportInfo(p => ({ ...p, monthlyFee: Number(e.target.value) }))} />
-                      </div>
-                    </>);
-                  })()}
-                  <div>
-                    <label className={labelCls}>Transport</label>
-                    <select value={formData.transport} onChange={e => set('transport', e.target.value)} className={inputCls}>
                       <option>No</option><option>Yes</option>
                     </select>
                   </div>
@@ -1266,6 +1267,62 @@ export default function StudentForm({
                       <option>No</option><option>Yes</option>
                     </select>
                   </div>
+
+                  {formData.transport === 'Yes' && (
+                    <>
+                      <div className="col-span-2">
+                        <label className={labelCls}>Assign Transport Route</label>
+                        <select
+                          value={transportInfo.routeId}
+                          onChange={e => {
+                            const r = transportRoutes.find((x: any) => x.id === e.target.value);
+                            setTransportInfo({ routeId: e.target.value, pickupStop: '', dropStop: '', monthlyFee: r?.monthlyFee || 0, yearlyFee: r?.yearlyFee || 0 });
+                            set('transport', e.target.value ? 'Yes' : 'No');
+                            set('transportRoute', r?.routeName || '');
+                          }}
+                          className={inputCls}
+                        >
+                          <option value="">Select route</option>
+                          {transportRoutes.map((r: any) => (
+                            <option key={r.id} value={r.id}>{r.routeNumber} — {r.routeName} ({formatRouteFee(r)})</option>
+                          ))}
+                        </select>
+                      </div>
+                      {transportInfo.routeId && (() => {
+                        const selRoute = transportRoutes.find((r: any) => r.id === transportInfo.routeId);
+                        const stops = (() => { try { return JSON.parse(selRoute?.stops || '[]'); } catch { return []; } })();
+                        return (
+                          <>
+                            <div>
+                              <label className={labelCls}>Pickup Stop *</label>
+                              {stops.length > 0 ? (
+                                <select value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} className={inputCls}>
+                                  <option value="">Select stop...</option>
+                                  {stops.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              ) : (
+                                <input className={inputCls} value={transportInfo.pickupStop} onChange={e => setTransportInfo(p => ({ ...p, pickupStop: e.target.value }))} placeholder="Enter stop name" />
+                              )}
+                            </div>
+                            <div>
+                              <label className={labelCls}>Monthly Fee (₹)</label>
+                              <input type="number" className={inputCls} value={transportInfo.monthlyFee} onChange={e => setTransportInfo(p => ({ ...p, monthlyFee: Number(e.target.value) }))} />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Yearly Fee (₹)</label>
+                              <input
+                                type="number"
+                                className={inputCls}
+                                value={transportInfo.yearlyFee}
+                                onChange={e => setTransportInfo(p => ({ ...p, yearlyFee: Number(e.target.value) }))}
+                                placeholder="Annual amount"
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
               </div>
 
