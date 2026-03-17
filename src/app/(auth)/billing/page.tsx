@@ -28,6 +28,11 @@ export default function BillingPage() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [errorDialog, setErrorDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({ isOpen: false, title: '', message: '' });
 
   // Scroll to plans section
   const scrollToPlans = () => {
@@ -35,6 +40,16 @@ export default function BillingPage() {
     if (plansSection) {
       plansSection.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  // Show error dialog
+  const showErrorDialog = (title: string, message: string) => {
+    setErrorDialog({ isOpen: true, title, message });
+  };
+
+  // Close error dialog
+  const closeErrorDialog = () => {
+    setErrorDialog({ isOpen: false, title: '', message: '' });
   };
 
   // Use fixed dark theme colors to match subscription page
@@ -96,7 +111,7 @@ export default function BillingPage() {
       const plan = plans.find(p => p.name === planName);
       if (!plan) {
         console.error('Plan not found:', planName);
-        alert('Plan not found. Please try again.');
+        showErrorDialog('Plan Not Found', 'The selected plan could not be found. Please try again.');
         return;
       }
 
@@ -108,7 +123,7 @@ export default function BillingPage() {
       // Validate amount before sending
       if (!amount || amount <= 0) {
         console.error('Invalid amount:', amount);
-        alert('Invalid plan amount. Please select a different plan or contact support.');
+        showErrorDialog('Invalid Plan Amount', 'This plan has no pricing configured. Please select a different plan or contact support for assistance.');
         return;
       }
 
@@ -131,14 +146,14 @@ export default function BillingPage() {
 
       if (!data.success) {
         console.error('Payment order failed:', data.error);
-        alert(`Payment order failed: ${data.error || 'Unknown error'}`);
+        showErrorDialog('Payment Failed', `Failed to create payment order: ${data.error || 'Unknown error'}. Please try again.`);
         return;
       }
 
       // Check if Razorpay is available
       if (typeof (window as any).Razorpay === 'undefined') {
         console.error('Razorpay not loaded');
-        alert('Payment gateway is not available. Please refresh the page and try again.');
+        showErrorDialog('Payment Gateway Unavailable', 'The payment gateway is not available. Please refresh the page and try again.');
         return;
       }
 
@@ -535,6 +550,46 @@ export default function BillingPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Error Dialog */}
+      {errorDialog.isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={closeErrorDialog}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">{errorDialog.title}</h3>
+                <p className="text-gray-300 text-sm leading-relaxed">{errorDialog.message}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={closeErrorDialog}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }
