@@ -16,16 +16,36 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 function FieldRow({
   label, hint, value, onChange, type = 'text', placeholder, secret = false,
-  isDark,
+  isDark, fieldKey, source, envValue, onReset,
 }: {
   label: string; hint?: string; value: string; onChange: (v: string) => void;
   type?: string; placeholder?: string; secret?: boolean; isDark: boolean;
+  fieldKey: string; source?: 'env' | 'db'; envValue?: string; onReset?: () => void;
 }) {
   const [show, setShow] = useState(false);
   const inputCls = `flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-orange-500/50`;
+  
   return (
     <div>
-      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</label>
+      <div className="flex items-center justify-between mb-1">
+        <label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</label>
+        {source === 'env' && (
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'}`}>
+              📁 From .env
+            </span>
+            {envValue && value !== envValue && onReset && (
+              <button
+                type="button"
+                onClick={onReset}
+                className={`text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+              >
+                ↺ Reset to .env
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       <div className="flex gap-2">
         <input
           className={inputCls}
@@ -42,6 +62,11 @@ function FieldRow({
         )}
       </div>
       {hint && <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{hint}</p>}
+      {source === 'env' && (
+        <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+          💡 This value is set in .env file. You can override it here.
+        </p>
+      )}
     </div>
   );
 }
@@ -62,6 +87,8 @@ export default function AdminPaymentsPage() {
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<Tab>('smtp');
   const [config, setConfig] = useState<Record<string, string>>({});
+  const [source, setSource] = useState<Record<string, 'env' | 'db'>>({});
+  const [envDefaults, setEnvDefaults] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -69,7 +96,13 @@ export default function AdminPaymentsPage() {
   useEffect(() => {
     fetch('/api/admin/saas-config')
       .then(r => r.json())
-      .then(d => { if (d.config) setConfig(d.config); })
+      .then(d => { 
+        if (d.config) {
+          setConfig(d.config);
+          setSource(d.source || {});
+          setEnvDefaults(d.envDefaults || {});
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -77,6 +110,13 @@ export default function AdminPaymentsPage() {
   const set = (key: string, val: string) => {
     setConfig(p => ({ ...p, [key]: val }));
     setHasChanges(true);
+  };
+
+  const resetToEnv = (key: string) => {
+    const envValue = envDefaults[key];
+    if (envValue) {
+      set(key, envValue);
+    }
   };
 
   const save = async () => {
@@ -91,6 +131,9 @@ export default function AdminPaymentsPage() {
       if (res.ok) {
         showSuccessToast('Success', 'Configuration saved successfully!');
         setHasChanges(false);
+        // Refresh source info
+        const updated = await fetch('/api/admin/saas-config').then(r => r.json());
+        setSource(updated.source || {});
       } else {
         showErrorToast('Error', data.error || 'Failed to save');
       }
@@ -178,12 +221,75 @@ export default function AdminPaymentsPage() {
                 </select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FieldRow label="SMTP Host" placeholder="smtp.gmail.com" value={config.smtp_host || ''} onChange={v => set('smtp_host', v)} isDark={isDark} />
-                <FieldRow label="SMTP Port" placeholder="587" value={config.smtp_port || ''} onChange={v => set('smtp_port', v)} isDark={isDark} hint="587 for TLS, 465 for SSL" />
-                <FieldRow label="Username / Email" placeholder="platform@yourcompany.com" value={config.smtp_username || ''} onChange={v => set('smtp_username', v)} isDark={isDark} />
-                <FieldRow label="Password / App Password" placeholder="App password" value={config.smtp_password || ''} onChange={v => set('smtp_password', v)} isDark={isDark} secret />
-                <FieldRow label="From Email" type="email" placeholder="noreply@schoolerp.com" value={config.smtp_from_email || ''} onChange={v => set('smtp_from_email', v)} isDark={isDark} />
-                <FieldRow label="From Name" placeholder="School ERP Platform" value={config.smtp_from_name || ''} onChange={v => set('smtp_from_name', v)} isDark={isDark} />
+                <FieldRow 
+                  label="SMTP Host" 
+                  placeholder="smtp.gmail.com" 
+                  value={config.smtp_host || ''} 
+                  onChange={v => set('smtp_host', v)} 
+                  isDark={isDark}
+                  fieldKey="smtp_host"
+                  source={source.smtp_host}
+                  envValue={envDefaults.smtp_host}
+                  onReset={() => resetToEnv('smtp_host')}
+                />
+                <FieldRow 
+                  label="SMTP Port" 
+                  placeholder="587" 
+                  value={config.smtp_port || ''} 
+                  onChange={v => set('smtp_port', v)} 
+                  isDark={isDark}
+                  hint="587 for TLS, 465 for SSL"
+                  fieldKey="smtp_port"
+                  source={source.smtp_port}
+                  envValue={envDefaults.smtp_port}
+                  onReset={() => resetToEnv('smtp_port')}
+                />
+                <FieldRow 
+                  label="Username / Email" 
+                  placeholder="platform@yourcompany.com" 
+                  value={config.smtp_username || ''} 
+                  onChange={v => set('smtp_username', v)} 
+                  isDark={isDark}
+                  fieldKey="smtp_username"
+                  source={source.smtp_username}
+                  envValue={envDefaults.smtp_username}
+                  onReset={() => resetToEnv('smtp_username')}
+                />
+                <FieldRow 
+                  label="Password / App Password" 
+                  placeholder="App password" 
+                  value={config.smtp_password || ''} 
+                  onChange={v => set('smtp_password', v)} 
+                  isDark={isDark} 
+                  secret
+                  fieldKey="smtp_password"
+                  source={source.smtp_password}
+                  envValue={envDefaults.smtp_password}
+                  onReset={() => resetToEnv('smtp_password')}
+                />
+                <FieldRow 
+                  label="From Email" 
+                  type="email" 
+                  placeholder="noreply@schoolerp.com" 
+                  value={config.smtp_from_email || ''} 
+                  onChange={v => set('smtp_from_email', v)} 
+                  isDark={isDark}
+                  fieldKey="smtp_from_email"
+                  source={source.smtp_from_email}
+                  envValue={envDefaults.smtp_from_email}
+                  onReset={() => resetToEnv('smtp_from_email')}
+                />
+                <FieldRow 
+                  label="From Name" 
+                  placeholder="School ERP Platform" 
+                  value={config.smtp_from_name || ''} 
+                  onChange={v => set('smtp_from_name', v)} 
+                  isDark={isDark}
+                  fieldKey="smtp_from_name"
+                  source={source.smtp_from_name}
+                  envValue={envDefaults.smtp_from_name}
+                  onReset={() => resetToEnv('smtp_from_name')}
+                />
             </div>
             <div className={`p-3 rounded-lg text-xs ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
               💡 When disabled, password reset links are shown on-screen (dev mode). Enable for production.
@@ -212,12 +318,54 @@ export default function AdminPaymentsPage() {
               </select>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FieldRow label="Key ID" placeholder="rzp_live_xxxxxxxxxxxxxxx" value={config.razorpay_key_id || ''} onChange={v => set('razorpay_key_id', v)} isDark={isDark}
-                hint="Starts with rzp_live_ for production" />
-              <FieldRow label="Key Secret" placeholder="Secret key from dashboard" value={config.razorpay_key_secret || ''} onChange={v => set('razorpay_key_secret', v)} isDark={isDark} secret />
-              <FieldRow label="Webhook Secret" placeholder="Webhook signing secret" value={config.razorpay_webhook_secret || ''} onChange={v => set('razorpay_webhook_secret', v)} isDark={isDark} secret
-                hint="Set in Razorpay Dashboard → Webhooks" />
-              <FieldRow label="Currency" placeholder="INR" value={config.payment_currency || 'INR'} onChange={v => set('payment_currency', v)} isDark={isDark} />
+              <FieldRow 
+                label="Key ID" 
+                placeholder="rzp_live_xxxxxxxxxxxxxxx" 
+                value={config.razorpay_key_id || ''} 
+                onChange={v => set('razorpay_key_id', v)} 
+                isDark={isDark}
+                hint="Starts with rzp_live_ for production"
+                fieldKey="razorpay_key_id"
+                source={source.razorpay_key_id}
+                envValue={envDefaults.razorpay_key_id}
+                onReset={() => resetToEnv('razorpay_key_id')}
+              />
+              <FieldRow 
+                label="Key Secret" 
+                placeholder="Secret key from dashboard" 
+                value={config.razorpay_key_secret || ''} 
+                onChange={v => set('razorpay_key_secret', v)} 
+                isDark={isDark} 
+                secret
+                fieldKey="razorpay_key_secret"
+                source={source.razorpay_key_secret}
+                envValue={envDefaults.razorpay_key_secret}
+                onReset={() => resetToEnv('razorpay_key_secret')}
+              />
+              <FieldRow 
+                label="Webhook Secret" 
+                placeholder="Webhook signing secret" 
+                value={config.razorpay_webhook_secret || ''} 
+                onChange={v => set('razorpay_webhook_secret', v)} 
+                isDark={isDark} 
+                secret
+                hint="Set in Razorpay Dashboard → Webhooks"
+                fieldKey="razorpay_webhook_secret"
+                source={source.razorpay_webhook_secret}
+                envValue={envDefaults.razorpay_webhook_secret}
+                onReset={() => resetToEnv('razorpay_webhook_secret')}
+              />
+              <FieldRow 
+                label="Currency" 
+                placeholder="INR" 
+                value={config.payment_currency || 'INR'} 
+                onChange={v => set('payment_currency', v)} 
+                isDark={isDark}
+                fieldKey="payment_currency"
+                source={source.payment_currency}
+                envValue={envDefaults.payment_currency}
+                onReset={() => resetToEnv('payment_currency')}
+              />
             </div>
             <div className={`p-3 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
               ⚠️ Use <code>rzp_test_</code> keys during development. Switch to <code>rzp_live_</code> keys only in production with proper webhook verification.
@@ -233,12 +381,73 @@ export default function AdminPaymentsPage() {
               <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Shown on invoices for manual bank transfer payments</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FieldRow label="Bank Name" placeholder="e.g. State Bank of India" value={config.bank_name || ''} onChange={v => set('bank_name', v)} isDark={isDark} />
-              <FieldRow label="Account Holder Name" placeholder="Company or person name" value={config.bank_account_name || ''} onChange={v => set('bank_account_name', v)} isDark={isDark} />
-              <FieldRow label="Account Number" placeholder="Account number" value={config.bank_account_number || ''} onChange={v => set('bank_account_number', v)} isDark={isDark} secret />
-              <FieldRow label="IFSC Code" placeholder="e.g. SBIN0001234" value={config.bank_ifsc_code || ''} onChange={v => set('bank_ifsc_code', v)} isDark={isDark} />
-              <FieldRow label="Branch Name" placeholder="e.g. Koramangala, Bengaluru" value={config.bank_branch || ''} onChange={v => set('bank_branch', v)} isDark={isDark} />
-              <FieldRow label="UPI ID" placeholder="e.g. company@ybl" value={config.bank_upi_id || ''} onChange={v => set('bank_upi_id', v)} isDark={isDark} />
+              <FieldRow 
+                label="Bank Name" 
+                placeholder="e.g. State Bank of India" 
+                value={config.bank_name || ''} 
+                onChange={v => set('bank_name', v)} 
+                isDark={isDark}
+                fieldKey="bank_name"
+                source={source.bank_name}
+                envValue={envDefaults.bank_name}
+                onReset={() => resetToEnv('bank_name')}
+              />
+              <FieldRow 
+                label="Account Holder Name" 
+                placeholder="Company or person name" 
+                value={config.bank_account_name || ''} 
+                onChange={v => set('bank_account_name', v)} 
+                isDark={isDark}
+                fieldKey="bank_account_name"
+                source={source.bank_account_name}
+                envValue={envDefaults.bank_account_name}
+                onReset={() => resetToEnv('bank_account_name')}
+              />
+              <FieldRow 
+                label="Account Number" 
+                placeholder="Account number" 
+                value={config.bank_account_number || ''} 
+                onChange={v => set('bank_account_number', v)} 
+                isDark={isDark} 
+                secret
+                fieldKey="bank_account_number"
+                source={source.bank_account_number}
+                envValue={envDefaults.bank_account_number}
+                onReset={() => resetToEnv('bank_account_number')}
+              />
+              <FieldRow 
+                label="IFSC Code" 
+                placeholder="e.g. SBIN0001234" 
+                value={config.bank_ifsc_code || ''} 
+                onChange={v => set('bank_ifsc_code', v)} 
+                isDark={isDark}
+                fieldKey="bank_ifsc_code"
+                source={source.bank_ifsc_code}
+                envValue={envDefaults.bank_ifsc_code}
+                onReset={() => resetToEnv('bank_ifsc_code')}
+              />
+              <FieldRow 
+                label="Branch Name" 
+                placeholder="e.g. Koramangala, Bengaluru" 
+                value={config.bank_branch || ''} 
+                onChange={v => set('bank_branch', v)} 
+                isDark={isDark}
+                fieldKey="bank_branch"
+                source={source.bank_branch}
+                envValue={envDefaults.bank_branch}
+                onReset={() => resetToEnv('bank_branch')}
+              />
+              <FieldRow 
+                label="UPI ID" 
+                placeholder="e.g. company@ybl" 
+                value={config.bank_upi_id || ''} 
+                onChange={v => set('bank_upi_id', v)} 
+                isDark={isDark}
+                fieldKey="bank_upi_id"
+                source={source.bank_upi_id}
+                envValue={envDefaults.bank_upi_id}
+                onReset={() => resetToEnv('bank_upi_id')}
+              />
             </div>
           </>
         )}
@@ -251,15 +460,76 @@ export default function AdminPaymentsPage() {
               <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Displayed on subscription invoices and payment receipts</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FieldRow label="Company Name" placeholder="Your company/product name" value={config.company_name || ''} onChange={v => set('company_name', v)} isDark={isDark} />
-              <FieldRow label="Support Email" type="email" placeholder="support@company.com" value={config.support_email || ''} onChange={v => set('support_email', v)} isDark={isDark} />
-              <FieldRow label="GST Number" placeholder="e.g. 22AAAAA0000A1Z5" value={config.gst_number || ''} onChange={v => set('gst_number', v)} isDark={isDark} />
-              <FieldRow label="GST %" placeholder="18" value={config.gst_percentage || ''} onChange={v => set('gst_percentage', v)} isDark={isDark} />
+              <FieldRow 
+                label="Company Name" 
+                placeholder="Your company/product name" 
+                value={config.company_name || ''} 
+                onChange={v => set('company_name', v)} 
+                isDark={isDark}
+                fieldKey="company_name"
+                source={source.company_name}
+                envValue={envDefaults.company_name}
+                onReset={() => resetToEnv('company_name')}
+              />
+              <FieldRow 
+                label="Support Email" 
+                type="email" 
+                placeholder="support@company.com" 
+                value={config.support_email || ''} 
+                onChange={v => set('support_email', v)} 
+                isDark={isDark}
+                fieldKey="support_email"
+                source={source.support_email}
+                envValue={envDefaults.support_email}
+                onReset={() => resetToEnv('support_email')}
+              />
+              <FieldRow 
+                label="GST Number" 
+                placeholder="e.g. 22AAAAA0000A1Z5" 
+                value={config.gst_number || ''} 
+                onChange={v => set('gst_number', v)} 
+                isDark={isDark}
+                fieldKey="gst_number"
+                source={source.gst_number}
+                envValue={envDefaults.gst_number}
+                onReset={() => resetToEnv('gst_number')}
+              />
+              <FieldRow 
+                label="GST %" 
+                placeholder="18" 
+                value={config.gst_percentage || ''} 
+                onChange={v => set('gst_percentage', v)} 
+                isDark={isDark}
+                fieldKey="gst_percentage"
+                source={source.gst_percentage}
+                envValue={envDefaults.gst_percentage}
+                onReset={() => resetToEnv('gst_percentage')}
+              />
               <div className="md:col-span-2">
-                <FieldRow label="Company Address" placeholder="Full registered address" value={config.company_address || ''} onChange={v => set('company_address', v)} isDark={isDark} />
+                <FieldRow 
+                  label="Company Address" 
+                  placeholder="Full registered address" 
+                  value={config.company_address || ''} 
+                  onChange={v => set('company_address', v)} 
+                  isDark={isDark}
+                  fieldKey="company_address"
+                  source={source.company_address}
+                  envValue={envDefaults.company_address}
+                  onReset={() => resetToEnv('company_address')}
+                />
               </div>
               <div className="md:col-span-2">
-                <FieldRow label="Invoice Footer Note" placeholder="e.g. Thank you for your business!" value={config.invoice_footer || ''} onChange={v => set('invoice_footer', v)} isDark={isDark} />
+                <FieldRow 
+                  label="Invoice Footer Note" 
+                  placeholder="e.g. Thank you for your business!" 
+                  value={config.invoice_footer || ''} 
+                  onChange={v => set('invoice_footer', v)} 
+                  isDark={isDark}
+                  fieldKey="invoice_footer"
+                  source={source.invoice_footer}
+                  envValue={envDefaults.invoice_footer}
+                  onReset={() => resetToEnv('invoice_footer')}
+                />
               </div>
             </div>
           </>

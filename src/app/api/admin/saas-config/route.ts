@@ -37,6 +37,19 @@ const SAAS_PAYMENT_KEYS = [
 
 const SAAS_CONFIG_KEYS = [...SAAS_SMTP_KEYS, ...SAAS_PAYMENT_KEYS];
 
+// Helper function to get value from .env or database
+async function getConfigValue(key: string, dbSettings: any[]): Promise<string> {
+  // First check if it exists in .env file
+  const envValue = process.env[key.toUpperCase()];
+  if (envValue) {
+    return envValue;
+  }
+  
+  // Fall back to database value
+  const dbSetting = dbSettings.find(s => s.key === key);
+  return dbSetting?.value || '';
+}
+
 export async function GET() {
   try {
     const session = await getServerSession();
@@ -53,23 +66,43 @@ export async function GET() {
     });
 
     const config: Record<string, string> = {};
-    for (const s of settings) {
-      config[s.key] = s.value;
+    const source: Record<string, 'env' | 'db'> = {};
+    
+    // Get values from .env first, then database
+    for (const key of SAAS_CONFIG_KEYS) {
+      const value = await getConfigValue(key, settings);
+      config[key] = value;
+      
+      // Track source for UI indication
+      const envValue = process.env[key.toUpperCase()];
+      source[key] = envValue ? 'env' : 'db';
     }
 
     // Mask sensitive values
     const masked = { ...config };
-    if (masked.razorpay_key_secret) {
+    if (masked.razorpay_key_secret && !process.env.RAZORPAY_KEY_SECRET) {
       masked.razorpay_key_secret = masked.razorpay_key_secret.replace(/.(?=.{4})/g, '*');
     }
-    if (masked.razorpay_webhook_secret) {
+    if (masked.razorpay_webhook_secret && !process.env.RAZORPAY_WEBHOOK_SECRET) {
       masked.razorpay_webhook_secret = masked.razorpay_webhook_secret.replace(/.(?=.{4})/g, '*');
     }
-    if (masked.bank_account_number) {
+    if (masked.bank_account_number && !process.env.BANK_ACCOUNT_NUMBER) {
       masked.bank_account_number = masked.bank_account_number.replace(/.(?=.{4})/g, '*');
     }
+    if (masked.smtp_password && !process.env.SMTP_PASSWORD) {
+      masked.smtp_password = masked.smtp_password.replace(/.(?=.{4})/g, '*');
+    }
 
-    return NextResponse.json({ config: masked, keys: SAAS_CONFIG_KEYS });
+    return NextResponse.json({ 
+      config: masked, 
+      source,
+      keys: SAAS_CONFIG_KEYS,
+      envDefaults: SAAS_CONFIG_KEYS.reduce((acc, key) => {
+        const envValue = process.env[key.toUpperCase()];
+        if (envValue) acc[key] = envValue;
+        return acc;
+      }, {} as Record<string, string>)
+    });
   } catch (error: any) {
     console.error('SaaS config GET error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -99,6 +132,17 @@ export async function PUT(req: Request) {
       if (!SAAS_CONFIG_KEYS.includes(key)) continue;
       if (typeof value === 'string' && value.includes('****')) continue;
 
+      // Don't save to database if it matches .env value (to avoid redundancy)
+      const envValue = process.env[key.toUpperCase()];
+      if (envValue && String(value) === envValue) {
+        // Remove from database if it exists and matches .env
+        const group = SAAS_SMTP_KEYS.includes(key) ? 'saas_smtp' : 'saas_payment';
+        await (saasPrisma as any).saasSetting.deleteMany({
+          where: { group, key }
+        });
+        continue;
+      }
+
       const group = SAAS_SMTP_KEYS.includes(key) ? 'saas_smtp' : 'saas_payment';
 
       await (saasPrisma as any).saasSetting.upsert({
@@ -108,7 +152,7 @@ export async function PUT(req: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, message: 'SaaS payment configuration updated' });
+    return NextResponse.json({ success: true, message: 'SaaS configuration updated' });
   } catch (error: any) {
     console.error('SaaS config PUT error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
