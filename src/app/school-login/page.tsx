@@ -14,6 +14,50 @@ interface SchoolInfo {
   logo: string | null;
   city: string | null;
   state: string | null;
+  isActive: boolean;
+}
+
+interface SchoolTheme {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  textColor: string;
+  gradient: string;
+}
+
+// Generate unique theme colors based on school name
+function generateSchoolTheme(schoolName: string): SchoolTheme {
+  // Generate hash from school name for consistent colors
+  let hash = 0;
+  for (let i = 0; i < schoolName.length; i++) {
+    hash = schoolName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Generate hue value (0-360)
+  const hue = Math.abs(hash % 360);
+  
+  // Generate complementary colors
+  const primaryHue = hue;
+  const secondaryHue = (hue + 120) % 360;
+  const accentHue = (hue + 240) % 360;
+  
+  // Generate colors with good contrast
+  const primaryColor = `hsl(${primaryHue}, 70%, 50%)`;
+  const secondaryColor = `hsl(${secondaryHue}, 60%, 45%)`;
+  const accentColor = `hsl(${accentHue}, 80%, 60%)`;
+  const backgroundColor = `hsl(${primaryHue}, 20%, 5%)`;
+  const textColor = '#ffffff';
+  const gradient = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
+  
+  return {
+    primaryColor,
+    secondaryColor,
+    accentColor,
+    backgroundColor,
+    textColor,
+    gradient
+  };
 }
 
 function SchoolLoginInner() {
@@ -24,6 +68,7 @@ function SchoolLoginInner() {
   const [school, setSchool] = useState<SchoolInfo | null>(null);
   const [schoolError, setSchoolError] = useState('');
   const [loadingSchool, setLoadingSchool] = useState(false);
+  const [theme, setTheme] = useState<SchoolTheme | null>(null);
 
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
@@ -61,6 +106,9 @@ function SchoolLoginInner() {
       .then(data => {
         if (data.school) {
           setSchool(data.school);
+          // Generate unique theme for this school
+          const schoolTheme = generateSchoolTheme(data.school.name);
+          setTheme(schoolTheme);
         } else {
           setSchoolError(data.error || 'School not found');
         }
@@ -145,28 +193,48 @@ function SchoolLoginInner() {
   const schoolLocation = [school?.city, school?.state].filter(Boolean).join(', ');
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: theme?.backgroundColor || '#030712' }}
+    >
       {/* Header */}
-      <div className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-6 py-4">
+      <div 
+        className="flex-shrink-0 px-6 py-4 border-b"
+        style={{
+          backgroundColor: theme?.secondaryColor || '#1f2937',
+          borderColor: theme?.accentColor || '#374151',
+          borderWidth: '1px'
+        }}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {school?.logo ? (
               <img src={school.logo} alt={schoolName} className="h-9 w-9 rounded-lg object-cover" />
             ) : (
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+              <div 
+                className="h-9 w-9 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+                style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+              >
                 {schoolName.charAt(0)}
               </div>
             )}
             <div>
-              <h1 className="text-white font-semibold text-base leading-tight">
+              <h1 
+                className="font-semibold text-base leading-tight"
+                style={{ color: theme?.textColor || '#ffffff' }}
+              >
                 {loadingSchool ? 'Loading...' : schoolName}
               </h1>
               {schoolLocation && (
-                <p className="text-gray-400 text-xs">{schoolLocation}</p>
+                <p className="text-xs opacity-70" style={{ color: theme?.textColor || '#ffffff' }}>
+                  {schoolLocation}
+                </p>
               )}
             </div>
           </div>
-          <span className="text-xs text-gray-500 hidden sm:block">Powered by School ERP</span>
+          <span className="text-xs hidden sm:block opacity-60" style={{ color: theme?.textColor || '#ffffff' }}>
+            Powered by School ERP
+          </span>
         </div>
       </div>
 
@@ -179,11 +247,23 @@ function SchoolLoginInner() {
           className="w-full max-w-md"
         >
           {mode === 'login' ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
+            <div 
+              className="rounded-2xl p-8 shadow-2xl border"
+              style={{
+                backgroundColor: theme?.backgroundColor || '#1f2937',
+                borderColor: theme?.secondaryColor || '#374151',
+                borderWidth: '1px'
+              }}
+            >
               {/* Title */}
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-white">Welcome Back</h2>
-                <p className="text-gray-400 text-sm mt-1">
+                <h2 
+                  className="text-2xl font-bold"
+                  style={{ color: theme?.textColor || '#ffffff' }}
+                >
+                  Welcome Back
+                </h2>
+                <p className="text-sm mt-1 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
                   {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
                 </p>
               </div>
@@ -191,7 +271,10 @@ function SchoolLoginInner() {
               {/* Form */}
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label 
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: theme?.textColor || '#ffffff' }}
+                  >
                     Email or Employee ID
                   </label>
                   <input
@@ -201,12 +284,20 @@ function SchoolLoginInner() {
                     required
                     autoFocus
                     placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                    className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors pr-12"
+                    style={{
+                      backgroundColor: theme?.secondaryColor || '#374151',
+                      borderColor: theme?.accentColor || '#6b7280',
+                      borderWidth: '1px'
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label 
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: theme?.textColor || '#ffffff' }}
+                  >
                     Password
                   </label>
                   <div className="relative">
@@ -216,14 +307,20 @@ function SchoolLoginInner() {
                       onChange={e => setPassword(e.target.value)}
                       required
                       placeholder="Enter your password"
-                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
+                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors pr-12"
+                      style={{
+                        backgroundColor: theme?.secondaryColor || '#374151',
+                        borderColor: theme?.accentColor || '#6b7280',
+                        borderWidth: '1px'
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
+                      style={{ color: theme?.textColor || '#ffffff' }}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? '�️' : '👁️‍🗨️'}
                     </button>
                   </div>
                 </div>
@@ -232,14 +329,21 @@ function SchoolLoginInner() {
                   <button
                     type="button"
                     onClick={() => { setMode('forgot'); setError(''); }}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-sm transition-colors"
+                    style={{ color: theme?.accentColor || '#60a5fa' }}
                   >
                     Forgot password?
                   </button>
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                  <div className="rounded-lg px-4 py-3 text-sm border"
+                    style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      borderColor: 'rgba(239, 68, 68, 0.3)',
+                      color: '#f87171'
+                    }}
+                  >
                     {error}
                   </div>
                 )}
@@ -247,7 +351,12 @@ function SchoolLoginInner() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+                  className="w-full py-3 px-4 font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
+                  style={{
+                    background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: theme?.textColor || '#ffffff',
+                    opacity: isLoading ? 0.7 : 1
+                  }}
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </button>
@@ -255,11 +364,23 @@ function SchoolLoginInner() {
             </div>
           ) : (
             /* Forgot Password */
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
+            <div 
+              className="rounded-2xl p-8 shadow-2xl border"
+              style={{
+                backgroundColor: theme?.backgroundColor || '#1f2937',
+                borderColor: theme?.secondaryColor || '#374151',
+                borderWidth: '1px'
+              }}
+            >
               <div className="text-center mb-8">
                 <div className="text-4xl mb-3">🔑</div>
-                <h2 className="text-2xl font-bold text-white">Reset Password</h2>
-                <p className="text-gray-400 text-sm mt-1">
+                <h2 
+                  className="text-2xl font-bold"
+                  style={{ color: theme?.textColor || '#ffffff' }}
+                >
+                  Reset Password
+                </h2>
+                <p className="text-sm mt-1 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
                   Enter your email to receive a reset link
                 </p>
               </div>
@@ -267,13 +388,14 @@ function SchoolLoginInner() {
               {forgotSent ? (
                 <div className="text-center">
                   <div className="text-4xl mb-3">📧</div>
-                  <p className="text-green-400 font-medium mb-2">Reset email sent!</p>
-                  <p className="text-gray-400 text-sm mb-6">
+                  <p className="font-medium mb-2" style={{ color: '#4ade80' }}>Reset email sent!</p>
+                  <p className="text-sm mb-6 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
                     Check your inbox for the password reset link.
                   </p>
                   <button
                     onClick={() => { setMode('login'); setForgotSent(false); setEmail(''); }}
-                    className="text-blue-400 hover:underline text-sm"
+                    className="text-sm transition-colors"
+                    style={{ color: theme?.accentColor || '#60a5fa' }}
                   >
                     Back to sign in
                   </button>
@@ -281,7 +403,10 @@ function SchoolLoginInner() {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: theme?.textColor || '#ffffff' }}
+                    >
                       Email or Employee ID
                     </label>
                     <input
@@ -291,12 +416,23 @@ function SchoolLoginInner() {
                       required
                       autoFocus
                       placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors"
+                      style={{
+                        backgroundColor: theme?.secondaryColor || '#374151',
+                        borderColor: theme?.accentColor || '#6b7280',
+                        borderWidth: '1px'
+                      }}
                     />
                   </div>
 
                   {error && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                    <div className="rounded-lg px-4 py-3 text-sm border"
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        color: '#f87171'
+                      }}
+                    >
                       {error}
                     </div>
                   )}
@@ -304,7 +440,12 @@ function SchoolLoginInner() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-semibold rounded-xl transition-colors"
+                    className="w-full py-3 px-4 font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
+                    style={{
+                      background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: theme?.textColor || '#ffffff',
+                      opacity: isLoading ? 0.7 : 1
+                    }}
                   >
                     {isLoading ? 'Sending...' : 'Send Reset Link'}
                   </button>
@@ -312,7 +453,11 @@ function SchoolLoginInner() {
                   <button
                     type="button"
                     onClick={() => { setMode('login'); setError(''); }}
-                    className="w-full text-center text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                    className="w-full text-center text-sm transition-colors"
+                    style={{ 
+                      color: theme?.textColor || '#ffffff',
+                      opacity: 0.7
+                    }}
                   >
                     ← Back to sign in
                   </button>
