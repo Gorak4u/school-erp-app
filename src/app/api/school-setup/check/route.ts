@@ -4,18 +4,28 @@ import { schoolPrisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
+    console.log('🔍 [SETUP CHECK] Starting setup check...');
+    
     const session = await getServerSession();
+    console.log('🔍 [SETUP CHECK] Session:', session?.user?.email ? 'Found' : 'Not found');
+    
     if (!session?.user?.email) {
+      console.log('❌ [SETUP CHECK] Unauthorized - no session email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get user's school
+    console.log('🔍 [SETUP CHECK] Looking up user for email:', session.user.email);
     const user = await (schoolPrisma as any).user.findUnique({
       where: { email: session.user.email },
       include: { school: true }
     });
 
+    console.log('🔍 [SETUP CHECK] User found:', !!user);
+    console.log('🔍 [SETUP CHECK] School found:', !!user?.school);
+
     if (!user || !user.school) {
+      console.log('❌ [SETUP CHECK] School not found for user:', session.user.email);
       return NextResponse.json({ error: 'School not found' }, { status: 404 });
     }
 
@@ -27,6 +37,7 @@ export async function GET() {
       'school_email'
     ];
 
+    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', user.school.id);
     const settings = await (schoolPrisma as any).schoolSetting.findMany({
       where: {
         schoolId: user.school.id,
@@ -34,17 +45,24 @@ export async function GET() {
       }
     });
 
+    console.log('🔍 [SETUP CHECK] Found settings:', settings.length);
+
     const configuredSettings = settings.filter((s: any) => s.value && s.value.trim() !== '');
     const isConfigured = configuredSettings.length >= essentialSettings.length * 0.5; // At least 50% configured
 
+    console.log('🔍 [SETUP CHECK] Configured settings:', configuredSettings.length, '/', essentialSettings.length);
+
     // Check for academic years (critical for school operations)
+    console.log('🔍 [SETUP CHECK] Checking academic years...');
     const academicYears = await (schoolPrisma as any).academicYear.findMany({
       where: { schoolId: user.school.id }
     });
 
+    console.log('🔍 [SETUP CHECK] Found academic years:', academicYears.length);
+
     const hasAcademicYears = academicYears.length > 0;
 
-    return NextResponse.json({
+    const result = {
       isConfigured,
       configuredSettings: configuredSettings.length,
       totalEssential: essentialSettings.length,
@@ -54,10 +72,23 @@ export async function GET() {
       missingEssential: essentialSettings.filter(key => 
         !settings.find((s: any) => s.key === key && s.value && s.value.trim() !== '')
       )
-    });
+    };
+
+    console.log('✅ [SETUP CHECK] Result:', result);
+    return NextResponse.json(result);
 
   } catch (error: any) {
-    console.error('Error checking school setup:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('❌ [SETUP CHECK] Error checking school setup:', error);
+    console.error('❌ [SETUP CHECK] Error stack:', error.stack);
+    console.error('❌ [SETUP CHECK] Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      meta: error.meta
+    });
+    return NextResponse.json({ 
+      error: error.message || 'Unknown error occurred',
+      details: error.stack 
+    }, { status: 500 });
   }
 }

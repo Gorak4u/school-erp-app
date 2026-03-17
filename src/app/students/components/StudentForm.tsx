@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { StudentIdCardData, buildStudentIdCardSnippet, buildStudentIdCardDocument } from '@/lib/idCard';
 
 const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');
 const isPhoneValid = (value: string | undefined | null) => {
@@ -90,7 +91,7 @@ export default function StudentForm({
   onCancel: () => void; 
   theme: 'dark' | 'light'; 
 }) {
-  const { mediums, classes, sections, dropdowns, activeAcademicYear, loading } = useSchoolConfig();
+  const { mediums, classes, sections, dropdowns, activeAcademicYear, loading, getSetting } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState('admission');
   const [subscriptionSummary, setSubscriptionSummary] = useState<{ maxStudents: number | null; studentsUsed: number | null; status: 'loading' | 'ready' | 'error'; }>({
     maxStudents: null,
@@ -99,6 +100,19 @@ export default function StudentForm({
   });
   const [planError, setPlanError] = useState<string | null>(null);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<number | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPayload, setPreviewPayload] = useState<null | {
+    feeStructures: any[];
+    feeCalcs: ReturnType<typeof feeCalcs>;
+    transportInfo: typeof transportInfo;
+    transportFeeCalcs: ReturnType<typeof transportFeeCalcs>;
+    discountData: typeof discountData;
+    selectedDiscountFeeIds: string[];
+  }>(null);
+  const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
+  const [showIdCard, setShowIdCard] = useState(false);
+  const [idCardHtml, setIdCardHtml] = useState('');
+  const [idCardData, setIdCardData] = useState<StudentIdCardData | null>(null);
   
   // Initialize mediumId if only one medium exists
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
