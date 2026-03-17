@@ -149,9 +149,19 @@ export function createMobileHandlers(ctx: any) {
       'class', 'address', 'attendance', 'grade', 'status', 'actions'
     ];
     setVisibleColumns(defaultColumns);
-    // Clear localStorage to force refresh
+    // Clear user-specific localStorage to force refresh
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('students-page-visibleColumns');
+      try {
+        // Get current user email for user-specific storage
+        const user = localStorage.getItem('user') || sessionStorage.getItem('user');
+        if (user) {
+          const parsedUser = JSON.parse(user);
+          const userKey = parsedUser.email || parsedUser.id || 'anonymous';
+          localStorage.removeItem(`students-page-visibleColumns-${userKey}`);
+        }
+      } catch {
+        // Ignore errors
+      }
     }
   };
 

@@ -127,7 +127,23 @@ export function useStudentState() {
     direction: 'asc' | 'desc';
   } | null>(null);
   
-  // Column Customization State with localStorage persistence
+  // Helper to get current user identifier
+  const getCurrentUserKey = () => {
+    if (typeof window === 'undefined') return 'anonymous';
+    try {
+      // Try to get user from session storage or localStorage
+      const user = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (user) {
+        const parsedUser = JSON.parse(user);
+        return parsedUser.email || parsedUser.id || 'anonymous';
+      }
+      return 'anonymous';
+    } catch {
+      return 'anonymous';
+    }
+  };
+
+  // Column Customization State with user-specific localStorage persistence
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const defaultColumns = [
       'select', 'photo', 'admissionNo', 'rollNo', 'name', 'parents', 'phoneNumbers',
@@ -137,7 +153,9 @@ export function useStudentState() {
     if (typeof window === 'undefined') return defaultColumns;
     
     try {
-      const saved = localStorage.getItem('students-page-visibleColumns');
+      // Get current user email for user-specific storage
+      const userKey = getCurrentUserKey();
+      const saved = localStorage.getItem(`students-page-visibleColumns-${userKey}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         // Force include phoneNumbers if not present
@@ -151,7 +169,7 @@ export function useStudentState() {
             updated.push('phoneNumbers');
           }
           // Save updated config
-          localStorage.setItem('students-page-visibleColumns', JSON.stringify(updated));
+          localStorage.setItem(`students-page-visibleColumns-${userKey}`, JSON.stringify(updated));
           return updated;
         }
         return parsed;
@@ -297,11 +315,12 @@ export function useStudentState() {
     loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender);
   }, [currentPage, pageSize]);
 
-  // Persist visibleColumns to localStorage
+  // Persist visibleColumns to user-specific localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('students-page-visibleColumns', JSON.stringify(visibleColumns));
+        const userKey = getCurrentUserKey();
+        localStorage.setItem(`students-page-visibleColumns-${userKey}`, JSON.stringify(visibleColumns));
       } catch {
         // Ignore localStorage errors
       }

@@ -49,25 +49,40 @@ export function useFeeState() {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkOperations, setShowBulkOperations] = useState(false);
 
-  // Column settings with localStorage persistence
+  // Column settings with user-specific localStorage persistence
   const [selectedColumns, setSelectedColumns] = useState(() => {
-    if (typeof window === 'undefined') return [
+    const defaultColumns = [
       'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
       'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
     ];
+    
+    if (typeof window === 'undefined') return defaultColumns;
+    
     try {
-      const saved = localStorage.getItem('fees-page-selectedColumns');
-      return saved ? JSON.parse(saved) : [
-        'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
-        'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
-      ];
+      // Get current user email for user-specific storage
+      const userKey = getCurrentUserKey();
+      const saved = localStorage.getItem(`fees-page-selectedColumns-${userKey}`);
+      return saved ? JSON.parse(saved) : defaultColumns;
     } catch {
-      return [
-        'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
-        'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
-      ];
+      return defaultColumns;
     }
   });
+
+  // Helper to get current user identifier
+  const getCurrentUserKey = () => {
+    if (typeof window === 'undefined') return 'anonymous';
+    try {
+      // Try to get user from session storage or localStorage
+      const user = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (user) {
+        const parsedUser = JSON.parse(user);
+        return parsedUser.email || parsedUser.id || 'anonymous';
+      }
+      return 'anonymous';
+    } catch {
+      return 'anonymous';
+    }
+  };
   
   const columnSettings = {
     availableColumns: [
@@ -122,10 +137,21 @@ export function useFeeState() {
   };
 
   const resetColumns = () => {
-    setSelectedColumns([
+    const defaultColumns = [
       'select', 'studentName', 'rollNo', 'studentClass', 'totalFees', 
       'totalPaid', 'totalPending', 'totalOverdue', 'paymentStatus', 'lastPaymentDate', 'actions'
-    ]);
+    ];
+    setSelectedColumns(defaultColumns);
+    
+    // Also clear user-specific storage
+    if (typeof window !== 'undefined') {
+      try {
+        const userKey = getCurrentUserKey();
+        localStorage.removeItem(`fees-page-selectedColumns-${userKey}`);
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
   };
   const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
     const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -173,11 +199,12 @@ export function useFeeState() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Persist selectedColumns to localStorage
+  // Persist selectedColumns to user-specific localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('fees-page-selectedColumns', JSON.stringify(selectedColumns));
+        const userKey = getCurrentUserKey();
+        localStorage.setItem(`fees-page-selectedColumns-${userKey}`, JSON.stringify(selectedColumns));
       } catch {
         // Ignore localStorage errors
       }
