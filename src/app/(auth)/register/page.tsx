@@ -66,701 +66,467 @@ function RegisterContent() {
   const [selectedPlan, setSelectedPlan] = useState(planParam || '');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(billingParam);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const planInfo = plans.find(p => p.name === selectedPlan);
-  const isTrial = planInfo?.priceMonthly === 0;
-  const isPaid = planInfo && planInfo.priceMonthly > 0;
+  const isTrial = !!planInfo && planInfo.priceMonthly === 0;
+  const isPaid = !!planInfo && planInfo.priceMonthly > 0;
 
-  // Fetch plans from database
   useEffect(() => {
     fetch('/api/plans?cache=true')
       .then(res => res.json())
       .then(data => {
-        const activePlans = (data.plans || []).filter((p: PlanFromDB) => p.isActive);
-        setPlans(activePlans);
-        setLoading(false);
+        const active = (data.plans || []).filter((p: PlanFromDB) => p.isActive);
+        setPlans(active);
+        setLoadingPlans(false);
       })
-      .catch(err => {
-        console.error('Failed to fetch plans:', err);
-        setLoading(false);
-      });
+      .catch(() => setLoadingPlans(false));
   }, []);
 
-  const [formData, setFormData] = useState({
-    schoolName: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    agreeToTerms: false,
+  const [form, setForm] = useState({
+    schoolName: '', firstName: '', lastName: '',
+    email: '', phone: '', password: '', confirmPassword: '', agreeToTerms: false,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [showPw, setShowPw] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  // Use planParam directly (not isTrial) to avoid race condition before plans load
-  const [currentStep, setCurrentStep] = useState(planParam === 'trial' ? 1 : (planParam ? 2 : 1));
-  const [showPassword, setShowPassword] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     if (planParam && plans.find(p => p.name === planParam)) {
       setSelectedPlan(planParam);
       if (billingParam) setBillingCycle(billingParam);
-      setCurrentStep(planParam === 'trial' ? 1 : 2);
     }
   }, [planParam, billingParam, plans]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const totalSteps = isPaid ? 3 : 2;
+
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // Total steps: 1=Plan, 2=Details, 3=Payment (paid only) or Confirm (trial/free)
-  const totalSteps = selectedPlan && plans.find(p => p.name === selectedPlan)?.priceMonthly ? 4 : 3;
-
-  const steps = selectedPlan
-    ? selectedPlan === 'trial' || !plans.find(p => p.name === selectedPlan)?.priceMonthly
-      ? [
-          { id: 1, title: 'Choose Plan' },
-          { id: 2, title: 'School Details' },
-          { id: 3, title: 'Confirm & Create' },
-        ]
-      : [
-          { id: 1, title: 'Choose Plan' },
-          { id: 2, title: 'School Details' },
-          { id: 3, title: 'Payment' },
-          { id: 4, title: 'Confirm & Create' },
-        ]
-    : [{ id: 1, title: 'Choose Plan' }];
-
-  const validateStep2 = () => {
-    if (!formData.schoolName) return 'School name is required';
-    if (!formData.firstName) return 'First name is required';
-    if (!formData.lastName) return 'Last name is required';
-    if (!formData.email) return 'Email is required';
-    if (!formData.password || formData.password.length < 8) return 'Password must be at least 8 characters';
-    if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
-    if (!formData.agreeToTerms) return 'You must agree to the terms';
+  const validateDetails = (): string | null => {
+    if (!form.schoolName.trim()) return 'School name is required';
+    if (!form.firstName.trim()) return 'First name is required';
+    if (!form.lastName.trim()) return 'Last name is required';
+    if (!form.email.trim() || !form.email.includes('@')) return 'Valid email is required';
+    if (form.password.length < 8) return 'Password must be at least 8 characters';
+    if (form.password !== form.confirmPassword) return 'Passwords do not match';
+    if (!form.agreeToTerms) return 'You must agree to the terms';
     return null;
   };
 
-  const handleRegister = async () => {
-    const validationError = validateStep2();
-    if (validationError) {
-      setError(validationError);
-      return;
+  // ── Register school + user via API, return schoolId on success ──────────────
+  const registerAccount = async (): Promise<string | null> => {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        schoolName: form.schoolName,
+        email: form.email,
+        phone: form.phone,
+        adminFirstName: form.firstName,
+        adminLastName: form.lastName,
+        adminEmail: form.email,
+        adminPassword: form.password,
+        plan: selectedPlan,
+        billingCycle,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'ACCOUNT_PENDING_PAYMENT') {
+        setError(data.message || 'Account already exists with pending payment.');
+        setTimeout(() => router.push(data.redirectUrl || '/subscription-required?pending=true'), 2000);
+        return null;
+      }
+      setError(data.error || 'Registration failed. Please try again.');
+      return null;
     }
+    return data.school?.id ?? null;
+  };
 
-    setIsLoading(true);
+  // ── Trial: register → auto-login → dashboard ────────────────────────────────
+  const handleTrialSubmit = async () => {
+    const err = validateDetails();
+    if (err) { setError(err); return; }
+    setIsSubmitting(true);
     setError('');
-
     try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schoolName: formData.schoolName,
-          email: formData.email,
-          phone: formData.phone,
-          adminFirstName: formData.firstName,
-          adminLastName: formData.lastName,
-          adminEmail: formData.email,
-          adminPassword: formData.password,
-          plan: selectedPlan,
-          billingCycle: billingCycle,
-        }),
-      });
-
-      const data = await res.json();
-      console.log('Registration response:', data);
-      console.log('Response status:', res.status);
-      if (!res.ok) {
-        if (data.error === 'ACCOUNT_PENDING_PAYMENT') {
-          // User has pending payment, redirect to payment screen
-          console.log('Detected pending payment, redirecting to:', data.redirectUrl);
-          setError(data.message);
-          setTimeout(() => {
-            router.push(data.redirectUrl || '/subscription-required?pending=true');
-          }, 2000);
-          return;
-        }
-        setError(data.error || 'Registration failed.');
+      const schoolId = await registerAccount();
+      if (!schoolId) return;
+      setSuccess('Trial account created! Logging you in...');
+      const login = await signIn('credentials', { email: form.email, password: form.password, redirect: false });
+      if (!login?.ok) {
+        setSuccess('');
+        setError('Auto-login failed. Please log in manually.');
+        setTimeout(() => router.push('/login'), 2000);
         return;
       }
-
-      // Auto-login after registration
-      setSuccess('Account created! Logging you in...');
-      const loginResult = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (loginResult?.ok) {
-        // Check subscription status after login
-        const sessionRes = await fetch('/api/auth/session');
-        const session = await sessionRes.json();
-        
-        // Redirect based on subscription status
-        if (session?.user?.subscriptionStatus === 'pending_payment') {
-          router.push('/subscription-required?pending=true');
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        router.push('/login?message=Registration successful! Please log in.');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      setSuccess(`Welcome! Redirecting to your dashboard...`);
+      setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handlePayment = async () => {
-    if (!planInfo) {
-      setError('Plan information not available');
-      return;
-    }
-
-    setIsProcessingPayment(true);
+  // ── Paid: register → Razorpay → verify → re-login → dashboard ───────────────
+  const handlePaidSubmit = async () => {
+    if (!planInfo) return;
+    setIsSubmitting(true);
     setError('');
-
     try {
-      // First register the user
       setSuccess('Creating your account...');
-      const registerRes = await fetch('/api/register', {
+      const schoolId = await registerAccount();
+      if (!schoolId) { setSuccess(''); return; }
+
+      setSuccess('Initializing payment...');
+      const amount = Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18);
+      const orderRes = await fetch('/api/create-payment-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schoolName: formData.schoolName,
-          email: formData.email,
-          phone: formData.phone,
-          adminFirstName: formData.firstName,
-          adminLastName: formData.lastName,
-          adminEmail: formData.email,
-          adminPassword: formData.password,
-          plan: selectedPlan,
-          billingCycle: billingCycle,
-        }),
+        body: JSON.stringify({ plan: planInfo.name, amount, currency: 'INR', billingCycle }),
       });
+      const orderData = await orderRes.json();
+      if (!orderData.success) { setSuccess(''); setError(orderData.error || 'Payment order failed.'); return; }
 
-      const registerData = await registerRes.json();
-      if (!registerRes.ok) {
-        if (registerData.error === 'ACCOUNT_PENDING_PAYMENT') {
-          // User has pending payment, redirect to payment screen
-          setError(registerData.message);
-          setTimeout(() => {
-            router.push(registerData.redirectUrl || '/subscription-required?pending=true');
-          }, 2000);
-          return;
-        }
-        setError(`Registration failed: ${registerData.error || 'Unknown error'}`);
-        return;
-      }
-
-      // Auto-login after registration
-      const loginResult = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (!loginResult?.ok) {
-        setError('Login failed after registration. Please try logging in manually.');
-        return;
-      }
-
-      // For trial users, skip payment and go to dashboard
-      if (isTrial) {
-        setSuccess('Trial account created! Redirecting to dashboard...');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1500);
-        return;
-      }
-
-      setSuccess('Account created! Initializing payment...');
-
-      // Now create payment order (only for paid plans)
-      const response = await fetch('/api/create-payment-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan: planInfo.name,
-          amount: Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18), // Include GST
-          currency: 'INR',
-          billingCycle: billingCycle,
-        }),
-      });
-
-      const data = await response.json();
-      console.log('Payment order response:', data);
-
-      if (!data.success) {
-        setError(`Payment order failed: ${data.error || 'Unknown error'}`);
-        return;
-      }
-
-      // Check if Razorpay is available
       if (typeof (window as any).Razorpay === 'undefined') {
-        setError('Payment gateway is not available. Please refresh the page and try again.');
-        return;
+        setSuccess(''); setError('Payment gateway unavailable. Please refresh and try again.'); return;
       }
 
-      // Initialize Razorpay
-      const options = {
-        key: data.key_id,
-        amount: data.order.amount,
-        currency: data.order.currency,
+      const rzp = new (window as any).Razorpay({
+        key: orderData.key_id,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
         name: 'School ERP',
-        description: `Subscription Plan: ${planInfo.displayName} (${billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})`,
-        order_id: data.order.id,
-        handler: async function (response: any) {
-          console.log('Payment successful:', response);
-          
-          // Verify payment
-          const verifyResponse = await fetch('/api/verify-payment', {
+        description: `${planInfo.displayName} – ${billingCycle === 'yearly' ? 'Yearly' : 'Monthly'}`,
+        order_id: orderData.order.id,
+        prefill: { name: `${form.firstName} ${form.lastName}`, email: form.email },
+        theme: { color: '#7c3aed' },
+        modal: { ondismiss: () => { setIsSubmitting(false); setSuccess(''); } },
+        handler: async (response: any) => {
+          setSuccess('Payment received! Activating your account...');
+          const verifyRes = await fetch('/api/verify-payment', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
-              billingCycle: billingCycle,
+              billingCycle, schoolId,
             }),
           });
-
-          const verifyData = await verifyResponse.json();
-          console.log('Payment verification response:', verifyData);
-
+          const verifyData = await verifyRes.json();
           if (verifyData.success) {
-            setSuccess('Payment successful! Activating your account...');
-            // Re-sign in to force JWT refresh so middleware sees new subscription status
-            await signIn('credentials', {
-              email: formData.email,
-              password: formData.password,
-              redirect: false,
-            });
-            setTimeout(() => {
-              window.location.href = '/dashboard';
-            }, 1500);
+            await signIn('credentials', { email: form.email, password: form.password, redirect: false });
+            setSuccess('Payment verified! Redirecting to dashboard...');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
           } else {
-            setError(`Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
+            setSuccess('');
+            setError(verifyData.error || 'Payment verification failed. Contact support.');
+            setIsSubmitting(false);
           }
         },
-        prefill: {
-          name: `${formData.firstName} ${formData.lastName}`,
-          email: formData.email,
-        },
-        theme: {
-          color: '#3399cc',
-        },
-        modal: {
-          ondismiss: function() {
-            console.log('Payment modal dismissed');
-            setIsProcessingPayment(false);
-          }
-        }
-      };
-
-      console.log('Initializing Razorpay with options:', options);
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error('Payment error:', error);
-      setError(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
-    } finally {
-      setIsProcessingPayment(false);
+      });
+      rzp.open();
+    } catch {
+      setSuccess('');
+      setError('Something went wrong. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
-  const handleNext = () => {
-    // Plan selection step (non-trial only, step 1)
-    if (currentStep === 1 && !isTrial && !selectedPlan) {
-      setError('Please select a plan to continue');
-      return;
-    }
-    // School details step: step 1 for trial, step 2 for paid
-    const isDetailsStep = (isTrial && currentStep === 1) || (!isTrial && currentStep === 2);
-    if (isDetailsStep) {
-      const validationError = validateStep2();
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-      if (isTrial) {
-        handleRegister();
-        return;
-      }
-      if (isPaid) {
-        setCurrentStep(3);
-        return;
-      }
-    }
-    setError('');
-    setCurrentStep(prev => prev + 1);
-  };
+
+  // ── UI ────────────────────────────────────────────────────────────────────────
+  const stepLabels = isPaid
+    ? ['Choose Plan', 'School Details', 'Payment']
+    : ['Choose Plan', 'School Details'];
+
+  const priceDisplay = planInfo
+    ? planInfo.priceMonthly === 0
+      ? `Free — ${planInfo.trialDays} day trial`
+      : `₹${(billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly).toLocaleString()}/${billingCycle === 'yearly' ? 'yr' : 'mo'} + GST`
+    : '';
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
-      <svg className="absolute inset-0 w-full h-full opacity-5" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-black to-gray-900" />
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <motion.div
-          className="w-full max-w-2xl mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <Link href="/" className="inline-flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">ERP</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                School ERP
-              </span>
-            </Link>
-            <h1 className="text-3xl font-bold text-white mb-2">Create Your School Account</h1>
-            <p className="text-gray-400">Get started in under 5 minutes</p>
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4 py-12">
+        {/* Logo */}
+        <Link href="/" className="inline-flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-sm">ERP</span>
           </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">School ERP</span>
+        </Link>
 
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {steps.map((step, i) => (
-              <React.Fragment key={`step-${step.id}`}>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-                  currentStep >= step.id
-                    ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                    : 'bg-gray-800/50 text-gray-500 border border-gray-700'
-                }`}>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                    currentStep > step.id ? 'bg-green-500 text-white' :
-                    currentStep === step.id ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'
-                  }`}>
-                    {currentStep > step.id ? '✓' : step.id}
-                  </span>
-                  {step.title}
-                </div>
-                {i < steps.length - 1 && <div className="w-8 h-px bg-gray-700" />}
+        <motion.div className="w-full max-w-xl" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            {stepLabels.map((label, i) => (
+              <React.Fragment key={`si-${i}`}>
+                <StepDot num={i + 1} label={label} active={step === i + 1} done={step > i + 1} />
+                {i < stepLabels.length - 1 && (
+                  <div className={`flex-1 max-w-[48px] h-px transition-colors ${step > i + 1 ? 'bg-green-500' : 'bg-gray-700'}`} />
+                )}
               </React.Fragment>
             ))}
           </div>
 
           {/* Card */}
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur-lg" />
-            <div className="relative bg-gray-900/90 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-2xl">
+          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Plan banner when selected */}
+            {planInfo && step > 1 && (
+              <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-800/40">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r ${planGradient(planInfo.name)} text-white`}>
+                    {planInfo.displayName}
+                  </span>
+                  <span className="text-sm text-gray-300">{priceDisplay}</span>
+                </div>
+                <button onClick={() => { setStep(1); setError(''); }} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                  Change plan
+                </button>
+              </div>
+            )}
 
+            <div className="p-8">
               <AnimatePresence mode="wait">
-                {/* Step 1: Choose Plan */}
-                {currentStep === 1 && (
-                  <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    <h2 className="text-xl font-bold mb-4">Choose Your Plan</h2>
-                    
-                    {/* Billing Toggle */}
-                    <div className="flex items-center justify-center gap-4 mb-6">
-                      <span className={billingCycle === 'monthly' ? 'text-white' : 'text-gray-500'}>Monthly</span>
+
+                {/* ── STEP 1: Plan Selection ── */}
+                {step === 1 && (
+                  <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                    <h2 className="text-2xl font-bold mb-1">Choose Your Plan</h2>
+                    <p className="text-gray-400 text-sm mb-6">Start free with a trial or go straight to a paid plan.</p>
+
+                    {/* Billing toggle */}
+                    <div className="flex items-center gap-3 mb-5">
+                      <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-gray-500'}`}>Monthly</span>
                       <button
-                        onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-                        className={`relative w-14 h-7 rounded-full transition-colors ${
-                          billingCycle === 'yearly' ? 'bg-blue-600' : 'bg-gray-700'
-                        }`}
+                        onClick={() => setBillingCycle((b: 'monthly' | 'yearly') => b === 'monthly' ? 'yearly' : 'monthly')}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${billingCycle === 'yearly' ? 'bg-purple-600' : 'bg-gray-700'}`}
                       >
-                        <div
-                          className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white transition-transform ${
-                            billingCycle === 'yearly' ? 'translate-x-7' : ''
-                          }`}
-                        />
+                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${billingCycle === 'yearly' ? 'translate-x-5' : ''}`} />
                       </button>
-                      <span className={billingCycle === 'yearly' ? 'text-white' : 'text-gray-500'}>
-                        Yearly <span className="text-green-400 text-sm">(Save 20%)</span>
+                      <span className={`text-sm ${billingCycle === 'yearly' ? 'text-white' : 'text-gray-500'}`}>
+                        Yearly <span className="text-emerald-400 text-xs ml-1">Save 20%</span>
                       </span>
                     </div>
-                    
-                    {loading ? (
-                      <div className="text-center py-8 text-gray-500">Loading plans...</div>
+
+                    {loadingPlans ? (
+                      <div className="text-center py-10 text-gray-500">Loading plans...</div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {plans.map((plan) => {
-                          let featuresList: string[] = [];
-                          try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
-                          const planColor = plan.name === 'trial' ? 'from-gray-500 to-gray-600' :
-                                          plan.name === 'basic' ? 'from-blue-500 to-cyan-500' :
-                                          plan.name === 'professional' ? 'from-purple-500 to-pink-500' :
-                                          'from-orange-500 to-red-500';
-                          const currentPrice = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
-                          const period = billingCycle === 'yearly' ? 'year' : 'month';
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {plans.map(plan => {
+                          let features: string[] = [];
+                          try { features = JSON.parse(plan.features || '[]'); } catch { features = []; }
+                          const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+                          const selected = selectedPlan === plan.name;
                           return (
-                            <div
+                            <button
                               key={plan.name}
                               onClick={() => { setSelectedPlan(plan.name); setError(''); }}
-                              className={`cursor-pointer rounded-xl border-2 p-5 transition-all ${
-                                selectedPlan === plan.name
-                                  ? 'border-purple-500 bg-purple-500/10'
-                                  : 'border-gray-700 hover:border-gray-600'
+                              className={`text-left rounded-xl border-2 p-4 transition-all ${
+                                selected ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 hover:border-gray-600 bg-gray-800/30'
                               }`}
                             >
-                              <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-gradient-to-r ${planColor} text-white`}>
+                              <div className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r ${planGradient(plan.name)} text-white mb-2`}>
                                 {plan.displayName}
                               </div>
-                              <div className="text-2xl font-bold text-white mb-1">
-                                {currentPrice === 0 ? 'Free' : `₹${currentPrice.toLocaleString()}`}
-                                {currentPrice > 0 && <span className="text-sm text-gray-400 font-normal">/{period}</span>}
-                                {currentPrice === 0 && <span className="text-sm text-gray-400 font-normal ml-1">{plan.trialDays} days</span>}
+                              <div className="text-2xl font-bold text-white">
+                                {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
+                                {price > 0 && <span className="text-sm text-gray-400 font-normal">/{billingCycle === 'yearly' ? 'yr' : 'mo'}</span>}
+                                {price === 0 && <span className="text-sm text-gray-400 font-normal"> · {plan.trialDays} days</span>}
                               </div>
-                              {billingCycle === 'yearly' && plan.priceYearly > 0 && (
-                                <div className="text-xs text-green-400 mb-2">
-                                  Save ₹{Math.round((plan.priceMonthly * 12 - plan.priceYearly)).toLocaleString()}/year
-                                </div>
-                              )}
-                              <ul className="mt-3 space-y-1">
-                                {featuresList.slice(0, 4).map((f, i) => (
-                                  <li key={`${plan.name}-feature-${i}`} className="text-xs text-gray-400 flex items-center gap-1.5">
-                                    <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
+                              <ul className="mt-2 space-y-1">
+                                {features.slice(0, 3).map((f, fi) => (
+                                  <li key={`f-${plan.name}-${fi}`} className="text-xs text-gray-400 flex items-center gap-1.5">
+                                    <svg className="w-3 h-3 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                     {f}
                                   </li>
                                 ))}
                               </ul>
-                            </div>
+                              {selected && (
+                                <div className="mt-2 flex items-center gap-1 text-xs text-purple-400 font-medium">
+                                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                  Selected
+                                </div>
+                              )}
+                            </button>
                           );
                         })}
                       </div>
                     )}
-                    <p className="text-center text-gray-500 text-xs mt-4">
-                      Need more? <Link href="/pricing" className="text-purple-400 hover:text-purple-300">View all plans</Link> or{' '}
-                      <a href="mailto:sales@schoolerp.com" className="text-purple-400 hover:text-purple-300">contact sales</a> for Enterprise.
-                    </p>
+
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => { if (!selectedPlan) { setError('Please select a plan to continue'); return; } setError(''); setStep(2); }}
+                        disabled={!selectedPlan || loadingPlans}
+                        className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-40 text-white rounded-xl font-semibold transition-all"
+                      >
+                        Continue →
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 
-                {/* Step 1: School & Admin Details (Trial) or Step 2: School & Admin Details (Paid) */}
-                {((currentStep === 1 && isTrial) || (currentStep === 2 && !isTrial)) && (
-                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    {/* Selected Plan Badge */}
-                    {planInfo && (
-                      <div className="flex items-center justify-between mb-6 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                        <div className="flex items-center gap-3">
-                          <div className={`px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r ${
-                            planInfo.name === 'trial' ? 'from-gray-500 to-gray-600' :
-                            planInfo.name === 'basic' ? 'from-blue-500 to-cyan-500' :
-                            planInfo.name === 'professional' ? 'from-purple-500 to-pink-500' :
-                            'from-orange-500 to-red-500'
-                          } text-white`}>
-                            {planInfo.displayName}
-                          </div>
-                          <span className="text-sm text-gray-400">
-                            {planInfo.priceMonthly === 0 ? `Free for ${planInfo.trialDays} days` : 
-                             `₹${(billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly).toLocaleString()}/${billingCycle === 'yearly' ? 'year' : 'month'}`}
-                          </span>
-                        </div>
-                        <button onClick={() => setCurrentStep(1)} className="text-xs text-purple-400 hover:text-purple-300">
-                          Change
-                        </button>
-                      </div>
-                    )}
+                {/* ── STEP 2: School & Admin Details ── */}
+                {step === 2 && (
+                  <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                    <h2 className="text-2xl font-bold mb-1">School & Admin Details</h2>
+                    <p className="text-gray-400 text-sm mb-6">Tell us about your school and create your admin account.</p>
 
-                    <h2 className="text-xl font-bold mb-6">School & Admin Details</h2>
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">School Name</label>
-                        <input name="schoolName" type="text" placeholder="e.g. Springfield International School" value={formData.schoolName} onChange={handleInputChange}
-                          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      <FieldInput label="School Name" name="schoolName" placeholder="e.g. Springfield International School" value={form.schoolName} onChange={onChange} required />
+                      <div className="grid grid-cols-2 gap-3">
+                        <FieldInput label="First Name" name="firstName" placeholder="Admin first name" value={form.firstName} onChange={onChange} required />
+                        <FieldInput label="Last Name" name="lastName" placeholder="Admin last name" value={form.lastName} onChange={onChange} required />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">First Name</label>
-                          <input name="firstName" type="text" placeholder="Admin first name" value={formData.firstName} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
-                          <input name="lastName" type="text" placeholder="Admin last name" value={formData.lastName} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <FieldInput label="Email" name="email" type="email" placeholder="admin@school.com" value={form.email} onChange={onChange} required />
+                        <FieldInput label="Phone" name="phone" type="tel" placeholder="+91-XXXXXXXXXX" value={form.phone} onChange={onChange} />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-                          <input name="email" type="email" placeholder="admin@school.com" value={formData.email} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                          <input name="phone" type="tel" placeholder="+91-XXXXXXXXXX" value={formData.phone} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <FieldInput label="Password" name="password" type={showPw ? 'text' : 'password'} placeholder="Min 8 characters" value={form.password} onChange={onChange} required />
+                        <FieldInput label="Confirm Password" name="confirmPassword" type={showPw ? 'text' : 'password'} placeholder="Re-enter password" value={form.confirmPassword} onChange={onChange} required />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                          <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Min 8 characters" value={formData.password} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-                          <input name="confirmPassword" type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={formData.confirmPassword} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                        <input type="checkbox" checked={showPassword} onChange={() => setShowPassword(!showPassword)} className="rounded bg-gray-800 border-gray-600" />
+                      <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+                        <input type="checkbox" checked={showPw} onChange={() => setShowPw((p: boolean) => !p)} className="rounded bg-gray-800 border-gray-600 accent-purple-600" />
                         Show passwords
                       </label>
-                      <label className="flex items-start gap-2 text-sm text-gray-300">
-                        <input type="checkbox" name="agreeToTerms" checked={formData.agreeToTerms} onChange={handleInputChange}
-                          className="mt-1 rounded bg-gray-800 border-gray-600 text-purple-600 focus:ring-purple-500" />
-                        <span>I agree to the <Link href="#" className="text-purple-400 underline">Terms of Service</Link> and <Link href="#" className="text-purple-400 underline">Privacy Policy</Link></span>
+                      <label className="flex items-start gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                        <input type="checkbox" name="agreeToTerms" checked={form.agreeToTerms} onChange={onChange}
+                          className="mt-0.5 rounded bg-gray-800 border-gray-600 accent-purple-600" />
+                        <span>I agree to the <Link href="#" className="text-purple-400 hover:underline">Terms of Service</Link> and <Link href="#" className="text-purple-400 hover:underline">Privacy Policy</Link></span>
                       </label>
                     </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <button onClick={() => { setStep(1); setError(''); }} className="px-5 py-3 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white rounded-xl font-medium transition-all">
+                        ← Back
+                      </button>
+                      {isTrial && (
+                        <button onClick={handleTrialSubmit} disabled={isSubmitting}
+                          className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2">
+                          {isSubmitting ? (
+                            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>Creating...</>
+                          ) : `Start ${planInfo?.trialDays ?? 14}-Day Free Trial`}
+                        </button>
+                      )}
+                      {isPaid && (
+                        <button
+                          onClick={() => { const e = validateDetails(); if (e) { setError(e); return; } setError(''); setStep(3); }}
+                          className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-semibold transition-all">
+                          Review & Pay →
+                        </button>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 
-                {/* Step 3: Payment (paid plans only) */}
-                {currentStep === 3 && isPaid && (
-                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    <h2 className="text-xl font-bold mb-6">Complete Payment</h2>
-                    
+                {/* ── STEP 3: Payment (paid plans only) ── */}
+                {step === 3 && isPaid && planInfo && (
+                  <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                    <h2 className="text-2xl font-bold mb-1">Complete Payment</h2>
+                    <p className="text-gray-400 text-sm mb-6">Review your order and proceed to payment.</p>
+
                     {/* Order Summary */}
-                    {planInfo && (
-                      <div className="mb-6 p-5 bg-gray-800/50 rounded-xl border border-gray-700">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-semibold text-white">Order Summary</h3>
-                          <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-700">
-                            <button
-                              onClick={() => setBillingCycle('monthly')}
-                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                billingCycle === 'monthly' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              Monthly
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-5 mb-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-white">Order Summary</h3>
+                        <div className="flex gap-1 bg-gray-900 rounded-lg p-1 border border-gray-700">
+                          {(['monthly', 'yearly'] as const).map(c => (
+                            <button key={c} onClick={() => setBillingCycle(c)}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${billingCycle === c ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                              {c === 'monthly' ? 'Monthly' : 'Yearly'}
+                              {c === 'yearly' && <span className="text-emerald-400 ml-1 text-[10px]">-20%</span>}
                             </button>
-                            <button
-                              onClick={() => setBillingCycle('yearly')}
-                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                billingCycle === 'yearly' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              Yearly <span className="text-green-400 ml-1">-20%</span>
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-400">{planInfo.displayName} Plan ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
-                          <span className="text-white font-medium">₹{(billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-400">GST (18%)</span>
-                          <span className="text-white font-medium">₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 0.18).toLocaleString()}</span>
-                        </div>
-                        <div className="border-t border-gray-700 mt-3 pt-3 flex justify-between">
-                          <span className="font-semibold text-white">Total</span>
-                          <span className="font-bold text-xl text-white">₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString()}</span>
+                          ))}
                         </div>
                       </div>
-                    )}
-
-                    {/* Payment Methods */}
-                    <div className="space-y-3 mb-6">
-                      <h3 className="font-semibold text-white text-sm">Payment Method</h3>
-                      {[
-                        { id: 'razorpay', name: 'Razorpay (UPI, Cards, Net Banking)', icon: '💳' },
-                        { id: 'bank', name: 'Bank Transfer (Manual)', icon: '🏦' },
-                      ].map(method => (
-                        <div key={method.id} className="flex items-center gap-3 p-4 bg-gray-800/30 rounded-lg border border-gray-700 cursor-pointer hover:border-purple-500/50 transition-all">
-                          <span className="text-xl">{method.icon}</span>
-                          <span className="text-sm text-gray-300">{method.name}</span>
-                        </div>
-                      ))}
+                      {(() => {
+                        const base = billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly;
+                        const gst = Math.round(base * 0.18);
+                        const total = Math.round(base * 1.18);
+                        return (
+                          <>
+                            <div className="flex justify-between text-sm mb-1.5">
+                              <span className="text-gray-400">{planInfo.displayName} ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
+                              <span className="text-white">₹{base.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm mb-3">
+                              <span className="text-gray-400">GST (18%)</span>
+                              <span className="text-white">₹{gst.toLocaleString()}</span>
+                            </div>
+                            <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
+                              <span className="font-semibold text-white">Total</span>
+                              <span className="font-bold text-2xl text-white">₹{total.toLocaleString()}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <p className="text-blue-400 text-sm font-medium">Razorpay Integration</p>
-                      <p className="text-gray-400 text-xs mt-1">
-                        Payment gateway integration will be connected here. For now, clicking "Pay & Create Account" will create your account with an active subscription.
-                      </p>
+                    {/* What you get */}
+                    <div className="bg-gray-800/30 border border-gray-700 rounded-xl p-4 mb-5">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">What you get</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <div className="flex items-center gap-1.5"><svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Up to {planInfo.maxStudents} students</div>
+                        <div className="flex items-center gap-1.5"><svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Up to {planInfo.maxTeachers} teachers</div>
+                        <div className="flex items-center gap-1.5"><svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Full feature access</div>
+                        <div className="flex items-center gap-1.5"><svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Email support</div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button onClick={() => { setStep(2); setError(''); }} className="px-5 py-3 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white rounded-xl font-medium transition-all">
+                        ← Back
+                      </button>
+                      <button onClick={handlePaidSubmit} disabled={isSubmitting}
+                        className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2">
+                        {isSubmitting ? (
+                          <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>Processing...</>
+                        ) : (
+                          <>Pay ₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString()} via Razorpay</>
+                        )}
+                      </button>
                     </div>
                   </motion.div>
                 )}
+
               </AnimatePresence>
 
-              {/* Error / Success Messages */}
+              {/* Feedback messages */}
               <AnimatePresence>
                 {error && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+                  <motion.div key="err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="mt-4 p-3 bg-red-500/15 border border-red-500/40 rounded-xl text-red-400 text-sm flex items-start gap-2">
+                    <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     {error}
                   </motion.div>
                 )}
                 {success && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="mt-4 bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-400 text-sm">
+                  <motion.div key="ok" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 bg-emerald-500/15 border border-emerald-500/40 rounded-xl text-emerald-400 text-sm flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
                     {success}
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* Navigation */}
-              <div className="flex gap-4 mt-6">
-                {currentStep > 1 && (
-                  <button onClick={() => { setCurrentStep(prev => prev - 1); setError(''); }}
-                    className="flex-1 px-6 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white font-medium hover:bg-gray-700 transition-all">
-                    Back
-                  </button>
-                )}
-                {currentStep === 1 && (
-                  <button onClick={handleNext} disabled={!selectedPlan}
-                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    Continue with {selectedPlan ? plans.find(p => p.name === selectedPlan)?.displayName || 'selected plan' : 'selected plan'}
-                  </button>
-                )}
-                {currentStep === 2 && isTrial && (
-                  <button onClick={handleNext} disabled={isLoading}
-                    className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    {isLoading ? 'Creating your school...' : 'Start Free Trial'}
-                  </button>
-                )}
-                {currentStep === 2 && isPaid && (
-                  <button onClick={handleNext} disabled={isLoading}
-                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    Proceed to Payment
-                  </button>
-                )}
-                {currentStep === 3 && isPaid && (
-                  <button onClick={handlePayment} disabled={isProcessingPayment}
-                    className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-all">
-                    {isProcessingPayment ? 'Initializing Payment...' : `Pay ₹${planInfo ? Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString() : ''} & Create Account`}
-                  </button>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="mt-6 text-center text-sm text-gray-500">
-                Already have an account?{' '}
-                <Link href="/login" className="text-purple-400 hover:text-purple-300">Sign in</Link>
-                {' | '}
-                <Link href="/pricing" className="text-purple-400 hover:text-purple-300">View all plans</Link>
-              </div>
             </div>
           </div>
+
+          {/* Footer */}
+          <p className="mt-5 text-center text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link href="/login" className="text-purple-400 hover:text-purple-300 font-medium">Sign in</Link>
+            <span className="mx-2 text-gray-700">·</span>
+            <Link href="/pricing" className="text-purple-400 hover:text-purple-300 font-medium">View all plans</Link>
+          </p>
         </motion.div>
       </div>
     </div>

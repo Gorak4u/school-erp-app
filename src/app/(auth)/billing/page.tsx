@@ -389,7 +389,7 @@ export default function BillingPage() {
                 
                 return (
                 <div 
-                  key={`plan-${plan.id}`}
+                  key={`plan-${plan.id || plan.name}`}
                   className={`p-4 rounded-lg border border-gray-700 ${
                     subscription?.plan === plan.name ? 'ring-2 ring-blue-500' : ''
                   }`}
@@ -406,7 +406,7 @@ export default function BillingPage() {
                     <li>• {plan.maxStudents} students</li>
                     <li>• {plan.maxTeachers} teachers</li>
                     {featuresList.slice(0, 3).map((feature, idx) => (
-                      <li key={`feature-${plan.id}-${idx}`}>• {feature}</li>
+                      <li key={`feature-${plan.id || plan.name}-${idx}`}>• {feature}</li>
                     ))}
                   </ul>
                   <button 
