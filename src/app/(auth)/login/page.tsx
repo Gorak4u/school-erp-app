@@ -67,6 +67,25 @@ export default function LoginPage() {
           router.push('/admin');
         } else {
           console.log('Redirecting regular user to /dashboard');
+          
+          // For school admins, check if setup is needed before redirecting
+          if (session?.user?.role === 'admin') {
+            try {
+              const setupRes = await fetch('/api/school-setup/check');
+              if (setupRes.ok) {
+                const setupData = await setupRes.json();
+                if (setupData.redirectToSettings) {
+                  console.log('School setup incomplete, redirecting to /settings');
+                  router.push('/settings');
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('Failed to check setup status:', error);
+              // Continue to dashboard if setup check fails
+            }
+          }
+          
           router.push('/dashboard');
         }
       } else {

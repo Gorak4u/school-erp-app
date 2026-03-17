@@ -5,11 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { dashboardApi } from '@/lib/apiClient';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSchoolSetup } from '@/hooks/useSchoolSetup';
 import DashboardKPICards from './components/DashboardKPICards';
 import DashboardCharts from './components/DashboardCharts';
 import DashboardAnalytics from './components/DashboardAnalytics';
@@ -20,18 +22,35 @@ import DashboardAlerts from './components/DashboardAlerts';
 export default function DashboardPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
   const { hasPermission, isAdmin } = usePermissions();
+  const setupStatus = useSchoolSetup();
   const canViewFinancials = isAdmin || hasPermission('view_admin_dashboard');
   const [activeTab, setActiveTab] = useState('overview');
   const [isClient, setIsClient] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showSetupAlert, setShowSetupAlert] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     loadDashboardData();
   }, []);
+
+  // Check setup status and redirect if needed
+  useEffect(() => {
+    if (!setupStatus.loading && setupStatus.redirectToSettings && isAdmin) {
+      setShowSetupAlert(true);
+      
+      // Auto-redirect after 10 seconds if user doesn't act
+      const redirectTimer = setTimeout(() => {
+        router.push('/settings');
+      }, 10000);
+
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [setupStatus.loading, setupStatus.redirectToSettings, isAdmin, router]);
 
   const loadDashboardData = async () => {
     try {
@@ -43,6 +62,14 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoToSettings = () => {
+    router.push('/settings');
+  };
+
+  const handleDismissAlert = () => {
+    setShowSetupAlert(false);
   };
 
   // Chart data built from real API response
@@ -147,6 +174,71 @@ export default function DashboardPage() {
       currentPage="dashboard" 
       title="Dashboard"
     >
+      {/* Setup Alert - Only show for admins when setup is incomplete */}
+      {showSetupAlert && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className={`mb-6 p-4 rounded-xl border-l-4 ${
+            theme === 'dark' 
+              ? 'bg-yellow-900/20 border-yellow-600 text-yellow-300' 
+              : 'bg-yellow-50 border-yellow-400 text-yellow-800'
+          }`}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">
+                  ⚠️ School Setup Required
+                </h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    Your school needs essential configuration to function properly. 
+                    {!setupStatus.isConfigured && (
+                      <span> Missing settings: {setupStatus.missingEssential.join(', ')}.</span>
+                    )}
+                    {!setupStatus.hasAcademicYears && (
+                      <span> No academic years configured.</span>
+                    )}
+                  </p>
+                  <p className="mt-1">
+                    You will be automatically redirected to Settings in 10 seconds, or you can go there now.
+                  </p>
+                </div>
+                <div className="mt-3 flex space-x-3">
+                  <button
+                    onClick={handleGoToSettings}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      theme === 'dark'
+                        ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                        : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                    }`}
+                  >
+                    Go to Settings Now
+                  </button>
+                  <button
+                    onClick={handleDismissAlert}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      theme === 'dark'
+                        ? 'border-yellow-600 text-yellow-400 hover:bg-yellow-600/20'
+                        : 'border-yellow-400 text-yellow-700 hover:bg-yellow-100'
+                    }`}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Dashboard Navigation Tabs */}
       <div className="mb-6">
         <nav className="flex space-x-1">
