@@ -3,6 +3,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 import { sendTeacherWelcomeEmail } from '@/lib/teacher-welcome-email';
+import { sendTeacherAdminNotificationEmail } from '@/lib/teacher-admin-notification-email';
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,24 +82,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, firstName, lastName, phone, ...teacherData } = body;
 
-    // Validate required fields for user account
-    if (!email || !firstName || !lastName) {
-      return NextResponse.json({ error: 'Email, first name, and last name are required' }, { status: 400 });
+    // Validate required fields
+    if (!firstName || !lastName) {
+      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 });
     }
 
-    // Check if email already exists in school_User
-    const existingUser = await (schoolPrisma as any).school_User.findUnique({
-      where: { email }
-    });
-    if (existingUser) {
-      return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
+    // Email is optional for teacher record but required for user account
+    let createUserAccount = true;
+    if (!email) {
+      console.log('Teacher email not provided - creating teacher record without user account');
+      createUserAccount = false;
+    } else {
+      // Check if email already exists in school_User
+      const existingUser = await (schoolPrisma as any).school_User.findUnique({
+        where: { email }
+      });
+      if (existingUser) {
+        return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
+      }
     }
 
-    // Generate default password if not provided
-    const defaultPassword = password || `Teach@${Date.now().toString().slice(-6)}`;
-    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+    // Generate default password if not provided (only if creating user account)
+    const defaultPassword = createUserAccount ? (password || `Teach@${Date.now().toString().slice(-6)}`) : '';
+    const hashedPassword = createUserAccount ? await bcrypt.hash(defaultPassword, 12) : '';
 
-    // Create both Teacher and school_User records in transaction
+    // Create Teacher and optionally school_User records in transaction
     const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
       // Create Teacher record
       const teacher = await tx.teacher.create({
@@ -110,53 +118,74 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create school_User record for login
-      const user = await (tx as any).school_User.create({
-        data: {
-          id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          role: 'teacher',
-          schoolId: ctx.schoolId,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
+      let user = null;
+      if (createUserAccount) {
+        // Create school_User record for login
+        user = await (tx as any).school_User.create({
+          data: {
+            id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            role: 'teacher',
+            schoolId: ctx.schoolId,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
 
-      // Create NextAuth Account record
-      await (tx as any).account.create({
-        data: {
-          id: `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          userId: user.id,
-          type: 'credentials',
-          provider: 'credentials',
-          providerAccountId: user.id,
-        },
-      });
+        // Create NextAuth Account record
+        await (tx as any).account.create({
+          data: {
+            id: `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userId: user.id,
+            type: 'credentials',
+            provider: 'credentials',
+            providerAccountId: user.id,
+          },
+        });
+      }
 
-      return { teacher, user, defaultPassword };
+      return { teacher, user, defaultPassword, createUserAccount };
     });
 
-    // Send welcome email (non-blocking)
+    // Send emails (non-blocking)
     if (ctx.schoolId) {
-      sendTeacherWelcomeEmail(result.user, result.teacher, result.defaultPassword, ctx.schoolId).catch(error => {
-        console.error('Teacher welcome email failed:', error);
+      // Send welcome email to teacher (only if user account was created)
+      if (result.createUserAccount && result.user) {
+        sendTeacherWelcomeEmail(result.user, result.teacher, result.defaultPassword, ctx.schoolId).catch((error: any) => {
+          console.error('Teacher welcome email failed:', error);
+        });
+      }
+
+      // Send notification email to admin who added the teacher
+      sendTeacherAdminNotificationEmail(
+        ctx.email, // Admin who created the teacher
+        result.teacher, 
+        result.user,
+        result.defaultPassword,
+        result.createUserAccount,
+        ctx.schoolId
+      ).catch((error: any) => {
+        console.error('Teacher admin notification email failed:', error);
       });
     }
 
     return NextResponse.json({ 
       teacher: result.teacher,
-      user: {
+      user: result.user ? {
         id: result.user.id,
         email: result.user.email,
         name: `${result.user.firstName} ${result.user.lastName}`,
         role: result.user.role,
-      },
-      temporaryPassword: result.defaultPassword,
-      message: 'Teacher created successfully. Welcome email sent with login credentials.'
+      } : null,
+      temporaryPassword: result.createUserAccount ? result.defaultPassword : null,
+      createUserAccount: result.createUserAccount,
+      message: result.createUserAccount 
+        ? 'Teacher created successfully. Welcome email sent to teacher and notification sent to admin.'
+        : 'Teacher record created successfully. No email provided - admin notification sent. User account not created.'
     }, { status: 201 });
 
   } catch (error: any) {

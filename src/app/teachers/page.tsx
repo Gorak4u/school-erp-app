@@ -780,7 +780,7 @@ export default function TeachersPage() {
                 </div>
               </div>
               {[
-                { key: 'email', label: 'Email *', type: 'email' },
+                { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create teacher record without login access' },
                 { key: 'phone', label: 'Phone', type: 'text' },
                 { key: 'employeeId', label: 'Employee ID *', type: 'text' },
                 { key: 'department', label: 'Department', type: 'text' },
@@ -788,7 +788,7 @@ export default function TeachersPage() {
                 { key: 'qualification', label: 'Qualification', type: 'text' },
                 { key: 'experience', label: 'Experience (years)', type: 'number' },
                 { key: 'joiningDate', label: 'Joining Date', type: 'date' },
-                { key: 'password', label: 'Password (optional)', type: 'password' },
+                { key: 'password', label: 'Password (if email provided)', type: 'password' },
               ].map(f => (
                 <div key={f.key}>
                   <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
@@ -797,7 +797,11 @@ export default function TeachersPage() {
                     className={inputCls}
                     value={(form as any)[f.key]}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={f.key === 'email' ? 'Leave blank to create record without login' : ''}
                   />
+                  {(f as any).helper && (
+                    <p className={`text-xs ${sub} mt-1`}>{(f as any).helper}</p>
+                  )}
                 </div>
               ))}
               <div>
@@ -840,23 +844,34 @@ export default function TeachersPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName || !form.email || !form.employeeId) { setFormError('First Name, Last Name, Email and Employee ID are required'); return; }
+                  if (!form.firstName || !form.lastName || !form.employeeId) { setFormError('First Name, Last Name, and Employee ID are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     const response = await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
                     
-                    // Show temporary password if provided
-                    if (response.temporaryPassword) {
+                    // Show appropriate message based on whether user account was created
+                    if (response.createUserAccount && response.temporaryPassword) {
                       if ((window as any).toast) {
                         (window as any).toast({
                           type: 'success',
                           title: 'Teacher Created Successfully',
-                          message: `Temporary password: ${response.temporaryPassword}. Welcome email sent to ${response.user.email}.`,
+                          message: `Login account created! Welcome email sent to ${response.user.email}. Admin notification sent.`,
                           duration: 8000,
                         });
                       } else {
-                        alert(`Teacher created! Temporary password: ${response.temporaryPassword}\nWelcome email sent to ${response.user.email}`);
+                        alert(`Teacher created! Login account created for ${response.user.email}\nWelcome email and admin notification sent.`);
+                      }
+                    } else {
+                      if ((window as any).toast) {
+                        (window as any).toast({
+                          type: 'info',
+                          title: 'Teacher Record Created',
+                          message: 'Teacher record created without login account (no email provided). Admin notification sent.',
+                          duration: 6000,
+                        });
+                      } else {
+                        alert('Teacher record created! No login account created as no email was provided.\nAdmin notification sent with next steps.');
                       }
                     }
                   } catch (err: any) { 
