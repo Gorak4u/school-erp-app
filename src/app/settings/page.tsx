@@ -13,6 +13,7 @@ import {
 } from '@/lib/apiClient';
 import RolesManagement from '@/components/settings/RolesManagement';
 import UsersManagement from '@/components/settings/UsersManagement';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const showToast = (t: any) => { if ((window as any).toast) (window as any).toast(t); };
 
@@ -39,6 +40,8 @@ const TABS = [
 export default function SettingsPage() {
   const { theme } = useTheme();
   const { refresh: refreshSchoolConfig } = useSchoolConfig();
+  const { hasPermission, isAdmin } = usePermissions();
+  const canManageSettings = isAdmin || hasPermission('manage_settings');
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('school');
   const [loading, setLoading] = useState(false);
@@ -943,7 +946,7 @@ export default function SettingsPage() {
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Education Boards</h3>
-          <button className={btnPrimary} onClick={() => openCreate('board', { code: '', name: '', description: '', isActive: true })}>+ Add Board</button>
+          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('board', { code: '', name: '', description: '', isActive: true })}>+ Add Board</button>
         </div>
         {boards.length === 0 && <p className={subtext}>No boards. Add CBSE, ICSE, State Board, etc.</p>}
         <div className="space-y-2">
@@ -955,8 +958,8 @@ export default function SettingsPage() {
                 <span className={badge(b.isActive)}>{b.isActive ? 'Active' : 'Inactive'}</span>
               </div>
               <div className="flex gap-2">
-                <button className={btnSecondary} onClick={() => openEdit('board', b)}>Edit</button>
-                <button className={btnDanger} onClick={() => handleDelete('board', b.id, b.name)}>Delete</button>
+                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('board', b)}>Edit</button>
+                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('board', b.id, b.name)}>Delete</button>
               </div>
             </div>
           ))}
@@ -967,7 +970,7 @@ export default function SettingsPage() {
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Language Mediums</h3>
-          <button className={btnPrimary} onClick={() => openCreate('medium', { code: '', name: '', description: '', isActive: true, academicYearId: activeAY?.id || '' })}>+ Add Medium</button>
+          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('medium', { code: '', name: '', description: '', isActive: true, academicYearId: activeAY?.id || '' })}>+ Add Medium</button>
         </div>
         {mediums.length === 0 && <p className={subtext}>No mediums. Add English, Hindi, Kannada, etc.</p>}
         <div className="space-y-2">
@@ -980,8 +983,8 @@ export default function SettingsPage() {
                 <span className={subtext}>{m.classes?.length || 0} classes</span>
               </div>
               <div className="flex gap-2">
-                <button className={btnSecondary} onClick={() => openEdit('medium', m)}>Edit</button>
-                <button className={btnDanger} onClick={() => handleDelete('medium', m.id, m.name)}>Delete</button>
+                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('medium', m)}>Edit</button>
+                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('medium', m.id, m.name)}>Delete</button>
               </div>
             </div>
           ))}
@@ -992,7 +995,7 @@ export default function SettingsPage() {
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Classes</h3>
-          <button className={btnPrimary} onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: activeAY?.id || '', isActive: true })}>+ Add Class</button>
+          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: activeAY?.id || '', isActive: true })}>+ Add Class</button>
         </div>
         {classes.length === 0 && <p className={subtext}>No classes configured.</p>}
         <div className="space-y-2">
@@ -1006,8 +1009,8 @@ export default function SettingsPage() {
                 <span className={subtext}>{c.sections?.length || 0} sections</span>
               </div>
               <div className="flex gap-2">
-                <button className={btnSecondary} onClick={() => openEdit('class', c)}>Edit</button>
-                <button className={btnDanger} onClick={() => handleDelete('class', c.id, c.name)}>Delete</button>
+                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('class', c)}>Edit</button>
+                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('class', c.id, c.name)}>Delete</button>
               </div>
             </div>
           ))}
@@ -1018,7 +1021,7 @@ export default function SettingsPage() {
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Sections</h3>
-          <button className={btnPrimary} onClick={() => openCreate('section', { code: '', name: '', classId: '', capacity: 40, roomNumber: '', isActive: true })}>+ Add Section</button>
+          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('section', { code: '', name: '', classId: '', capacity: 40, roomNumber: '', isActive: true })}>+ Add Section</button>
         </div>
         {sections.length === 0 && <p className={subtext}>No sections.</p>}
         <div className="overflow-x-auto">
@@ -1035,8 +1038,8 @@ export default function SettingsPage() {
                   <td className="py-2 px-3">{s.capacity}</td>
                   <td className="py-2 px-3">{s.roomNumber || '—'}</td>
                   <td className="py-2 px-3 flex gap-1">
-                    <button className={btnSecondary} onClick={() => openEdit('section', s)}>Edit</button>
-                    <button className={btnDanger} onClick={() => handleDelete('section', s.id, s.name)}>Del</button>
+                    <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('section', s)}>Edit</button>
+                    <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('section', s.id, s.name)}>Del</button>
                   </td>
                 </tr>
               ))}
@@ -1170,7 +1173,7 @@ export default function SettingsPage() {
         <div className={card}>
           <div className="flex justify-between items-center mb-4">
             <div><h3 className={heading}>Global Fee Settings</h3><p className={subtext}>Late fee, grace period, receipt prefix</p></div>
-            <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('fee_config', globalConfig)}>{saving ? 'Saving...' : 'Save'}</button>
+            <button className={btnPrimary} disabled={saving || !canManageSettings} onClick={() => saveBatchSettings('fee_config', globalConfig)}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(globalConfig).map(([key, val]) => (
@@ -1187,8 +1190,8 @@ export default function SettingsPage() {
           <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
             <div><h3 className={heading}>Fee Structures</h3><p className={subtext}>Define fees per academic year, board, medium, and class</p></div>
             <div className="flex gap-2">
-              <button className={`${btnSecondary} !px-4 !py-2`} onClick={() => setShowCloneModal(true)}>📋 Clone to Another Year</button>
-              <button className={btnPrimary} onClick={openCreateFee}>+ Add Fee Structure</button>
+              <button className={`${btnSecondary} !px-4 !py-2`} disabled={!canManageSettings} onClick={() => setShowCloneModal(true)}>📋 Clone to Another Year</button>
+              <button className={btnPrimary} disabled={!canManageSettings} onClick={openCreateFee}>+ Add Fee Structure</button>
             </div>
           </div>
 
@@ -1240,8 +1243,8 @@ export default function SettingsPage() {
                       <td className="py-2 px-2">{fs.class?.name || '—'}</td>
                       <td className="py-2 px-2">{fs.academicYear?.year || '—'}</td>
                       <td className="py-2 px-2 flex gap-1">
-                        <button className={btnSecondary} onClick={() => openEditFee(fs)}>Edit</button>
-                        <button className={btnDanger} onClick={() => deleteFee(fs)}>Del</button>
+                        <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEditFee(fs)}>Edit</button>
+                        <button className={btnDanger} disabled={!canManageSettings} onClick={() => deleteFee(fs)}>Del</button>
                       </td>
                     </tr>
                   ))}
@@ -1315,7 +1318,7 @@ export default function SettingsPage() {
           <h3 className={heading}>School Timings & Period Timetable</h3>
           <p className={subtext}>Define periods, breaks, and assembly timings</p>
         </div>
-        <button className={btnPrimary} onClick={() => openCreate('timing', { name: '', type: 'period', startTime: '08:00', endTime: '08:45', dayOfWeek: 'all', sortOrder: timings.length, isActive: true })}>
+        <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('timing', { name: '', type: 'period', startTime: '08:00', endTime: '08:45', dayOfWeek: 'all', sortOrder: timings.length, isActive: true })}>
           + Add Timing
         </button>
       </div>
@@ -1330,8 +1333,8 @@ export default function SettingsPage() {
               <span className={subtext}>({t.dayOfWeek})</span>
             </div>
             <div className="flex gap-2">
-              <button className={btnSecondary} onClick={() => openEdit('timing', t)}>Edit</button>
-              <button className={btnDanger} onClick={() => handleDelete('timing', t.id, t.name)}>Delete</button>
+              <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('timing', t)}>Edit</button>
+              <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('timing', t.id, t.name)}>Delete</button>
             </div>
           </div>
         ))}
@@ -1533,8 +1536,9 @@ export default function SettingsPage() {
                   <div>
                     <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Settings & Configuration</h1>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                      {loading ? 'Loading configuration...' : 'Manage your school ERP system settings'}
+                      {loading ? 'Loading configuration...' : canManageSettings ? 'Manage your school ERP system settings' : 'View school ERP system settings (Read-only)'}
                       {activeAY && <span className="ml-2 px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded-full text-xs font-medium">AY: {activeAY.name}</span>}
+                      {!canManageSettings && <span className="ml-2 px-2 py-0.5 bg-amber-600/20 text-amber-400 rounded-full text-xs font-medium">👁️ Read-Only Access</span>}
                     </p>
                   </div>
                 </div>

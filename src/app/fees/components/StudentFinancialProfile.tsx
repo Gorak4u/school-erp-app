@@ -27,9 +27,10 @@ interface StudentFinancialProfileProps {
   onClose?: () => void;
   studentId?: string;
   studentData?: any;
+  canManageFees?: boolean;
 }
 
-export default function StudentFinancialProfile({ theme, onClose, studentId, studentData }: StudentFinancialProfileProps) {
+export default function StudentFinancialProfile({ theme, onClose, studentId, studentData, canManageFees = true }: StudentFinancialProfileProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId);
   const [activeTab, setActiveTab] = useState<'overview' | 'fee-details' | 'payment-history'>('overview');
@@ -812,18 +813,20 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
             >
               Generate Statement
             </button>
-            <button 
-              onClick={() => {
-                if (onClose) {
-                  onClose();
-                }
-                // Navigate to fee collection page
-                window.location.href = `/fee-collection?studentId=${studentId || studentData?.id}`;
-              }}
-              className="px-4 py-2 text-sm rounded-lg font-medium bg-green-600 text-white hover:bg-green-700"
-            >
-              Collect Payment
-            </button>
+            {canManageFees && (
+              <button 
+                onClick={() => {
+                  if (onClose) {
+                    onClose();
+                  }
+                  // Navigate to fee collection page
+                  window.location.href = `/fee-collection?studentId=${studentId || studentData?.id}`;
+                }}
+                className="px-4 py-2 text-sm rounded-lg font-medium bg-green-600 text-white hover:bg-green-700"
+              >
+                Collect Payment
+              </button>
+            )}
           </div>
         </div>
       </div>

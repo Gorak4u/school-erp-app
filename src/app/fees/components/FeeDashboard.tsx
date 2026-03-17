@@ -8,7 +8,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
   const {
     theme, showDashboard, setShowDashboard,
     calculateStatistics, setShowFeeStructureModal,     setShowBulkOperations, setShowImportModal, selectedStudents,
-    studentFeeSummaries, filteredStudentSummaries, recentActivities,
+    studentFeeSummaries, filteredStudentSummaries, recentActivities, canManageFees,
   } = ctx;
 
   const stats = calculateStatistics ? calculateStatistics() : { totalFees: 0, collectedFees: 0, pendingFees: 0, overdueFees: 0, collectionRate: 0 };
@@ -52,13 +52,15 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
           {showDashboard ? '📊 Hide Dashboard' : '� Show Dashboard'}
         </button>
         <div className="flex gap-2">
+          {canManageFees && (
+            <button
+              onClick={() => window.location.href = '/fee-collection'}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity"
+            >
+              💰 Collect Fee
+            </button>
+          )}
           <button
-            onClick={() => window.location.href = '/fee-collection'}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity"
-          >
-            💰 Collect Fee
-          </button>
-                    <button
             onClick={() => setShowImportModal(true)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'

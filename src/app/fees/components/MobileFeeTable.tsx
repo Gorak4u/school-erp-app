@@ -14,6 +14,7 @@ interface MobileFeeTableProps {
   onCollectFee: (studentId: string) => void;
   onViewProfile: (studentId: string) => void;
   onViewWorkflows: (studentId: string) => void;
+  canManageFees?: boolean;
 }
 
 export default function MobileFeeTable({
@@ -24,7 +25,8 @@ export default function MobileFeeTable({
   isLoading,
   onCollectFee,
   onViewProfile,
-  onViewWorkflows
+  onViewWorkflows,
+  canManageFees = true
 }: MobileFeeTableProps) {
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -146,16 +148,18 @@ export default function MobileFeeTable({
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <button
-              onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
-              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                isDark 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-              }`}
-            >
-              💰 Collect
-            </button>
+            {canManageFees && (
+              <button
+                onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  isDark 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                💰 Collect
+              </button>
+            )}
             <button
               onClick={() => onViewProfile(student.studentId)}
               className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
