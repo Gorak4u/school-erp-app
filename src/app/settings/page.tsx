@@ -33,10 +33,10 @@ const TABS = [
   { id: 'fees', label: 'Fee Structure', icon: '💰' },
   { id: 'timings', label: 'School Timings', icon: '🕐' },
   { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
-  { id: 'leave', label: 'Leave Management', icon: '🏖️' },
-  { id: 'app', label: 'App Settings', icon: '⚙️' },
   { id: 'roles', label: 'Custom Roles', icon: '🎭' },
   { id: 'users', label: 'Users & Access', icon: '👥' },
+  { id: 'leave', label: 'Leave Management', icon: '🏖️' },
+  { id: 'app', label: 'App Settings', icon: '⚙️' },
 ];
 
 export default function SettingsPage() {

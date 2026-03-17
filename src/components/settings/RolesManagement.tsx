@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PERMISSION_GROUPS, DEFAULT_ROLE_PERMISSIONS, type Permission } from '@/lib/permissions';
+import { PERMISSION_GROUPS, DEFAULT_ROLE_PERMISSIONS, PERMISSION_LABELS, type Permission } from '@/lib/permissions';
 import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole {
@@ -59,8 +59,25 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
         });
         
         setRoleDrafts(drafts);
+        
+        // Auto-seed Teacher role if no custom roles exist
+        if (roles.length === 0) {
+          seedTeacherRole();
+        }
       })
       .finally(() => setLoading(false));
+  };
+
+  const seedTeacherRole = async () => {
+    try {
+      const response = await fetch('/api/roles/seed-defaults', { method: 'POST' });
+      if (response.ok) {
+        // Reload roles after seeding
+        load();
+      }
+    } catch (error) {
+      console.error('Failed to seed Teacher role:', error);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -88,17 +105,15 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
     }));
   };
 
-  const handleToggleGroup = (id: string, groupPerms: Permission[]) => {
+  const handleTogglePermission = (id: string, permission: Permission) => {
     setRoleDrafts(prev => {
       const draft = { ...prev[id] };
       const currentPerms = new Set(draft.permissions);
       
-      const allPresent = groupPerms.every(p => currentPerms.has(p));
-      
-      if (allPresent) {
-        groupPerms.forEach(p => currentPerms.delete(p));
+      if (currentPerms.has(permission)) {
+        currentPerms.delete(permission);
       } else {
-        groupPerms.forEach(p => currentPerms.add(p));
+        currentPerms.add(permission);
       }
       
       draft.permissions = currentPerms;
@@ -205,8 +220,8 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
     <div className={cardClasses + " p-6"}>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h3 className={headingClasses}>Roles & Permissions Matrix</h3>
-          <p className={subtextClasses}>Manage user roles in an Excel-style grid</p>
+          <h3 className={headingClasses}>Custom Roles Management</h3>
+          <p className={subtextClasses}>Manage custom user roles and their permissions</p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -228,17 +243,19 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading roles...</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
+          <div className="min-w-[800px]">
+            <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <thead>
               <tr>
-                <th className={`px-4 py-3 text-left font-semibold border min-w-[180px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[1px_0_0_0_#374151]' : ''}`}>
+                <th className={`px-4 py-3 text-left font-semibold border min-w-[200px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[2px_0_0_0_#374151]' : ''}`}>
                   Role Name
                 </th>
-                {PERMISSION_GROUPS.map((group) => (
-                  <th key={group.label} className={`px-2 py-2 text-center font-semibold border w-24 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                {/* Individual Permission Columns */}
+                {Object.values(PERMISSION_LABELS).map((label) => (
+                  <th key={label} className={`px-2 py-2 text-center font-semibold border w-24 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
                     <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-6 mt-6 mb-2 text-xs">
-                      {group.label}
+                      {label}
                     </div>
                   </th>
                 ))}
@@ -248,40 +265,10 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
               </tr>
             </thead>
             <tbody>
-              {/* Built-in Roles */}
-              {BUILT_IN_ROLES.map((role) => (
-                <tr key={role.id} className={`${isDark ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
-                  <td className={`px-4 py-3 border font-medium sticky left-0 z-10 bg-inherit shadow-[1px_0_0_0_#e5e7eb] ${isDark ? 'border-gray-700 shadow-[1px_0_0_0_#374151]' : 'border-gray-200'}`}>
-                    <div className="flex items-center gap-2">
-                      <span>{role.name}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'}`}>
-                        System
-                      </span>
-                    </div>
-                  </td>
-                  {PERMISSION_GROUPS.map((group) => {
-                    const hasAll = group.permissions.every(p => role.permissions.has(p));
-                    return (
-                      <td key={group.label} className={`px-2 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                        <input
-                          type="checkbox"
-                          checked={hasAll}
-                          disabled
-                          className={`w-4 h-4 rounded ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} opacity-60 cursor-not-allowed`}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className={`px-4 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <span className="text-gray-400 text-xs">-</span>
-                  </td>
-                </tr>
-              ))}
-
-              {/* Editable Drafts & Custom Roles */}
+              {/* Custom Roles Only */}
               {activeDrafts.map(([id, draft]) => (
                 <tr key={id} className={`${draft.isNew ? (isDark ? 'bg-green-900/10' : 'bg-green-50') : ''} ${isDark ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
-                  <td className={`p-0 border sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb] ${isDark ? 'border-gray-700 bg-gray-900 shadow-[1px_0_0_0_#374151]' : 'border-gray-200 bg-white'}`}>
+                  <td className={`p-0 border sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'border-gray-700 bg-gray-900 shadow-[2px_0_0_0_#374151]' : 'border-gray-200 bg-white'}`}>
                     <input
                       type="text"
                       value={draft.name}
@@ -290,15 +277,15 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                       className={`w-full h-full min-h-[48px] px-4 py-3 bg-transparent outline-none ${isDark ? 'text-gray-200 placeholder-gray-600 focus:bg-gray-800' : 'text-gray-900 placeholder-gray-400 focus:bg-blue-50'} transition-colors font-medium`}
                     />
                   </td>
-                  {PERMISSION_GROUPS.map((group) => {
-                    const hasAll = group.permissions.every(p => draft.permissions.has(p));
-                    // Add slight visual difference for partial selections if needed, but checkbox natively supports boolean
+                  {/* Individual Permission Checkboxes */}
+                  {Object.entries(PERMISSION_LABELS).map(([permissionKey, label]) => {
+                    const hasPermission = draft.permissions.has(permissionKey as Permission);
                     return (
-                      <td key={group.label} className={`px-2 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <td key={permissionKey} className={`px-2 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                         <input
                           type="checkbox"
-                          checked={hasAll}
-                          onChange={() => handleToggleGroup(id, group.permissions)}
+                          checked={hasPermission}
+                          onChange={() => handleTogglePermission(id, permissionKey as Permission)}
                           className={`w-4 h-4 rounded cursor-pointer ${isDark ? 'accent-blue-500 bg-gray-700 border-gray-600' : 'accent-blue-600 bg-white border-gray-300'}`}
                         />
                       </td>
@@ -319,6 +306,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
