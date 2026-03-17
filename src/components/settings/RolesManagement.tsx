@@ -229,7 +229,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                             isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
                           }`}
                         >
-                          {PERMISSION_LABELS[perm as Permission] || perm}
+                          {PERMISSION_LABELS[perm] || perm.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       ));
                     })()}
@@ -371,7 +371,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                                 className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500/30 focus:ring-offset-0"
                               />
                               <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                                {PERMISSION_LABELS[perm] || perm}
+                                {PERMISSION_LABELS[perm] || perm.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                               </span>
                             </label>
                           ))}

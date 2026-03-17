@@ -52,7 +52,7 @@ export const ALL_PERMISSIONS = {
 export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
 
 // Human-readable labels for the UI
-export const PERMISSION_LABELS: Record<Permission, string> = {
+export const PERMISSION_LABELS: Record<string, string> = {
   view_dashboard: 'View Dashboard',
   view_admin_dashboard: 'View Admin Dashboard (Financial)',
   view_alumni: 'View Alumni',
