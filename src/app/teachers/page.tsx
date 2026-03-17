@@ -11,7 +11,7 @@ import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 import ClassTeacherFormAssignments from './components/ClassTeacherFormAssignments';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', classTeacherAssignments: [] as any[] };
+const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', isClassTeacher: false, classTeacherAssignments: [] as any[] };
 
 export default function TeachersPage() {
   const { theme } = useTheme();
@@ -485,12 +485,16 @@ export default function TeachersPage() {
                       <td className={tdCls}>{teacher.department || '—'}</td>
                       <td className={tdCls}>{teacher.subject || '—'}</td>
                       <td className={tdCls}>
-                        <div className={`text-xs px-2 py-1 rounded-full ${
-                          teacher.classTeacher?.length > 0
-                            ? isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
-                            : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {teacher.classTeacher?.length > 0 ? teacher.classTeacher.join(', ') : 'Not Assigned'}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={teacher.isClassTeacher || false}
+                            disabled
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className={`text-xs ${sub}`}>
+                            {teacher.isClassTeacher ? 'Yes' : 'No'}
+                          </span>
                         </div>
                       </td>
                       <td className={tdCls}>{teacher.experience != null ? `${teacher.experience}y` : '—'}</td>
@@ -522,6 +526,7 @@ export default function TeachersPage() {
                                 employeeId: teacher.employeeId || '',
                                 status: teacher.status || 'active',
                                 joiningDate: teacher.joiningDate || '',
+                                isClassTeacher: teacher.isClassTeacher || false,
                                 classTeacherAssignments: teacher.classTeacherAssignments || []
                               });
                               setShowEditModal(true);
@@ -610,16 +615,31 @@ export default function TeachersPage() {
                 </select>
               </div>
 
-              <ClassTeacherFormAssignments
-                assignments={form.classTeacherAssignments}
-                boards={boards}
-                mediums={mediums}
-                classes={dbClasses}
-                sections={dbSections}
-                academicYears={academicYears}
-                theme={theme}
-                onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
-              />
+              <div className="flex items-center gap-3 py-2">
+                <input
+                  type="checkbox"
+                  id="isClassTeacherEdit"
+                  checked={form.isClassTeacher}
+                  onChange={e => setForm(prev => ({ ...prev, isClassTeacher: e.target.checked, classTeacherAssignments: e.target.checked ? prev.classTeacherAssignments : [] }))}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="isClassTeacherEdit" className={`text-sm font-medium ${txt}`}>
+                  Is this teacher a Class Teacher?
+                </label>
+              </div>
+
+              {form.isClassTeacher && (
+                <ClassTeacherFormAssignments
+                  assignments={form.classTeacherAssignments}
+                  boards={boards}
+                  mediums={mediums}
+                  classes={dbClasses}
+                  sections={dbSections}
+                  academicYears={academicYears}
+                  theme={theme}
+                  onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
+                />
+              )}
             </div>
             <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <button onClick={() => { setShowEditModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
@@ -723,16 +743,31 @@ export default function TeachersPage() {
                 </select>
               </div>
 
-              <ClassTeacherFormAssignments
-                assignments={form.classTeacherAssignments}
-                boards={boards}
-                mediums={mediums}
-                classes={dbClasses}
-                sections={dbSections}
-                academicYears={academicYears}
-                theme={theme}
-                onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
-              />
+              <div className="flex items-center gap-3 py-2">
+                <input
+                  type="checkbox"
+                  id="isClassTeacher"
+                  checked={form.isClassTeacher}
+                  onChange={e => setForm(prev => ({ ...prev, isClassTeacher: e.target.checked, classTeacherAssignments: e.target.checked ? prev.classTeacherAssignments : [] }))}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="isClassTeacher" className={`text-sm font-medium ${txt}`}>
+                  Is this teacher a Class Teacher?
+                </label>
+              </div>
+
+              {form.isClassTeacher && (
+                <ClassTeacherFormAssignments
+                  assignments={form.classTeacherAssignments}
+                  boards={boards}
+                  mediums={mediums}
+                  classes={dbClasses}
+                  sections={dbSections}
+                  academicYears={academicYears}
+                  theme={theme}
+                  onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
+                />
+              )}
             </div>
             <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <button onClick={() => { setShowAddModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
