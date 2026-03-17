@@ -1023,16 +1023,159 @@ export default function SettingsPage() {
   const StructureTab = () => {
     const [filterAY, setFilterAY] = useState(activeAY?.id || '');
     const [newRows, setNewRows] = useState([]);
+    
+    // ─── Bulk Save State for Grids ──────────────────────────────────────────
+    const [mediumRows, setMediumRows] = useState([]);
+    const [mediumDrafts, setMediumDrafts] = useState({}); // { id: { name, code } }
+    const [savingMediums, setSavingMediums] = useState(false);
+
+    const [sectionRows, setSectionRows] = useState([]);
+    const [sectionDrafts, setSectionDrafts] = useState({}); // { id: { name, selectedClasses: Set(classIds) } }
+    const [savingSections, setSavingSections] = useState(false);
+
     const gridMediums = filterAY ? mediums.filter((m) => m.academicYearId === filterAY) : mediums;
     const gridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY) : classes;
     const uniqueClassNames = [...new Set(gridClasses.map((c) => c.name))].sort();
 
-    const autoCode = (name, medCode) => {
+    // ─── Helpers for Section Grid ───────────────────────────────────────────
+    const [filterSectionMedium, setFilterSectionMedium] = useState('');
+    const sectionGridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY && (!filterSectionMedium || c.mediumId === filterSectionMedium)) : classes.filter((c: any) => !filterSectionMedium || c.mediumId === filterSectionMedium);
+    const uniqueSectionNames = [...new Set(sections.map((s: any) => s.name))].sort();
+
+    const addSectionRow = () => {
+      const id = Date.now().toString();
+      setSectionRows(prev => [...prev, { id, name: '' }] as any);
+      setSectionDrafts(prev => ({ ...prev, [id]: { name: '', selectedClasses: new Set() } }));
+    };
+
+    const handleSectionDraftChange = (id: string, field: string, value: any) => {
+      setSectionDrafts((prev: any) => ({
+        ...prev,
+        [id]: { ...prev[id], [field]: value }
+      }));
+    };
+
+    const toggleSectionClass = (rowId: string, classId: string, isExisting = false, existingSection: any = null) => {
+      if (isExisting && existingSection) {
+        // Handle existing section toggle (immediate save/delete)
+        if (!canManageSettings) return;
+        if (confirm(`Delete section "${existingSection.name}" from class "${sectionGridClasses.find((c: any) => c.id === classId)?.name}"?`)) {
+          handleDelete('section', existingSection.id, existingSection.name);
+        }
+      } else {
+        // Handle new draft row toggle
+        setSectionDrafts((prev: any) => {
+          const draft = prev[rowId];
+          if (!draft) return prev;
+          const newSet = new Set(draft.selectedClasses);
+          if (newSet.has(classId)) newSet.delete(classId);
+          else newSet.add(classId);
+          return { ...prev, [rowId]: { ...draft, selectedClasses: newSet } };
+        });
+      }
+    };
+
+    const saveSectionRow = async (rowId: string) => {
+      const draft: any = (sectionDrafts as any)[rowId];
+      if (!draft || !draft.name.trim() || draft.selectedClasses.size === 0) return;
+      
+      setSavingSections(true);
+      try {
+        const promises = [...draft.selectedClasses].map(classId => {
+          const cls = sectionGridClasses.find((c: any) => c.id === classId);
+          return sectionsApi.create({
+            name: draft.name.trim(),
+            code: `${cls?.code || ''}-${draft.name.trim()}`.toUpperCase(),
+            classId: classId,
+            capacity: 40,
+            roomNumber: '',
+            isActive: true,
+            academicYear: activeAY?.year || '2024-25'
+          });
+        });
+
+        await Promise.all(promises);
+        showToast({ type: 'success', title: 'Sections created successfully' });
+        await fetchAll();
+        
+        // Remove saved row
+        setSectionRows(prev => prev.filter((r: any) => r.id !== rowId));
+        setSectionDrafts((prev: any) => {
+          const newDrafts = { ...prev };
+          delete newDrafts[rowId];
+          return newDrafts;
+        });
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to create sections', message: e.message });
+      } finally {
+        setSavingSections(false);
+      }
+    };
+
+    // ─── Helpers for Medium Grid ────────────────────────────────────────────
+    const handleMediumChange = (id: string, field: string, value: string) => {
+      setMediumDrafts((prev: any) => ({
+        ...prev,
+        [id]: { ...prev[id] || {}, [field]: value }
+      }));
+    };
+
+    const addMediumRow = () => {
+      const id = Date.now().toString();
+      setMediumRows(prev => [...prev, { id, name: '', code: '' }] as any);
+      setMediumDrafts(prev => ({ ...prev, [id]: { name: '', code: '' } }));
+    };
+
+    const bulkSaveMediums = async () => {
+      if (!canManageSettings) return;
+      setSavingMediums(true);
+      try {
+        const promises = [];
+        
+        // Save updates to existing mediums
+        for (const m of gridMediums) {
+          const draft: any = (mediumDrafts as any)[m.id];
+          if (draft && (draft.name !== m.name || draft.code !== m.code)) {
+            promises.push(mediumsApi.update({ id: m.id, name: draft.name || m.name, code: draft.code || m.code, isActive: m.isActive }));
+          }
+        }
+        
+        // Save new mediums
+        for (const row of mediumRows as any[]) {
+          const draft: any = (mediumDrafts as any)[row.id];
+          if (draft && draft.name && draft.code) {
+            promises.push(mediumsApi.create({ 
+              name: draft.name, 
+              code: draft.code, 
+              description: '', 
+              isActive: true, 
+              academicYearId: filterAY || activeAY?.id || '' 
+            }));
+          }
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast({ type: 'success', title: 'Mediums saved successfully' });
+          await fetchAll();
+        }
+        
+        // Clear new rows and drafts after successful save
+        setMediumRows([]);
+        setMediumDrafts({});
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save mediums', message: e.message });
+      } finally {
+        setSavingMediums(false);
+      }
+    };
+
+    const autoCode = (name: string, medCode: string) => {
       const parts = name.trim().split(/\s+/);
       const abbr = parts.map((p) => p[0] || '').join('').toUpperCase();
       return (`${abbr}${(medCode || '').replace(/[^A-Z0-9]/gi, '')}`).toUpperCase().slice(0, 8) || 'CLS';
     };
-    const autoLevel = (name) => {
+    const autoLevel = (name: string) => {
       const n = name.toLowerCase();
       if (/kg|kinder|nursery|lkg|ukg|pp/.test(n)) return 'kindergarten';
       if (/\b[1-5]\b|1st|2nd|3rd|4th|5th/.test(n)) return 'primary';
@@ -1041,19 +1184,19 @@ export default function SettingsPage() {
       if (/\b(11|12)\b|11th|12th|plus/.test(n)) return 'higher_secondary';
       return 'primary';
     };
-    const addNewRow = () => setNewRows((prev) => [...prev, { id: Date.now().toString(), name: '', selectedMediums: new Set(), saving: false }]);
-    const saveRow = async (rowId) => {
-      const nr = newRows.find((r) => r.id === rowId);
+    const addNewRow = () => setNewRows((prev) => [...prev, { id: Date.now().toString(), name: '', selectedMediums: new Set(), saving: false }] as any);
+    const saveRow = async (rowId: string) => {
+      const nr: any = newRows.find((r: any) => r.id === rowId);
       if (!nr || !nr.name.trim() || nr.selectedMediums.size === 0) return;
-      setNewRows((prev) => prev.map((r) => r.id === rowId ? { ...r, saving: true } : r));
+      setNewRows((prev: any) => prev.map((r: any) => r.id === rowId ? { ...r, saving: true } : r));
       try {
         await Promise.all([...nr.selectedMediums].map((mediumId) => {
           const med = gridMediums.find((m) => m.id === mediumId);
           return classesApi.create({ name: nr.name.trim(), code: autoCode(nr.name, med?.code || ''), level: autoLevel(nr.name), mediumId, academicYearId: filterAY || activeAY?.id || '', isActive: true });
         }));
         await fetchAll();
-        setNewRows((prev) => prev.filter((r) => r.id !== rowId));
-      } catch { setNewRows((prev) => prev.map((r) => r.id === rowId ? { ...r, saving: false } : r)); }
+        setNewRows((prev: any) => prev.filter((r: any) => r.id !== rowId));
+      } catch { setNewRows((prev: any) => prev.map((r: any) => r.id === rowId ? { ...r, saving: false } : r)); }
     };
     return (
     <div className="space-y-6">
@@ -1728,36 +1871,266 @@ export default function SettingsPage() {
   };
 
   // ─── Timings Tab ───────────────────────────────────────────────────────────
-  const TimingsTab = () => (
-    <div className={card}>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className={heading}>School Timings & Period Timetable</h3>
-          <p className={subtext}>Define periods, breaks, and assembly timings</p>
-        </div>
-        <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('timing', { name: '', type: 'period', startTime: '08:00', endTime: '08:45', dayOfWeek: 'all', sortOrder: timings.length, isActive: true })}>
-          + Add Timing
-        </button>
-      </div>
-      {timings.length === 0 && <p className={subtext}>No timings configured.</p>}
-      <div className="space-y-2">
-        {timings.map((t: any) => (
-          <div key={t.id} className={`${row} flex items-center justify-between`}>
-            <div className="flex items-center gap-4">
-              <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
-              <span className={`text-xs px-2 py-0.5 rounded ${t.type === 'period' ? 'bg-blue-100 text-blue-700' : t.type === 'break' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}`}>{t.type}</span>
-              <span className={subtext}>{t.startTime} – {t.endTime}</span>
-              <span className={subtext}>({t.dayOfWeek})</span>
-            </div>
-            <div className="flex gap-2">
-              <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('timing', t)}>Edit</button>
-              <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('timing', t.id, t.name)}>Delete</button>
-            </div>
+  const TimingsTab = () => {
+    // ─── Bulk Save State for Timings Grid ───────────────────────────────────
+    const [timingRows, setTimingRows] = useState([]);
+    const [timingDrafts, setTimingDrafts] = useState({}); // { id: { name, type, startTime, endTime, selectedDays: Set() } }
+    const [savingTimings, setSavingTimings] = useState(false);
+
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const uniquePeriods = [...new Set(timings.map((t: any) => t.name))].sort();
+
+    const addTimingRow = () => {
+      const id = Date.now().toString();
+      setTimingRows(prev => [...prev, { id, name: '' }] as any);
+      setTimingDrafts(prev => ({ 
+        ...prev, 
+        [id]: { 
+          name: '', 
+          type: 'period', 
+          startTime: '08:00', 
+          endTime: '08:45', 
+          selectedDays: new Set(DAYS) // Default to all days
+        } 
+      }));
+    };
+
+    const handleTimingDraftChange = (id: string, field: string, value: any) => {
+      setTimingDrafts((prev: any) => ({
+        ...prev,
+        [id]: { ...prev[id], [field]: value }
+      }));
+    };
+
+    const toggleTimingDay = (rowId: string, day: string, isExisting = false, existingTiming: any = null) => {
+      if (isExisting && existingTiming) {
+        if (!canManageSettings) return;
+        if (confirm(`Delete timing "${existingTiming.name}" for ${day}?`)) {
+          handleDelete('timing', existingTiming.id, existingTiming.name);
+        }
+      } else {
+        setTimingDrafts((prev: any) => {
+          const draft = prev[rowId];
+          if (!draft) return prev;
+          const newSet = new Set(draft.selectedDays);
+          if (newSet.has(day)) newSet.delete(day);
+          else newSet.add(day);
+          return { ...prev, [rowId]: { ...draft, selectedDays: newSet } };
+        });
+      }
+    };
+
+    const bulkSaveTimings = async () => {
+      if (!canManageSettings) return;
+      setSavingTimings(true);
+      try {
+        const promises = [];
+        
+        // Save new timings
+        for (const row of timingRows as any[]) {
+          const draft: any = (timingDrafts as any)[row.id];
+          if (draft && draft.name && draft.selectedDays.size > 0) {
+            for (const day of draft.selectedDays) {
+              promises.push(schoolTimingsApi.create({ 
+                name: draft.name,
+                type: draft.type,
+                startTime: draft.startTime,
+                endTime: draft.endTime,
+                dayOfWeek: day,
+                sortOrder: timings.length + promises.length,
+                isActive: true
+              }));
+            }
+          }
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast({ type: 'success', title: 'Timings saved successfully' });
+          await fetchAll();
+        }
+        
+        setTimingRows([]);
+        setTimingDrafts({});
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save timings', message: e.message });
+      } finally {
+        setSavingTimings(false);
+      }
+    };
+
+    return (
+      <div className={card}>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className={heading}>School Timings & Period Timetable</h3>
+            <p className={subtext}>Define periods, breaks, and assembly timings</p>
           </div>
-        ))}
+          <div className="flex gap-2">
+            <button 
+              className={btnSecondary} 
+              disabled={!canManageSettings} 
+              onClick={addTimingRow}
+            >
+              + Add Period
+            </button>
+            <button 
+              className={btnPrimary} 
+              disabled={!canManageSettings || savingTimings || timingRows.length === 0} 
+              onClick={bulkSaveTimings}
+            >
+              {savingTimings ? 'Saving...' : '💾 Bulk Save'}
+            </button>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <thead>
+              <tr>
+                <th className={`px-3 py-2 text-left font-semibold border min-w-[200px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Period Details
+                </th>
+                {DAYS.map((day) => (
+                  <th key={day} className={`px-2 py-2 text-center font-semibold border w-24 ${isDark ? 'border-gray-500 bg-gray-700 text-purple-300' : 'border-gray-400 bg-purple-100 text-purple-800'}`}>
+                    {day.substring(0, 3)}
+                  </th>
+                ))}
+                <th className={`px-2 py-2 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
+              </tr>
+            </thead>
+            <tbody>
+              {/* Existing Timing Rows grouped by Period Name */}
+              {uniquePeriods.map((periodName: string) => {
+                const periodTimings = timings.filter((t: any) => t.name === periodName);
+                const firstTiming = periodTimings[0]; // Assuming timings for same period name have same time/type for display purposes
+                
+                return (
+                  <tr key={periodName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
+                    <td className={`p-2 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                      <div className="flex flex-col gap-1">
+                        <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{periodName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${firstTiming.type === 'period' ? 'bg-blue-100 text-blue-700' : firstTiming.type === 'break' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {firstTiming.type}
+                          </span>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {firstTiming.startTime} - {firstTiming.endTime}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    {DAYS.map((day) => {
+                      const existingTiming = periodTimings.find((t: any) => t.dayOfWeek === day);
+                      return (
+                        <td key={day} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                          {existingTiming ? (
+                            <div className="flex items-center justify-center gap-0.5">
+                              <button onClick={() => openEdit('timing', existingTiming)} title="Click to edit" className={`text-green-500 font-bold text-sm hover:text-blue-500 transition-colors`}>✓</button>
+                              <button onClick={() => handleDelete('timing', existingTiming.id, existingTiming.name)} title="Delete" className="text-red-400 hover:text-red-500 text-xs leading-none">✕</button>
+                            </div>
+                          ) : (
+                            <button
+                              disabled={!canManageSettings}
+                              onClick={() => {
+                                schoolTimingsApi.create({
+                                  name: periodName,
+                                  type: firstTiming.type,
+                                  startTime: firstTiming.startTime,
+                                  endTime: firstTiming.endTime,
+                                  dayOfWeek: day,
+                                  sortOrder: timings.length,
+                                  isActive: true
+                                }).then(() => fetchAll()).catch((e: any) => showToast({ type: 'error', title: 'Failed to add timing', message: e.message }));
+                              }}
+                              title={`Add ${periodName} for ${day}`}
+                              className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-purple-500 hover:text-purple-400' : 'border-gray-300 text-gray-400 hover:border-purple-400 hover:text-purple-500'}`}
+                            >+</button>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className={`border ${isDark ? 'border-gray-600' : 'border-gray-300'}`} />
+                  </tr>
+                );
+              })}
+
+              {/* New Draft Rows */}
+              {timingRows.map((row: any) => {
+                const draft: any = timingDrafts[row.id];
+                return (
+                  <tr key={row.id} className={`${isDark ? 'bg-purple-900/10' : 'bg-purple-50'}`}>
+                    <td className={`p-2 border ${isDark ? 'border-purple-700/50' : 'border-purple-300'} border-l-2 ${isDark ? 'border-l-purple-500' : 'border-l-purple-400'}`}>
+                      <div className="flex flex-col gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Period Name (e.g. Period 1)"
+                          value={draft?.name || ''}
+                          onChange={(e) => handleTimingDraftChange(row.id, 'name', e.target.value)}
+                          className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-gray-600 focus:border-purple-500 text-white' : 'border-gray-300 focus:border-purple-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm font-medium`}
+                        />
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={draft?.type || 'period'}
+                            onChange={(e) => handleTimingDraftChange(row.id, 'type', e.target.value)}
+                            className={`px-1 py-1 rounded border text-xs bg-transparent ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'} focus:outline-none focus:border-purple-500`}
+                          >
+                            <option value="period">Period</option>
+                            <option value="break">Break</option>
+                            <option value="assembly">Assembly</option>
+                          </select>
+                          <input
+                            type="time"
+                            value={draft?.startTime || '08:00'}
+                            onChange={(e) => handleTimingDraftChange(row.id, 'startTime', e.target.value)}
+                            className={`px-1 py-1 w-20 rounded border text-xs bg-transparent ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'} focus:outline-none focus:border-purple-500`}
+                          />
+                          <span className={isDark ? 'text-gray-500' : 'text-gray-400'}>-</span>
+                          <input
+                            type="time"
+                            value={draft?.endTime || '08:45'}
+                            onChange={(e) => handleTimingDraftChange(row.id, 'endTime', e.target.value)}
+                            className={`px-1 py-1 w-20 rounded border text-xs bg-transparent ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'} focus:outline-none focus:border-purple-500`}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    {DAYS.map((day) => (
+                      <td key={day} className={`px-1 py-1 border text-center align-middle ${isDark ? 'border-purple-700/50' : 'border-purple-300'}`}>
+                        <input
+                          type="checkbox"
+                          checked={draft?.selectedDays?.has(day) || false}
+                          onChange={() => toggleTimingDay(row.id, day)}
+                          className="w-4 h-4 rounded cursor-pointer accent-purple-500 mt-3"
+                        />
+                      </td>
+                    ))}
+                    <td className={`px-1 py-1 border align-middle ${isDark ? 'border-purple-700/50' : 'border-purple-300'}`}>
+                      <div className="flex flex-col items-center justify-center gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            setTimingRows(prev => prev.filter((r: any) => r.id !== row.id));
+                            setTimingDrafts(prev => {
+                              const newDrafts = { ...prev };
+                              delete (newDrafts as any)[row.id];
+                              return newDrafts;
+                            });
+                          }}
+                          title="Remove row"
+                          className="text-gray-400 hover:text-red-500 text-lg leading-none"
+                        >✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ─── Integrations Tab (SMTP & Payment Gateways) ───────────────────────────
   const IntegrationsTab = () => {
@@ -1813,34 +2186,245 @@ export default function SettingsPage() {
 
   // ─── Access Rights Tab ─────────────────────────────────────────────────────
   const AccessTab = () => {
-    const [local, setLocal] = useState({
-      admin_modules: getSetting('access_rights', 'admin_modules', 'all'),
-      teacher_modules: getSetting('access_rights', 'teacher_modules', 'students,attendance,exams,assignments'),
-      student_modules: getSetting('access_rights', 'student_modules', 'dashboard,profile,fees,exams'),
-      parent_modules: getSetting('access_rights', 'parent_modules', 'dashboard,fees,attendance,exams'),
-      allow_teacher_fee_collection: getSetting('access_rights', 'allow_teacher_fee_collection', 'false'),
-      allow_student_self_registration: getSetting('access_rights', 'allow_student_self_registration', 'false'),
+    // ─── Bulk Save State for Roles Grid ─────────────────────────────────────
+    const [roleRows, setRoleRows] = useState([]);
+    const [roleDrafts, setRoleDrafts] = useState({}); // { id: { roleName, modules: Set() } }
+    const [savingRoles, setSavingRoles] = useState(false);
+
+    const availableModules = [
+      'dashboard', 'students', 'attendance', 'fees', 'exams', 
+      'assignments', 'transport', 'library', 'staff', 'settings'
+    ];
+
+    const predefinedRoles = [
+      { id: 'admin', name: 'Admin', modules: new Set(availableModules) },
+      { id: 'teacher', name: 'Teacher', modules: new Set(['students', 'attendance', 'exams', 'assignments']) },
+      { id: 'student', name: 'Student', modules: new Set(['dashboard', 'fees', 'exams']) },
+      { id: 'parent', name: 'Parent', modules: new Set(['dashboard', 'fees', 'attendance', 'exams']) },
+    ];
+
+    const [customRoles, setCustomRoles] = useState(() => {
+      try {
+        const stored = getSetting('access_rights', 'custom_roles', '[]');
+        const parsed = JSON.parse(stored);
+        return parsed.map((r: any) => ({ ...r, modules: new Set(r.modules) }));
+      } catch {
+        return [];
+      }
     });
+
+    const allRoles = [...predefinedRoles, ...customRoles];
+
+    const addRoleRow = () => {
+      const id = Date.now().toString();
+      setRoleRows(prev => [...prev, { id, name: '' }] as any);
+      setRoleDrafts(prev => ({ 
+        ...prev, 
+        [id]: { 
+          name: '', 
+          modules: new Set(['dashboard']) // Default to at least dashboard
+        } 
+      }));
+    };
+
+    const handleRoleDraftChange = (id: string, value: string) => {
+      setRoleDrafts((prev: any) => ({
+        ...prev,
+        [id]: { ...prev[id], name: value }
+      }));
+    };
+
+    const toggleRoleModule = (roleId: string, module: string, isExisting = false) => {
+      if (isExisting) {
+        if (!canManageSettings) return;
+        // Check if it's a predefined role (cannot edit permissions here for simplicity, or handle if needed)
+        if (predefinedRoles.find(r => r.id === roleId)) {
+          showToast({ type: 'error', title: 'Cannot edit predefined roles' });
+          return;
+        }
+        
+        // Update custom role
+        setCustomRoles(prev => prev.map((r: any) => {
+          if (r.id !== roleId) return r;
+          const newSet = new Set(r.modules);
+          if (newSet.has(module)) newSet.delete(module);
+          else newSet.add(module);
+          return { ...r, modules: newSet };
+        }));
+      } else {
+        setRoleDrafts((prev: any) => {
+          const draft = prev[roleId];
+          if (!draft) return prev;
+          const newSet = new Set(draft.modules);
+          if (newSet.has(module)) newSet.delete(module);
+          else newSet.add(module);
+          return { ...prev, [roleId]: { ...draft, modules: newSet } };
+        });
+      }
+    };
+
+    const deleteCustomRole = (roleId: string, roleName: string) => {
+      if (!confirm(`Delete custom role "${roleName}"?`)) return;
+      setCustomRoles(prev => prev.filter((r: any) => r.id !== roleId));
+    };
+
+    const bulkSaveRoles = async () => {
+      if (!canManageSettings) return;
+      setSavingRoles(true);
+      try {
+        // Convert new drafts to custom roles
+        const newRoles = roleRows.map((row: any) => {
+          const draft: any = (roleDrafts as any)[row.id];
+          return {
+            id: `role_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: draft.name,
+            modules: draft.modules
+          };
+        }).filter(r => r.name.trim() !== '');
+
+        const updatedCustomRoles = [...customRoles, ...newRoles];
+
+        // Format for saving to DB (Set to Array)
+        const rolesToSave = updatedCustomRoles.map((r: any) => ({
+          ...r,
+          modules: Array.from(r.modules)
+        }));
+
+        await schoolSettingsApi.saveBatch('access_rights', {
+          custom_roles: JSON.stringify(rolesToSave)
+        });
+
+        showToast({ type: 'success', title: 'Roles saved successfully' });
+        setCustomRoles(updatedCustomRoles);
+        setRoleRows([]);
+        setRoleDrafts({});
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save roles', message: e.message });
+      } finally {
+        setSavingRoles(false);
+      }
+    };
+
     return (
       <div className={card}>
         <div className="flex justify-between items-center mb-6">
-          <div><h3 className={heading}>Access Rights & Permissions</h3><p className={subtext}>Control what each role can access</p></div>
-          <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('access_rights', local)}>{saving ? 'Saving...' : 'Save Permissions'}</button>
+          <div>
+            <h3 className={heading}>Access Rights & Roles</h3>
+            <p className={subtext}>Manage roles and their module permissions</p>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              className={btnSecondary} 
+              disabled={!canManageSettings} 
+              onClick={addRoleRow}
+            >
+              + Add Custom Role
+            </button>
+            <button 
+              className={btnPrimary} 
+              disabled={!canManageSettings || savingRoles} 
+              onClick={bulkSaveRoles}
+            >
+              {savingRoles ? 'Saving...' : '💾 Bulk Save'}
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(local).map(([key, val]) => (
-            <div key={key}>
-              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
-              {key.includes('allow_') ? (
-                <select className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })}>
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              ) : (
-                <input className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })} placeholder="Comma-separated module names" />
-              )}
-            </div>
-          ))}
+
+        <div className="overflow-x-auto">
+          <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <thead>
+              <tr>
+                <th className={`px-3 py-2 text-left font-semibold border min-w-[150px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Role Name
+                </th>
+                {availableModules.map((mod) => (
+                  <th key={mod} className={`px-2 py-2 text-center font-semibold border w-24 ${isDark ? 'border-gray-500 bg-gray-700 text-blue-300' : 'border-gray-400 bg-blue-100 text-blue-800'}`}>
+                    <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-4 mt-2">
+                      {mod.charAt(0).toUpperCase() + mod.slice(1)}
+                    </div>
+                  </th>
+                ))}
+                <th className={`px-2 py-2 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
+              </tr>
+            </thead>
+            <tbody>
+              {/* Existing Roles */}
+              {allRoles.map((role: any) => {
+                const isPredefined = predefinedRoles.some(r => r.id === role.id);
+                return (
+                  <tr key={role.id} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
+                    <td className={`px-3 py-2 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
+                      <div className="flex items-center gap-2">
+                        <span>{role.name}</span>
+                        {isPredefined && <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-200 text-gray-600">Default</span>}
+                      </div>
+                    </td>
+                    {availableModules.map((mod) => (
+                      <td key={mod} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                        <input
+                          type="checkbox"
+                          checked={role.modules.has(mod)}
+                          disabled={isPredefined || !canManageSettings}
+                          onChange={() => toggleRoleModule(role.id, mod, true)}
+                          className={`w-3.5 h-3.5 rounded cursor-pointer ${isPredefined ? 'accent-gray-400 opacity-50' : 'accent-blue-500'}`}
+                        />
+                      </td>
+                    ))}
+                    <td className={`px-2 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                      {!isPredefined && (
+                        <button onClick={() => deleteCustomRole(role.id, role.name)} title="Delete" className="text-red-400 hover:text-red-500 text-lg leading-none">✕</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* New Draft Rows */}
+              {roleRows.map((row: any) => {
+                const draft: any = roleDrafts[row.id];
+                return (
+                  <tr key={row.id} className={`${isDark ? 'bg-blue-900/10' : 'bg-blue-50'}`}>
+                    <td className={`p-0 border ${isDark ? 'border-blue-700/50' : 'border-blue-300'} border-l-2 ${isDark ? 'border-l-blue-500' : 'border-l-blue-400'}`}>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="e.g. Librarian"
+                        value={draft?.name || ''}
+                        onChange={(e) => handleRoleDraftChange(row.id, e.target.value)}
+                        className={`w-full h-full px-3 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
+                      />
+                    </td>
+                    {availableModules.map((mod) => (
+                      <td key={mod} className={`px-1 py-1 border text-center ${isDark ? 'border-blue-700/50' : 'border-blue-300'}`}>
+                        <input
+                          type="checkbox"
+                          checked={draft?.modules?.has(mod) || false}
+                          onChange={() => toggleRoleModule(row.id, mod)}
+                          className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500"
+                        />
+                      </td>
+                    ))}
+                    <td className={`px-1 py-1 border align-middle ${isDark ? 'border-blue-700/50' : 'border-blue-300'}`}>
+                      <div className="flex flex-col items-center justify-center">
+                        <button
+                          onClick={() => {
+                            setRoleRows(prev => prev.filter((r: any) => r.id !== row.id));
+                            setRoleDrafts(prev => {
+                              const newDrafts = { ...prev };
+                              delete (newDrafts as any)[row.id];
+                              return newDrafts;
+                            });
+                          }}
+                          title="Remove row"
+                          className="text-gray-400 hover:text-red-500 text-lg leading-none"
+                        >✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     );
