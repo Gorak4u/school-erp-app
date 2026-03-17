@@ -2,6 +2,7 @@
 export const ALL_PERMISSIONS = {
   // Dashboard
   VIEW_DASHBOARD: 'view_dashboard',
+  VIEW_ADMIN_DASHBOARD: 'view_admin_dashboard', // Financial KPIs, analytics tabs
 
   // Students
   VIEW_STUDENTS: 'view_students',
@@ -40,6 +41,12 @@ export const ALL_PERMISSIONS = {
 
   // Announcements
   VIEW_ANNOUNCEMENTS: 'view_announcements',
+
+  // Alumni
+  VIEW_ALUMNI: 'view_alumni',
+
+  // Student actions
+  PROMOTE_STUDENTS: 'promote_students',
 } as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
@@ -47,6 +54,9 @@ export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
 // Human-readable labels for the UI
 export const PERMISSION_LABELS: Record<Permission, string> = {
   view_dashboard: 'View Dashboard',
+  view_admin_dashboard: 'View Admin Dashboard (Financial)',
+  view_alumni: 'View Alumni',
+  promote_students: 'Promote Students',
   view_students: 'View Students',
   create_students: 'Add Students',
   edit_students: 'Edit Students',
@@ -73,11 +83,15 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 export const PERMISSION_GROUPS = [
   {
     label: 'Dashboard',
-    permissions: ['view_dashboard'] as Permission[],
+    permissions: ['view_dashboard', 'view_admin_dashboard'] as Permission[],
   },
   {
     label: 'Students',
-    permissions: ['view_students', 'create_students', 'edit_students', 'delete_students'] as Permission[],
+    permissions: ['view_students', 'create_students', 'edit_students', 'delete_students', 'promote_students'] as Permission[],
+  },
+  {
+    label: 'Alumni',
+    permissions: ['view_alumni'] as Permission[],
   },
   {
     label: 'Teachers',
@@ -120,6 +134,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_fees',
     'view_reports',
     'view_announcements',
+    // Note: NO view_admin_dashboard (financial KPIs hidden)
+    // Note: NO view_alumni (alumni page hidden)
+    // Note: NO create/edit/delete/promote_students (read-only)
+    // Note: NO manage_fees (view-only on fees page)
   ],
   parent: [
     'view_dashboard',

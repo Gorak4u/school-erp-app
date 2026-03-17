@@ -11,7 +11,7 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
 
   
   // State for date range filtering
@@ -284,15 +284,17 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
         return (
           <td className={`px-6 py-4 whitespace-nowrap text-center`}>
             <div className="flex gap-2 justify-center">
-              <button
-                onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
-                className={`text-blue-600 hover:text-blue-800 text-lg ${
-                  theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
-                }`}
-                title="Collect Fee"
-              >
-                💰
-              </button>
+              {canManageFees && (
+                <button
+                  onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
+                  className={`text-blue-600 hover:text-blue-800 text-lg ${
+                    theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
+                  }`}
+                  title="Collect Fee"
+                >
+                  💰
+                </button>
+              )}
               <button
                 onClick={() => setShowReceiptModal(true)}
                 className={`text-green-600 hover:text-green-800 text-lg ${

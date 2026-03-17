@@ -37,7 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: '📊', pageKey: 'dashboard', permission: 'view_dashboard' },
       { href: '/students', label: 'Students', icon: '👥', pageKey: 'students', permission: 'view_students' },
-      { href: '/alumni', label: 'Alumni', icon: '🎓', pageKey: 'alumni', permission: 'view_students' },
+      { href: '/alumni', label: 'Alumni', icon: '🎓', pageKey: 'alumni', permission: 'view_alumni' },
       { href: '/fees', label: 'Fees', icon: '💰', pageKey: 'fees', permission: 'view_fees' },
       { href: '/expenses', label: 'Expenses', icon: '💸', pageKey: 'expenses', adminOnly: true },
       { href: '/transport', label: 'Transport', icon: '🚌', pageKey: 'transport', adminOnly: true },

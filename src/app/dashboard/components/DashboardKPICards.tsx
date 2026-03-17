@@ -41,10 +41,11 @@ interface DashboardKPICardsProps {
       efficiency: number;
     };
   };
+  canViewFinancials?: boolean;
 }
 
-export default function DashboardKPICards({ theme, kpiData }: DashboardKPICardsProps) {
-  const cards: KPICard[] = [
+export default function DashboardKPICards({ theme, kpiData, canViewFinancials = true }: DashboardKPICardsProps) {
+  const allCards: (KPICard & { financial?: boolean })[] = [
     {
       title: 'Total Students',
       value: kpiData.academic.totalStudents.toLocaleString(),
@@ -71,7 +72,8 @@ export default function DashboardKPICards({ theme, kpiData }: DashboardKPICardsP
       icon: '💰',
       iconBg: theme === 'dark' ? 'bg-green-600/20' : 'bg-green-100',
       iconColor: theme === 'dark' ? 'text-green-400' : 'text-green-600',
-      link: '/fees'
+      link: '/fees',
+      financial: true
     },
     {
       title: 'Avg Attendance',
@@ -127,7 +129,8 @@ export default function DashboardKPICards({ theme, kpiData }: DashboardKPICardsP
       icon: '⏰',
       iconBg: theme === 'dark' ? 'bg-red-600/20' : 'bg-red-100',
       iconColor: theme === 'dark' ? 'text-red-400' : 'text-red-600',
-      link: '/fees'
+      link: '/fees',
+      financial: true
     },
     {
       title: 'Teacher Satisfaction',
@@ -158,6 +161,8 @@ export default function DashboardKPICards({ theme, kpiData }: DashboardKPICardsP
       link: '/reports'
     }
   ];
+
+  const cards = canViewFinancials ? allCards : allCards.filter(c => !c.financial);
 
   const getTrendColor = (color: 'green' | 'red' | 'blue') => {
     const colors = {
@@ -223,7 +228,7 @@ export default function DashboardKPICards({ theme, kpiData }: DashboardKPICardsP
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, index) => (
+      {cards.map((card: KPICard, index: number) => (
         <CardContent key={card.title} card={card} index={index} />
       ))}
     </div>

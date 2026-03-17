@@ -9,6 +9,7 @@ import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { dashboardApi } from '@/lib/apiClient';
+import { usePermissions } from '@/hooks/usePermissions';
 import DashboardKPICards from './components/DashboardKPICards';
 import DashboardCharts from './components/DashboardCharts';
 import DashboardAnalytics from './components/DashboardAnalytics';
@@ -19,6 +20,8 @@ import DashboardAlerts from './components/DashboardAlerts';
 export default function DashboardPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { hasPermission, isAdmin } = usePermissions();
+  const canViewFinancials = isAdmin || hasPermission('view_admin_dashboard');
   const [activeTab, setActiveTab] = useState('overview');
   const [isClient, setIsClient] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -159,42 +162,48 @@ export default function DashboardPage() {
           >
             📊 Overview
           </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-              activeTab === 'analytics'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                : theme === 'dark' 
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}
-          >
-            📈 Analytics
-          </button>
-          <button
-            onClick={() => setActiveTab('performance')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-              activeTab === 'performance'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                : theme === 'dark' 
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}
-          >
-            🎯 Performance
-          </button>
-          <button
-            onClick={() => setActiveTab('kpi')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-              activeTab === 'kpi'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                : theme === 'dark' 
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}
-          >
-            📊 KPI
-          </button>
+          {canViewFinancials && (
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
+                activeTab === 'analytics'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                  : theme === 'dark' 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              📈 Analytics
+            </button>
+          )}
+          {canViewFinancials && (
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
+                activeTab === 'performance'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                  : theme === 'dark' 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              🎯 Performance
+            </button>
+          )}
+          {canViewFinancials && (
+            <button
+              onClick={() => setActiveTab('kpi')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
+                activeTab === 'kpi'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                  : theme === 'dark' 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              📊 KPI
+            </button>
+          )}
         </nav>
       </div>
 
@@ -202,7 +211,7 @@ export default function DashboardPage() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* KPI Cards */}
-          <DashboardKPICards theme={theme} kpiData={kpiData} />
+          <DashboardKPICards theme={theme} kpiData={kpiData} canViewFinancials={canViewFinancials} />
           
           {/* Quick Actions */}
           <DashboardQuickActions theme={theme} dashboardData={dashboardData} />
@@ -228,7 +237,7 @@ export default function DashboardPage() {
       {/* KPI Tab - Reuse Overview with focus on metrics */}
       {activeTab === 'kpi' && (
         <div className="space-y-6">
-          <DashboardKPICards theme={theme} kpiData={kpiData} />
+          <DashboardKPICards theme={theme} kpiData={kpiData} canViewFinancials={canViewFinancials} />
           <DashboardPerformance theme={theme} />
         </div>
       )}

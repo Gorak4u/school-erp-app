@@ -30,6 +30,7 @@ interface StudentTableProps {
   onPromoteSingle?: (studentId: string) => void;
   onPromoteClass?: (cls: string, section: string) => void;
   onExitSingle?: (studentId: string) => void;
+  canManageStudents?: boolean;
 }
 
 export default function StudentTable({
@@ -37,7 +38,7 @@ export default function StudentTable({
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns, columnSettings,
-  onPromoteSingle, onPromoteClass, onExitSingle
+  onPromoteSingle, onPromoteClass, onExitSingle, canManageStudents = true
 }: StudentTableProps) {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState('');
@@ -430,16 +431,18 @@ export default function StudentTable({
               >
                 👁️
               </button>
-              <button
-                onClick={() => setEditingStudent(student)}
-                className={`text-green-600 hover:text-green-800 text-lg ${
-                  theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
-                }`}
-                title="Edit"
-              >
-                ✏️
-              </button>
-              {onPromoteSingle && (
+              {canManageStudents && (
+                <button
+                  onClick={() => setEditingStudent(student)}
+                  className={`text-green-600 hover:text-green-800 text-lg ${
+                    theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
+                  }`}
+                  title="Edit"
+                >
+                  ✏️
+                </button>
+              )}
+              {canManageStudents && onPromoteSingle && (
                 <button
                   onClick={() => onPromoteSingle(student.id.toString())}
                   className={`text-purple-600 hover:text-purple-800 text-lg ${
@@ -450,7 +453,7 @@ export default function StudentTable({
                   🎓
                 </button>
               )}
-              {onExitSingle && (
+              {canManageStudents && onExitSingle && (
                 <button
                   onClick={() => onExitSingle(student.id.toString())}
                   className={`text-red-600 hover:text-red-800 text-lg ${
@@ -458,7 +461,7 @@ export default function StudentTable({
                   }`}
                   title="Exit Student"
                 >
-                  🚪
+                  �
                 </button>
               )}
             </div>

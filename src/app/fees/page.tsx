@@ -58,25 +58,25 @@ export default function FeesPage() {
     permissions 
   } = usePermissions();
 
-  // Filter tabs based on user permissions
+  const canManageFees = isAdmin || hasPermission('manage_fees');
+
+  // Teachers see only the Dashboard (all-students view); manage_fees unlocks everything else
   const availableTabs = [
     { id: 'dashboard', label: '📊 Dashboard', permission: null },
     { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
     { id: 'collections', label: '💵 Collections', permission: 'manage_fees' },
     { id: 'discounts', label: '🎁 Discounts', permission: 'manage_fees' },
-    { id: 'reports', label: '📈 Reports', permission: null },
-    { id: 'invoices', label: '🧾 Invoices', permission: 'view_fees' },
-    { id: 'analytics', label: '📉 Analytics', permission: null },
-    { id: 'notifications', label: '🔔 Notifications', permission: null },
+    { id: 'reports', label: '📈 Reports', permission: 'manage_fees' },
+    { id: 'invoices', label: '🧾 Invoices', permission: 'manage_fees' },
+    { id: 'analytics', label: '📉 Analytics', permission: 'manage_fees' },
+    { id: 'notifications', label: '🔔 Notifications', permission: 'manage_fees' },
   ].filter(tab => {
-    // If no permission required, always show
     if (!tab.permission) return true;
-    // Otherwise, check if user has the permission
-    return hasPermission(tab.permission);
+    return canManageFees;
   });
 
   // Build handler context incrementally
-  const ctx: any = { ...state, theme, feeCollections: state.feeCollections };
+  const ctx: any = { ...state, theme, feeCollections: state.feeCollections, canManageFees };
   Object.assign(ctx, createFeeDataHandlers(ctx));
   Object.assign(ctx, createFeeActionHandlers(ctx));
 
@@ -243,38 +243,6 @@ export default function FeesPage() {
                 <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Fee Management
                 </h1>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Current Role: 
-                  </span>
-                  <select
-                    value={userRole}
-                    onChange={(e) => setUserRole(e.target.value)}
-                    className={`text-sm px-3 py-1 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    <option value="super_admin">Super Admin</option>
-                    <option value="admin">Admin</option>
-                    <option value="principal">Principal</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="accountant">Accountant</option>
-                    <option value="parent">Parent</option>
-                  </select>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={useEnhancedModal}
-                      onChange={(e) => setUseEnhancedModal(e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                      Use Enhanced Modal
-                    </span>
-                  </label>
-                </div>
               </div>
               <div className="flex gap-3">
                 <RequirePermission permission="manage_fees">

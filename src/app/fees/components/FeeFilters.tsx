@@ -13,7 +13,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
     showColumnSettings, setShowColumnSettings, advancedFilters, setAdvancedFilters,
     filteredStudentSummaries, studentFeeSummaries, selectedStudents, setSelectedStudents,
     setShowBulkOperations, setShowExportModal, showAISuggestions, setShowAISuggestions, handleAISearch,
-    feeSuggestions,
+    feeSuggestions, canManageFees = true,
   } = ctx;
   const { dropdowns } = useSchoolConfig();
 
@@ -329,12 +329,14 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
               {selectedStudents.length} selected
             </span>
-            <button
-              onClick={() => setShowBulkOperations(true)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
-            >
-              ⚙️ Bulk Operations
-            </button>
+            {canManageFees && (
+              <button
+                onClick={() => setShowBulkOperations(true)}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
+              >
+                ⚙️ Bulk Operations
+              </button>
+            )}
             <button
               onClick={() => setShowExportModal(true)}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}

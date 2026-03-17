@@ -74,14 +74,13 @@ export const authOptions = {
           throw new Error('Account is inactive');
         }
 
-        // Get permissions
+        // Get permissions - resolve based on custom role or built-in role defaults
         let permissions = [];
         if (user.CustomRole) {
-          permissions = resolvePermissions(user.CustomRole.permissions || '[]');
-        } else if (user.role === 'admin') {
-          permissions = resolvePermissions('[]');
+          // Custom role: use JSON permissions, fall back to built-in role
+          permissions = resolvePermissions(user.role, user.CustomRole.permissions || '[]');
         } else {
-          // For teachers and other built-in roles without custom roles
+          // Built-in role (admin, teacher, parent, student)
           permissions = resolvePermissions(user.role);
         }
 
