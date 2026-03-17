@@ -945,7 +945,6 @@ export default function SettingsPage() {
   const StructureTab = () => {
     const [filterAY, setFilterAY] = useState(activeAY?.id || '');
     const [newRows, setNewRows] = useState([]);
-    const [editingClassCell, setEditingClassCell] = useState(null);
     const gridMediums = filterAY ? mediums.filter((m) => m.academicYearId === filterAY) : mediums;
     const gridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY) : classes;
     const uniqueClassNames = [...new Set(gridClasses.map((c) => c.name))].sort();
@@ -977,24 +976,6 @@ export default function SettingsPage() {
         await fetchAll();
         setNewRows((prev) => prev.filter((r) => r.id !== rowId));
       } catch { setNewRows((prev) => prev.map((r) => r.id === rowId ? { ...r, saving: false } : r)); }
-    };
-
-    const saveClassEdit = async (cls) => {
-      if (!editingClassCell || editingClassCell.clsId !== cls.id) return;
-      try {
-        await classesApi.update({ id: cls.id, name: editingClassCell.name, code: editingClassCell.code, level: editingClassCell.level });
-        await fetchAll();
-      } catch { showToast({ type: 'error', title: 'Update failed' }); }
-      setEditingClassCell(null);
-    };
-
-    const deleteClass = async (cls) => {
-      if (!confirm(`Delete ${cls.name} (${cls.medium?.name || 'Unknown medium'})?`)) return;
-      try {
-        await classesApi.delete(cls.id);
-        await fetchAll();
-        showToast({ type: 'success', title: 'Class deleted' });
-      } catch (e) { showToast({ type: 'error', title: 'Delete failed', message: e.message }); }
     };
     return (
     <div className="space-y-6">
@@ -1098,37 +1079,17 @@ export default function SettingsPage() {
                     return (
                       <td key={m.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                         {entry ? (
-                          editingClassCell?.clsId === entry.id ? (
-                            <div className="flex flex-col gap-0.5 p-1">
-                              <input autoFocus type="text" value={editingClassCell.name}
-                                onChange={e => setEditingClassCell({ ...editingClassCell, name: e.target.value })}
-                                onBlur={() => saveClassEdit(entry)}
-                                onKeyDown={e => { if (e.key === 'Enter') saveClassEdit(entry); if (e.key === 'Escape') setEditingClassCell(null); }}
-                                placeholder="Name"
-                                className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                              />
-                              <input type="text" value={editingClassCell.code}
-                                onChange={e => setEditingClassCell({ ...editingClassCell, code: e.target.value })}
-                                placeholder="Code"
-                                className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                              />
-                              <select value={editingClassCell.level}
-                                onChange={e => setEditingClassCell({ ...editingClassCell, level: e.target.value })}
-                                className={`w-full px-1 py-0.5 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                                {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                              </select>
-                            </div>
-                          ) : (
-                            <span className="group relative inline-flex items-center justify-center">
-                              <span className="text-green-500 font-bold text-sm">✓</span>
-                              <span className="absolute hidden group-hover:flex gap-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow px-1 py-0.5 z-10 -top-7 left-1/2 -translate-x-1/2">
-                                <button className="text-blue-500 hover:text-blue-600 text-xs" onClick={() => setEditingClassCell({ clsId: entry.id, name: entry.name, code: entry.code, level: entry.level })} title="Edit">✎</button>
-                                <button className="text-red-500 hover:text-red-600 text-xs" onClick={() => deleteClass(entry)} title="Delete">✕</button>
-                              </span>
-                            </span>
-                          )
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button onClick={() => openEdit('class', entry)} title="Click to edit" className={`text-green-500 font-bold text-sm hover:text-blue-500 transition-colors`}>✓</button>
+                            <button onClick={() => handleDelete('class', entry.id, entry.name)} title="Delete" className="text-red-400 hover:text-red-500 text-xs leading-none">✕</button>
+                          </div>
                         ) : (
-                          <span className={`text-sm ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>—</span>
+                          <button
+                            disabled={!canManageSettings}
+                            onClick={() => openCreate('class', { code: '', name: className, level: 'primary', mediumId: m.id, academicYearId: filterAY || activeAY?.id || '', isActive: true })}
+                            title={`Add ${className} for ${m.name}`}
+                            className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-blue-500 hover:text-blue-400' : 'border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500'}`}
+                          >+</button>
                         )}
                       </td>
                     );
@@ -1286,21 +1247,40 @@ export default function SettingsPage() {
     // ── Excel Grid state & helpers ──────────────────────────────────────────
     const [newFeeRows, setNewFeeRows] = useState([]);
     const [editingCell, setEditingCell] = useState(null);
+    const [addingCell, setAddingCell] = useState(null);
+
+    const saveAddingCell = async (feeName, cls) => {
+      if (!addingCell?.amount) { setAddingCell(null); return; }
+      const first = feeStructures.find(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
+      try {
+        await feeStructuresApi.create({
+          name: feeName, category: first?.category || 'tuition',
+          amount: parseFloat(addingCell.amount) || 0,
+          frequency: first?.frequency || 'monthly', dueDate: first?.dueDate || 1,
+          lateFee: first?.lateFee || 0, applicableCategories: first?.applicableCategories || 'all',
+          isActive: true, academicYearId: filterAY || activeAY?.id || '',
+          mediumId: cls.mediumId, classId: cls.id,
+        });
+        await fetchAll();
+      } catch { showToast({ type: 'error', title: 'Add failed' }); }
+      setAddingCell(null);
+    };
 
     const gridClsForFee = classes
       .filter(c => (!filterAY || c.academicYearId === filterAY) && (!filterMedium || c.mediumId === filterMedium))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => {
+        const medA = mediums.find(m => m.id === a.mediumId)?.name || '';
+        const medB = mediums.find(m => m.id === b.mediumId)?.name || '';
+        if (medA !== medB) return medA.localeCompare(medB);
+        return a.name.localeCompare(b.name);
+      });
 
     const mediumGroups = gridClsForFee.reduce((acc, cls) => {
       if (!acc[cls.mediumId]) {
         const med = mediums.find(m => m.id === cls.mediumId);
-        acc[cls.mediumId] = { name: med?.name || '?', classes: [], classMap: new Map() };
+        acc[cls.mediumId] = { name: med?.name || '?', classes: [] };
       }
-      // Deduplicate by class name - keep first occurrence
-      if (!acc[cls.mediumId].classMap.has(cls.name)) {
-        acc[cls.mediumId].classMap.set(cls.name, cls);
-        acc[cls.mediumId].classes.push(cls);
-      }
+      acc[cls.mediumId].classes.push(cls);
       return acc;
     }, {});
     const medGroupList = Object.entries(mediumGroups);
@@ -1519,7 +1499,23 @@ export default function SettingsPage() {
                                 >₹{fs.amount?.toLocaleString()}</button>
                               )
                             ) : (
-                              <span className={`text-sm ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>—</span>
+                              addingCell?.feeName === feeName && addingCell?.classId === cls.id ? (
+                                <input
+                                  autoFocus type="number"
+                                  value={addingCell.amount}
+                                  onChange={e => setAddingCell({ ...addingCell, amount: e.target.value })}
+                                  onBlur={() => saveAddingCell(feeName, cls)}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveAddingCell(feeName, cls); if (e.key === 'Escape') setAddingCell(null); }}
+                                  placeholder="₹"
+                                  className={`w-14 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-600' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-300'}`}
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => setAddingCell({ feeName, classId: cls.id, amount: '' })}
+                                  title={`Add ${feeName} for ${cls.name}`}
+                                  className={`text-xs px-1 rounded border border-dashed transition-all ${isDark ? 'border-gray-700 text-gray-700 hover:border-blue-600 hover:text-blue-500' : 'border-gray-300 text-gray-300 hover:border-blue-400 hover:text-blue-500'}`}
+                                >+</button>
+                              )
                             )}
                           </td>
                         );
