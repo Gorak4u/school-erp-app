@@ -34,41 +34,17 @@ export async function GET(request: NextRequest) {
     if (ctx.schoolId) where.schoolId = ctx.schoolId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
-    
-    // Handle medium and class filtering together
-    // Fee structures can be:
-    // 1. Specific to a medium AND class
-    // 2. Specific to a medium but applies to all classes (classId = null)
-    // 3. Applies to all mediums and all classes (both null)
-    if (mediumId && classId) {
-      where.AND = [
-        {
-          OR: [
-            { mediumId: mediumId },
-            { mediumId: null }
-          ]
-        },
-        {
-          OR: [
-            { classId: classId },
-            { classId: null }
-          ]
-        }
-      ];
-    } else if (mediumId) {
-      where.OR = [
-        { mediumId: mediumId },
-        { mediumId: null }
-      ];
-    } else if (classId) {
-      where.OR = [
-        { classId: classId },
-        { classId: null }
-      ];
-    }
-    
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
     if (category) where.category = category;
+    
+    // SIMPLIFIED filtering logic - remove complex AND/OR conditions
+    // Fee structures can be filtered by exact match or null for broader scope
+    if (mediumId) {
+      where.mediumId = mediumId;
+    }
+    if (classId) {
+      where.classId = classId;
+    }
 
     // DEBUG: Log the final where clause
     console.log('Final where clause:', JSON.stringify(where, null, 2));
@@ -98,10 +74,35 @@ export async function GET(request: NextRequest) {
     headers.set('Pragma', 'no-cache');
     headers.set('Expires', '0');
 
-    return new NextResponse.json({ feeStructures: structures }, { headers });
-  } catch (error) {
+    return NextResponse.json({ feeStructures: structures }, { headers });
+  } catch (error: any) {
     console.error('GET /api/fees/structures:', error);
-    return NextResponse.json({ error: 'Failed to fetch fee structures' }, { status: 500 });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      meta: error.meta,
+      cause: error.cause
+    });
+    
+    // Check for specific Prisma errors
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Record not found', details: error.meta }, { status: 404 });
+    }
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Unique constraint violation', details: error.meta }, { status: 400 });
+    }
+    if (error.code === 'P2023') {
+      return NextResponse.json({ error: 'Invalid foreign key constraint', details: error.meta }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      error: 'Failed to fetch fee structures', 
+      message: error.message,
+      code: error.code,
+      details: error.meta 
+    }, { status: 500 });
   }
 }
 
