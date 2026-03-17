@@ -4,13 +4,31 @@ import { getSessionContext } from '@/lib/apiAuth';
 
 const DEFAULT_PLANS = [
   {
+    name: 'free',
+    displayName: 'Free',
+    description: 'Perfect for very small schools getting started',
+    priceMonthly: 0,
+    priceYearly: 0,
+    currency: 'INR',
+    maxStudents: 50,
+    maxTeachers: 2,
+    features: JSON.stringify([
+      'attendance',
+      'exams',
+      'assignments'
+    ]),
+    isActive: true,
+    sortOrder: 0,
+    trialDays: 0,
+  },
+  {
     name: 'basic',
     displayName: 'Basic',
     description: 'Perfect for small schools with essential features',
     priceMonthly: 999,
     priceYearly: 9999,
     currency: 'INR',
-    maxStudents: 50,
+    maxStudents: 200,
     maxTeachers: 5,
     features: JSON.stringify([
       'Student Management',
@@ -30,7 +48,7 @@ const DEFAULT_PLANS = [
     priceMonthly: 2499,
     priceYearly: 24999,
     currency: 'INR',
-    maxStudents: 200,
+    maxStudents: 500,
     maxTeachers: 15,
     features: JSON.stringify([
       'Student Management',
@@ -49,12 +67,12 @@ const DEFAULT_PLANS = [
   },
   {
     name: 'enterprise',
-    displayName: 'Enterprise',
+    displayName: 'Unlimited',
     description: 'Complete solution for large institutions',
-    priceMonthly: 4999,
-    priceYearly: 49999,
+    priceMonthly: 14999,
+    priceYearly: 125000,
     currency: 'INR',
-    maxStudents: 1000,
+    maxStudents: 99999,
     maxTeachers: 50,
     features: JSON.stringify([
       'Student Management',

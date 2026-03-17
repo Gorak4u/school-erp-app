@@ -22,13 +22,14 @@ interface PlanData {
 }
 
 const PLAN_GRADIENTS: Record<string, string> = {
+  free:         'from-green-500 to-emerald-500',
   trial:        'from-gray-500 to-gray-600',
   basic:        'from-blue-500 to-cyan-500',
   professional: 'from-purple-500 to-indigo-500',
   enterprise:   'from-orange-500 to-red-500',
 };
 const PLAN_ICONS: Record<string, string> = {
-  trial: '🆓', basic: '📦', professional: '⚡', enterprise: '🏢',
+  free: '🆓', trial: '🆓', basic: '📦', professional: '⚡', enterprise: '🏢',
 };
 
 const ALL_FEATURES = [
