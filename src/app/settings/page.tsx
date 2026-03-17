@@ -1643,7 +1643,7 @@ export default function SettingsPage() {
                   </div>
                   <button 
                     onClick={() => setShowModal(false)}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1762,7 +1762,7 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`space-y-3 mb-6 p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-green-400' : 'bg-green-500'}`}></div>
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Mediums</span>
@@ -1786,8 +1786,8 @@ export default function SettingsPage() {
 
               <div className="flex gap-3">
                 <button 
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${
+                    isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
                   }`} 
                   disabled={saving} 
                   onClick={handleCopyWithPreviousYear}
@@ -1795,8 +1795,8 @@ export default function SettingsPage() {
                   {saving ? 'Creating...' : 'Copy & Create'}
                 </button>
                 <button 
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:scale-105 ${
+                    isDark ? 'bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200'
                   }`} 
                   disabled={saving} 
                   onClick={handleCreateFreshYear}
@@ -1804,8 +1804,8 @@ export default function SettingsPage() {
                   {saving ? 'Creating...' : 'Create Fresh'}
                 </button>
                 <button 
-                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:scale-105 ${
+                    isDark ? 'bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200'
                   }`} 
                   onClick={handleCancelCopy}
                 >

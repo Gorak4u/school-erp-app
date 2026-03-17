@@ -488,7 +488,7 @@ export default function TransportPage() {
                     <div key={r.id} className={`rounded-xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
                             <span className="text-lg">🗺️</span>
                           </div>
                           <div>
@@ -671,8 +671,8 @@ export default function TransportPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2 flex-wrap">
-                              <button onClick={() => openEditRoute(r)} className={`px-3 py-1.5 text-xs rounded-lg border ${btnSecondary}`}>Edit</button>
-                              <button onClick={() => copyRouteToNextAY(r)} disabled={saving} className={`px-3 py-1.5 text-xs rounded-lg border ${btnSecondary} ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              <button onClick={() => openEditRoute(r)} className={`px-3 py-2 text-xs rounded-xl border ${btnSecondary}`}>Edit</button>
+                              <button onClick={() => copyRouteToNextAY(r)} disabled={saving} className={`px-3 py-2 text-xs rounded-xl border ${btnSecondary} ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 {saving ? 'Copying...' : 'Copy to Next AY'}
                               </button>
                               <button onClick={() => deleteRoute(r.id)} className={btnDanger}>Delete</button>
@@ -766,7 +766,7 @@ export default function TransportPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button onClick={() => openEditVehicle(v)} className={`px-3 py-1.5 text-xs rounded-lg border ${btnSecondary}`}>Edit</button>
+                            <button onClick={() => openEditVehicle(v)} className={`px-3 py-2 text-xs rounded-xl border ${btnSecondary}`}>Edit</button>
                             <button onClick={() => deleteVehicle(v.id)} className={btnDanger}>Delete</button>
                           </div>
                         </td>
@@ -1015,7 +1015,7 @@ export default function TransportPage() {
                 />
                 {searchLoading && <p className={`text-xs mt-1 ${subtext}`}>Searching...</p>}
                 {searchResults.length > 0 && !assignForm.studentId && (
-                  <div className={`mt-1 border rounded-lg overflow-hidden ${card} shadow-lg`}>
+                  <div className={`mt-1 border rounded-xl overflow-hidden ${card} shadow-lg`}>
                     {searchResults.map(s => (
                       <button
                         key={s.id}

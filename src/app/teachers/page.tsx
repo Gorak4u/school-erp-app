@@ -272,7 +272,7 @@ export default function StaffPage() {
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}
                     >
-                      <span className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                      <span className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center">
                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
@@ -288,7 +288,7 @@ export default function StaffPage() {
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}
                     >
-                      <span className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
+                      <span className="w-8 h-8 rounded-xl bg-yellow-100 flex items-center justify-center">
                         <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -302,7 +302,7 @@ export default function StaffPage() {
                       onClick={() => { bulkDelete(); setShowBulkActions(false); }}
                       className={`w-full px-4 py-3 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-red-600`}
                     >
-                      <span className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                      <span className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
                         <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -528,7 +528,7 @@ export default function StaffPage() {
                 </div>
                 <button
                   onClick={clearSearchHistory}
-                  className={`text-xs px-3 py-1 rounded-lg transition-colors ${
+                  className={`text-xs px-3 py-1 rounded-xl transition-colors ${
                     isDark 
                       ? 'text-purple-400 hover:text-white hover:bg-purple-700/50' 
                       : 'text-purple-600 hover:text-purple-900 hover:bg-purple-200'
@@ -544,7 +544,7 @@ export default function StaffPage() {
                     onClick={() => {
                       performTeacherSearch(search);
                     }}
-                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-all hover:scale-105 ${
+                    className={`px-3 py-2 text-xs rounded-xl font-medium transition-all hover:scale-105 ${
                       isDark
                         ? 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50 border border-purple-600/30'
                         : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
@@ -616,7 +616,7 @@ export default function StaffPage() {
             </div>
             <button
               onClick={resetFilters}
-              className={`text-sm px-4 py-2 rounded-lg transition-colors ${
+              className={`text-sm px-4 py-2 rounded-xl transition-colors ${
                 isDark 
                   ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
@@ -653,7 +653,7 @@ export default function StaffPage() {
               </div>
               <div className="flex items-center gap-3">
                 <select
-                  className={`${inputCls} text-sm rounded-lg`}
+                  className={`${inputCls} text-sm rounded-xl`}
                   value={pageSize}
                   onChange={e => setPageSize(Number(e.target.value))}
                 >
