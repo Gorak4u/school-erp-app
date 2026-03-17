@@ -116,18 +116,16 @@ export async function DELETE(request: NextRequest) {
 
     // If not cascading, check for foreign key relationships
     if (!cascade) {
-      if (classCount > 0) {
+      if (classCount > 0 || feeStructureCount > 0) {
         return NextResponse.json({ 
           error: 'Cannot delete medium', 
-          details: `This medium is being used by ${classCount} class(es). Please delete or reassign the classes first.`,
-          code: 'FOREIGN_KEY_CONSTRAINT'
-        }, { status: 400 });
-      }
-      if (feeStructureCount > 0) {
-        return NextResponse.json({ 
-          error: 'Cannot delete medium', 
-          details: `This medium is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
-          code: 'FOREIGN_KEY_CONSTRAINT'
+          details: `This medium is being used by ${classCount} class(es) and ${feeStructureCount} fee structure(s).`,
+          code: 'FOREIGN_KEY_CONSTRAINT',
+          counts: {
+            classes: classCount,
+            sections: sectionCount,
+            feeStructures: feeStructureCount
+          }
         }, { status: 400 });
       }
     }

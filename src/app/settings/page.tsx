@@ -75,7 +75,7 @@ export default function SettingsPage() {
   const [modalEntity, setModalEntity] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
-  const [showMediumDeleteModal, setShowMediumDeleteModal] = useState(null);
+  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState<any>(null);
   
   // ─── Copy confirmation modal state ───────────────────────────────────────────
   const [showCopyModal, setShowCopyModal] = useState(false);
@@ -594,6 +594,7 @@ export default function SettingsPage() {
   };
 
   const handleDelete = async (entity: string, id: string, name: string) => {
+    console.log(`🗑️ handleDelete:`, { entity, id, name });
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     try {
       const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi, section: sectionsApi, timing: schoolTimingsApi };
@@ -602,19 +603,77 @@ export default function SettingsPage() {
       fetchAll();
       refreshSchoolConfig();
     } catch (e: any) {
+      console.error(`❌ Delete failed for ${entity}:`, e);
+      
       // Handle foreign key constraint with cascading deletion option
-      if (e.message?.includes('FOREIGN_KEY_CONSTRAINT') && entity === 'medium') {
-        const affectedClasses = classes.filter((c: any) => c.mediumId === id);
-        const affectedSections = affectedClasses.reduce((sum: number, cls: any) => sum + (cls.sections?.length || 0), 0);
-        const affectedFeeStructures = feeStructures.filter((fs: any) => fs.mediumId === id).length;
-        
-        if (affectedClasses.length > 0 || affectedFeeStructures > 0) {
-          setShowMediumDeleteModal({ 
-            mediumId: id, 
-            mediumName: name, 
-            affectedClasses, 
-            affectedSections,
-            affectedFeeStructures,
+      const isFK = e.code === 'FOREIGN_KEY_CONSTRAINT' || 
+                   e.message?.includes('FOREIGN_KEY_CONSTRAINT') || 
+                   e.details?.includes('class(es)') ||
+                   e.details?.includes('medium(s)') ||
+                   e.details?.includes('fee structure(s)') ||
+                   e.details?.includes('section(s)');
+
+      if (isFK && (entity === 'medium' || entity === 'board' || entity === 'academicYear' || entity === 'class')) {
+        // Use counts from API error if available, otherwise try to extract from details string, fallback to state
+        let classCount = e.counts?.classes;
+        if (classCount === undefined && e.details) {
+          const match = e.details.match(/used by (\d+) class/);
+          if (match) classCount = parseInt(match[1]);
+        }
+        if (classCount === undefined) {
+          const filterKey = entity === 'medium' ? 'mediumId' : entity === 'board' ? 'boardId' : entity === 'academicYear' ? 'academicYearId' : null;
+          classCount = filterKey ? classes.filter((c: any) => c[filterKey] === id).length : 0;
+        }
+
+        let feeStructureCount = e.counts?.feeStructures;
+        if (feeStructureCount === undefined && e.details) {
+          const match = e.details.match(/used by (\d+) fee structure/);
+          if (match) feeStructureCount = parseInt(match[1]);
+        }
+        if (feeStructureCount === undefined) {
+          const filterKey = entity === 'medium' ? 'mediumId' : entity === 'board' ? 'boardId' : entity === 'academicYear' ? 'academicYearId' : entity === 'class' ? 'classId' : null;
+          feeStructureCount = filterKey ? feeStructures.filter((fs: any) => fs[filterKey] === id).length : 0;
+        }
+
+        let sectionCount = e.counts?.sections;
+        if (sectionCount === undefined && e.details) {
+          const match = e.details.match(/used by (\d+) section/);
+          if (match) sectionCount = parseInt(match[1]);
+        }
+        if (sectionCount === undefined) {
+          if (entity === 'class') {
+            sectionCount = sections.filter((s: any) => s.classId === id).length;
+          } else {
+            const filterKey = entity === 'medium' ? 'mediumId' : entity === 'board' ? 'boardId' : entity === 'academicYear' ? 'academicYearId' : null;
+            sectionCount = filterKey ? classes.filter((c: any) => c[filterKey] === id).reduce((sum: number, cls: any) => sum + (cls.sections?.length || 0), 0) : 0;
+          }
+        }
+
+        let mediumCount = e.counts?.mediums;
+        if (mediumCount === undefined && e.details) {
+          const match = e.details.match(/contains (\d+) medium/);
+          if (match) mediumCount = parseInt(match[1]);
+        }
+        if (mediumCount === undefined && entity === 'academicYear') {
+          mediumCount = mediums.filter((m: any) => m.academicYearId === id).length;
+        }
+
+        console.log(`⚠️ Triggering cascading delete modal for ${entity}:`, { classCount, feeStructureCount, sectionCount, mediumCount });
+
+        if (classCount > 0 || feeStructureCount > 0 || sectionCount > 0 || mediumCount > 0) {
+          setShowCascadeDeleteModal({ 
+            entity,
+            id, 
+            name, 
+            classCount,
+            mediumCount,
+            affectedClasses: classes.filter((c: any) => {
+              if (entity === 'class') return c.id === id;
+              const filterKey = entity === 'medium' ? 'mediumId' : entity === 'board' ? 'boardId' : entity === 'academicYear' ? 'academicYearId' : null;
+              return filterKey ? c[filterKey] === id : false;
+            }),
+            affectedSections: sectionCount,
+            affectedFeeStructures: feeStructureCount,
             deleting: false
           });
           return;
@@ -2238,39 +2297,47 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
 
-      {/* Medium Delete with Cascading Confirmation Modal */}
+      {/* Cascading Delete Confirmation Modal */}
       <AnimatePresence>
-        {showMediumDeleteModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowMediumDeleteModal(null)}>
+        {showCascadeDeleteModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCascadeDeleteModal(null)}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-4">
                 <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>⚠️ Cascading Delete Confirmation</h3>
-                <button onClick={() => setShowMediumDeleteModal(null)} className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}>
+                <button onClick={() => setShowCascadeDeleteModal(null)} className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}>
                   <span className="text-xl leading-none">×</span>
                 </button>
               </div>
               <p className={`${subtext} mb-4`}>
-                Deleting medium <strong>"{showMediumDeleteModal.mediumName}"</strong> will also permanently delete:
+                Deleting {showCascadeDeleteModal.entity} <strong>"{showCascadeDeleteModal.name}"</strong> will also permanently delete:
               </p>
               <div className={`space-y-3 mb-6`}>
-                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700/30' : 'bg-red-50 border border-red-200'}`}>
-                  <span className={`font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Classes</span>
-                  <span className={`font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{showMediumDeleteModal.affectedClasses.length}</span>
-                </div>
+                {showCascadeDeleteModal.mediumCount > 0 && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}`}>
+                    <span className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Mediums</span>
+                    <span className={`font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{showCascadeDeleteModal.mediumCount}</span>
+                  </div>
+                )}
+                {(showCascadeDeleteModal.classCount > 0 || showCascadeDeleteModal.entity === 'class') && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700/30' : 'bg-red-50 border border-red-200'}`}>
+                    <span className={`font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Classes</span>
+                    <span className={`font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{showCascadeDeleteModal.entity === 'class' ? 1 : showCascadeDeleteModal.classCount}</span>
+                  </div>
+                )}
                 <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-orange-900/20 border border-orange-700/30' : 'bg-orange-50 border border-orange-200'}`}>
                   <span className={`font-medium ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>Sections</span>
-                  <span className={`font-bold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{showMediumDeleteModal.affectedSections || 0}</span>
+                  <span className={`font-bold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{showCascadeDeleteModal.affectedSections || 0}</span>
                 </div>
                 <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-yellow-50 border border-yellow-200'}`}>
                   <span className={`font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>Fee Structures</span>
-                  <span className={`font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{showMediumDeleteModal.affectedFeeStructures || 0}</span>
+                  <span className={`font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{showCascadeDeleteModal.affectedFeeStructures || 0}</span>
                 </div>
               </div>
-              {showMediumDeleteModal.affectedClasses.length > 0 && (
+              {showCascadeDeleteModal.affectedClasses?.length > 0 && (
                 <div className={`p-3 rounded-lg mb-6 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
                   <h4 className={`font-semibold mb-2 text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Classes to be deleted:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {showMediumDeleteModal.affectedClasses.map((cls: any) => (
+                    {showCascadeDeleteModal.affectedClasses.map((cls: any) => (
                       <span key={cls.id} className={`px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
                         {cls.name}
                       </span>
@@ -2284,29 +2351,30 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="flex gap-3">
-                <button className={btnSecondary} onClick={() => setShowMediumDeleteModal(null)}>Cancel</button>
+                <button className={btnSecondary} onClick={() => setShowCascadeDeleteModal(null)}>Cancel</button>
                 <button
                   className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white' : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white'}`}
-                  disabled={showMediumDeleteModal.deleting}
+                  disabled={showCascadeDeleteModal.deleting}
                   onClick={async () => {
-                    setShowMediumDeleteModal({ ...showMediumDeleteModal, deleting: true });
+                    setShowCascadeDeleteModal({ ...showCascadeDeleteModal, deleting: true });
                     try {
-                      const result = await mediumsApi.delete(showMediumDeleteModal.mediumId, true);
+                      const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi };
+                      const result = await apiMap[showCascadeDeleteModal.entity].delete(showCascadeDeleteModal.id, true);
                       showToast({ 
                         type: 'success', 
-                        title: `Medium "${showMediumDeleteModal.mediumName}" deleted`,
-                        message: `Also deleted: ${result.deleted?.classes || 0} classes, ${result.deleted?.sections || 0} sections, ${result.deleted?.feeStructures || 0} fee structures`
+                        title: `${showCascadeDeleteModal.entity.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} "${showCascadeDeleteModal.name}" deleted`,
+                        message: `Also deleted: ${result.deleted?.mediums ? result.deleted.mediums + ' mediums, ' : ''}${result.deleted?.classes || 0} classes, ${result.deleted?.sections || 0} sections, ${result.deleted?.feeStructures || 0} fee structures`
                       });
                       await fetchAll();
                       refreshSchoolConfig();
-                      setShowMediumDeleteModal(null);
+                      setShowCascadeDeleteModal(null);
                     } catch (e: any) {
                       showToast({ type: 'error', title: 'Delete failed', message: e.message });
-                      setShowMediumDeleteModal({ ...showMediumDeleteModal, deleting: false });
+                      setShowCascadeDeleteModal({ ...showCascadeDeleteModal, deleting: false });
                     }
                   }}
                 >
-                  {showMediumDeleteModal.deleting ? 'Deleting...' : 'Delete All'}
+                  {showCascadeDeleteModal.deleting ? 'Deleting...' : 'Delete All'}
                 </button>
               </div>
             </motion.div>

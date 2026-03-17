@@ -19,7 +19,14 @@ async function request<T>(
       data,
       headers: Object.fromEntries(res.headers.entries())
     });
-    throw new Error(data.error || `API error ${res.status}`);
+    
+    // Create an error object with extra properties from the API response
+    const error = new Error(data.error || `API error ${res.status}`) as any;
+    error.code = data.code;
+    error.details = data.details;
+    error.counts = data.counts;
+    error.status = res.status;
+    throw error;
   }
   return data as T;
 }
@@ -169,14 +176,20 @@ export const academicYearsApi = {
   list: () => request<any>('/api/school-structure/academic-years'),
   create: (data: any) => request<any>('/api/school-structure/academic-years', { method: 'POST', body: JSON.stringify(data) }),
   update: (data: any) => request<any>('/api/school-structure/academic-years', { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) => request<any>(`/api/school-structure/academic-years?id=${id}`, { method: 'DELETE' }),
+  delete: (id: string, cascade: boolean = false) => {
+    const qs = new URLSearchParams({ id, cascade: cascade.toString() }).toString();
+    return request<any>(`/api/school-structure/academic-years?${qs}`, { method: 'DELETE' });
+  },
 };
 
 export const boardsApi = {
   list: () => request<any>('/api/school-structure/boards'),
   create: (data: any) => request<any>('/api/school-structure/boards', { method: 'POST', body: JSON.stringify(data) }),
   update: (data: any) => request<any>('/api/school-structure/boards', { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) => request<any>(`/api/school-structure/boards?id=${id}`, { method: 'DELETE' }),
+  delete: (id: string, cascade: boolean = false) => {
+    const qs = new URLSearchParams({ id, cascade: cascade.toString() }).toString();
+    return request<any>(`/api/school-structure/boards?${qs}`, { method: 'DELETE' });
+  },
 };
 
 export const mediumsApi = {
@@ -198,8 +211,11 @@ export const classesApi = {
     return request<any>(`/api/school-structure/classes${qs ? `?${qs}` : ''}`);
   },
   create: (data: any) => request<any>('/api/school-structure/classes', { method: 'POST', body: JSON.stringify(data) }),
-  update: (data: any) => request<any>('/api/school-structure/classes', { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) => request<any>(`/api/school-structure/classes?id=${id}`, { method: 'DELETE' }),
+  update: (id: string, data: any) => request<any>('/api/school-structure/classes', { method: 'PUT', body: JSON.stringify({ id, ...data }) }),
+  delete: (id: string, cascade: boolean = false) => {
+    const qs = new URLSearchParams({ id, cascade: cascade.toString() }).toString();
+    return request<any>(`/api/school-structure/classes?${qs}`, { method: 'DELETE' });
+  },
 };
 
 export const sectionsApi = {

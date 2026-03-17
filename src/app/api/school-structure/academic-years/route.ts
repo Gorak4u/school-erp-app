@@ -117,36 +117,107 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const cascade = searchParams.get('cascade') === 'true';
 
     if (!id) {
       return NextResponse.json({ error: 'Academic year ID is required' }, { status: 400 });
     }
 
-    // Verify ownership before deletion
-    const existing = await (schoolPrisma as any).academicYear.findUnique({ where: { id } });
+    // Verify academic year exists
+    const existing = await (schoolPrisma as any).academicYear.findUnique({ 
+      where: { id },
+      include: {
+        mediums: {
+          include: {
+            classes: {
+              include: {
+                sections: true
+              }
+            }
+          }
+        }
+      }
+    });
     if (!existing) return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
 
-    // Check for foreign key relationships
+    // Check for students using this academic year
     const studentCount = await (schoolPrisma as any).student.count({ where: { academicYearId: id } });
-    if (studentCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete academic year', 
-        details: `This academic year is being used by ${studentCount} student(s). Please reassign or remove the students first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+    
+    // Check for fee structures using this academic year
+    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { academicYearId: id } });
+
+    // Calculate other counts for information
+    const mediumCount = existing.mediums.length;
+    const classCount = existing.mediums.reduce((sum: number, m: any) => sum + m.classes.length, 0);
+    const sectionCount = existing.mediums.reduce((sum: number, m: any) => 
+      sum + m.classes.reduce((s: number, c: any) => s + c.sections.length, 0), 0);
+
+    // If not cascading, check for foreign key relationships
+    if (!cascade) {
+      if (studentCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete academic year', 
+          details: `This academic year is being used by ${studentCount} student(s). Please reassign or remove the students first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
+
+      if (feeStructureCount > 0 || mediumCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete academic year', 
+          details: `This academic year contains ${mediumCount} medium(s) and ${feeStructureCount} fee structure(s).`,
+          code: 'FOREIGN_KEY_CONSTRAINT',
+          counts: {
+            mediums: mediumCount,
+            classes: classCount,
+            sections: sectionCount,
+            feeStructures: feeStructureCount
+          }
+        }, { status: 400 });
+      }
     }
 
-    const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { academicYearId: id } });
-    if (feeStructureCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete academic year', 
-        details: `This academic year is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+    // Perform cascading deletion if requested
+    if (cascade) {
+      // Still block if students exist
+      if (studentCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete academic year', 
+          details: `This academic year is being used by ${studentCount} student(s). Even with cascade, students must be promoted or removed first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
+
+      // Delete fee structures for this academic year
+      await (schoolPrisma as any).feeStructure.deleteMany({ where: { academicYearId: id } });
+
+      // Delete structure in order: sections -> classes -> mediums
+      const mediumIds = existing.mediums.map((m: any) => m.id);
+      const classIds: string[] = [];
+      existing.mediums.forEach((m: any) => m.classes.forEach((c: any) => classIds.push(c.id)));
+
+      if (classIds.length > 0) {
+        await (schoolPrisma as any).section.deleteMany({ where: { classId: { in: classIds } } });
+        await (schoolPrisma as any).class.deleteMany({ where: { id: { in: classIds } } });
+      }
+      
+      if (mediumIds.length > 0) {
+        await (schoolPrisma as any).medium.deleteMany({ where: { id: { in: mediumIds } } });
+      }
     }
 
     await (schoolPrisma as any).academicYear.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    
+    return NextResponse.json({ 
+      success: true,
+      cascaded: cascade,
+      deleted: {
+        mediums: mediumCount,
+        classes: classCount,
+        sections: sectionCount,
+        feeStructures: feeStructureCount
+      }
+    });
   } catch (error: any) {
     console.error('Error deleting academic year:', error);
     if (error.code === 'P2025') return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });

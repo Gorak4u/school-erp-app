@@ -144,16 +144,23 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const cascade = searchParams.get('cascade') === 'true';
 
     if (!id) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
-    // Verify class exists
-    const existing = await (schoolPrisma as any).class.findUnique({ where: { id } });
+    // Verify class exists and get related counts
+    const existing = await (schoolPrisma as any).class.findUnique({ 
+      where: { id },
+      include: {
+        sections: true
+      }
+    });
     if (!existing) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-    // Check for foreign key relationships - students using this class
+    // Check for students using this class (name or code)
+    // We don't cascade delete students! They must be reassigned.
     const studentCount = await (schoolPrisma as any).student.count({ 
       where: { 
         OR: [
@@ -162,36 +169,67 @@ export async function DELETE(request: NextRequest) {
         ]
       } 
     });
-    if (studentCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete class', 
-        details: `This class is being used by ${studentCount} student(s). Please reassign or remove the students first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
-    }
 
     // Check for fee structures using this class
     const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { classId: id } });
-    if (feeStructureCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete class', 
-        details: `This class is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+    
+    // Check for sections using this class
+    const sectionCount = existing.sections.length;
+
+    // If not cascading, check for foreign key relationships
+    if (!cascade) {
+      if (studentCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete class', 
+          details: `This class is being used by ${studentCount} student(s). Please reassign or remove the students first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
+      if (feeStructureCount > 0 || sectionCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete class', 
+          details: `This class is being used by ${sectionCount} section(s) and ${feeStructureCount} fee structure(s).`,
+          code: 'FOREIGN_KEY_CONSTRAINT',
+          counts: {
+            sections: sectionCount,
+            feeStructures: feeStructureCount
+          }
+        }, { status: 400 });
+      }
     }
 
-    // Check for sections using this class
-    const sectionCount = await (schoolPrisma as any).section.count({ where: { classId: id } });
-    if (sectionCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete class', 
-        details: `This class has ${sectionCount} section(s). Please delete the sections first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+    // Perform cascading deletion if requested
+    if (cascade) {
+      // Still block if students exist
+      if (studentCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete class', 
+          details: `This class is being used by ${studentCount} student(s). Even with cascade, students must be reassigned first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
+
+      // Delete fee structures for this class
+      if (feeStructureCount > 0) {
+        await (schoolPrisma as any).feeStructure.deleteMany({ where: { classId: id } });
+      }
+
+      // Delete sections for this class
+      if (sectionCount > 0) {
+        await (schoolPrisma as any).section.deleteMany({ where: { classId: id } });
+      }
     }
 
     await (schoolPrisma as any).class.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    
+    return NextResponse.json({ 
+      success: true,
+      cascaded: cascade,
+      deleted: {
+        sections: sectionCount,
+        feeStructures: feeStructureCount
+      }
+    });
   } catch (error: any) {
     console.error('Error deleting class:', error);
     if (error.code === 'P2025') return NextResponse.json({ error: 'Class not found' }, { status: 404 });

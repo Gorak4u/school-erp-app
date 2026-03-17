@@ -36,35 +36,77 @@ export async function DELETE(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const id = new URL(request.url).searchParams.get('id');
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const cascade = searchParams.get('cascade') === 'true';
+
     if (!id) return NextResponse.json({ error: 'Board ID is required' }, { status: 400 });
 
-    // Verify board exists
-    const existing = await (schoolPrisma as any).board.findUnique({ where: { id } });
+    // Verify board exists and get related counts
+    const existing = await (schoolPrisma as any).board.findUnique({ 
+      where: { id },
+      include: {
+        classes: {
+          include: {
+            sections: true
+          }
+        }
+      }
+    });
     if (!existing) return NextResponse.json({ error: 'Board not found' }, { status: 404 });
 
-    // Check for foreign key relationships - classes using this board
-    const classCount = await (schoolPrisma as any).class.count({ where: { boardId: id } });
-    if (classCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete board', 
-        details: `This board is being used by ${classCount} class(es). Please delete or reassign the classes first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
-    }
-
+    const classCount = existing.classes.length;
+    const sectionCount = existing.classes.reduce((sum: number, cls: any) => sum + cls.sections.length, 0);
+    
     // Check for fee structures using this board
     const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { boardId: id } });
-    if (feeStructureCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete board', 
-        details: `This board is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+
+    // If not cascading, check for foreign key relationships
+    if (!cascade) {
+      if (classCount > 0 || feeStructureCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete board', 
+          details: `This board is being used by ${classCount} class(es) and ${feeStructureCount} fee structure(s).`,
+          code: 'FOREIGN_KEY_CONSTRAINT',
+          counts: {
+            classes: classCount,
+            sections: sectionCount,
+            feeStructures: feeStructureCount
+          }
+        }, { status: 400 });
+      }
+    }
+
+    // Perform cascading deletion if requested
+    if (cascade) {
+      // Delete fee structures for this board
+      if (feeStructureCount > 0) {
+        await (schoolPrisma as any).feeStructure.deleteMany({ where: { boardId: id } });
+      }
+
+      // Delete sections for all classes in this board
+      if (sectionCount > 0) {
+        const classIds = existing.classes.map((cls: any) => cls.id);
+        await (schoolPrisma as any).section.deleteMany({ where: { classId: { in: classIds } } });
+      }
+
+      // Delete classes for this board
+      if (classCount > 0) {
+        await (schoolPrisma as any).class.deleteMany({ where: { boardId: id } });
+      }
     }
 
     await (schoolPrisma as any).board.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    
+    return NextResponse.json({ 
+      success: true,
+      cascaded: cascade,
+      deleted: {
+        classes: classCount,
+        sections: sectionCount,
+        feeStructures: feeStructureCount
+      }
+    });
   } catch (error: any) {
     console.error('Error deleting board:', error);
     if (error.code === 'P2025') return NextResponse.json({ error: 'Board not found' }, { status: 404 });
