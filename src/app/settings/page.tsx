@@ -1033,6 +1033,8 @@ export default function SettingsPage() {
     const [sectionDrafts, setSectionDrafts] = useState({}); // { id: { name, selectedClasses: Set(classIds) } }
     const [savingSections, setSavingSections] = useState(false);
 
+    const [savingClasses, setSavingClasses] = useState(false);
+
     const gridMediums = filterAY ? mediums.filter((m) => m.academicYearId === filterAY) : mediums;
     const gridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY) : classes;
     const uniqueClassNames = [...new Set(gridClasses.map((c) => c.name))].sort();
@@ -1184,6 +1186,43 @@ export default function SettingsPage() {
       if (/\b(11|12)\b|11th|12th|plus/.test(n)) return 'higher_secondary';
       return 'primary';
     };
+
+    const bulkSaveClasses = async () => {
+      if (!canManageSettings) return;
+      setSavingClasses(true);
+      try {
+        const promises = [];
+        
+        // Save all new class rows
+        for (const nr of newRows as any[]) {
+          if (nr.name.trim() && nr.selectedMediums.size > 0) {
+            for (const mediumId of nr.selectedMediums) {
+              const med = gridMediums.find((m) => m.id === mediumId);
+              promises.push(classesApi.create({ 
+                name: nr.name.trim(), 
+                code: autoCode(nr.name, med?.code || ''), 
+                level: autoLevel(nr.name), 
+                mediumId, 
+                academicYearId: filterAY || activeAY?.id || '', 
+                isActive: true 
+              }));
+            }
+          }
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast({ type: 'success', title: 'Classes saved successfully' });
+          await fetchAll();
+          setNewRows([]);
+        }
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save classes', message: e.message });
+      } finally {
+        setSavingClasses(false);
+      }
+    };
+
     const addNewRow = () => setNewRows((prev) => [...prev, { id: Date.now().toString(), name: '', selectedMediums: new Set(), saving: false }] as any);
     const saveRow = async (rowId: string) => {
       const nr: any = newRows.find((r: any) => r.id === rowId);
@@ -1228,22 +1267,6 @@ export default function SettingsPage() {
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Language Mediums</h3>
-          <div className="flex gap-2">
-            <button 
-              className={btnSecondary} 
-              disabled={!canManageSettings} 
-              onClick={addMediumRow}
-            >
-              + Add Medium
-            </button>
-            <button 
-              className={btnPrimary} 
-              disabled={!canManageSettings || savingMediums || (mediumRows.length === 0 && Object.keys(mediumDrafts).length === 0)} 
-              onClick={bulkSaveMediums}
-            >
-              {savingMediums ? 'Saving...' : '💾 Bulk Save'}
-            </button>
-          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -1347,6 +1370,28 @@ export default function SettingsPage() {
                   </tr>
                 );
               })}
+
+              {/* Action buttons row */}
+              <tr>
+                <td colSpan={5} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <button 
+                      className={btnSecondary} 
+                      disabled={!canManageSettings} 
+                      onClick={addMediumRow}
+                    >
+                      + Add Medium
+                    </button>
+                    <button 
+                      className={btnPrimary} 
+                      disabled={!canManageSettings || savingMediums || (mediumRows.length === 0 && Object.keys(mediumDrafts).length === 0)} 
+                      onClick={bulkSaveMediums}
+                    >
+                      {savingMediums ? 'Saving...' : '💾 Bulk Save'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1468,17 +1513,26 @@ export default function SettingsPage() {
                 </tr>
               ))}
 
-              {/* Add row footer */}
+              {/* Action buttons row */}
               <tr>
-                <td colSpan={gridMediums.length + 2} className={`px-2 py-1.5 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                  <button
-                    disabled={!canManageSettings}
-                    onClick={addNewRow}
-                    className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                  >
-                    <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
-                    Add class
-                  </button>
+                <td colSpan={gridMediums.length + 2} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <button
+                      disabled={!canManageSettings}
+                      onClick={addNewRow}
+                      className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                    >
+                      <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
+                      Add class
+                    </button>
+                    <button 
+                      className={btnPrimary} 
+                      disabled={!canManageSettings || savingClasses || newRows.length === 0} 
+                      onClick={bulkSaveClasses}
+                    >
+                      {savingClasses ? 'Saving...' : '💾 Bulk Save Classes'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -1498,26 +1552,6 @@ export default function SettingsPage() {
               <option value="">All Mediums</option>
               {gridMediums.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <button 
-              className={btnSecondary} 
-              disabled={!canManageSettings} 
-              onClick={addSectionRow}
-            >
-              + Add Section
-            </button>
-            <button 
-              className={btnPrimary} 
-              disabled={!canManageSettings || savingSections || (sectionRows.length === 0 && Object.keys(sectionDrafts).length === 0)} 
-              onClick={() => {
-                // Save all section rows
-                const promises = sectionRows.map((row: any) => saveSectionRow(row.id));
-                Promise.all(promises).then(() => {
-                  showToast({ type: 'success', title: 'Sections saved successfully' });
-                });
-              }}
-            >
-              {savingSections ? 'Saving...' : '💾 Bulk Save'}
-            </button>
           </div>
         </div>
         
@@ -1631,6 +1665,34 @@ export default function SettingsPage() {
                   </tr>
                 );
               })}
+
+              {/* Action buttons row */}
+              <tr>
+                <td colSpan={sectionGridClasses.length + 2} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <button 
+                      className={btnSecondary} 
+                      disabled={!canManageSettings} 
+                      onClick={addSectionRow}
+                    >
+                      + Add Section
+                    </button>
+                    <button 
+                      className={btnPrimary} 
+                      disabled={!canManageSettings || savingSections || (sectionRows.length === 0 && Object.keys(sectionDrafts).length === 0)} 
+                      onClick={() => {
+                        // Save all section rows
+                        const promises = sectionRows.map((row: any) => saveSectionRow(row.id));
+                        Promise.all(promises).then(() => {
+                          showToast({ type: 'success', title: 'Sections saved successfully' });
+                        });
+                      }}
+                    >
+                      {savingSections ? 'Saving...' : '💾 Bulk Save'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -2188,22 +2250,6 @@ export default function SettingsPage() {
             <h3 className={heading}>School Timings & Period Timetable</h3>
             <p className={subtext}>Define periods, breaks, and assembly timings</p>
           </div>
-          <div className="flex gap-2">
-            <button 
-              className={btnSecondary} 
-              disabled={!canManageSettings} 
-              onClick={addTimingRow}
-            >
-              + Add Period
-            </button>
-            <button 
-              className={btnPrimary} 
-              disabled={!canManageSettings || savingTimings || timingRows.length === 0} 
-              onClick={bulkSaveTimings}
-            >
-              {savingTimings ? 'Saving...' : '💾 Bulk Save'}
-            </button>
-          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -2347,6 +2393,28 @@ export default function SettingsPage() {
                   </tr>
                 );
               })}
+
+              {/* Action buttons row */}
+              <tr>
+                <td colSpan={DAYS.length + 2} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <button 
+                      className={btnSecondary} 
+                      disabled={!canManageSettings} 
+                      onClick={addTimingRow}
+                    >
+                      + Add Period
+                    </button>
+                    <button 
+                      className={btnPrimary} 
+                      disabled={!canManageSettings || savingTimings || timingRows.length === 0} 
+                      onClick={bulkSaveTimings}
+                    >
+                      {savingTimings ? 'Saving...' : '💾 Bulk Save'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
