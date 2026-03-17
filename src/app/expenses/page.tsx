@@ -126,10 +126,42 @@ export default function ExpensesPage() {
     } catch {}
   }, [selectedAY]);
 
+  // ── Category CRUD ─────────────────────────────────────────────────────────────
+  const seedCategories = async () => {
+    setSaving(true);
+    let count = 0;
+    const createdCategories = [];
+    for (const c of DEFAULT_CATEGORIES) {
+      try {
+        const res = await fetch('/api/expenses/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
+        if (res.ok) {
+          count++;
+          createdCategories.push(c);
+        }
+      } catch {}
+    }
+    
+    // Update categories state directly to avoid infinite loop
+    if (count > 0) {
+      setCategories(createdCategories);
+      showMsg(`${count} default categories created`);
+    }
+    
+    setSaving(false);
+  };
+
   const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch('/api/expenses/categories?includeSubcategories=false');
-      if (res.ok) setCategories((await res.json()).categories || []);
+      const data = await res.json();
+      const categories = data.categories || [];
+      setCategories(categories);
+      
+      // Auto-seed default categories if none exist
+      if (categories.length === 0) {
+        console.log('No expense categories found, creating default categories...');
+        await seedCategories();
+      }
     } catch {}
   }, []);
 
@@ -198,21 +230,6 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (activeTab === 'expenses') fetchExpenses();
   }, [expFilters]);
-
-  // ── Category CRUD ─────────────────────────────────────────────────────────────
-  const seedCategories = async () => {
-    setSaving(true);
-    let count = 0;
-    for (const c of DEFAULT_CATEGORIES) {
-      try {
-        const res = await fetch('/api/expenses/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
-        if (res.ok) count++;
-      } catch {}
-    }
-    showMsg(`${count} default categories created`);
-    fetchCategories();
-    setSaving(false);
-  };
 
   const saveCategory = async () => {
     setSaving(true);

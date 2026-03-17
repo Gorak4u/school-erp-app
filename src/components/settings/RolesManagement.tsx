@@ -47,15 +47,21 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
 
   const openEdit = (role: CustomRole) => {
     setEditingRole(role);
-    // Better permission parsing with debugging
-    const parsedPermissions = role.permissions
-      .split(',')
-      .map(p => p.trim())
-      .filter(Boolean) as Permission[];
+    // Handle both JSON and comma-separated formats
+    let parsedPermissions: Permission[] = [];
     
-    console.log('Role permissions:', role.permissions);
-    console.log('Parsed permissions:', parsedPermissions);
+    try {
+      // Try parsing as JSON first (this is the correct format from database)
+      parsedPermissions = JSON.parse(role.permissions);
+    } catch (e) {
+      // Fallback to comma-separated parsing
+      parsedPermissions = role.permissions
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean) as Permission[];
+    }
     
+        
     setForm({
       name: role.name,
       description: role.description,
@@ -207,16 +213,26 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                     {role.description || 'No description provided'}
                   </p>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {role.permissions.split(',').filter(Boolean).map((perm: string) => (
-                      <span 
-                        key={perm} 
-                        className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                          isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {PERMISSION_LABELS[perm as Permission] || perm}
-                      </span>
-                    ))}
+                    {(() => {
+                      let permissions: string[] = [];
+                      try {
+                        // Try parsing as JSON first
+                        permissions = JSON.parse(role.permissions);
+                      } catch (e) {
+                        // Fallback to comma-separated
+                        permissions = role.permissions.split(',').filter(Boolean);
+                      }
+                      return permissions.map((perm: string) => (
+                        <span 
+                          key={perm} 
+                          className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                            isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {PERMISSION_LABELS[perm as Permission] || perm}
+                        </span>
+                      ));
+                    })()}
                   </div>
                   <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,12 +373,6 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                               <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                 {PERMISSION_LABELS[perm] || perm}
                               </span>
-                              {/* Debug info */}
-                              {editingRole && (
-                                <span className="text-xs text-red-500">
-                                  {form.permissions.includes(perm) ? '✓' : '✗'}
-                                </span>
-                              )}
                             </label>
                           ))}
                         </div>
