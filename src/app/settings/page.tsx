@@ -44,6 +44,17 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Handle URL tab parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && TABS.find(tab => tab.id === tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
   // ─── Data state ────────────────────────────────────────────────────────────
   const [academicYears, setAcademicYears] = useState<any[]>([]);
   const [boards, setBoards] = useState<any[]>([]);

@@ -885,7 +885,7 @@ export default function SubscriptionPage() {
               <p className="text-white font-medium">Billing & Payments</p>
               <p className={`${subtext} text-sm mt-1`}>View invoices and payment history</p>
             </Link>
-            <Link href="/settings/school-structure" className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center transition-all">
+            <Link href="/settings?tab=structure" className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center transition-all">
               <div className="text-2xl mb-2">🏫</div>
               <p className="text-white font-medium">School Settings</p>
               <p className={`${subtext} text-sm mt-1`}>Manage school information</p>

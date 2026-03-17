@@ -70,7 +70,7 @@ export default function DashboardQuickActions({ theme, dashboardData }: Dashboar
       title: 'School Structure',
       description: 'Manage classes & sections',
       icon: '🏫',
-      link: '/settings/school-structure',
+      link: '/settings?tab=structure',
       color: 'purple',
       badge: 'Admin'
     },
