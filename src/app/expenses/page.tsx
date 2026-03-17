@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
-import ExpenseDashboard from './ExpenseDashboard';
-import ExpenseList from './ExpenseList';
-import BudgetManager from './BudgetManager';
-import CategoryManager from './CategoryManager';
-import ExpenseReports from './ExpenseReports';
+import ExpenseDashboard from './components/ExpenseDashboard';
+import ExpenseList from './components/ExpenseList';
+import BudgetManager from './components/BudgetManager';
+import CategoryManager from './components/CategoryManager';
+import ExpenseReports from './components/ExpenseReports';
 import ExpenseForm from './ExpenseForm';
 import { DEFAULT_CATEGORIES } from './utils';
 
@@ -27,11 +27,16 @@ export default function ExpensesPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const bg   = isDark ? 'bg-gray-900' : 'bg-gray-50';
-  const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
+  // Modern UI template CSS variables
+  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
+  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
+  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
+  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
+  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
+  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
   const text = isDark ? 'text-white' : 'text-gray-900';
-  const sub  = isDark ? 'text-gray-400' : 'text-gray-500';
-  const inp  = `px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`;
+  const subtext = isDark ? 'text-gray-400' : 'text-gray-600';
+  const heading = isDark ? 'text-white' : 'text-gray-900';
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [saving,    setSaving]    = useState(false);
@@ -304,7 +309,7 @@ export default function ExpensesPage() {
         
         res = await fetch(url, { method, body: formData });
       } else {
-        // Regular JSON submission without file
+        // Regular JSON subtextmission without file
         res = await fetch(url, { 
           method, 
           headers: { 'Content-Type': 'application/json' }, 
@@ -442,7 +447,7 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout currentPage="expenses" title="Expense Management" theme={theme}>
-      <div className={`min-h-screen ${bg} p-4 md:p-6`}>
+      <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-4 md:p-6`}>
         <div className="space-y-8 pb-8">
           {/* Modern Header */}
           <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-8 shadow-lg`}>
@@ -456,7 +461,7 @@ export default function ExpensesPage() {
                   </div>
                   <div>
                     <h1 className={`text-3xl font-bold ${text}`}>Expense Management</h1>
-                    <p className={`text-sm ${sub} mt-1`}>
+                    <p className={`text-sm ${subtext}`}>
                       Track, manage and analyse all school expenses efficiently
                     </p>
                   </div>
@@ -530,7 +535,7 @@ export default function ExpensesPage() {
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
                     activeTab === t.id
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
                       : isDark 
@@ -633,7 +638,7 @@ export default function ExpensesPage() {
               <h2 className={`text-lg font-bold ${text}`}>
                 {actionModal.action === 'approve' ? '✅ Approve Expense' : actionModal.action === 'reject' ? '❌ Reject Expense' : '💳 Mark as Paid'}
               </h2>
-              <button onClick={() => setActionModal(null)} className={`w-8 h-8 flex items-center justify-center rounded-full text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>×</button>
+              <button onClick={() => setActionModal(null)} className={`w-8 h-8 flex items-center justify-center rounded-xl text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>×</button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
@@ -643,12 +648,12 @@ export default function ExpensesPage() {
                 <p className={`text-lg font-bold mt-1 ${text}`}>
                   {actionModal.expense.amount?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                 </p>
-                <p className={`text-xs mt-0.5 ${sub}`}>{actionModal.expense.category?.name} · {actionModal.expense.dateIncurred}</p>
+                <p className={`text-xs mt-0.5 ${subtext}`}>{actionModal.expense.category?.name} · {actionModal.expense.dateIncurred}</p>
                 {actionModal.expense.vendorName && (
-                  <p className={`text-xs mt-1 ${sub}`}>Vendor: {actionModal.expense.vendorName}</p>
+                  <p className={`text-xs mt-1 ${subtext}`}>Vendor: {actionModal.expense.vendorName}</p>
                 )}
                 {actionModal.expense.description && (
-                  <p className={`text-xs mt-2 ${sub}`}>{actionModal.expense.description}</p>
+                  <p className={`text-xs mt-2 ${subtext}`}>{actionModal.expense.description}</p>
                 )}
               </div>
 
@@ -686,7 +691,7 @@ export default function ExpensesPage() {
                           title="Receipt Preview"
                         />
                         <div className={`absolute bottom-0 left-0 right-0 p-2 text-center ${isDark ? 'bg-gray-900/80' : 'bg-white/80'}`}>
-                          <p className={`text-xs ${sub}`}>PDF Document - Click "Open in New Tab" for full view</p>
+                          <p className={`text-xs ${subtext}`}>PDF Document - Click "Open in New Tab" for full view</p>
                         </div>
                       </div>
                     ) : (
@@ -714,18 +719,18 @@ export default function ExpensesPage() {
               )}
 
               {/* Action Note */}
-              <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${sub}`}>
+              <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${subtext}`}>
                 {actionModal.action === 'approve' ? 'Approval Note (optional)' : actionModal.action === 'reject' ? 'Rejection Reason *' : 'Payment Method (optional)'}
               </label>
               <textarea rows={3} value={actionNote} onChange={e => setActionNote(e.target.value)}
                 placeholder={actionModal.action === 'reject' ? 'Reason for rejection...' : actionModal.action === 'approve' ? 'Optional note for approver...' : 'cash, upi, bank_transfer...'}
-                className={`w-full px-3 py-2 rounded-lg border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`} />
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`} />
             </div>
             
             <div className={`flex gap-3 justify-end px-6 py-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-              <button onClick={() => setActionModal(null)} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>Cancel</button>
+              <button onClick={() => setActionModal(null)} disabled={saving} className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>Cancel</button>
               <button onClick={doAction} disabled={saving || (actionModal.action === 'reject' && !actionNote.trim())}
-                className={`px-5 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors ${
+                className={`px-5 py-2.5 text-white rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 ${
                   actionModal.action === 'approve' ? 'bg-green-600 hover:bg-green-700' :
                   actionModal.action === 'reject'  ? 'bg-red-600 hover:bg-red-700' :
                   'bg-blue-600 hover:bg-blue-700'

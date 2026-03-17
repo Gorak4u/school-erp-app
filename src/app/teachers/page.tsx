@@ -9,7 +9,6 @@ import { createTeacherSearchHandlers } from './handlers/searchHandlers';
 import SearchPerformanceMonitor from '../shared/search/components/SearchPerformanceMonitor';
 import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 import ClassTeacherFormAssignments from './components/ClassTeacherFormAssignments';
-import TeacherProfileModal from './components/TeacherProfileModal';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const EMPTY_FORM = { 
@@ -55,7 +54,6 @@ export default function StaffPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
-  const [profileTeacherId, setProfileTeacherId] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -767,17 +765,7 @@ export default function StaffPage() {
                       <td className={`${tdCls} text-xs`}>{teacher.joiningDate || '—'}</td>
                       <td className={tdCls}>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setProfileTeacherId(teacher.id)}
-                            className={`px-2 py-1 text-xs rounded border transition-colors ${
-                              isDark
-                                ? 'border-purple-600 text-purple-400 hover:bg-purple-600/20'
-                                : 'border-purple-500 text-purple-600 hover:bg-purple-50'
-                            }`}
-                          >
-                            Profile
-                          </button>
-                          <button
+<button
                             onClick={() => {
                               setEditingTeacher(teacher);
                               setForm({
@@ -1350,13 +1338,6 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* Teacher Profile Modal */}
-      {profileTeacherId && (
-        <TeacherProfileModal
-          teacherId={profileTeacherId}
-          onClose={() => setProfileTeacherId(null)}
-        />
-      )}
 
       {/* Search Performance Monitor */}
       <SearchPerformanceMonitor 

@@ -352,10 +352,10 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                     Permissions <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-3">
-                    {Object.entries(PERMISSION_GROUPS).map(([group, groupData]) => (
-                      <div key={group} className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                        <h4 className={`text-sm font-bold mb-2 capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {group.replace('_', ' ')} Permissions
+                    {PERMISSION_GROUPS.map((groupData) => (
+                      <div key={groupData.label} className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className={`text-sm font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {groupData.label} Permissions
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {groupData.permissions.map((perm: Permission) => (
