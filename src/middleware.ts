@@ -15,17 +15,21 @@ const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-pa
 // Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {
   '/admin': ['admin'],
-  '/teacher': ['admin', 'teacher'],
   '/student': ['admin', 'teacher', 'student', 'parent'],
   '/dashboard': ['admin', 'teacher', 'student', 'parent'],
   '/students': ['admin', 'teacher'],
-  '/teachers': ['admin'],
+  '/teachers': ['admin', 'teacher'],
   '/attendance': ['admin', 'teacher'],
   '/reports': ['admin', 'teacher'],
   '/profile': ['admin', 'teacher', 'student', 'parent'],
   '/settings': ['admin', 'super_admin'],
-  '/fees': ['admin'],
-  '/fee-collection': ['admin'],
+  '/fees': ['admin', 'teacher'],
+  '/fee-collection': ['admin', 'teacher'],
+  '/assignments': ['admin', 'teacher'],
+  '/alumni': ['admin', 'teacher'],
+  '/expenses': ['admin'],
+  '/transport': ['admin'],
+  '/subscription': ['admin'],
 };
 
 // Routes that require specific permissions (used when user has a custom role)

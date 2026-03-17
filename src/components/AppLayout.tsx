@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
-import TeacherNavigationSidebar from './TeacherNavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -165,24 +164,14 @@ export default function AppLayout({
         </svg>
       </div>
 
-      {/* Navigation Sidebar - Role Based */}
-      {user?.role === 'teacher' ? (
-        <TeacherNavigationSidebar 
-          theme={theme} 
-          currentPage={currentPage} 
-          isSidebarOpen={isSidebarOpen}
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
-        />
-      ) : (
-        <NavigationSidebar 
-          theme={theme} 
-          currentPage={currentPage} 
-          isSidebarOpen={isSidebarOpen}
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
-        />
-      )}
+      {/* Navigation Sidebar - Unified for all roles, permission-filtered */}
+      <NavigationSidebar 
+        theme={theme} 
+        currentPage={currentPage} 
+        isSidebarOpen={isSidebarOpen}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+      />
 
       {/* Hover Zone for Sidebar */}
       <div 
