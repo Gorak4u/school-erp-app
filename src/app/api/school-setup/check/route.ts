@@ -18,13 +18,13 @@ export async function GET() {
     console.log('🔍 [SETUP CHECK] Looking up school user for email:', session.user.email);
     const schoolUser = await (schoolPrisma as any).school_User.findUnique({
       where: { email: session.user.email },
-      include: { school: true }
+      include: { School: true }  // Fixed: School with capital S
     });
 
     console.log('🔍 [SETUP CHECK] School user found:', !!schoolUser);
-    console.log('🔍 [SETUP CHECK] School found:', !!schoolUser?.school);
+    console.log('🔍 [SETUP CHECK] School found:', !!schoolUser?.School);
 
-    if (!schoolUser || !schoolUser.school) {
+    if (!schoolUser || !schoolUser.School) {
       console.log('❌ [SETUP CHECK] School not found for user:', session.user.email);
       return NextResponse.json({ error: 'School not found' }, { status: 404 });
     }
@@ -37,10 +37,10 @@ export async function GET() {
       'school_email'
     ];
 
-    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', schoolUser.school.id);
+    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', schoolUser.School.id);
     const settings = await (schoolPrisma as any).schoolSetting.findMany({
       where: {
-        schoolId: schoolUser.school.id,
+        schoolId: schoolUser.School.id,
         key: { in: essentialSettings }
       }
     });
@@ -55,7 +55,7 @@ export async function GET() {
     // Check for academic years (critical for school operations)
     console.log('🔍 [SETUP CHECK] Checking academic years...');
     const academicYears = await (schoolPrisma as any).academicYear.findMany({
-      where: { schoolId: schoolUser.school.id }
+      where: { schoolId: schoolUser.School.id }
     });
 
     console.log('🔍 [SETUP CHECK] Found academic years:', academicYears.length);
