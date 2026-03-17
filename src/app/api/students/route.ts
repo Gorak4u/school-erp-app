@@ -2,9 +2,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
-import { rateLimit, getClientIdentifier } from '@/lib/apiSecurity';
-import { validateSearchQuery, sanitizePaginationParams } from '@/lib/apiSecurity';
-import { sendSchoolEmail, welcomeEmailHtml, parentWelcomeEmailHtml } from '@/lib/email';
+import { rateLimit, getClientIdentifier, validateSearchQuery, sanitizePaginationParams } from '@/lib/apiSecurity';
+import { welcomeEmailHtml, parentWelcomeEmailHtml } from '@/lib/email';
+import { apiError } from '@/lib/apiError';
+import { logAuditAction } from '@/lib/auditLog';
+import { enqueueEmailBatch } from '@/lib/queues/emailQueue';
+import {
+  isValidEmail,
+  isValidPhone,
+  isValidAadhar,
+  isValidPinCode,
+  isValidIFSC,
+  isValidDate,
+  isValidGender,
+} from '@/lib/validation';
+
+const STUDENT_LIST_RATE_LIMIT = Number(process.env.STUDENT_LIST_RATE_LIMIT_PER_MINUTE || '200');
+const STUDENT_CREATE_RATE_LIMIT = Number(process.env.STUDENT_CREATE_RATE_LIMIT_PER_MINUTE || '5');
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting check
     const clientId = getClientIdentifier(request);
-    const rateLimitResult = rateLimit(clientId, 200, 60000); // 200 requests per minute for students API
+    const rateLimitResult = rateLimit(clientId, STUDENT_LIST_RATE_LIMIT, RATE_LIMIT_WINDOW);
     if (!rateLimitResult.allowed) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -191,411 +206,329 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { ctx, error } = await getSessionContext();
-    if (error) return error;
+  const { ctx, error } = await getSessionContext();
+  if (error) return error;
 
-    // Rate limiting check for student creation (more restrictive)
+  try {
     const clientId = getClientIdentifier(request);
-    const rateLimitResult = rateLimit(clientId, 5, 60000); // 5 student creations per minute
+    const rateLimitResult = rateLimit(clientId, STUDENT_CREATE_RATE_LIMIT, RATE_LIMIT_WINDOW);
     if (!rateLimitResult.allowed) {
-      return NextResponse.json({ 
-        error: 'Too many student creation requests',
-        message: 'Please wait before creating another student',
-        retryAfter: rateLimitResult.retryAfter
-      }, { status: 429 });
+      return apiError(429, {
+        message: 'Too many student creation requests. Please wait before creating another student.',
+        code: 'RATE_LIMITED',
+        retryAfter: rateLimitResult.retryAfter,
+      });
     }
 
     const body = await request.json();
-    const { documents, fees, attendance, academics, behavior, transferCertificateNumber, grade, timestamp, isAutoSave, ...data } = body;
+    const { documents, academics, behavior, transferCertificateNumber, ...rawData } = body;
 
-    // Check subscription limits
     const limitError = await checkSubscriptionLimit(ctx, 'students', schoolPrisma);
     if (limitError) return limitError;
 
-    // Validate required fields
     const requiredFields = ['name', 'dateOfBirth', 'gender'];
-    const missingFields = requiredFields.filter(field => !data[field]);
-    
-    if (missingFields.length > 0) {
-      return NextResponse.json({ 
-        error: `Missing required fields: ${missingFields.join(', ')}` 
-      }, { status: 400 });
+    const missingFields = requiredFields.filter(field => !rawData[field]);
+    if (missingFields.length) {
+      return apiError(400, {
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        code: 'VALIDATION_ERROR',
+      });
     }
 
-    // Validate email format if provided (relaxed validation)
-    if (data.email && data.email.trim()) {
-      // Relaxed email validation - just basic format check
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]*$/;
-      if (!emailRegex.test(data.email.trim())) {
-        return NextResponse.json({ 
-          error: 'Invalid email format',
-          field: 'email',
-          message: 'Email should be in format: name@domain.com (domain extension optional)',
-          received: data.email,
-          expected: 'e.g., student@school.com or student@school'
-        }, { status: 400 });
-      }
+    if (rawData.email && !isValidEmail(rawData.email)) {
+      return apiError(400, {
+        message: 'Email should be in format name@domain.com',
+        field: 'email',
+        code: 'INVALID_EMAIL',
+        details: rawData.email,
+      });
     }
 
-    // Enhanced validation functions
-    const validatePhone = (phone: string) => {
-      const digits = phone.replace(/\D/g, '');
-      return digits.length >= 10 && digits.length <= 15; // Support international numbers
-    };
-
-    const validateAadhar = (aadhar: string) => {
-      if (!aadhar) return true; // Optional field
-      const digits = aadhar.replace(/\D/g, '');
-      return digits.length === 12;
-    };
-
-    const validatePinCode = (pinCode: string) => {
-      if (!pinCode) return true; // Optional field
-      const digits = pinCode.replace(/\D/g, '');
-      return digits.length === 6;
-    };
-
-    const validateIFSC = (ifsc: string) => {
-      if (!ifsc) return true; // Optional field
-      return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc.toUpperCase());
-    };
-
-    // Validate phone format if provided
-    if (data.phone && !validatePhone(data.phone)) {
-      return NextResponse.json({ 
-        error: 'Invalid phone format',
-        field: 'phone',
+    if (rawData.phone && !isValidPhone(rawData.phone)) {
+      return apiError(400, {
         message: 'Phone number must be 10-15 digits (international numbers supported)',
-        received: data.phone,
-        expected: 'e.g., 9876543210 or +919876543210'
-      }, { status: 400 });
+        field: 'phone',
+        code: 'INVALID_PHONE',
+        details: rawData.phone,
+      });
     }
 
-    // Validate Aadhar number if provided
-    if (data.aadharNumber && !validateAadhar(data.aadharNumber)) {
-      return NextResponse.json({ 
-        error: 'Invalid Aadhar number format',
-        field: 'aadharNumber',
+    if (rawData.aadharNumber && !isValidAadhar(rawData.aadharNumber)) {
+      return apiError(400, {
         message: 'Aadhar number must be exactly 12 digits',
-        received: data.aadharNumber,
-        expected: 'e.g., 123456789012'
-      }, { status: 400 });
+        field: 'aadharNumber',
+        code: 'INVALID_AADHAR',
+        details: rawData.aadharNumber,
+      });
     }
 
-    // Validate pin code if provided
-    if (data.pinCode && !validatePinCode(data.pinCode)) {
-      return NextResponse.json({ 
-        error: 'Invalid pin code format',
-        field: 'pinCode',
+    if (rawData.pinCode && !isValidPinCode(rawData.pinCode)) {
+      return apiError(400, {
         message: 'Pin code must be exactly 6 digits',
-        received: data.pinCode,
-        expected: 'e.g., 560001'
-      }, { status: 400 });
+        field: 'pinCode',
+        code: 'INVALID_PINCODE',
+        details: rawData.pinCode,
+      });
     }
 
-    // Validate IFSC code if provided
-    if (data.bankIfsc && !validateIFSC(data.bankIfsc)) {
-      return NextResponse.json({ 
-        error: 'Invalid IFSC code format',
-        field: 'bankIfsc',
+    if (rawData.bankIfsc && !isValidIFSC(rawData.bankIfsc)) {
+      return apiError(400, {
         message: 'IFSC code must be 11 characters (4 letters + 0 + 6 alphanumeric)',
-        received: data.bankIfsc,
-        expected: 'e.g., SBIN0001234'
-      }, { status: 400 });
+        field: 'bankIfsc',
+        code: 'INVALID_IFSC',
+        details: rawData.bankIfsc,
+      });
     }
 
-    // Validate date format
-    if (data.dateOfBirth && isNaN(Date.parse(data.dateOfBirth))) {
-      return NextResponse.json({ 
-        error: 'Invalid date format' 
-      }, { status: 400 });
+    if (rawData.dateOfBirth && !isValidDate(rawData.dateOfBirth)) {
+      return apiError(400, { message: 'Invalid date of birth', field: 'dateOfBirth', code: 'INVALID_DATE' });
     }
 
-    // Validate gender
-    const validGenders = ['Male', 'Female', 'Other'];
-    if (data.gender && !validGenders.includes(data.gender)) {
-      return NextResponse.json({ 
-        error: 'Gender must be Male, Female, or Other' 
-      }, { status: 400 });
+    if (!isValidGender(rawData.gender)) {
+      return apiError(400, { message: 'Gender must be Male, Female, or Other', field: 'gender', code: 'INVALID_GENDER' });
     }
 
-    // Always generate a unique admission number to avoid conflicts
     const currentYear = new Date().getFullYear();
-    let admissionNo;
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    do {
-      const count = await schoolPrisma.student.count({
-        where: { admissionNo: { startsWith: currentYear.toString() } }
-      });
-      admissionNo = `${currentYear}${String(count + attempts + 1).padStart(4, '0')}`;
-      
-      const existing = await schoolPrisma.student.findUnique({
-        where: { admissionNo }
-      });
-      
-      if (!existing) break;
-      attempts++;
-    } while (attempts < maxAttempts);
-    
-    if (attempts >= maxAttempts) {
-      return NextResponse.json({ error: 'Unable to generate unique admission number' }, { status: 500 });
+    const generatedAdmissionNo = await generateAdmissionNumber(currentYear, ctx.schoolId);
+    if (!generatedAdmissionNo) {
+      return apiError(500, { message: 'Unable to generate unique admission number', code: 'ADMISSION_NO_FAILURE' });
     }
 
-    // Provide default rollNo if not provided
-    if (!data.rollNo) {
-      const classRollCount = await schoolPrisma.student.count({
-        where: { class: data.class, section: data.section }
-      });
-      data.rollNo = String(classRollCount + 1);
-    }
+    const effectiveRollNo = rawData.rollNo || await nextRollNumber(rawData.class, rawData.section, ctx.schoolId);
+    const sanitizedData = stripUnsupportedFields(rawData);
 
-    // Remove fields that don't exist in schema
-    const { 
-      grade: _, 
-      mediumId, 
-      classId, 
-      sectionId, 
-      _ts, 
-      _mediumId, 
-      _classId, 
-      _sectionId,
-      ...dataWithoutInvalidFields 
-    } = data;
-
-    // Get the active academic year from database BEFORE creating student
-    // ORDER by createdAt desc to always get the NEWEST active year
-    // (guards against data inconsistency where multiple years are marked active)
     const activeAcademicYear = await schoolPrisma.academicYear.findFirst({
       where: { isActive: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
-    
     if (!activeAcademicYear) {
-      console.error('No active academic year found in database');
-      return NextResponse.json({ 
-        error: 'No active academic year found. Please set an active academic year in Settings > School Structure > Academic Years before admitting students.',
-        code: 'NO_ACTIVE_ACADEMIC_YEAR'
-      }, { status: 400 });
+      return apiError(400, {
+        message: 'No active academic year found. Please set one before admitting students.',
+        code: 'NO_ACTIVE_ACADEMIC_YEAR',
+      });
     }
-    
-    const academicYear = activeAcademicYear.year;
-    
-    const student = await schoolPrisma.student.create({
-      data: {
-        ...dataWithoutInvalidFields,
-        schoolId: ctx.schoolId,
-        admissionNo, // Use the generated/validated admission number
-        transferCertificateNo: transferCertificateNumber, // Map the field name
-        documents: documents ? JSON.stringify(documents) : null,
-        academicYear: academicYear, // FIX: Use dynamic academic year from DB
-        academicYearId: activeAcademicYear.id, // FK to AcademicYear — tracks which AY this student belongs to
-        gpa: academics?.gpa ?? 0,
-        rank: academics?.rank ?? 0,
-        disciplineScore: behavior?.disciplineScore ?? 100,
-        incidents: behavior?.incidents ?? 0,
-        achievements: behavior?.achievements ?? 0,
+
+    const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
+      const student = await tx.student.create({
+        data: {
+          ...sanitizedData,
+          schoolId: ctx.schoolId,
+          admissionNo: generatedAdmissionNo,
+          rollNo: effectiveRollNo,
+          transferCertificateNo: transferCertificateNumber || null,
+          documents: documents ? JSON.stringify(documents) : null,
+          academicYear: activeAcademicYear.year,
+          academicYearId: activeAcademicYear.id,
+          gpa: academics?.gpa ?? 0,
+          rank: academics?.rank ?? 0,
+          disciplineScore: behavior?.disciplineScore ?? 100,
+          incidents: behavior?.incidents ?? 0,
+          achievements: behavior?.achievements ?? 0,
+        },
+      });
+
+      await autoApplyFees(tx, {
+        student,
+        ctx,
+        academicYear: activeAcademicYear,
+      });
+
+      return student;
+    });
+
+    const schoolName = await getSchoolDisplayName(ctx.schoolId);
+    enqueueWelcomeEmails(result, ctx.schoolId, schoolName);
+    await logAuditActionSafe(ctx.email, 'student_created', result.id, result.name, {
+      admissionNo: result.admissionNo,
+      academicYear: result.academicYear,
+    });
+
+    return NextResponse.json({ student: result }, { status: 201 });
+  } catch (err: any) {
+    console.error('POST /api/students error:', err);
+    await logAuditActionSafe(ctx?.email, 'student_creation_failed', undefined, undefined, {
+      error: err.message,
+    }, request.headers.get('user-agent') || undefined);
+
+    if (err.code === 'P2002') {
+      return apiError(409, {
+        message: 'Admission number already exists. Please retry to generate a new number.',
+        field: 'admissionNo',
+        code: 'ADMISSION_NO_EXISTS',
+      });
+    }
+
+    return apiError(500, {
+      message: err.message || 'Failed to create student',
+      code: 'UNKNOWN_ERROR',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+}
+
+async function generateAdmissionNumber(currentYear: number, schoolId: string | null): Promise<string | null> {
+  const prefix = `${currentYear}`;
+  const maxAttempts = 10;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const count = await schoolPrisma.student.count({
+      where: {
+        ...(schoolId ? { schoolId } : {}),
+        admissionNo: { startsWith: prefix },
       },
     });
-
-    // Auto-apply fee structures for the ACTIVE academic year only
-    try {
-      // Strict filter: MUST match active AY id + isActive + schoolId
-      const feeStructures = await (schoolPrisma as any).feeStructure.findMany({
-        where: {
-          isActive: true,
-          academicYearId: activeAcademicYear.id,  // hard filter to current AY only
-          ...(ctx.schoolId && { schoolId: ctx.schoolId }),
-        },
-        include: { class: true },
-      });
-
-      const currentYear = new Date().getFullYear();
-
-      for (const structure of feeStructures) {
-        // Safety check: skip if this structure somehow doesn't belong to the active AY
-        if (structure.academicYearId !== activeAcademicYear.id) continue;
-
-        // Class match: no specific class (applies to all) OR class name matches
-        const classMatch = !structure.classId || structure.class?.name === student.class;
-        // Category match: 'all' OR student's category is included
-        const cats = structure.applicableCategories || 'all';
-        const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-
-        if (!classMatch || !categoryMatch) continue;
-
-        // Duplicate check: don't create if fee record already exists
-        const existing = await (schoolPrisma as any).feeRecord.findFirst({
-          where: { studentId: student.id, feeStructureId: structure.id }
-        });
-        if (existing) continue;
-
-        const dueDate = new Date(currentYear, 3, structure.dueDate ?? 1);
-        await (schoolPrisma as any).feeRecord.create({
-          data: {
-            studentId: student.id,
-            feeStructureId: structure.id,
-            amount: structure.amount,
-            paidAmount: 0,
-            pendingAmount: structure.amount,
-            dueDate: dueDate.toISOString().split('T')[0],
-            status: 'pending',
-            academicYear: academicYear,
-            receiptNumber: `FEE-${currentYear}-${student.admissionNo}-${structure.name.replace(/\s+/g, '').toUpperCase().slice(0, 10)}-${Date.now()}`,
-            remarks: `Auto-applied on admission (AY: ${academicYear})`
-          }
-        });
-      }
-    } catch (feeError) {
-      console.error('Failed to auto-apply fees:', feeError);
-      // Don't fail student creation if fee application fails
-    }
-
-    // Send welcome emails to student and parents
-    try {
-      const schoolSettings = await (schoolPrisma as any).SchoolSetting.findMany({
-        where: { group: 'school_details', schoolId: ctx.schoolId }
-      });
-      const schoolNameSetting = schoolSettings.find((s: any) => s.key === 'school_name');
-      const schoolName = schoolNameSetting?.value || 'Our School';
-
-      // Send welcome email to student if email is provided
-      if (student.email && student.email.trim()) {
-        const studentEmailHtml = welcomeEmailHtml(
-          student.name,
-          student.admissionNo,
-          student.class,
-          schoolName
-        );
-        await sendSchoolEmail({
-          to: student.email,
-          subject: `Welcome to ${schoolName} - Admission Confirmation`,
-          html: studentEmailHtml,
-          schoolId: ctx.schoolId
-        });
-        console.log(`✅ Welcome email sent to student: ${student.email}`);
-      }
-
-      // Send welcome email to parent/father if email is provided
-      if (student.parentEmail && student.parentEmail.trim()) {
-        const parentName = student.parentName || 'Parent';
-        const parentEmailHtml = parentWelcomeEmailHtml(
-          student.name,
-          student.admissionNo,
-          student.class,
-          schoolName,
-          parentName
-        );
-        await sendSchoolEmail({
-          to: student.parentEmail,
-          subject: `Student Admission Confirmation - ${student.name}`,
-          html: parentEmailHtml,
-          schoolId: ctx.schoolId
-        });
-        console.log(`✅ Welcome email sent to parent: ${student.parentEmail}`);
-      }
-
-      // Send welcome email to father if email is provided and different from parent email
-      if (student.fatherEmail && student.fatherEmail.trim() && student.fatherEmail !== student.parentEmail) {
-        const fatherName = student.fatherName || 'Father';
-        const fatherEmailHtml = parentWelcomeEmailHtml(
-          student.name,
-          student.admissionNo,
-          student.class,
-          schoolName,
-          fatherName
-        );
-        await sendSchoolEmail({
-          to: student.fatherEmail,
-          subject: `Student Admission Confirmation - ${student.name}`,
-          html: fatherEmailHtml,
-          schoolId: ctx.schoolId
-        });
-        console.log(`✅ Welcome email sent to father: ${student.fatherEmail}`);
-      }
-
-      // Send welcome email to mother if email is provided and different from parent/father email
-      if (student.motherEmail && student.motherEmail.trim() && student.motherEmail !== student.parentEmail && student.motherEmail !== student.fatherEmail) {
-        const motherName = student.motherName || 'Mother';
-        const motherEmailHtml = parentWelcomeEmailHtml(
-          student.name,
-          student.admissionNo,
-          student.class,
-          schoolName,
-          motherName
-        );
-        await sendSchoolEmail({
-          to: student.motherEmail,
-          subject: `Student Admission Confirmation - ${student.name}`,
-          html: motherEmailHtml,
-          schoolId: ctx.schoolId
-        });
-        console.log(`✅ Welcome email sent to mother: ${student.motherEmail}`);
-      }
-    } catch (emailError) {
-      console.error('Failed to send welcome emails:', emailError);
-      // Don't fail student creation if email sending fails
-    }
-
-    // Create audit log for successful student creation
-    try {
-      await schoolPrisma.auditLog.create({
-        data: {
-          action: 'student_created',
-          userId: ctx.userId,
-          schoolId: ctx.schoolId,
-          details: JSON.stringify({
-            studentId: student.id,
-            admissionNo: student.admissionNo,
-            name: student.name,
-            class: student.class,
-            academicYear: student.academicYear,
-            timestamp: new Date().toISOString()
-          })
-        }
-      });
-    } catch (auditError) {
-      console.error('Failed to create audit log:', auditError);
-      // Don't fail the response if audit logging fails
-    }
-
-    return NextResponse.json({ student }, { status: 201 });
-  } catch (error: any) {
-    console.error('POST /api/students error:', error);
-    
-    // Create audit log for failed student creation
-    try {
-      if (ctx && !error.message.includes('Unauthorized')) {
-        await schoolPrisma.auditLog.create({
-          data: {
-            action: 'student_creation_failed',
-            userId: ctx.userId,
-            schoolId: ctx.schoolId,
-            details: JSON.stringify({
-              error: error.message,
-              timestamp: new Date().toISOString(),
-              userAgent: request.headers.get('user-agent')
-            })
-          }
-        });
-      }
-    } catch (auditError) {
-      console.error('Failed to create audit log:', auditError);
-    }
-    
-    if (error.code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'Admission number already exists',
-        field: 'admissionNo',
-        message: 'Please try again to generate a new admission number'
-      }, { status: 409 });
-    }
-    
-    return NextResponse.json({ 
-      error: error.message || 'Failed to create student',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    const admissionNo = `${prefix}${String(count + attempt + 1).padStart(4, '0')}`;
+    const existing = await schoolPrisma.student.findUnique({ where: { admissionNo } });
+    if (!existing) return admissionNo;
   }
+  return null;
+}
+
+async function nextRollNumber(className: string, section: string, schoolId: string | null): Promise<string> {
+  const count = await schoolPrisma.student.count({
+    where: { class: className, section, ...(schoolId ? { schoolId } : {}) },
+  });
+  return String(count + 1);
+}
+
+function stripUnsupportedFields(data: Record<string, any>) {
+  const {
+    grade,
+    mediumId,
+    classId,
+    sectionId,
+    _ts,
+    _mediumId,
+    _classId,
+    _sectionId,
+    ...rest
+  } = data;
+  return rest;
+}
+
+async function autoApplyFees(tx: any, {
+  student,
+  ctx,
+  academicYear,
+}: {
+  student: any;
+  ctx: any;
+  academicYear: any;
+}) {
+  try {
+    const feeStructures = await tx.feeStructure.findMany({
+      where: {
+        isActive: true,
+        academicYearId: academicYear.id,
+        ...(ctx.schoolId && { schoolId: ctx.schoolId }),
+      },
+      include: { class: true },
+    });
+
+    const year = new Date().getFullYear();
+    for (const structure of feeStructures) {
+      const classMatch = !structure.classId || structure.class?.name === student.class;
+      const cats = structure.applicableCategories || 'all';
+      const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
+      if (!classMatch || !categoryMatch) continue;
+
+      const existing = await tx.feeRecord.findFirst({
+        where: { studentId: student.id, feeStructureId: structure.id },
+      });
+      if (existing) continue;
+
+      const dueDate = new Date(year, 3, structure.dueDate ?? 1).toISOString().split('T')[0];
+      await tx.feeRecord.create({
+        data: {
+          studentId: student.id,
+          feeStructureId: structure.id,
+          amount: structure.amount,
+          paidAmount: 0,
+          pendingAmount: structure.amount,
+          dueDate,
+          status: 'pending',
+          academicYear: academicYear.year,
+          receiptNumber: `FEE-${year}-${student.admissionNo}-${structure.name.replace(/\s+/g, '').toUpperCase().slice(0, 10)}-${Date.now()}`,
+          remarks: `Auto-applied on admission (AY: ${academicYear.year})`,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Failed to auto-apply fees:', error);
+  }
+}
+
+function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName: string) {
+  try {
+    if (!schoolId) return;
+    const jobs = [] as any[];
+    const placeholders = {
+      name: student.name,
+      admissionNo: student.admissionNo,
+      className: student.class,
+    };
+
+    if (student.email?.trim()) {
+      jobs.push({
+        to: student.email,
+        subject: `Welcome to ${schoolName} - Admission ${student.admissionNo}`,
+        html: welcomeEmailHtml(placeholders.name, placeholders.admissionNo, placeholders.className, schoolName),
+        schoolId,
+      });
+    }
+
+    const parentTargets = [
+      { email: student.parentEmail, name: student.parentName || 'Parent' },
+      { email: student.fatherEmail, name: student.fatherName || 'Father' },
+      { email: student.motherEmail, name: student.motherName || 'Mother' },
+    ];
+
+    const seen = new Set<string>();
+    for (const target of parentTargets) {
+      const email = target.email?.trim();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      jobs.push({
+        to: email,
+        subject: `Student Admission Confirmation - ${student.name}`,
+        html: parentWelcomeEmailHtml(student.name, student.admissionNo, student.class, schoolName, target.name),
+        schoolId,
+      });
+    }
+
+    if (jobs.length) enqueueEmailBatch(jobs);
+  } catch (error) {
+    console.error('Failed to enqueue welcome emails:', error);
+  }
+}
+
+async function getSchoolDisplayName(schoolId: string | null): Promise<string> {
+  if (!schoolId) return 'Our School';
+  try {
+    const setting = await (schoolPrisma as any).schoolSetting.findFirst({
+      where: { schoolId, group: 'school_details', key: 'school_name' },
+    });
+    return setting?.value || 'Our School';
+  } catch (error) {
+    console.error('Failed to fetch school name:', error);
+    return 'Our School';
+  }
+}
+
+async function logAuditActionSafe(
+  actorEmail: string | undefined,
+  action: string,
+  target?: string,
+  targetName?: string,
+  details?: Record<string, any>,
+  ipAddress?: string,
+) {
+  if (!actorEmail) return;
+  await logAuditAction({
+    actorEmail,
+    action,
+    target,
+    targetName,
+    details,
+    ipAddress,
+  });
 }
