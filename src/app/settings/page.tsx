@@ -1224,28 +1224,131 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Mediums */}
+      {/* Mediums — Inline Excel Grid */}
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Language Mediums</h3>
-          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('medium', { code: '', name: '', description: '', isActive: true, academicYearId: activeAY?.id || '' })}>+ Add Medium</button>
+          <div className="flex gap-2">
+            <button 
+              className={btnSecondary} 
+              disabled={!canManageSettings} 
+              onClick={addMediumRow}
+            >
+              + Add Medium
+            </button>
+            <button 
+              className={btnPrimary} 
+              disabled={!canManageSettings || savingMediums || (mediumRows.length === 0 && Object.keys(mediumDrafts).length === 0)} 
+              onClick={bulkSaveMediums}
+            >
+              {savingMediums ? 'Saving...' : '💾 Bulk Save'}
+            </button>
+          </div>
         </div>
-        {mediums.length === 0 && <p className={subtext}>No mediums. Add English, Hindi, Kannada, etc.</p>}
-        <div className="space-y-2">
-          {mediums.map((m: any) => (
-            <div key={m.id} className={`${row} flex items-center justify-between`}>
-              <div className="flex items-center gap-3">
-                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{m.name}</span>
-                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{m.code}</span>
-                <span className={badge(m.isActive)}>{m.isActive ? 'Active' : 'Inactive'}</span>
-                <span className={subtext}>{m.classes?.length || 0} classes</span>
-              </div>
-              <div className="flex gap-2">
-                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('medium', m)}>Edit</button>
-                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('medium', m.id, m.name)}>Delete</button>
-              </div>
-            </div>
-          ))}
+        
+        <div className="overflow-x-auto">
+          <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <thead>
+              <tr>
+                <th className={`px-3 py-2 text-left font-semibold border min-w-[150px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Medium Name
+                </th>
+                <th className={`px-3 py-2 text-left font-semibold border min-w-[100px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Code
+                </th>
+                <th className={`px-3 py-2 text-center font-semibold border min-w-[80px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Status
+                </th>
+                <th className={`px-3 py-2 text-center font-semibold border min-w-[80px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Classes
+                </th>
+                <th className={`px-2 py-2 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
+              </tr>
+            </thead>
+            <tbody>
+              {/* Existing Medium Rows */}
+              {gridMediums.map((medium: any) => (
+                <tr key={medium.id} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
+                  <td className={`px-3 py-2 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <input
+                      type="text"
+                      value={mediumDrafts[medium.id]?.name || medium.name}
+                      onChange={(e) => handleMediumChange(medium.id, 'name', e.target.value)}
+                      className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-gray-600 focus:border-blue-500 text-white' : 'border-gray-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                    />
+                  </td>
+                  <td className={`px-3 py-2 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <input
+                      type="text"
+                      value={mediumDrafts[medium.id]?.code || medium.code}
+                      onChange={(e) => handleMediumChange(medium.id, 'code', e.target.value)}
+                      className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-gray-600 focus:border-blue-500 text-white' : 'border-gray-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase`}
+                    />
+                  </td>
+                  <td className={`px-3 py-2 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <span className={badge(medium.isActive)}>{medium.isActive ? 'Active' : 'Inactive'}</span>
+                  </td>
+                  <td className={`px-3 py-2 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <span className={subtext}>{medium.classes?.length || 0}</span>
+                  </td>
+                  <td className={`px-2 py-2 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => openEdit('medium', medium)} title="Edit full details" className="text-blue-500 hover:text-blue-600 text-sm">✏️</button>
+                      <button onClick={() => handleDelete('medium', medium.id, medium.name)} title="Delete" className="text-red-400 hover:text-red-500 text-sm">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {/* New Draft Rows */}
+              {mediumRows.map((row: any) => {
+                const draft: any = mediumDrafts[row.id];
+                return (
+                  <tr key={row.id} className={`${isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}`}>
+                    <td className={`px-3 py-2 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="e.g. English"
+                        value={draft?.name || ''}
+                        onChange={(e) => handleMediumChange(row.id, 'name', e.target.value)}
+                        className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-blue-600 focus:border-blue-500 text-white' : 'border-blue-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                      />
+                    </td>
+                    <td className={`px-3 py-2 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <input
+                        type="text"
+                        placeholder="e.g. ENG"
+                        value={draft?.code || ''}
+                        onChange={(e) => handleMediumChange(row.id, 'code', e.target.value)}
+                        className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-blue-600 focus:border-blue-500 text-white' : 'border-blue-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase`}
+                      />
+                    </td>
+                    <td className={`px-3 py-2 border text-center ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Active</span>
+                    </td>
+                    <td className={`px-3 py-2 border text-center ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <span className="text-gray-400">—</span>
+                    </td>
+                    <td className={`px-2 py-2 border text-center ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <button
+                        onClick={() => {
+                          setMediumRows(prev => prev.filter((r: any) => r.id !== row.id));
+                          setMediumDrafts(prev => {
+                            const newDrafts = { ...prev };
+                            delete (newDrafts as any)[row.id];
+                            return newDrafts;
+                          });
+                        }}
+                        title="Remove row"
+                        className="text-gray-400 hover:text-red-500 text-lg"
+                      >✕</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1383,32 +1486,151 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Sections */}
+      {/* Sections — 2D Excel Grid */}
       <div className={card}>
         <div className="flex justify-between items-center mb-4">
           <h3 className={heading}>Sections</h3>
-          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('section', { code: '', name: '', classId: '', capacity: 40, roomNumber: '', isActive: true })}>+ Add Section</button>
+          <div className="flex items-center gap-2">
+            <select
+              className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              value={filterSectionMedium} onChange={e => setFilterSectionMedium(e.target.value)}
+            >
+              <option value="">All Mediums</option>
+              {gridMediums.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <button 
+              className={btnSecondary} 
+              disabled={!canManageSettings} 
+              onClick={addSectionRow}
+            >
+              + Add Section
+            </button>
+            <button 
+              className={btnPrimary} 
+              disabled={!canManageSettings || savingSections || (sectionRows.length === 0 && Object.keys(sectionDrafts).length === 0)} 
+              onClick={() => {
+                // Save all section rows
+                const promises = sectionRows.map((row: any) => saveSectionRow(row.id));
+                Promise.all(promises).then(() => {
+                  showToast({ type: 'success', title: 'Sections saved successfully' });
+                });
+              }}
+            >
+              {savingSections ? 'Saving...' : '💾 Bulk Save'}
+            </button>
+          </div>
         </div>
-        {sections.length === 0 && <p className={subtext}>No sections.</p>}
+        
         <div className="overflow-x-auto">
-          <table className={`w-full text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            <thead><tr className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
-              <th className="text-left py-2 px-3">Class</th><th className="text-left py-2 px-3">Section</th><th className="text-left py-2 px-3">Code</th><th className="text-left py-2 px-3">Capacity</th><th className="text-left py-2 px-3">Room</th><th className="text-left py-2 px-3">Actions</th>
-            </tr></thead>
+          <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <thead>
+              <tr>
+                <th className={`px-3 py-1.5 text-left font-semibold border min-w-[120px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Section Name
+                </th>
+                {sectionGridClasses.map((cls) => (
+                  <th key={cls.id} className={`px-2 py-1.5 text-center font-semibold border w-24 ${isDark ? 'border-gray-500 bg-gray-700 text-green-300' : 'border-gray-400 bg-green-100 text-green-800'}`}>
+                    {cls.name}
+                  </th>
+                ))}
+                {sectionGridClasses.length === 0 && (
+                  <th className={`px-2 py-1.5 text-center border ${isDark ? 'border-gray-500 bg-gray-700 text-gray-500' : 'border-gray-400 bg-gray-100 text-gray-400'}`}>
+                    ← Add classes first
+                  </th>
+                )}
+                <th className={`px-2 py-1.5 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
+              </tr>
+            </thead>
             <tbody>
-              {sections.map((s: any) => (
-                <tr key={s.id} className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-                  <td className="py-2 px-3">{s.class?.name || '—'}</td>
-                  <td className="py-2 px-3">{s.name}</td>
-                  <td className="py-2 px-3">{s.code}</td>
-                  <td className="py-2 px-3">{s.capacity}</td>
-                  <td className="py-2 px-3">{s.roomNumber || '—'}</td>
-                  <td className="py-2 px-3 flex gap-1">
-                    <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('section', s)}>Edit</button>
-                    <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('section', s.id, s.name)}>Del</button>
+              {/* Existing Section Rows */}
+              {uniqueSectionNames.map((sectionName) => (
+                <tr key={sectionName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
+                  <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
+                    {sectionName}
                   </td>
+                  {sectionGridClasses.map((cls) => {
+                    const section = sections.find((s: any) => s.name === sectionName && s.classId === cls.id);
+                    return (
+                      <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                        {section ? (
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button onClick={() => openEdit('section', section)} title="Click to edit" className={`text-green-500 font-bold text-sm hover:text-blue-500 transition-colors`}>✓</button>
+                            <button onClick={() => handleDelete('section', section.id, section.name)} title="Delete" className="text-red-400 hover:text-red-500 text-xs leading-none">✕</button>
+                          </div>
+                        ) : (
+                          <button
+                            disabled={!canManageSettings}
+                            onClick={() => {
+                              sectionsApi.create({
+                                name: sectionName,
+                                code: `${cls.code}-${sectionName}`.toUpperCase(),
+                                classId: cls.id,
+                                capacity: 40,
+                                roomNumber: '',
+                                isActive: true,
+                                academicYear: activeAY?.year || '2024-25'
+                              }).then(() => fetchAll()).catch((e: any) => showToast({ type: 'error', title: 'Failed to add section', message: e.message }));
+                            }}
+                            title={`Add ${sectionName} to ${cls.name}`}
+                            className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-green-500 hover:text-green-400' : 'border-gray-300 text-gray-400 hover:border-green-400 hover:text-green-500'}`}
+                          >+</button>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className={`border ${isDark ? 'border-gray-600' : 'border-gray-300'}`} />
                 </tr>
               ))}
+
+              {/* New Draft Rows */}
+              {sectionRows.map((row: any) => {
+                const draft: any = sectionDrafts[row.id];
+                return (
+                  <tr key={row.id} className={isDark ? 'bg-green-900/15' : 'bg-green-50/80'}>
+                    <td className={`px-1 py-1 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                      <input
+                        autoFocus
+                        value={draft?.name || ''}
+                        onChange={e => handleSectionDraftChange(row.id, 'name', e.target.value)}
+                        placeholder="e.g. A, B, C"
+                        className={`w-full px-2 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                      />
+                    </td>
+                    {sectionGridClasses.map((cls) => (
+                      <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                        <input
+                          type="checkbox"
+                          checked={draft?.selectedClasses?.has(cls.id) || false}
+                          onChange={e => toggleSectionClass(row.id, cls.id)}
+                          className="w-3.5 h-3.5 rounded cursor-pointer accent-green-500"
+                        />
+                      </td>
+                    ))}
+                    <td className={`px-1 py-1 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          disabled={!draft?.name?.trim() || draft?.selectedClasses?.size === 0}
+                          onClick={() => saveSectionRow(row.id)}
+                          title="Save"
+                          className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
+                        >✓</button>
+                        <button
+                          onClick={() => {
+                            setSectionRows(prev => prev.filter((r: any) => r.id !== row.id));
+                            setSectionDrafts(prev => {
+                              const newDrafts = { ...prev };
+                              delete (newDrafts as any)[row.id];
+                              return newDrafts;
+                            });
+                          }}
+                          title="Cancel"
+                          className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
+                        >✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
