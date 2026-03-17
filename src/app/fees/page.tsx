@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import Link from 'next/link';
 import {
@@ -32,7 +31,6 @@ import EnhancedFeeStructureModal from './components/EnhancedFeeStructureModal';
 import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
 import EnhancedFeeCollection from './components/EnhancedFeeCollection';
-import PaymentReceipt from './components/PaymentReceipt';
 import FeeInvoiceManagerOptimized from './components/FeeInvoiceManager-Optimized';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
@@ -46,8 +44,6 @@ import { PermissionGuard, AdminOnly, RequirePermission } from '@/components/Perm
 export default function FeesPage() {
   const { theme } = useTheme();
   const state = useFeeState();
-  const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
-  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<any>(null);
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
   
   // Permission-based access control
@@ -234,65 +230,6 @@ export default function FeesPage() {
         </div>
       )}
       
-      
-      {/* Detailed Receipt Modal */}
-      {showDetailedReceipt && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowDetailedReceipt(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <PaymentReceipt
-              theme={theme}
-              studentData={{
-                name: 'Rahul Sharma',
-                studentClass: '10-A',
-                admissionNo: 'ADM-2023-045',
-                parentName: 'Mr. Rajesh Sharma',
-                previousYearPending: {
-                  '2023-24': {
-                    total: 85000,
-                    paid: 75000,
-                    discount: 0,
-                    pending: 10000,
-                    overdueFees: ['Transport Fee', 'Sports Fee'],
-                    lastPaymentDate: '2024-02-15'
-                  }
-                }
-              }}
-              paymentData={{
-                currentYearFees: [{
-                  name: 'Tuition Fee',
-                  category: 'Academic',
-                  totalAmount: 50000,
-                  paidAmount: 25000,
-                  discount: 0,
-                  balance: 25000,
-                  status: 'partial'
-                }]
-              }}
-              receiptNumber={selectedPaymentForReceipt?.receipt || 'RCPT-2024-DEFAULT'}
-              paymentDate={selectedPaymentForReceipt?.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
-              paymentMethod={selectedPaymentForReceipt?.method || 'Unknown'}
-              onPrint={() => window.print()}
-              onDownload={() => {
-  const filename = `Receipt_${(selectedPaymentForReceipt?.receipt || 'RCPT-DEFAULT').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-  PDFGenerator.generateFromElement('receipt-print', filename);
-}}
-              onClose={() => setShowDetailedReceipt(false)}
-            />
-          </motion.div>
-        </motion.div>
-      )}
       
       {/* Search Performance Monitor */}
       <SearchPerformanceMonitor 

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext } from '@/lib/apiAuth';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { canManageStudentLifecycleAccess } from '@/lib/permissions';
 import { sendBulkTransportNotification, sendRouteChangeNotification } from '@/lib/transportNotifications';
 import { findAcademicYearByYear } from '@/lib/schoolScope';
@@ -57,8 +57,8 @@ async function updateStudentStatus(
           where: {
             studentId,
             fromAcademicYear: student.academicYear,
-            toAcademicYear: promotionPayload.toAcademicYear,
-            schoolId: promotionPayload.schoolId
+            toAcademicYear: statusPayload.toAcademicYear,
+            schoolId: statusPayload.schoolId
           }
         });
       } catch (promotionCheckErr) {
@@ -67,7 +67,7 @@ async function updateStudentStatus(
       }
 
       if (existingPromotion) {
-        results.failed.push({ studentId, studentName: student.name, reason: `Already promoted from ${student.academicYear} to ${promotionPayload.toAcademicYear}` });
+        results.failed.push({ studentId, studentName: student.name, reason: `Already promoted from ${student.academicYear} to ${statusPayload.toAcademicYear}` });
         continue;
       }
 
@@ -653,9 +653,15 @@ export async function GET(request: NextRequest) {
     const fromClass = searchParams.get('fromClass') || '';
     const fromSection = searchParams.get('fromSection') || '';
     const studentId = searchParams.get('studentId') || '';
+    const studentIds = (searchParams.get('studentIds') || '')
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean);
 
     const where: any = { ...tenantWhere(ctx), status: 'active' };
-    if (studentId) {
+    if (studentIds.length > 0) {
+      where.id = { in: studentIds };
+    } else if (studentId) {
       where.id = studentId;
     } else {
       if (fromClass) where.class = fromClass;
@@ -687,6 +693,12 @@ export async function GET(request: NextRequest) {
       currentAcademicYear: s.academicYear,
       lastPromotion: s.promotions[0] || null,
       unpaidFees: s.feeRecords.length,
+      feeBreakdown: {
+        total: s.feeRecords.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0),
+        paid: s.feeRecords.reduce((sum: number, f: any) => sum + Number(f.paidAmount || 0), 0),
+        discount: 0,
+        pending: s.feeRecords.reduce((sum: number, f: any) => sum + Number(f.pendingAmount || 0), 0)
+      },
       arrearsAmount: s.feeRecords.reduce((sum: number, f: any) => sum + (f.pendingAmount || 0), 0)
     }));
 

@@ -120,43 +120,28 @@ export default function PromotionModal({
     
     setLoading(true);
     try {
-      let url = '/api/students/promote?';
+      const params = new URLSearchParams();
       if (mode === 'class') {
-        url += `fromClass=${encodeURIComponent(fromClass || '')}&fromSection=${encodeURIComponent(fromSection || '')}`;
-      } else {
-        const ids = mode === 'single' ? [singleStudentId] : selectedStudents;
-        const previewItems = students.filter(s => ids.includes(s.id)).map(s => {
-          const total = s.fees?.total || 0;
-          const paid = s.fees?.paid || 0;
-          const discount = s.fees?.discount || 0;
-          const pending = Math.max(0, total - paid - discount);
-          
-          return {
-            id: s.id, 
-            name: s.name, 
-            admissionNo: s.admissionNo,
-            currentClass: s.class, 
-            currentSection: s.section, 
-            currentAcademicYear: s.academicYear,
-            feeBreakdown: {
-              total,
-              paid,
-              discount,
-              pending
-            },
-            arrearsAmount: pending
-          };
-        });
-        setPreview(previewItems);
-        setStep('preview');
-        setLoading(false);
-        return;
+        params.set('fromClass', fromClass || '');
+        if (fromSection) params.set('fromSection', fromSection);
+      } else if (mode === 'single' && singleStudentId) {
+        params.set('studentId', singleStudentId);
+      } else if (mode === 'bulk' && selectedStudents.length > 0) {
+        params.set('studentIds', selectedStudents.join(','));
       }
-      const data = await fetch(url).then(r => r.json());
+
+      const response = await fetch(`/api/students/promote?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Failed to load promotion preview');
+      }
+
       setPreview(data.data || []);
       setStep('preview');
     } catch (e) {
       console.error(e);
+      setPreview([]);
     } finally {
       setLoading(false);
     }
@@ -435,18 +420,6 @@ export default function PromotionModal({
                 </div>
               )}
 
-              {/* ── Step 3: Progress ── */}
-              {step === 'progress' && (
-                <div className="text-center py-8 space-y-4">
-                  <div className="text-4xl animate-spin">⚙️</div>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Promoting students...</p>
-                  <div className={`w-full h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                    <div className="h-2 bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-                  </div>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{progress}% complete</p>
-                </div>
-              )}
-
               {/* ── Step 4: Result ── */}
               {step === 'result' && result && (
                 <div className="space-y-4">
@@ -459,7 +432,7 @@ export default function PromotionModal({
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {[
-                          { label: 'Promoted', value: result.data?.promoted, color: 'green' },
+                          { label: 'Promoted', value: result.data?.updated, color: 'green' },
                           { label: 'Failed', value: result.data?.failed, color: 'red' },
                           { label: 'Arrears Created', value: `₹${(result.data?.totalArrears || 0).toLocaleString()}`, color: 'orange' }
                         ].map(item => (

@@ -8,12 +8,12 @@ import FeeRecordsTabs from './FeeRecordsTabs';
 import PaymentReceipt from './PaymentReceipt';
 import FeeReportsTab from './FeeReportsTab';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 
 export default function FeeTabContent({ ctx }: { ctx: any }) {
   const { dropdowns } = useSchoolConfig();
   const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
 
-  
   // State for date range filtering
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -1097,40 +1097,39 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                       
                       <button
                         onClick={() => {
-                          // Generate sample receipt for selected students
                           if (selectedStudents.length === 0) {
                             if ((window as any).toast) {
                               (window as any).toast({
                                 type: 'warning',
                                 title: 'No Students Selected',
-                                message: 'Please select at least one student to generate receipt',
+                                message: 'Please select at least one student to export summary',
                                 duration: 3000
                               });
                             }
                             return;
                           }
-                          
-                          const samplePayment = {
-                            receipt: `RCPT-2024-BULK-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
-                            date: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
-                            method: 'Bulk Payment',
-                            amount: selectedStudents.length * 5000
-                          };
-                          
-                          // Show processing toast
+
+                          const selectedStudentRows = filteredStudentSummaries
+                            .filter((student: any) => selectedStudents.includes(student.studentId))
+                            .map((student: any) => ({
+                              name: student.studentName,
+                              class: student.studentClass,
+                              amount: Number(student.pendingFees || student.totalPending || 0),
+                            }));
+
                           if ((window as any).toast) {
                             (window as any).toast({
                               type: 'info',
-                              title: 'Generating Bulk Receipt',
-                              message: `Creating receipt for ${selectedStudents.length} students`,
+                              title: 'Generating Bulk Summary',
+                              message: `Creating fee summary for ${selectedStudents.length} students`,
                               duration: 2000
                             });
                           }
-                          
-                          if (ctx.setShowDetailedReceipt) {
-                            ctx.setSelectedPaymentForReceipt(samplePayment);
-                            ctx.setShowDetailedReceipt(true);
-                          }
+
+                          PDFGenerator.generateBulkReceipt(
+                            selectedStudentRows,
+                            `Fee_Summary_${new Date().toISOString().slice(0, 10)}.pdf`
+                          );
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                           theme === 'dark'
@@ -1138,7 +1137,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                             : 'bg-green-500 hover:bg-green-600 text-white'
                         }`}
                       >
-                        🧾 Generate Receipt ({selectedStudents.length})
+                        🧾 Export Summary ({selectedStudents.length})
                       </button>
                       
                       <button

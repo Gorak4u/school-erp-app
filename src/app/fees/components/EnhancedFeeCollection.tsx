@@ -84,6 +84,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
+  const [latestReceipt, setLatestReceipt] = useState<any>(null);
   const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<any>(null);
   const [showHistoryReceipt, setShowHistoryReceipt] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
@@ -302,6 +303,51 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     selectedFeesTotal
   }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, totalDiscount, selectedFeesTotal]);
 
+  const buildReceiptStudentData = (collectedByOverride?: string) => ({
+    studentName: studentData?.name || studentData?.studentName || 'N/A',
+    studentClass: [studentData?.class || studentData?.studentClass, studentData?.section].filter(Boolean).join(' ') || studentData?.class || studentData?.studentClass || 'N/A',
+    admissionNo: studentData?.admissionNo || studentData?.rollNo || 'N/A',
+    rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
+    fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
+    parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
+    collectedBy: collectedByOverride || getCurrentUserName()
+  });
+
+  const buildLatestReceiptPayload = (processedPayments: Array<{ fee: FeeItem; amount: number; paymentResult: any }>) => {
+    const includedReceiptNumbers = processedPayments
+      .map(({ paymentResult }) => paymentResult?.receiptNumber || paymentResult?.payment?.receiptNumber)
+      .filter(Boolean);
+
+    const firstProcessed = processedPayments[0];
+
+    return {
+      studentData: buildReceiptStudentData(firstProcessed?.paymentResult?.payment?.collectedBy),
+      paymentData: {
+        currentYearFees: processedPayments.map(({ fee, amount, paymentResult }) => ({
+          id: paymentResult?.payment?.id || fee.id,
+          feeRecordId: fee.id,
+          name: fee.name,
+          category: fee.category,
+          academicYear: fee.academicYear,
+          totalAmount: fee.amount,
+          amountPaid: amount,
+          paidAmount: amount,
+          discount: fee.discount || 0,
+          balance: Number(paymentResult?.feeRecord?.pendingAmount ?? Math.max(0, fee.amount - fee.paidAmount - (fee.discount || 0) - amount)),
+          status: paymentResult?.feeRecord?.status || 'partial',
+          receiptNumber: paymentResult?.receiptNumber || paymentResult?.payment?.receiptNumber || '',
+          transactionId: paymentResult?.payment?.transactionId || '',
+          remarks: paymentResult?.payment?.remarks || '',
+          paymentDate: paymentResult?.payment?.paymentDate || paymentResult?.feeRecord?.paidDate || new Date().toISOString(),
+        })),
+        includedReceiptNumbers,
+      },
+      receiptNumber: includedReceiptNumbers[0] || `RCPT-${Date.now()}`,
+      paymentDate: firstProcessed?.paymentResult?.payment?.paymentDate || firstProcessed?.paymentResult?.feeRecord?.paidDate || new Date().toISOString(),
+      paymentMethod: firstProcessed?.paymentResult?.payment?.paymentMethod || paymentMethod,
+    };
+  };
+
   const handleFeeSelection = (feeId: string) => {
     const wasSelected = selectedFees.includes(feeId);
     const newSelection = wasSelected 
@@ -391,18 +437,30 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
     try {
       // Process each selected fee via the real payments API
       const { paymentsApi } = await import('@/lib/apiClient');
+      const processedPayments: Array<{ fee: FeeItem; amount: number; paymentResult: any }> = [];
+
       for (const feeId of selectedFees) {
         const fee = filteredFees.find(f => f.id === feeId);
         if (!fee || fee.status === 'paid') continue;
         const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
-        await paymentsApi.process({
+        const paymentResult = await paymentsApi.process({
           feeRecordId: feeId,
           amount,
           paymentMethod: paymentMethod,
           collectedBy: getCurrentUserName(),
           remarks: promoCode ? `Promo: ${promoCode}` : undefined,
         });
+        processedPayments.push({ fee, amount, paymentResult });
       }
+
+      if (processedPayments.length === 0) {
+        throw new Error('No unpaid fee selected for payment');
+      }
+
+      const receiptPayload = buildLatestReceiptPayload(processedPayments);
+      setLatestReceipt(receiptPayload);
+      setSelectedFees([]);
+      setCustomAmounts({});
 
       if ((window as any).toast) {
         (window as any).toast({
@@ -1013,7 +1071,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 totalAmount: payment.feeAmount || 0,
                 cumulativePaid: payment.amount || 0, // Will be calculated when receipt is clicked
                 paymentMethod: payment.paymentMethod || 'cash',
-                paidDate: payment.paymentDate || payment.createdAt || '',
+                paymentDate: payment.paymentDate || payment.createdAt || '',
                 receiptNumber: payment.receiptNumber || '',
                 collectedBy: payment.collectedBy || 'Staff',
                 transactionId: payment.transactionId || '',
@@ -1031,8 +1089,8 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 })
                 .sort((a, b) => {
                   // Sort by date descending (newest first)
-                  const dateA = new Date(a.paidDate || 0).getTime();
-                  const dateB = new Date(b.paidDate || 0).getTime();
+                  const dateA = new Date(a.paymentDate || 0).getTime();
+                  const dateB = new Date(b.paymentDate || 0).getTime();
                   return dateB - dateA;
                 });
 
@@ -1090,12 +1148,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                             </div>
                           </td>
                           <td className={`px-4 py-3 ${textSecondary} text-xs`}>
-                            {entry.paidDate
-                              ? new Date(entry.paidDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            {entry.paymentDate
+                              ? new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                               : '-'}
-                            {entry.paidDate && (
+                            {entry.paymentDate && (
                               <span className="block opacity-60">
-                                {new Date(entry.paidDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(entry.paymentDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
                           </td>
@@ -1103,7 +1161,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                             <button
                               onClick={() => {
                                 // Calculate cumulative paid amount up to this payment's date
-                                const paymentDate = new Date(entry.paidDate);
+                                const paymentDate = new Date(entry.paymentDate);
                                 const cumulativePaid = paymentHistoryData?.payments
                                   ?.filter((p: any) => {
                                     const pDate = new Date(p.paymentDate);
@@ -1164,12 +1222,12 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 <div className="space-y-3 mb-6">
                   <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                     <p className={`text-sm ${textSecondary} mb-2`}>Receipt Number</p>
-                    <p className={`font-mono font-bold ${textPrimary}`}>RCPT-2024-0313-0847</p>
+                    <p className={`font-mono font-bold ${textPrimary}`}>{latestReceipt?.receiptNumber || 'Receipt Ready'}</p>
                   </div>
                   <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                     <p className={`text-sm ${textSecondary} mb-1`}>Amount Paid</p>
-                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.selectedFeesTotal.toLocaleString()}</p>
-                    <p className={`text-sm ${textSecondary}`}>via {paymentMethods.find(m => m.id === paymentMethod)?.name}</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{(latestReceipt?.paymentData?.currentYearFees || []).reduce((sum: number, item: any) => sum + Number(item.amountPaid || item.paidAmount || 0), 0).toLocaleString()}</p>
+                    <p className={`text-sm ${textSecondary}`}>via {paymentMethods.find(m => m.id === latestReceipt?.paymentMethod)?.name || paymentMethods.find(m => m.id === paymentMethod)?.name}</p>
                   </div>
                 </div>
 
@@ -1190,8 +1248,8 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                     </button>
                     <button
                       onClick={() => {
-                        window.print();
                         setShowReceipt(false);
+                        setShowDetailedReceipt(true);
                       }}
                       className={`px-4 py-3 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} ${textPrimary} rounded-lg font-medium transition-colors flex items-center justify-center gap-2`}
                     >
@@ -1244,40 +1302,17 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 </div>
                 <PaymentReceipt
                   theme={theme}
-                  studentData={{
-                    studentName: studentData?.name || studentData?.studentName || 'N/A',
-                    studentClass: studentData?.class || studentData?.studentClass || 'N/A',
-                    admissionNo: studentData?.admissionNo || studentData?.rollNo || 'N/A',
-                    rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
-                    fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
-                    parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
-                    collectedBy: studentData?.collectedBy || getCurrentUserName()
-                  }}
-                  paymentData={{
-                    currentYearFees: selectedFees.map(feeId => {
-                      const fee = filteredFees.find(f => f.id === feeId);
-                      if (!fee) return null;
-                      return {
-                        name: fee.name,
-                        category: fee.category,
-                        academicYear: fee.academicYear || new Date().getFullYear().toString(),
-                        totalAmount: fee.amount,
-                        paidAmount: customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0)),
-                        discount: 0,
-                        balance: 0,
-                        status: 'paid'
-                      };
-                    }).filter(Boolean)
-                  }}
-                  receiptNumber={`RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`}
-                  paymentDate={new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  paymentMethod={paymentMethods.find(m => m.id === paymentMethod)?.name || 'Unknown'}
-                  onPrint={() => window.print()}
+                  studentData={latestReceipt?.studentData || buildReceiptStudentData()}
+                  paymentData={latestReceipt?.paymentData || { currentYearFees: [] }}
+                  receiptNumber={latestReceipt?.receiptNumber || 'Receipt'}
+                  paymentDate={latestReceipt?.paymentDate || new Date().toISOString()}
+                  paymentMethod={latestReceipt?.paymentMethod || paymentMethod}
                   onDownload={() => {
-                    const receiptNum = `RCPT-2024-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+                    const receiptNum = latestReceipt?.receiptNumber || 'Receipt';
                     const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
                     PDFGenerator.generateFromElement('receipt-print', filename);
                   }}
+                  onClose={() => setShowDetailedReceipt(false)}
                 />
               </div>
             </motion.div>
@@ -1314,70 +1349,42 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 </div>
                 <PaymentReceipt
                   theme={theme}
-                  studentData={{
-                    studentName: studentData?.name || studentData?.studentName || 'N/A',
-                    studentClass: studentData?.class || studentData?.studentClass || 'N/A',
-                    admissionNo: studentData?.admissionNo || studentData?.rollNo || 'N/A',
-                    rollNo: studentData?.rollNo || studentData?.admissionNo || 'N/A',
-                    fatherName: studentData?.fatherName || studentData?.parentName || 'Parent',
-                    parentName: studentData?.parentName || studentData?.fatherName || 'Parent',
-                    collectedBy: selectedHistoryEntry.collectedBy || 'Accounts Department'
-                  }}
+                  studentData={buildReceiptStudentData(selectedHistoryEntry.collectedBy || 'Accounts Department')}
                   paymentData={{
-                    currentYearFees: (studentData?.feeRecords || []).map((record: any) => {
-                      // Find if this fee record matches the selected history entry
-                      const isSelectedFee = record.id === selectedHistoryEntry.feeRecordId;
-                      
+                    currentYearFees: [(() => {
+                      const matchedRecord = (studentData?.feeRecords || []).find((record: any) => record.id === selectedHistoryEntry.feeRecordId);
+                      const recordDiscount = Number(matchedRecord?.discount || 0);
+                      const totalAmount = Number(selectedHistoryEntry.feeAmount || matchedRecord?.amount || selectedHistoryEntry.amount || 0);
+                      const balance = Math.max(0, totalAmount - Number(selectedHistoryEntry.cumulativePaid || selectedHistoryEntry.amount || 0) - recordDiscount);
+
                       return {
-                        name: record.feeStructure?.name || record.feeStructureName || 'Fee',
-                        category: record.feeStructure?.category || 'General',
-                        academicYear: record.academicYear || new Date().getFullYear().toString(),
-                        totalAmount: record.amount || 0,
-                        // Use cumulative paid if this is the selected fee, otherwise use current paidAmount
-                        paidAmount: isSelectedFee ? (selectedHistoryEntry.cumulativePaid || 0) : (record.paidAmount || 0),
-                        discount: record.discount || 0,
-                        status: record.status || 'pending'
+                        id: selectedHistoryEntry.id,
+                        name: selectedHistoryEntry.feeName || matchedRecord?.feeStructure?.name || 'Fee',
+                        category: selectedHistoryEntry.feeCategory || matchedRecord?.feeStructure?.category || 'General',
+                        academicYear: selectedHistoryEntry.academicYear || matchedRecord?.academicYear || new Date().getFullYear().toString(),
+                        totalAmount,
+                        amountPaid: Number(selectedHistoryEntry.amount || 0),
+                        paidAmount: Number(selectedHistoryEntry.amount || 0),
+                        discount: recordDiscount,
+                        balance,
+                        status: balance <= 0 ? 'paid' : 'partial',
+                        receiptNumber: selectedHistoryEntry.receiptNumber,
+                        transactionId: selectedHistoryEntry.transactionId,
+                        remarks: selectedHistoryEntry.remarks,
+                        paymentDate: selectedHistoryEntry.paymentDate,
                       };
-                    })
+                    })()],
+                    includedReceiptNumbers: [selectedHistoryEntry.receiptNumber].filter(Boolean)
                   }}
                   receiptNumber={selectedHistoryEntry.receiptNumber}
-                  paymentDate={selectedHistoryEntry.paidDate}
+                  paymentDate={selectedHistoryEntry.paymentDate}
                   paymentMethod={selectedHistoryEntry.paymentMethod}
-                  onPrint={() => {
-                    // Create a clean print version
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                      const receiptContent = document.querySelector('#receipt-print')?.innerHTML;
-                      if (receiptContent) {
-                        printWindow.document.write(`
-                          <html>
-                            <head>
-                              <title>Receipt ${selectedHistoryEntry.receiptNumber}</title>
-                              <style>
-                                @page { margin: 10mm; size: A4; }
-                                body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-                                #receipt-print { width: 100%; max-width: 800px; margin: 0 auto; }
-                                @media print { 
-                                  body { margin: 0; padding: 0; }
-                                  #receipt-print { width: 100%; max-width: 100%; margin: 0; }
-                                }
-                              </style>
-                            </head>
-                            <body>${receiptContent}</body>
-                          </html>
-                        `);
-                        printWindow.document.close();
-                        printWindow.focus();
-                        printWindow.print();
-                        printWindow.close();
-                      }
-                    }
-                  }}
                   onDownload={() => {
                     const receiptNum = selectedHistoryEntry.receiptNumber;
                     const filename = `Receipt_${receiptNum.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-                    alert('PDF download would be implemented here');
+                    PDFGenerator.generateFromElement('receipt-print', filename);
                   }}
+                  onClose={() => setShowHistoryReceipt(false)}
                 />
               </div>
             </motion.div>

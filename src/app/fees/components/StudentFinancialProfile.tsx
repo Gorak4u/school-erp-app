@@ -181,6 +181,42 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     return paymentHistoryData?.payments || [];
   }, [paymentHistoryData]);
 
+  const openReceiptForPayment = (entry: any) => {
+    const matchedRecord = feeRecords.find((record: any) => record.id === entry.feeRecordId);
+    const paymentTimestamp = new Date(entry.paymentDate || entry.createdAt || Date.now()).getTime();
+    const cumulativePaid = paymentHistory
+      .filter((payment: any) => payment.feeRecordId === entry.feeRecordId)
+      .filter((payment: any) => new Date(payment.paymentDate || payment.createdAt || Date.now()).getTime() <= paymentTimestamp)
+      .reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
+    const totalAmount = Number(entry.feeAmount || matchedRecord?.amount || entry.amount || 0);
+    const discount = Number(matchedRecord?.discount || 0);
+    const balance = Math.max(0, totalAmount - cumulativePaid - discount);
+
+    setSelectedPayment({
+      receiptNumber: entry.receiptNumber,
+      paymentDate: entry.paymentDate,
+      paymentMethod: entry.paymentMethod,
+      lineItems: [{
+        id: entry.id,
+        feeRecordId: entry.feeRecordId,
+        name: entry.feeName || matchedRecord?.feeStructure?.name || 'Fee',
+        category: entry.feeCategory || matchedRecord?.feeStructure?.category || 'General',
+        academicYear: entry.academicYear || matchedRecord?.academicYear || '—',
+        totalAmount,
+        amountPaid: Number(entry.amount || 0),
+        paidAmount: Number(entry.amount || 0),
+        discount,
+        balance,
+        status: balance <= 0 ? 'paid' : 'partial',
+        receiptNumber: entry.receiptNumber,
+        transactionId: entry.transactionId,
+        remarks: entry.remarks,
+        paymentDate: entry.paymentDate,
+      }],
+    });
+    setShowDetailedReceipt(true);
+  };
+
   // Fee breakdown chart from records - use correct category from API response
   const catAmounts = useMemo(() => {
     const ca: Record<string, number> = {};
@@ -663,9 +699,13 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                         i % 2 === 0 ? (isDark ? 'bg-gray-900' : 'bg-white') : (isDark ? 'bg-gray-800/50' : 'bg-gray-50/50')
                       } hover:${isDark ? 'bg-gray-700' : 'bg-blue-50/30'} transition-colors`}>
                         <td className="px-4 py-3">
-                          <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                          <button
+                            type="button"
+                            onClick={() => openReceiptForPayment(entry)}
+                            className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-blue-900/40 text-blue-300 hover:bg-blue-900/60' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'} transition-colors`}
+                          >
                             {entry.receiptNumber}
-                          </span>
+                          </button>
                         </td>
                         <td className={`px-4 py-3 font-medium ${textPrimary}`}>
                           {entry.feeName}
@@ -851,22 +891,14 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               theme={theme}
               studentData={currentStudentData}
               paymentData={{
-                currentYearFees: selectedPayment ? [{
-                  name: selectedPayment.type,
-                  category: 'Payment',
-                  totalAmount: selectedPayment.amount,
-                  paidAmount: selectedPayment.amount,
-                  discount: 0,
-                  balance: 0,
-                  status: 'paid'
-                }] : []
+                currentYearFees: selectedPayment?.lineItems || [],
+                includedReceiptNumbers: [selectedPayment?.receiptNumber].filter(Boolean)
               }}
-              receiptNumber={selectedPayment?.receipt || 'RCPT-2024-DEFAULT'}
-              paymentDate={selectedPayment?.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
-              paymentMethod={selectedPayment?.method || 'Unknown'}
-              onPrint={() => window.print()}
+              receiptNumber={selectedPayment?.receiptNumber || 'Receipt'}
+              paymentDate={selectedPayment?.paymentDate || new Date().toISOString()}
+              paymentMethod={selectedPayment?.paymentMethod || 'Unknown'}
               onDownload={() => {
-  const filename = `Receipt_${(selectedPayment?.receipt || 'RCPT-DEFAULT').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+  const filename = `Receipt_${(selectedPayment?.receiptNumber || 'RCPT-DEFAULT').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
   PDFGenerator.generateFromElement('receipt-print', filename);
 }}
               onClose={() => setShowDetailedReceipt(false)}
