@@ -89,3 +89,45 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!isSuperAdmin(session.user.email)) {
+      return NextResponse.json({ error: 'Forbidden: Super admin access required' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Plan ID is required' }, { status: 400 });
+    }
+
+    // Check if any schools are using this plan
+    const subscriptionsCount = await (saasPrisma as any).subscription.count({
+      where: { plan: id },
+    });
+
+    if (subscriptionsCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete plan', 
+        details: `Used by ${subscriptionsCount} school(s)`,
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
+
+    await (saasPrisma as any).plan.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Plans DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

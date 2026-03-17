@@ -312,7 +312,6 @@ export default function AdminPlansPage() {
               </div>
             </div>
           )}
-          
           {plans.sort((a, b) => a.sortOrder - b.sortOrder).map(plan => {
             const gradient = PLAN_GRADIENTS[plan.name] || 'from-gray-500 to-gray-600';
             const icon = PLAN_ICONS[plan.name] || '📋';
@@ -328,27 +327,6 @@ export default function AdminPlansPage() {
                 <div className={`bg-gradient-to-r ${gradient} p-5`}>
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-2xl">{icon}</span>
-                        <span className="text-white font-bold text-lg">{plan.displayName}</span>
-                        {!plan.isActive && <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">Inactive</span>}
-                      </div>
-                      <p className="text-white/80 text-sm">{plan.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white text-2xl font-bold">
-                        {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
-                      </div>
-                      <div className="text-white/70 text-xs">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
-                      👥 {subCount} subscriber{subCount !== 1 ? 's' : ''}
-                    </span>
-                    <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
-                      🎓 {plan.maxStudents >= 999999 ? '∞' : plan.maxStudents} students
-                    </span>
                     <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
                       ⏱ {plan.trialDays}d trial
                     </span>
@@ -472,3 +450,5 @@ export default function AdminPlansPage() {
     </AppLayout>
   );
 }
+
+export default AdminPlansPage;

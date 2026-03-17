@@ -5,13 +5,70 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
+const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');
+const isPhoneValid = (value: string | undefined | null) => {
+  if (!value) return false;
+  const digits = digitsOnly(value);
+  return digits.length >= 10 && digits.length <= 15;
+};
+const isAadharValid = (value: string | undefined | null) => {
+  if (!value) return true;
+  return digitsOnly(value).length === 12;
+};
+const isPinValid = (value: string | undefined | null) => {
+  if (!value) return true;
+  return digitsOnly(value).length === 6;
+};
+const isIFSCValid = (value: string | undefined | null) => {
+  if (!value) return true;
+  return /^[A-Z]{4}0[A-Z0-9]{6}$/i.test(value.trim());
+};
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  theme,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  theme: 'dark' | 'light';
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const wrapperCls = `rounded-xl border p-4 transition-colors ${
+    theme === 'dark' ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-gray-50'
+  }`;
+
+  return (
+    <div className={wrapperCls}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        className="w-full flex items-start justify-between text-left"
+      >
+        <div>
+          <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{title}</p>
+          {subtitle && (
+            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{subtitle}</p>
+          )}
+        </div>
+        <span className={`text-lg transition-transform ${isOpen ? 'rotate-180' : 'rotate-0'}`}>⌄</span>
+      </button>
+      {isOpen && <div className="mt-4 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'admission', label: 'Admission' },
-  { id: 'fees', label: 'Fee Information' },
   { id: 'personal', label: 'Personal' },
   { id: 'contact', label: 'Contact' },
   { id: 'parents', label: 'Father Mother Name' },
   { id: 'additional', label: 'Additional' },
+  { id: 'fees', label: 'Fee Information' },
 ];
 
 const INDIAN_STATES = [
@@ -35,6 +92,13 @@ export default function StudentForm({
 }) {
   const { mediums, classes, sections, dropdowns, activeAcademicYear, loading } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState('admission');
+  const [subscriptionSummary, setSubscriptionSummary] = useState<{ maxStudents: number | null; studentsUsed: number | null; status: 'loading' | 'ready' | 'error'; }>({
+    maxStudents: null,
+    studentsUsed: null,
+    status: 'loading',
+  });
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [lastAutoSaveAt, setLastAutoSaveAt] = useState<number | null>(null);
   
   // Initialize mediumId if only one medium exists
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
@@ -54,6 +118,13 @@ export default function StudentForm({
   const sectionTitleCls = `text-sm font-bold mb-3 flex items-center gap-2 ${
     theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
   }`;
+  const helperTextCls = `text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`;
+  const errorTextCls = `text-xs ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`;
+  const inputWithValidation = (hasError?: boolean) =>
+    hasError
+      ? `${inputCls} border-red-500 focus:border-red-500 focus:ring-red-500/30`
+      : inputCls;
+  const fmtCurrency = (amount: number) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
   const [formData, setFormData] = useState({
     photo: student?.photo || '',
@@ -139,7 +210,35 @@ export default function StudentForm({
     validTo: '',
   });
   const [selectedDiscountFeeIds, setSelectedDiscountFeeIds] = useState<string[]>([]);
+  const transportDiscountInitial = {
+    hasDiscount: false,
+    discountType: 'percentage' as 'percentage' | 'fixed' | 'full_waiver',
+    discountValue: 0,
+    reason: '',
+  };
+  const [transportDiscount, setTransportDiscount] = useState(transportDiscountInitial);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const currentTabIndex = TABS.findIndex(t => t.id === activeTab);
+  const progressPercent = Math.round(((currentTabIndex + 1) / TABS.length) * 100);
+  const studentsUsed = subscriptionSummary.studentsUsed ?? 0;
+  const maxStudents = subscriptionSummary.maxStudents ?? 0;
+  const usagePercent = maxStudents > 0 ? Math.min(Math.round((studentsUsed / maxStudents) * 100), 100) : 0;
+  const seatsRemaining = maxStudents > 0 ? Math.max(maxStudents - studentsUsed, 0) : null;
+  const limitReached = seatsRemaining !== null && seatsRemaining <= 0;
+  const ayLabel = activeAcademicYear ? `${activeAcademicYear.name || activeAcademicYear.year}` : 'No Active Academic Year';
+  const autoSaveLabel = lastAutoSaveAt
+    ? `Saved ${new Date(lastAutoSaveAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'Saving…';
+  const validations = {
+    studentPhoneInvalid: !!formData.phone && !isPhoneValid(formData.phone),
+    aadharInvalid: !!formData.aadharNumber && !isAadharValid(formData.aadharNumber),
+    pinInvalid: !!formData.pinCode && !isPinValid(formData.pinCode),
+    fatherPhoneInvalid: !!formData.fatherPhone && !isPhoneValid(formData.fatherPhone),
+    motherPhoneInvalid: !!formData.motherPhone && !isPhoneValid(formData.motherPhone),
+    emergencyPhoneInvalid: !!formData.emergencyContact && !isPhoneValid(formData.emergencyContact),
+    bankIfscInvalid: !!formData.bankIfsc && !isIFSCValid(formData.bankIfsc),
+  };
+  const submissionDisabled = isSubmitting || limitReached;
 
   // Cascaded dropdown data
   const filteredClasses = useMemo(() => {
@@ -193,7 +292,9 @@ export default function StudentForm({
   // Auto-save
   useEffect(() => {
     const t = setTimeout(() => {
-      localStorage.setItem('studentFormAutoSave', JSON.stringify({ ...formData, _ts: Date.now() }));
+      const timestamp = Date.now();
+      localStorage.setItem('studentFormAutoSave', JSON.stringify({ ...formData, _ts: timestamp }));
+      setLastAutoSaveAt(timestamp);
     }, 2000);
     return () => clearTimeout(t);
   }, [formData]);
@@ -216,6 +317,33 @@ export default function StudentForm({
         }));
       }
     } catch {}
+  }, []);
+
+  // Fetch subscription usage
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/subscription?cache=true');
+        if (!res.ok) throw new Error('Failed to load subscription');
+        const data = await res.json();
+        if (mounted) {
+          setSubscriptionSummary({
+            maxStudents: data?.subscription?.maxStudents ?? null,
+            studentsUsed: data?.subscription?.studentsUsed ?? null,
+            status: 'ready',
+          });
+        }
+      } catch (err: any) {
+        if (mounted) {
+          setPlanError(err.message || 'Unable to load subscription details');
+          setSubscriptionSummary(prev => ({ ...prev, status: 'error' }));
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Auto-select fees when discount category is selected
@@ -262,6 +390,27 @@ export default function StudentForm({
     }
     return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected: selectedFees };
   }, [feeStructures, selectedDiscountFeeIds, discountData]);
+
+  const transportFeeCalcs = useMemo(() => {
+    const baseAnnual = transportInfo.routeId ? Number(transportInfo.monthlyFee || 0) * 12 : 0;
+    if (!transportDiscount.hasDiscount || !transportInfo.routeId) {
+      return { baseAnnual, discountAmount: 0, finalAnnual: baseAnnual };
+    }
+    if (transportDiscount.discountType === 'full_waiver') {
+      return { baseAnnual, discountAmount: baseAnnual, finalAnnual: 0 };
+    }
+    let discountAmount = 0;
+    if (transportDiscount.discountType === 'percentage') {
+      discountAmount = Math.min(baseAnnual, (baseAnnual * Number(transportDiscount.discountValue || 0)) / 100);
+    } else {
+      discountAmount = Math.min(baseAnnual, Number(transportDiscount.discountValue || 0));
+    }
+    return { baseAnnual, discountAmount, finalAnnual: baseAnnual - discountAmount };
+  }, [transportInfo, transportDiscount]);
+
+  const tuitionAnnual = useMemo(() => feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0), [feeStructures]);
+  const tuitionFinalTotal = Math.max(tuitionAnnual - feeCalcs.discountAmount, 0);
+  const combinedAnnual = tuitionFinalTotal + transportFeeCalcs.finalAnnual;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,6 +472,46 @@ export default function StudentForm({
 
   return (
     <div className="flex flex-col h-full">
+      <div className={`mb-4 rounded-2xl border p-4 ${
+        theme === 'dark' ? 'border-blue-900/50 bg-blue-900/10 text-blue-100' : 'border-blue-200 bg-blue-50 text-blue-900'
+      }`}>
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide opacity-80">Active Academic Year</p>
+            <p className="text-lg font-semibold">{ayLabel}</p>
+          </div>
+          <div>
+            {subscriptionSummary.status === 'ready' && maxStudents > 0 ? (
+              <p className="text-sm font-medium">
+                {studentsUsed}/{maxStudents} student seats used {seatsRemaining !== null && seatsRemaining >= 0 && `• ${seatsRemaining} remaining`}
+              </p>
+            ) : subscriptionSummary.status === 'error' ? (
+              <p className={errorTextCls}>{planError || 'Unable to load plan limits'}</p>
+            ) : (
+              <p className={helperTextCls}>Checking subscription limits…</p>
+            )}
+          </div>
+          {limitReached && (
+            <div className="flex items-center gap-2 text-sm font-semibold text-red-500">
+              ⚠️ Student limit reached. Please upgrade your plan to admit new students.
+            </div>
+          )}
+        </div>
+        {subscriptionSummary.status === 'ready' && maxStudents > 0 && (
+          <div className="mt-3">
+            <div className="flex justify-between text-xs opacity-80">
+              <span>{usagePercent}% used</span>
+              {!limitReached && seatsRemaining !== null && <span>{seatsRemaining} seats left</span>}
+            </div>
+            <div className={`h-2 rounded-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+              <div
+                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                style={{ width: `${usagePercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
       {/* Tab Bar */}
       <div className={`flex gap-1 pb-3 border-b flex-shrink-0 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
         {TABS.map(t => (
@@ -331,8 +520,11 @@ export default function StudentForm({
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Auto-saving</span>
+          <div className={`w-2 h-2 rounded-full animate-pulse ${limitReached ? 'bg-red-500' : 'bg-green-500'}`} />
+          <div className="flex flex-col">
+            <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-700'}`}>{autoSaveLabel}</span>
+            {limitReached && <span className={errorTextCls}>Upgrade plan to continue</span>}
+          </div>
           <button
             type="button"
             onClick={() => { localStorage.removeItem('studentFormAutoSave'); }}
@@ -341,6 +533,12 @@ export default function StudentForm({
             Clear
           </button>
         </div>
+      </div>
+      <div className={`h-1 rounded-full mb-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
+        <div
+          className="h-1 rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500 transition-all"
+          style={{ width: `${progressPercent}%` }}
+        />
       </div>
 
       {/* Tab Content */}
@@ -857,7 +1055,17 @@ export default function StudentForm({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Phone Number *</label>
-                  <input type="tel" required placeholder="10-digit mobile" value={formData.phone} onChange={e => set('phone', e.target.value)} className={inputCls} />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="10-digit mobile"
+                    value={formData.phone}
+                    onChange={e => set('phone', e.target.value)}
+                    className={inputWithValidation(validations.studentPhoneInvalid)}
+                  />
+                  <p className={validations.studentPhoneInvalid ? errorTextCls : helperTextCls}>
+                    {validations.studentPhoneInvalid ? 'Phone must be 10-15 digits.' : 'Include country code if international (e.g., +91)'}
+                  </p>
                 </div>
                 <div>
                   <label className={labelCls}>Email Address</label>
@@ -880,7 +1088,15 @@ export default function StudentForm({
                 </div>
                 <div>
                   <label className={labelCls}>PIN Code *</label>
-                  <input type="text" required maxLength={6} value={formData.pinCode} onChange={e => set('pinCode', e.target.value)} className={inputCls} />
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={formData.pinCode}
+                    onChange={e => set('pinCode', e.target.value)}
+                    className={inputWithValidation(validations.pinInvalid)}
+                  />
+                  {validations.pinInvalid && <p className={errorTextCls}>PIN must be exactly 6 digits.</p>}
                 </div>
               </div>
             </div>
