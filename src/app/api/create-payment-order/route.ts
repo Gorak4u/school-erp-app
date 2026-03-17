@@ -1,95 +1,99 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import Razorpay from 'razorpay';
 import { saasPrisma } from '@/lib/prisma';
-import { getSessionContext } from '@/lib/apiAuth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-// Get SaaS payment settings from database
 async function getSaasPaymentConfig() {
   const p = saasPrisma as any;
   const settings = await p.saasSetting.findMany({
     where: { group: 'saas_payment' },
   });
   const config: Record<string, string> = {};
-  for (const s of settings) config[s.key] = s.value;
+  for (const setting of settings) {
+    config[setting.key] = setting.value;
+  }
   return config;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { ctx, error } = await getSessionContext();
-    if (error) return error;
-
+    const session = await getServerSession(authOptions as any) as any;
     const body = await req.json();
-    const { plan, amount, currency = 'INR' } = body;
+    const {
+      plan,
+      amount,
+      currency = 'INR',
+      billingCycle = 'monthly',
+      schoolId: schoolIdFromBody,
+      isRenewal = false,
+    } = body;
 
     if (!plan || !amount) {
-      return NextResponse.json(
-        { error: 'Plan and amount are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Plan and amount are required' }, { status: 400 });
     }
 
-    // Get SaaS payment configuration
+    const targetSchoolId = schoolIdFromBody || (session?.user as any)?.schoolId || null;
+    if (!targetSchoolId) {
+      return NextResponse.json({ error: 'schoolId is required to start payment' }, { status: 400 });
+    }
+
     const paymentConfig = await getSaasPaymentConfig();
-    let keyId = paymentConfig.razorpay_key_id;
-    let keySecret = paymentConfig.razorpay_key_secret;
-
-    // Fallback to test credentials for development
-    if (!keyId || !keySecret) {
-      console.log('Razorpay not configured in SaaS settings, using test credentials');
-      keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_1234567890abcdef';
-      keySecret = process.env.RAZORPAY_KEY_SECRET || '1234567890abcdef1234567890abcdef';
-    }
+    const keyId = paymentConfig.razorpay_key_id || process.env.RAZORPAY_KEY_ID;
+    const keySecret = paymentConfig.razorpay_key_secret || process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
-      return NextResponse.json(
-        { error: 'Razorpay not configured. Please configure Razorpay credentials in SaaS settings or set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.' },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        error: 'Razorpay is not configured. Please configure SaaS payment settings before accepting payments.'
+      }, { status: 500 });
     }
 
-    // Initialize Razorpay with SaaS settings
+    const planRecord = await (saasPrisma as any).plan.findUnique({
+      where: { name: plan },
+    });
+
+    if (!planRecord || !planRecord.isActive) {
+      return NextResponse.json({ error: 'Selected plan is not available' }, { status: 400 });
+    }
+
+    const minimumAmount = billingCycle === 'yearly' ? Number(planRecord.priceYearly || 0) : Number(planRecord.priceMonthly || 0);
+    if (Number(amount) < minimumAmount) {
+      return NextResponse.json({ error: 'Invalid payment amount for selected plan' }, { status: 400 });
+    }
+
+    const subscription = await (saasPrisma as any).subscription.findUnique({
+      where: { schoolId: targetSchoolId },
+    });
+
+    if (!subscription) {
+      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    }
+
     const razorpay = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
     });
 
-    // Get user's subscription
-    const subscription = await saasPrisma.subscription.findFirst({
-      where: {
-        schoolId: ctx.schoolId!,
-      },
-    });
-
-    if (!subscription) {
-      return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 }
-      );
-    }
-
-    // Create Razorpay order
+    const normalizedAmount = Number(amount);
     const order = await razorpay.orders.create({
-      amount: amount * 100, // Razorpay expects amount in paise
+      amount: Math.round(normalizedAmount * 100),
       currency,
       receipt: `rec_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
       notes: {
         subscriptionId: subscription.id,
-        schoolId: ctx.schoolId!,
-        userId: ctx.userId,
+        schoolId: targetSchoolId,
+        userId: (session?.user as any)?.id || 'registration-flow',
         plan,
-        type: 'subscription_payment',
-        billingCycle: body.billingCycle || 'monthly',
+        type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
+        billingCycle,
       },
     });
 
-    // Store subscription payment order details
-    const p = saasPrisma as any;
-    await p.subscriptionPayment.create({
+    await (saasPrisma as any).subscriptionPayment.create({
       data: {
         subscriptionId: subscription.id,
         orderId: order.id,
-        amount,
+        amount: normalizedAmount,
         currency,
         status: 'pending',
         paymentMethod: 'razorpay',
@@ -106,12 +110,10 @@ export async function POST(req: NextRequest) {
         receipt: order.receipt,
       },
       key_id: keyId,
+      schoolId: targetSchoolId,
     });
   } catch (error: any) {
     console.error('Create payment order error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create payment order' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to create payment order' }, { status: 500 });
   }
 }

@@ -10,6 +10,11 @@ declare module 'next-auth' {
       role: 'student' | 'teacher' | 'parent' | 'admin' | 'super_admin';
       schoolId: string | null;
       isSuperAdmin: boolean;
+      permissions?: string[];
+      customRoleId?: string | null;
+      customRoleName?: string | null;
+      schema?: string | null;
+      employeeId?: string | null;
       subscriptionStatus?: string | null;
       trialEndsAt?: string | null;
       plan?: string | null;
@@ -26,6 +31,11 @@ declare module 'next-auth' {
     role: 'student' | 'teacher' | 'parent' | 'admin' | 'super_admin';
     schoolId: string | null;
     isSuperAdmin: boolean;
+    permissions?: string[];
+    customRoleId?: string | null;
+    customRoleName?: string | null;
+    schema?: string | null;
+    employeeId?: string | null;
     name?: string | null;
     image?: string | null;
   }
@@ -39,6 +49,11 @@ declare module 'next-auth/jwt' {
     userId: string;
     schoolId: string | null;
     isSuperAdmin: boolean;
+    permissions?: string[];
+    customRoleId?: string | null;
+    customRoleName?: string | null;
+    schema?: string | null;
+    employeeId?: string | null;
     subscriptionStatus?: string | null;
     trialEndsAt?: string | null;
     plan?: string | null;

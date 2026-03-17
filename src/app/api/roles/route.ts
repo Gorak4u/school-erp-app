@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageRolesAccess } from '@/lib/permissions';
 
 export async function GET() {
   try {
@@ -13,7 +14,14 @@ export async function GET() {
       orderBy: { createdAt: 'asc' },
     });
 
-    return NextResponse.json({ roles });
+    return NextResponse.json({
+      roles: roles.map((role: any) => ({
+        ...role,
+        _count: {
+          users: role._count?.User || 0,
+        },
+      }))
+    });
   } catch (err: any) {
     console.error('GET /api/roles:', err);
     return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 });
@@ -25,8 +33,7 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    // Only admins can create roles
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageRolesAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can manage roles' }, { status: 403 });
     }
 

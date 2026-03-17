@@ -188,7 +188,7 @@ function RegisterContent() {
       const orderRes = await fetch('/api/create-payment-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planInfo.name, amount, currency: 'INR', billingCycle }),
+        body: JSON.stringify({ plan: planInfo.name, amount, currency: 'INR', billingCycle, schoolId }),
       });
       const orderData = await orderRes.json();
       if (!orderData.success) { setSuccess(''); setError(orderData.error || 'Payment order failed.'); return; }

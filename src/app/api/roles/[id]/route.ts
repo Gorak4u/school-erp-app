@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageRolesAccess } from '@/lib/permissions';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageRolesAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can manage roles' }, { status: 403 });
     }
 
@@ -47,7 +48,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageRolesAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can manage roles' }, { status: 403 });
     }
 
@@ -58,9 +59,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     });
     if (!existing) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
 
-    if (existing._count.users > 0) {
+    if ((existing._count?.User || 0) > 0) {
       return NextResponse.json(
-        { error: `Cannot delete role: ${existing._count.users} user(s) are assigned to it. Reassign them first.` },
+        { error: `Cannot delete role: ${existing._count?.User || 0} user(s) are assigned to it. Reassign them first.` },
         { status: 400 }
       );
     }

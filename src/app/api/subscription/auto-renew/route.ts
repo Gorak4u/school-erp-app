@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saasPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { canManageSubscriptionAccess } from '@/lib/permissions';
 
 export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+
+    if (!canManageSubscriptionAccess(ctx)) {
+      return NextResponse.json({ error: 'Only school admins can manage subscription settings' }, { status: 403 });
+    }
+
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected' }, { status: 400 });
+    }
 
     const { autoRenew } = await req.json();
 
@@ -19,7 +28,7 @@ export async function POST(req: NextRequest) {
     // First check if subscription exists
     const existingSubscription = await saasPrisma.subscription.findFirst({
       where: {
-        schoolId: ctx.schoolId!,
+        schoolId: ctx.schoolId,
       },
     });
 

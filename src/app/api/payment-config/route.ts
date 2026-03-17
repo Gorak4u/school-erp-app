@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saasPrisma } from '@/lib/prisma';
 
 // Public endpoint to check if payment system is configured
 // Accessible by all authenticated users (school admins can check payment status)
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions as any) as any;
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get SaaS payment configuration
-    const settings = await (saasPrisma as any).SaasSetting.findMany({
+    const settings = await (saasPrisma as any).saasSetting.findMany({
       where: { group: 'saas_payment' },
     });
 

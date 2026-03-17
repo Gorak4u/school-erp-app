@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useSchoolDetails } from '@/contexts/SchoolConfigContext';
-import { hasPermission, DEFAULT_ROLE_PERMISSIONS, type Permission } from '@/lib/permissions';
+import { hasPermission, DEFAULT_ROLE_PERMISSIONS, isAdminLikeAccess, type Permission } from '@/lib/permissions';
 
 interface NavigationSidebarProps {
   theme: 'dark' | 'light';
@@ -39,7 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/students', label: 'Students', icon: '👥', pageKey: 'students', permission: 'view_students' },
       { href: '/alumni', label: 'Alumni', icon: '🎓', pageKey: 'alumni', permission: 'view_alumni' },
       { href: '/fees', label: 'Fees', icon: '💰', pageKey: 'fees', permission: 'view_fees' },
-      { href: '/expenses', label: 'Expenses', icon: '💸', pageKey: 'expenses', adminOnly: true },
+      { href: '/expenses', label: 'Expenses', icon: '💸', pageKey: 'expenses', permission: 'view_expenses' },
       { href: '/transport', label: 'Transport', icon: '🚌', pageKey: 'transport', adminOnly: true },
     ],
   },
@@ -74,7 +74,11 @@ export default function NavigationSidebar({
   const userIsSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
   const userRole = (session?.user as any)?.role || '';
   const userPermissions: Permission[] = (session?.user as any)?.permissions || DEFAULT_ROLE_PERMISSIONS[userRole] || [];
-  const isAdmin = userRole === 'admin' || userIsSuperAdmin;
+  const isAdmin = isAdminLikeAccess({
+    role: userRole,
+    isSuperAdmin: userIsSuperAdmin,
+    permissions: userPermissions,
+  });
   const schoolDetails = useSchoolDetails();
 
   useEffect(() => {

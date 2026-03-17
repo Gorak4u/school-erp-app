@@ -140,13 +140,13 @@ export const authOptions = {
         try {
           const subscription = await (saasPrisma as any).subscription.findUnique({
             where: { schoolId: token.schoolId as string },
-            select: { status: true, trialEndsAt: true, plan: true },
+            select: { status: true, trialEndsAt: true, plan: true, currentPeriodEnd: true, autoRenew: true },
           });
           if (subscription) {
-            // Auto-expire trial: if trial has ended, mark as pending_payment in DB
+            const now = new Date();
             if (subscription.status === 'trial' && subscription.trialEndsAt) {
               const trialEnd = new Date(subscription.trialEndsAt);
-              if (trialEnd < new Date()) {
+              if (trialEnd < now) {
                 await (saasPrisma as any).subscription.update({
                   where: { schoolId: token.schoolId as string },
                   data: { status: 'pending_payment' },
@@ -154,6 +154,19 @@ export const authOptions = {
                 subscription.status = 'pending_payment';
               }
             }
+
+            if (subscription.status === 'active' && subscription.currentPeriodEnd) {
+              const currentPeriodEnd = new Date(subscription.currentPeriodEnd);
+              if (currentPeriodEnd < now) {
+                const nextStatus = subscription.autoRenew ? 'past_due' : 'expired';
+                await (saasPrisma as any).subscription.update({
+                  where: { schoolId: token.schoolId as string },
+                  data: { status: nextStatus },
+                });
+                subscription.status = nextStatus;
+              }
+            }
+
             token.subscriptionStatus = subscription.status;
             token.trialEndsAt = subscription.trialEndsAt;
             token.plan = subscription.plan;

@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const subscriptionsToSuspend = await p.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['active', 'past_due'] },
         currentPeriodEnd: {
           lt: sevenDaysAgo,
         },

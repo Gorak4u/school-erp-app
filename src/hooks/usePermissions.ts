@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { hasPermission, DEFAULT_ROLE_PERMISSIONS, type Permission } from '@/lib/permissions';
+import { hasPermission, DEFAULT_ROLE_PERMISSIONS, isAdminLikeAccess, type Permission } from '@/lib/permissions';
 
 interface UsePermissionsReturn {
   permissions: Permission[];
@@ -28,7 +28,11 @@ export function usePermissions(): UsePermissionsReturn {
     [];
 
   const userIsSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
-  const isAdmin = userRole === 'admin' || userIsSuperAdmin;
+  const isAdmin = isAdminLikeAccess({
+    role: userRole,
+    isSuperAdmin: userIsSuperAdmin,
+    permissions: userPermissions,
+  });
   const isTeacher = userRole === 'teacher';
   const isStudent = userRole === 'student';
   const isParent = userRole === 'parent';

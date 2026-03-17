@@ -1,134 +1,197 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { sendPaymentConfirmationEmail } from '@/lib/payment-confirmation-email';
+
+async function getSaasPaymentConfig() {
+  const p = saasPrisma as any;
+  const settings = await p.saasSetting.findMany({
+    where: { group: 'saas_payment' },
+  });
+  const config: Record<string, string> = {};
+  for (const setting of settings) {
+    config[setting.key] = setting.value;
+  }
+  return config;
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { schoolId, paymentId, orderId, signature } = body;
+    const { schoolId, paymentId, orderId, signature, billingCycle: billingCycleFromBody } = body;
 
-    if (!schoolId || !paymentId) {
+    if (!paymentId || !orderId || !signature) {
       return NextResponse.json(
-        { error: 'Missing required fields: schoolId, paymentId' },
+        { error: 'Missing required fields: orderId, paymentId, signature' },
         { status: 400 }
       );
     }
 
-    // Verify Razorpay payment signature
-    if (orderId && paymentId && signature) {
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (keySecret) {
-        const expectedSignature = crypto
-          .createHmac('sha256', keySecret)
-          .update(orderId + '|' + paymentId)
-          .digest('hex');
-        if (signature !== expectedSignature) {
-          return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
-        }
-      }
+    const paymentConfig = await getSaasPaymentConfig();
+    const keyId = paymentConfig.razorpay_key_id || process.env.RAZORPAY_KEY_ID;
+    const keySecret = paymentConfig.razorpay_key_secret || process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return NextResponse.json({ error: 'Razorpay is not configured' }, { status: 500 });
     }
 
-    // Update subscription and user in transaction
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(orderId + '|' + paymentId)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
+    }
+
+    const paymentRecord = await (saasPrisma as any).subscriptionPayment.findFirst({
+      where: { orderId },
+      include: {
+        subscription: {
+          include: {
+            school: true,
+          },
+        },
+      },
+    });
+
+    if (!paymentRecord?.subscription) {
+      return NextResponse.json({ error: 'Payment order not found' }, { status: 404 });
+    }
+
+    if (schoolId && schoolId !== paymentRecord.subscription.schoolId) {
+      return NextResponse.json({ error: 'Payment does not belong to this school' }, { status: 400 });
+    }
+
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
+    let orderDetails: any = null;
+    try {
+      orderDetails = await razorpay.orders.fetch(orderId);
+    } catch (orderError) {
+      console.error('Failed to fetch Razorpay order details:', orderError);
+    }
+
+    const resolvedPlanName = orderDetails?.notes?.plan || paymentRecord.subscription.plan;
+    const resolvedBillingCycle = (orderDetails?.notes?.billingCycle || billingCycleFromBody || paymentRecord.subscription.billingCycle || 'monthly') as 'monthly' | 'yearly';
+    const selectedPlan = await (saasPrisma as any).plan.findUnique({
+      where: { name: resolvedPlanName },
+    });
+
+    if (!selectedPlan) {
+      return NextResponse.json({ error: 'Plan not found for this payment' }, { status: 400 });
+    }
+
+    const recurringPrice = resolvedBillingCycle === 'yearly'
+      ? Number(selectedPlan.priceYearly || 0)
+      : Number(selectedPlan.priceMonthly || 0);
+    const daysToAdd = resolvedBillingCycle === 'yearly' ? 365 : 30;
+
     const result = await (saasPrisma as any).$transaction(async (tx: any) => {
-      // 1. Find school and subscription
-      const school = await tx.school.findUnique({
-        where: { id: schoolId },
-        include: { subscription: true, User: true },
+      const subscription = await tx.subscription.findUnique({
+        where: { id: paymentRecord.subscriptionId },
+        include: { school: true },
       });
 
-      if (!school || !school.subscription) {
-        throw new Error('School or subscription not found');
+      if (!subscription) {
+        throw new Error('Subscription not found');
       }
 
-      // 2. Update subscription to active
       const now = new Date();
-      // Use billingCycle from the outer body (already parsed at top)
-      const billingCycle = body.billingCycle || 'monthly';
-      const daysToAdd = billingCycle === 'yearly' ? 365 : 30;
+      const hasActivePeriod = !!(subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > now);
+      const periodStart = hasActivePeriod ? new Date(subscription.currentPeriodEnd) : now;
+      const periodEnd = new Date(periodStart.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
-      // Calculate new period end date
-      let newPeriodEnd: Date;
-      
-      if (school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now) {
-        // If current period hasn't ended, add remaining days to new period
-        const currentEnd = new Date(school.subscription.currentPeriodEnd);
-        const remainingDays = Math.ceil((currentEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        
-        // New period starts when current period ends, plus the new duration
-        newPeriodEnd = new Date(currentEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-        
-        console.log(`Early renewal: ${remainingDays} days remaining + ${daysToAdd} new days = ${Math.ceil((newPeriodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))} total days`);
-      } else {
-        // If current period has ended or doesn't exist, start from now
-        newPeriodEnd = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-        
-        console.log(`Normal renewal: ${daysToAdd} days from now`);
-      }
-
-      const subscription = await tx.subscription.update({
-        where: { id: school.subscription.id },
+      const updatedSubscription = await tx.subscription.update({
+        where: { id: subscription.id },
         data: {
           status: 'active',
-          currentPeriodStart: school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now 
-            ? new Date(school.subscription.currentPeriodEnd) // Start after current period
-            : now, // Start now if no current period or expired
-          currentPeriodEnd: newPeriodEnd,
+          plan: selectedPlan.name,
+          billingCycle: resolvedBillingCycle,
+          price: recurringPrice,
+          maxStudents: selectedPlan.maxStudents,
+          maxTeachers: selectedPlan.maxTeachers,
+          features: selectedPlan.features || subscription.features,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
           razorpayPaymentId: paymentId,
           razorpayOrderId: orderId,
+          cancelledAt: null,
         },
       });
 
-      // 3. Update subscription payment record
       await tx.subscriptionPayment.updateMany({
-        where: { orderId: orderId },
+        where: { orderId },
         data: {
-          paymentId: paymentId,
+          paymentId,
           status: 'completed',
-          paymentDate: new Date().toISOString().split('T')[0],
+          paymentDate: now.toISOString().split('T')[0],
         },
       });
 
-      // 4. Activate all users for this school (need to use schoolPrisma since school_User is in school schema)
-      await (schoolPrisma as any).school_User.updateMany({
-        where: { schoolId: school.id },
-        data: { isActive: true },
+      const latestPendingInvoice = await tx.invoice.findFirst({
+        where: {
+          subscriptionId: subscription.id,
+          status: 'pending',
+        },
+        orderBy: { createdAt: 'desc' },
       });
 
-      return { school, subscription, wasEarlyRenewal: school.subscription.currentPeriodEnd && new Date(school.subscription.currentPeriodEnd) > now };
+      if (latestPendingInvoice) {
+        await tx.invoice.update({
+          where: { id: latestPendingInvoice.id },
+          data: {
+            status: 'paid',
+            paymentMethod: 'razorpay',
+            transactionId: paymentId,
+            paidAt: now,
+          },
+        });
+      }
+
+      return {
+        school: subscription.school,
+        subscription: updatedSubscription,
+        wasEarlyRenewal: hasActivePeriod,
+      };
     });
 
-    // 5. Send payment confirmation email (non-blocking)
-    // Get payment details from SubscriptionPayment
-    const p = saasPrisma as any;
-    const paymentRecord = await p.subscriptionPayment.findFirst({
-      where: { orderId: orderId },
+    await (schoolPrisma as any).school_User.updateMany({
+      where: { schoolId: paymentRecord.subscription.schoolId },
+      data: { isActive: true },
     });
 
-    if (paymentRecord && result.school.User && result.school.User.length > 0) {
-      const adminUser = result.school.User.find((u: any) => u.role === 'admin') || result.school.User[0];
-      const billingCycle: 'monthly' | 'yearly' = body.billingCycle || 'monthly';
-      
+    const adminUser = await (schoolPrisma as any).school_User.findFirst({
+      where: { schoolId: paymentRecord.subscription.schoolId, role: 'admin' },
+    });
+
+    if (adminUser && result.school) {
       sendPaymentConfirmationEmail(
         adminUser,
         result.school,
         result.subscription,
         paymentRecord.amount,
-        billingCycle
-      ).catch(error => {
+        resolvedBillingCycle
+      ).catch((error) => {
         console.error('Payment confirmation email failed:', error);
       });
     }
 
     return NextResponse.json({
       success: true,
-      message: result.wasEarlyRenewal 
+      message: result.wasEarlyRenewal
         ? 'Payment verified! Your remaining days have been added to your new subscription period.'
         : 'Payment verified and account activated',
       subscription: {
         status: result.subscription.status,
         currentPeriodEnd: result.subscription.currentPeriodEnd,
         wasEarlyRenewal: result.wasEarlyRenewal,
+        plan: result.subscription.plan,
+        billingCycle: result.subscription.billingCycle,
       },
     });
   } catch (error: any) {

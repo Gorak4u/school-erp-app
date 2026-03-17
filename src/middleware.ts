@@ -34,6 +34,7 @@ const roleBasedRoutes: Record<string, string[]> = {
 
 // Routes that require specific permissions (used when user has a custom role)
 const permissionBasedRoutes: Record<string, string> = {
+  '/dashboard': 'view_dashboard',
   '/students': 'view_students',
   '/teachers': 'view_teachers',
   '/attendance': 'view_attendance',
@@ -41,6 +42,8 @@ const permissionBasedRoutes: Record<string, string> = {
   '/fee-collection': 'manage_fees', // SECURITY: Fee collection requires manage_fees, not just view_fees
   '/reports': 'view_reports',
   '/settings': 'view_settings',
+  '/expenses': 'view_expenses',
+  '/subscription': 'manage_settings',
 };
 
 let superAdminChecked = false;
@@ -168,19 +171,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Block cancelled subscriptions
-  if (effectiveStatus === 'cancelled') {
+  // Block fully inactive subscriptions
+  if (['cancelled', 'expired', 'suspended'].includes(effectiveStatus || '')) {
     if (pathname.startsWith('/api/')) return NextResponse.next();
     return NextResponse.redirect(new URL('/subscription-required', request.url));
   }
 
-  // Handle pending_payment (both expired trial and incomplete paid plan)
-  if (effectiveStatus === 'pending_payment') {
+  // Handle pending payment states (expired trial, failed renewal, incomplete paid setup)
+  if (effectiveStatus === 'pending_payment' || effectiveStatus === 'past_due') {
     // Allow API routes for payment processing
     if (pathname.startsWith('/api/')) return NextResponse.next();
 
     // Allow billing, pricing, and subscription pages
-    const allowedRoutes = ['/settings', '/subscription-required', '/profile', '/billing', '/pricing'];
+    const allowedRoutes = ['/settings', '/subscription-required', '/profile', '/billing', '/pricing', '/subscription'];
     const isAllowed = allowedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
 
     if (!isAllowed) {
@@ -203,7 +206,11 @@ export async function middleware(request: NextRequest) {
     // If user has a custom role, check permissions instead of built-in role
     if (userCustomRoleId) {
       const requiredPermission = permissionBasedRoutes[route];
-      if (requiredPermission && !userPermissions.includes(requiredPermission)) {
+      if (requiredPermission) {
+        if (!userPermissions.includes(requiredPermission)) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+      } else if (!requiredRoles.includes(userRole)) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     } else {

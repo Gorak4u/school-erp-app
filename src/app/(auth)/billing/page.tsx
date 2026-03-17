@@ -229,10 +229,11 @@ export default function BillingPage() {
     );
   }
 
-  const isPendingPayment = subscription?.status === 'pending_payment';
+  const isPendingPayment = subscription?.status === 'pending_payment' || subscription?.status === 'past_due';
   const isTrial = subscription?.status === 'trial';
-  const isExpired = subscription?.status === 'expired';
+  const isExpired = ['expired', 'suspended', 'cancelled'].includes(subscription?.status);
   const isActive = subscription?.status === 'active';
+  const isPastDue = subscription?.status === 'past_due';
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -289,7 +290,7 @@ export default function BillingPage() {
                   </span>
                   {isPendingPayment && (
                     <span className="px-2 py-1 bg-yellow-500 text-white text-xs rounded-full">
-                      Pending Payment
+                      {isPastDue ? 'Past Due' : 'Pending Payment'}
                     </span>
                   )}
                   {isTrial && (
@@ -325,13 +326,13 @@ export default function BillingPage() {
               {(isPendingPayment || isExpired) && (
                 <div className="text-right">
                   <p className="text-red-500 font-medium mb-2">
-                    {isPendingPayment ? 'Payment Required' : 'Trial Expired'}
+                    {isPendingPayment ? 'Payment Required' : 'Subscription Inactive'}
                   </p>
                   <button 
                     onClick={() => handleUpgrade(subscription?.plan)}
                     className={btnPrimary}
                   >
-                    {isPendingPayment ? 'Complete Payment' : 'Upgrade Now'}
+                    {isPendingPayment ? 'Complete Payment' : 'Choose a Plan'}
                   </button>
                 </div>
               )}
@@ -356,7 +357,9 @@ export default function BillingPage() {
               <div>
                 <h3 className="font-medium">Payment Required</h3>
                 <p className="text-sm mt-1">
-                  Your subscription payment is pending. Complete the payment to activate your account and unlock all features.
+                  {isPastDue
+                    ? 'Your renewal payment is overdue. Complete the payment to restore active access and avoid suspension.'
+                    : 'Your subscription payment is pending. Complete the payment to activate your account and unlock all features.'}
                 </p>
                 <div className="mt-3">
                   <button 
@@ -386,9 +389,9 @@ export default function BillingPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-medium">Trial Period Expired</h3>
+                <h3 className="font-medium">Subscription Inactive</h3>
                 <p className="text-sm mt-1">
-                  Your free trial has ended. Upgrade to a paid plan to continue using all features. Your data is safely preserved.
+                  Your subscription has expired, been suspended, or been cancelled. Choose a plan to restore access. Your data is safely preserved.
                 </p>
                 <div className="mt-3">
                   <button 

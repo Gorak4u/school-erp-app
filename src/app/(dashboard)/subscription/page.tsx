@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface SubscriptionData {
   plan: string;
@@ -46,6 +47,8 @@ interface PlanFromDB {
 export default function SubscriptionPage() {
   const { data: session } = useSession();
   const { theme } = useTheme();
+  const { isAdmin, hasPermission } = usePermissions();
+  const canManageSubscription = isAdmin || hasPermission('manage_settings');
   
   // Move ALL hooks to the top before any conditional logic
   const [loading, setLoading] = useState(true);
@@ -82,12 +85,11 @@ export default function SubscriptionPage() {
   };
 
   useEffect(() => {
-    // Only fetch data if user is admin
-    if (session?.user?.role === 'admin') {
+    if (session && canManageSubscription) {
       fetchSubscriptionData();
       fetchPlans();
     }
-  }, [session]);
+  }, [session, canManageSubscription]);
 
   const handleToggleAutoRenew = async () => {
     if (!subscription) return;
@@ -234,19 +236,12 @@ export default function SubscriptionPage() {
   const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
   const btnSecondary = 'w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
 
-  // Admin and Super Admin access check
-  const userRole = session?.user?.role;
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin;
-  
-  // isSuperAdmin is set in JWT from server-side env check; process.env is not available client-side
-  const isEffectivelySuperAdmin = !!isSuperAdmin;
-  
-  if (!session || (userRole !== 'admin' && !isEffectivelySuperAdmin)) {
+  if (!session || !canManageSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-gray-400">Only administrators can access subscription management.</p>
+          <p className="text-gray-400">You do not have permission to access subscription management.</p>
         </div>
       </div>
     );
@@ -259,6 +254,8 @@ export default function SubscriptionPage() {
       case 'expired': return 'text-red-400 bg-red-400/20';
       case 'cancelled': return 'text-gray-400 bg-gray-400/20';
       case 'pending_payment': return 'text-yellow-400 bg-yellow-400/20';
+      case 'past_due': return 'text-orange-400 bg-orange-400/20';
+      case 'suspended': return 'text-red-400 bg-red-400/20';
       default: return 'text-gray-400 bg-gray-400/20';
     }
   };
@@ -270,6 +267,8 @@ export default function SubscriptionPage() {
       case 'expired': return 'Expired';
       case 'cancelled': return 'Cancelled';
       case 'pending_payment': return 'Payment Pending';
+      case 'past_due': return 'Past Due';
+      case 'suspended': return 'Suspended';
       default: return 'Unknown';
     }
   };

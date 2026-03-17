@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions as any) as any;
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -104,11 +105,12 @@ export async function GET() {
       }
     }
     
-    const isTrialExpired = isTrial && trialEndsAt && trialEndsAt < now;
+    const isTrialExpired = !!(isTrial && trialEndsAt && trialEndsAt < now);
     const periodEnd = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
-    const isPeriodExpired = periodEnd && periodEnd < now && sub.status !== 'trial';
-    const isExpired = isTrialExpired || isPeriodExpired || sub.status === 'expired' || sub.status === 'cancelled';
-    const isActive = !isExpired;
+    const isPeriodExpired = !!(periodEnd && periodEnd < now && sub.status !== 'trial');
+    const isStatusBlocking = ['expired', 'cancelled', 'suspended', 'past_due', 'pending_payment'].includes(sub.status);
+    const isExpired = isTrialExpired || isPeriodExpired || isStatusBlocking;
+    const isActive = !isExpired && (sub.status === 'active' || sub.status === 'trial');
 
     // Calculate subscription dates for users who upgraded during trial
     let subscriptionStartDate = now;

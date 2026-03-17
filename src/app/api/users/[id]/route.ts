@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { BASE_ROLE_OPTIONS, canManageUsersAccess } from '@/lib/permissions';
 import bcrypt from 'bcryptjs';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,7 +10,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageUsersAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can update users' }, { status: 403 });
     }
 
@@ -20,11 +21,25 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!existing) return NextResponse.json({ error: 'school_User not found' }, { status: 404 });
 
     const body = await request.json();
-    const { password, customRoleId, ...rest } = body;
+    const { password, customRoleId, role, ...rest } = body;
 
-    const updateData: any = { ...rest };
+    const allowedBaseRoles = new Set(BASE_ROLE_OPTIONS.map((option) => option.value));
+    const updateData: any = {
+      ...rest,
+      ...(role && allowedBaseRoles.has(role) ? { role } : {}),
+    };
     if (password) updateData.password = await bcrypt.hash(password, 10);
-    if (customRoleId !== undefined) updateData.customRoleId = customRoleId || null;
+    if (customRoleId !== undefined) {
+      if (customRoleId) {
+        const customRole = await (schoolPrisma as any).CustomRole.findFirst({
+          where: { id: customRoleId, ...tenantWhere(ctx) },
+        });
+        if (!customRole) {
+          return NextResponse.json({ error: 'Invalid custom role' }, { status: 400 });
+        }
+      }
+      updateData.customRoleId = customRoleId || null;
+    }
 
     const user = await (schoolPrisma as any).school_User.update({
       where: { id },
@@ -36,7 +51,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user: {
+        ...user,
+        customRole: user.CustomRole || null,
+      }
+    });
   } catch (err: any) {
     console.error('PUT /api/users/[id]:', err);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
@@ -48,7 +68,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageUsersAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 });
     }
 

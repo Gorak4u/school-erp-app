@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
+import { canLockStudentsAccess } from '@/lib/permissions';
 import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 
 /**
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canLockStudentsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can lock/unlock students' }, { status: 403 });
     }
 

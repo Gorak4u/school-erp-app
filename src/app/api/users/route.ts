@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { BASE_ROLE_OPTIONS, canManageUsersAccess } from '@/lib/permissions';
 import bcrypt from 'bcryptjs';
 import { sendSchoolEmail } from '@/lib/email';
 import { generateWelcomeEmail } from '@/lib/email-templates';
@@ -11,7 +12,7 @@ export async function GET() {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageUsersAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -35,7 +36,10 @@ export async function GET() {
     const filteredUsers = users.filter(user => {
       const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
       return !superAdminEmails.includes(user.email.toLowerCase());
-    });
+    }).map((user: any) => ({
+      ...user,
+      customRole: user.CustomRole || null,
+    }));
 
     return NextResponse.json({ users: filteredUsers });
   } catch (err: any) {
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
       email: ctx.email
     });
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageUsersAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can create users' }, { status: 403 });
     }
 
@@ -91,7 +95,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
-    let finalRole = role || 'teacher';
+    const allowedBaseRoles = new Set(BASE_ROLE_OPTIONS.map((option) => option.value));
+    const finalRole = allowedBaseRoles.has(role) ? role : 'teacher';
     
     // If customRoleId is provided, validate it exists and belongs to the school
     if (customRoleId) {
@@ -110,7 +115,6 @@ export async function POST(request: NextRequest) {
         }
         
         console.log('POST /api/users - Custom role validated:', customRole.name);
-        finalRole = customRole.name; // Assign custom role name as role
       } catch (roleErr: any) {
         console.error('POST /api/users - Error validating custom role:', roleErr);
         return NextResponse.json({ error: 'Failed to validate custom role' }, { status: 500 });
@@ -215,7 +219,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json({
+      user: {
+        ...user,
+        customRole: user.CustomRole || null,
+      }
+    }, { status: 201 });
   } catch (err: any) {
     console.error('POST /api/users - Detailed error:', {
       message: err.message,

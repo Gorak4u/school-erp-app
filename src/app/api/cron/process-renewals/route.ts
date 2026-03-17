@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const subscriptionsToRenew = await p.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['active', 'past_due'] },
         autoRenew: true,
         currentPeriodEnd: {
           lte: threeDaysFromNow,
@@ -104,6 +104,23 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        const existingPendingPayment = await p.subscriptionPayment.findFirst({
+          where: {
+            subscriptionId: sub.id,
+            status: 'pending',
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (existingPendingPayment) {
+          results.details.push({
+            schoolId: sub.schoolId,
+            status: 'skipped',
+            reason: 'Pending renewal payment already exists',
+          });
+          continue;
+        }
+
         // Ideally, we would charge the customer's saved payment method here using Razorpay Tokens/Mandates
         // Since we don't have stored mandates in the current schema, we will generate an invoice
         // and send an email for them to complete the payment manually if auto-charge isn't possible
@@ -150,6 +167,13 @@ export async function POST(req: NextRequest) {
             receiptNumber: order.receipt || `ren_${order.id.slice(0, 20)}`,
           },
         });
+
+        if (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) < now && sub.status !== 'past_due') {
+          await p.subscription.update({
+            where: { id: sub.id },
+            data: { status: 'past_due' },
+          });
+        }
 
         // Get the school admin email to send the invoice
         const schoolAdmin = await (saasPrisma as any).$queryRaw`

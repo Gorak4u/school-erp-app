@@ -75,6 +75,7 @@ export const ALL_PERMISSIONS = {
 } as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
+export type BaseRole = 'admin' | 'teacher' | 'parent' | 'student';
 
 // Human-readable labels for the UI
 export const PERMISSION_LABELS: Record<string, string> = {
@@ -218,6 +219,83 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
   ],
 };
 
+export const BASE_ROLE_OPTIONS: Array<{ value: BaseRole; label: string }> = [
+  { value: 'admin', label: 'School Admin' },
+  { value: 'teacher', label: 'Teacher / Staff' },
+  { value: 'parent', label: 'Parent' },
+  { value: 'student', label: 'Student' },
+];
+
+export const PREDEFINED_ROLE_TEMPLATES: Array<{
+  name: string;
+  description: string;
+  baseRole: BaseRole;
+  permissions: Permission[];
+  isDefault?: boolean;
+}> = [
+  {
+    name: 'School Admin',
+    description: 'Full school-level access across settings, users, academics, fees, reports, and operations.',
+    baseRole: 'admin',
+    permissions: [...DEFAULT_ROLE_PERMISSIONS.admin],
+    isDefault: true,
+  },
+  {
+    name: 'Teacher',
+    description: 'Teaching staff access with view-oriented academic permissions and attendance management.',
+    baseRole: 'teacher',
+    permissions: [...DEFAULT_ROLE_PERMISSIONS.teacher],
+    isDefault: true,
+  },
+  {
+    name: 'Accountant',
+    description: 'Finance-focused access for fee management, expense processing, and report visibility.',
+    baseRole: 'admin',
+    permissions: [
+      ALL_PERMISSIONS.VIEW_DASHBOARD,
+      ALL_PERMISSIONS.VIEW_STUDENTS,
+      ALL_PERMISSIONS.VIEW_FEES,
+      ALL_PERMISSIONS.MANAGE_FEES,
+      ALL_PERMISSIONS.VIEW_REPORTS,
+      ALL_PERMISSIONS.VIEW_EXPENSES,
+      ALL_PERMISSIONS.CREATE_EXPENSES,
+      ALL_PERMISSIONS.EDIT_EXPENSES,
+      ALL_PERMISSIONS.APPROVE_EXPENSES,
+      ALL_PERMISSIONS.PAY_EXPENSES,
+      ALL_PERMISSIONS.MANAGE_EXPENSE_CATEGORIES,
+      ALL_PERMISSIONS.MANAGE_BUDGETS,
+      ALL_PERMISSIONS.VIEW_EXPENSE_REPORTS,
+      ALL_PERMISSIONS.VIEW_ANNOUNCEMENTS,
+    ],
+  },
+  {
+    name: 'Receptionist',
+    description: 'Front-desk access for admissions support, student records, and basic communication visibility.',
+    baseRole: 'teacher',
+    permissions: [
+      ALL_PERMISSIONS.VIEW_DASHBOARD,
+      ALL_PERMISSIONS.VIEW_STUDENTS,
+      ALL_PERMISSIONS.CREATE_STUDENTS,
+      ALL_PERMISSIONS.EDIT_STUDENTS,
+      ALL_PERMISSIONS.VIEW_FEES,
+      ALL_PERMISSIONS.VIEW_TEACHERS,
+      ALL_PERMISSIONS.VIEW_ANNOUNCEMENTS,
+    ],
+  },
+  {
+    name: 'Parent',
+    description: 'Parent access to student progress, fees, attendance, and school announcements.',
+    baseRole: 'parent',
+    permissions: [...DEFAULT_ROLE_PERMISSIONS.parent],
+  },
+  {
+    name: 'Student',
+    description: 'Student access to dashboard, attendance, exams, reports, and school announcements.',
+    baseRole: 'student',
+    permissions: [...DEFAULT_ROLE_PERMISSIONS.student],
+  },
+];
+
 /**
  * Resolves the effective permissions for a user.
  * If user has a custom role, uses that. Otherwise falls back to built-in role defaults.
@@ -241,4 +319,91 @@ export function resolvePermissions(
  */
 export function hasPermission(permissions: Permission[], permission: Permission): boolean {
   return permissions.includes(permission);
+}
+
+export function hasPermissionByName(
+  permissions: readonly string[] | null | undefined,
+  permission: string
+): boolean {
+  return !!permissions?.includes(permission);
+}
+
+export function hasAnyPermissionByName(
+  permissions: readonly string[] | null | undefined,
+  requiredPermissions: readonly string[]
+): boolean {
+  return requiredPermissions.some((permission) => hasPermissionByName(permissions, permission));
+}
+
+export function isAdminLikeAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin || input.role === 'admin' || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_SETTINGS);
+}
+
+export function canManageSettingsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin || input.role === 'admin' || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_SETTINGS);
+}
+
+export function canManageUsersAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.MANAGE_USERS, ALL_PERMISSIONS.MANAGE_SETTINGS]);
+}
+
+export function canManageRolesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canManageUsersAccess(input);
+}
+
+export function canManageSubscriptionAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.MANAGE_SETTINGS, ALL_PERMISSIONS.MANAGE_USERS]);
+}
+
+export function canPromoteStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.PROMOTE_STUDENTS);
+}
+
+export function canLockStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canPromoteStudentsAccess(input)
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.EDIT_STUDENTS, ALL_PERMISSIONS.MANAGE_SETTINGS]);
+}
+
+export function canApproveDiscountsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_FEES);
 }

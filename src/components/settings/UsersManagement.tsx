@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { BASE_ROLE_OPTIONS } from '@/lib/permissions';
 import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
 interface CustomRole { id: string; name: string; description?: string; }
@@ -68,11 +69,9 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
     fetch('/api/roles').then(r => r.json()).then(rData => {
       const roles = rData.roles || [];
       setCustomRoles(roles);
-      // Default to first custom role if available, otherwise teacher
-      const defaultCustomRoleId = roles.length > 0 ? roles[0].id : '';
       setForm({
         email: '', firstName: '', lastName: '',
-        role: 'teacher', customRoleId: defaultCustomRoleId, password: '', isActive: true,
+        role: 'teacher', customRoleId: '', password: '', isActive: true,
       });
       setShowForm(true);
     }).catch(err => {
@@ -431,11 +430,57 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                 
                 <div>
                   <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Role Assignment <span className="text-red-500">*</span>
+                    Base Access Level <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.role}
+                    onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    {BASE_ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Custom Role Permissions
                   </label>
                   {customRoles.length > 0 ? (
                     <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="space-y-3">
+                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          !form.customRoleId
+                            ? isDark
+                              ? 'border-blue-500 bg-blue-600/20'
+                              : 'border-blue-500 bg-blue-50'
+                            : isDark
+                              ? 'border-gray-600 hover:bg-gray-700/50'
+                              : 'border-gray-300 hover:bg-gray-50'
+                        }`}>
+                          <input
+                            type="radio"
+                            name="customRole"
+                            checked={!form.customRoleId}
+                            onChange={() => setForm(f => ({ ...f, customRoleId: '' }))}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              Use Base Role Only
+                            </div>
+                            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              No custom permission overrides. User will use the selected base role defaults.
+                            </div>
+                          </div>
+                        </label>
                         {customRoles.map((role, index) => (
                           <label key={role.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                             form.customRoleId === role.id
@@ -448,9 +493,9 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                           }`}>
                             <input
                               type="radio"
-                              name="role"
+                              name="customRole"
                               checked={form.customRoleId === role.id}
-                              onChange={() => setForm(f => ({ ...f, customRoleId: role.id, role: 'teacher' }))}
+                              onChange={() => setForm(f => ({ ...f, customRoleId: role.id }))}
                               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                             />
                             <div className="flex-1">
@@ -478,7 +523,7 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                           No Custom Roles Available
                         </p>
                         <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
-                          Create custom roles in the Roles tab first
+                          Create custom roles in the Roles tab first, or continue with the base role only.
                         </p>
                       </div>
                     </div>
