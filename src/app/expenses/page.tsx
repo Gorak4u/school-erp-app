@@ -103,7 +103,19 @@ export default function ExpensesPage() {
   const fetchAcademicYears = useCallback(async () => {
     try {
       const res = await fetch('/api/school-structure/academic-years');
-      if (res.ok) setAcademicYears((await res.json()).academicYears || []);
+      if (res.ok) {
+        const data = (await res.json()).academicYears || [];
+        setAcademicYears(data);
+        
+        // Auto-select active academic year if available
+        const activeYear = data.find((ay: any) => ay.isActive);
+        if (activeYear) {
+          setSelectedAY(activeYear.year);
+        } else if (data.length > 0) {
+          // Fallback to first available year if no active year found
+          setSelectedAY(data[0].year);
+        }
+      }
     } catch {}
   }, []);
 
