@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
+import { sendSchoolEmail } from '@/lib/email';
 import { sendTeacherWelcomeEmail } from '@/lib/teacher-welcome-email';
 import { sendTeacherAdminNotificationEmail } from '@/lib/teacher-admin-notification-email';
+import { generateEmployeeId, isValidEmployeeIdFormat } from '@/lib/employeeIdGenerator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,11 +82,29 @@ export async function POST(request: NextRequest) {
     if (limitError) return limitError;
 
     const body = await request.json();
-    const { email, password, firstName, lastName, phone, ...teacherData } = body;
+    const { email, password, firstName, lastName, phone, employeeId: providedEmployeeId, ...teacherData } = body;
 
     // Validate required fields
     if (!firstName || !lastName) {
       return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 });
+    }
+
+    // Auto-generate or validate Employee ID
+    let employeeId = providedEmployeeId;
+    if (!employeeId) {
+      // Auto-generate Employee ID in TCH0001 format
+      employeeId = await generateEmployeeId(ctx.schoolId!);
+      console.log(`✅ Auto-generated Employee ID: ${employeeId}`);
+    } else if (!isValidEmployeeIdFormat(employeeId)) {
+      return NextResponse.json({ error: 'Invalid Employee ID format. Use TCH#### (e.g., TCH0001)' }, { status: 400 });
+    } else {
+      // Check if Employee ID already exists in this school
+      const existingTeacher = await (schoolPrisma as any).teacher.findFirst({
+        where: { employeeId, schoolId: ctx.schoolId }
+      });
+      if (existingTeacher) {
+        return NextResponse.json({ error: 'This Employee ID already exists in your school' }, { status: 409 });
+      }
     }
 
     // Email is optional for teacher record but required for user account
@@ -133,6 +153,7 @@ export async function POST(request: NextRequest) {
           name: teacherName,
           email,
           phone: phone || null,
+          employeeId,
           schoolId: ctx.schoolId,
           ...validTeacherData,
         },
@@ -140,7 +161,7 @@ export async function POST(request: NextRequest) {
 
       let user = null;
       if (createUserAccount) {
-        // Create school_User record for login
+        // Create school_User record for login (can login with email OR employeeId)
         user = await (tx as any).school_User.create({
           data: {
             id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
