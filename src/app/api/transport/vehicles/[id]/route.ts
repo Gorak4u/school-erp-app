@@ -7,6 +7,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
     const { id } = await params;
 
     const existing = await (schoolPrisma as any).vehicle.findFirst({ where: { id, schoolId: ctx.schoolId } });
@@ -40,6 +43,9 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
     const { id } = await params;
 
     const vehicle = await (schoolPrisma as any).vehicle.findFirst({ where: { id, schoolId: ctx.schoolId } });

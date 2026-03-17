@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
 
     const { searchParams } = new URL(request.url);
     const routeId = searchParams.get('routeId');
@@ -72,6 +75,9 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
 
     const body = await request.json();
     const { studentId, routeId, pickupStop, dropStop, monthlyFee, academicYearId, generateFeeRecord } = body;
@@ -210,6 +216,9 @@ export async function PUT(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
 
     const body = await request.json();
     const { assignments, generateFeeRecords = true } = body; // assignments: [{ studentId, routeId, pickupStop, dropStop, monthlyFee }]
