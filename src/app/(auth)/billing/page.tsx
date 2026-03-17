@@ -27,6 +27,15 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+
+  // Scroll to plans section
+  const scrollToPlans = () => {
+    const plansSection = document.getElementById('plans-section');
+    if (plansSection) {
+      plansSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   // Use fixed dark theme colors to match subscription page
   const card = 'bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl';
@@ -368,10 +377,10 @@ export default function BillingPage() {
                 </p>
                 <div className="mt-3">
                   <button 
-                    onClick={() => handleUpgrade(subscription?.plan)}
+                    onClick={scrollToPlans}
                     className={btnPrimary}
                   >
-                    Upgrade Now
+                    Choose a Plan to Upgrade
                   </button>
                 </div>
               </div>
@@ -381,6 +390,7 @@ export default function BillingPage() {
 
         {/* Available Plans */}
         <motion.div
+          id="plans-section"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
@@ -398,10 +408,20 @@ export default function BillingPage() {
                 return (
                 <div 
                   key={`plan-${plan.id || plan.name}`}
-                  className={`p-4 rounded-lg border border-gray-700 ${
-                    subscription?.plan === plan.name ? 'ring-2 ring-blue-500' : ''
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
+                    selectedPlan === plan.name 
+                      ? 'border-purple-500 bg-purple-500/10' 
+                      : subscription?.plan === plan.name 
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-gray-700 hover:border-gray-600'
                   }`}
+                  onClick={() => setSelectedPlan(plan.name)}
                 >
+                  {selectedPlan === plan.name && (
+                    <div className="absolute -top-2 -right-2 px-2 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
+                      Selected
+                    </div>
+                  )}
                   <h3 className="font-bold">{plan.displayName}</h3>
                   <div className="mt-2">
                     <span className="text-2xl font-bold">₹{price.toLocaleString()}</span>
@@ -418,15 +438,29 @@ export default function BillingPage() {
                     ))}
                   </ul>
                   <button 
-                    onClick={() => handleUpgrade(plan.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedPlan === plan.name) {
+                        handleUpgrade(plan.name);
+                      } else {
+                        setSelectedPlan(plan.name);
+                      }
+                    }}
                     className={`mt-4 w-full py-2 rounded-lg font-medium transition-all ${
                       subscription?.plan === plan.name
                         ? 'bg-gray-800 text-gray-400'
-                        : btnPrimary
+                        : selectedPlan === plan.name
+                          ? btnPrimary
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                     disabled={subscription?.plan === plan.name}
                   >
-                    {subscription?.plan === plan.name ? 'Current Plan' : 'Upgrade'}
+                    {subscription?.plan === plan.name 
+                      ? 'Current Plan' 
+                      : selectedPlan === plan.name
+                        ? 'Pay Now'
+                        : 'Select Plan'
+                    }
                   </button>
                 </div>
                 );
@@ -434,6 +468,57 @@ export default function BillingPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* Payment Confirmation */}
+        {selectedPlan && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className={card}
+          >
+            <div className="p-6">
+              <h2 className={heading}>Complete Your Upgrade</h2>
+              <div className="mt-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-300">Selected Plan:</span>
+                  <span className="font-semibold text-white">
+                    {plans.find(p => p.name === selectedPlan)?.displayName}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-300">Billing Cycle:</span>
+                  <span className="text-white capitalize">{billing}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                  <span className="font-semibold text-white">Total:</span>
+                  <span className="text-xl font-bold text-white">
+                    ₹{(
+                      (billing === 'monthly' 
+                        ? plans.find(p => p.name === selectedPlan)?.priceMonthly || 0
+                        : plans.find(p => p.name === selectedPlan)?.priceYearly || 0
+                      ) * 1.18
+                    ).toLocaleString()} (incl. GST)
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-3">
+                <button 
+                  onClick={() => setSelectedPlan('')}
+                  className="px-6 py-3 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white rounded-lg font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleUpgrade(selectedPlan)}
+                  className={btnPrimary}
+                >
+                  Proceed to Payment
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Billing History */}
         <motion.div
