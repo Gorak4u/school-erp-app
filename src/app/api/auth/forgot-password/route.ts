@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
-import { sendEmail, passwordResetEmailHtml } from '@/lib/email';
+import { sendEmail, sendSchoolEmail, passwordResetEmailHtml } from '@/lib/email';
 // Note: sendEmail() uses SaaS SMTP (SaasSetting group: saas_smtp) for platform emails like password reset
 
 export const runtime = 'nodejs';
@@ -73,11 +73,24 @@ export async function POST(req: Request) {
     const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
     const userName = `${user.firstName} ${user.lastName}`.trim() || email;
 
-    const result = await sendEmail({
-      to: email,
-      subject: 'Reset your School ERP password',
-      html: passwordResetEmailHtml(resetUrl, userName),
-    });
+    // Use appropriate SMTP based on user schema
+    let result;
+    if (userSchema === 'saas') {
+      // Super admin - use SaaS SMTP
+      result = await sendEmail({
+        to: email,
+        subject: 'Reset your School ERP password',
+        html: passwordResetEmailHtml(resetUrl, userName),
+      });
+    } else {
+      // Teacher/School user - use School SMTP
+      result = await sendSchoolEmail({
+        to: email,
+        subject: 'Reset your School ERP password',
+        html: passwordResetEmailHtml(resetUrl, userName),
+        schoolId: user.schoolId,
+      });
+    }
 
     // Check if email sending failed
     if (!result.success) {

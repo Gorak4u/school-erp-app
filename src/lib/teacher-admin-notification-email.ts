@@ -1,4 +1,4 @@
-import { sendEmail } from './email';
+import { sendSchoolEmail } from './email';
 import { schoolPrisma } from './prisma';
 import { getSubdomainUrl } from './subdomain';
 
@@ -237,11 +237,12 @@ Best regards,
 The ${school.name} System
 `;
 
-    // Send email
-    const emailResult = await sendEmail({
+    // Send email using school SMTP
+    const emailResult = await sendSchoolEmail({
       to: adminEmail,
       subject,
       html: htmlContent,
+      schoolId,
     });
 
     if (emailResult.success) {
