@@ -7,9 +7,9 @@ import { sendExpenseCreatedEmail } from '@/lib/expenseEmails';
 function hasExpenseAccess(ctx: any, action = 'view') {
   if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
   const perms: string[] = ctx.permissions || [];
-  if (action === 'view') return perms.includes('expenses.view') || perms.includes('expenses.create');
-  if (action === 'create') return perms.includes('expenses.create');
-  if (action === 'approve') return perms.includes('expenses.approve');
+  if (action === 'view') return perms.includes('view_expenses') || perms.includes('create_expenses');
+  if (action === 'create') return perms.includes('create_expenses');
+  if (action === 'approve') return perms.includes('approve_expenses');
   return false;
 }
 
@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
     if (!hasExpenseAccess(ctx, 'view')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
@@ -64,45 +67,6 @@ export async function GET(request: NextRequest) {
     const expenses = await (schoolPrisma as any).expense.findMany({
       where,
       include: {
-        category: { select: { id: true, name: true, color: true, icon: true } },
-        _count: { select: { budgetItems: true } },
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        amount: true,
-        categoryId: true,
-        dateIncurred: true,
-        paymentMethod: true,
-        status: true,
-        priority: true,
-        vendorName: true,
-        vendorDetails: true,
-        tags: true,
-        receiptNumber: true,
-        remarks: true,
-        academicYear: true,
-        academicYearId: true,
-        receiptUrl: true,
-        schoolId: true,
-        requestedBy: true,
-        requestedByName: true,
-        requestedByEmail: true,
-        approvedBy: true,
-        approvedByName: true,
-        approvedAt: true,
-        approvalNote: true,
-        rejectedBy: true,
-        rejectedByName: true,
-        rejectedAt: true,
-        rejectionReason: true,
-        paidBy: true,
-        paidByName: true,
-        paidAt: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
         category: { select: { id: true, name: true, color: true, icon: true } },
         _count: { select: { budgetItems: true } },
       },

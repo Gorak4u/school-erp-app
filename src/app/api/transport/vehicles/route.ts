@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
 
     const { searchParams } = new URL(request.url);
     const isActive = searchParams.get('isActive');
@@ -33,6 +36,9 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+    }
 
     const body = await request.json();
     const { vehicleNumber, vehicleType, capacity, driverName, driverPhone, registrationNo, insuranceExpiry, fitnessExpiry } = body;

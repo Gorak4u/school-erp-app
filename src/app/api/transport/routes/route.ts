@@ -1,12 +1,15 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
-import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
+  const { ctx, error } = await getSessionContext();
+  if (error) return error;
+  if (!ctx.schoolId) {
+    return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+  }
   try {
-    const { ctx, error } = await getSessionContext();
-    if (error) return error;
 
     const { searchParams } = new URL(request.url);
     const isActive = searchParams.get('isActive');
@@ -84,9 +87,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { ctx, error } = await getSessionContext();
+  if (error) return error;
+  if (!ctx.schoolId) {
+    return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+  }
   try {
-    const { ctx, error } = await getSessionContext();
-    if (error) return error;
 
     const body = await request.json();
     const { routeNumber, routeName, description, stops, vehicleId, driverName, driverPhone, capacity, monthlyFee, academicYearId, isActive } = body;

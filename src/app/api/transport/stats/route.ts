@@ -4,12 +4,15 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
-  try {
-    const { ctx, error } = await getSessionContext();
-    if (error) return error;
+  const { ctx, error } = await getSessionContext();
+  if (error) return error;
+  if (!ctx.schoolId) {
+    return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
+  }
 
-    const { searchParams } = new URL(request.url);
-    const academicYearId = searchParams.get('academicYearId');
+  const { searchParams } = new URL(request.url);
+  const academicYearId = searchParams.get('academicYearId');
+  try {
 
     // Optimized parallel queries for stats
     const [totalRoutes, totalVehicles, totalStudents] = await Promise.all([
