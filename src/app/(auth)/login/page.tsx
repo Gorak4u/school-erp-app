@@ -54,12 +54,19 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid credentials. Please check your email and password.');
       } else if (result?.ok) {
+        // Small delay to ensure session is properly set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Check if user is super admin → redirect to /admin
         const sessionRes = await fetch('/api/auth/session');
         const session = await sessionRes.json();
+        console.log('Login session:', session); // Debug log
+        
         if (session?.user?.isSuperAdmin) {
+          console.log('Redirecting super admin to /admin');
           router.push('/admin');
         } else {
+          console.log('Redirecting regular user to /dashboard');
           router.push('/dashboard');
         }
       } else {
