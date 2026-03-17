@@ -1753,6 +1753,7 @@ export default function SettingsPage() {
     const [newFeeRows, setNewFeeRows] = useState([]);
     const [editingCell, setEditingCell] = useState(null);
     const [addingCell, setAddingCell] = useState(null);
+    const [savingFees, setSavingFees] = useState(false);
 
     const saveAddingCell = async (feeName, cls) => {
       if (!addingCell?.amount) { setAddingCell(null); return; }
@@ -1820,6 +1821,47 @@ export default function SettingsPage() {
         await fetchAll();
       } catch { showToast({ type: 'error', title: 'Update failed' }); }
       setEditingCell(null);
+    };
+
+    const bulkSaveFees = async () => {
+      if (!canManageSettings) return;
+      setSavingFees(true);
+      try {
+        const promises = [];
+        
+        // Save all new fee rows
+        for (const nr of newFeeRows as any[]) {
+          if (nr.name.trim()) {
+            const toCreate = gridClsForFee.filter(cls => parseFloat(nr.amounts[cls.id] || '0') > 0);
+            for (const cls of toCreate) {
+              promises.push(feeStructuresApi.create({
+                name: nr.name.trim(),
+                category: nr.category,
+                amount: parseFloat(nr.amounts[cls.id]),
+                frequency: nr.frequency,
+                dueDate: nr.dueDate || 1,
+                lateFee: 0,
+                applicableCategories: 'all',
+                isActive: true,
+                academicYearId: filterAY || activeAY?.id || '',
+                mediumId: cls.mediumId,
+                classId: cls.id,
+              }));
+            }
+          }
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast({ type: 'success', title: 'Fee structures saved successfully' });
+          await fetchAll();
+          setNewFeeRows([]);
+        }
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save fee structures', message: e.message });
+      } finally {
+        setSavingFees(false);
+      }
     };
     // ────────────────────────────────────────────────────────────────────────
 
@@ -2081,16 +2123,25 @@ export default function SettingsPage() {
                   </tr>
                 ))}
 
-                {/* Add fee row footer */}
+                {/* Action buttons row */}
                 <tr>
-                  <td colSpan={3 + gridClsForFee.length + 1} className={`px-2 py-1.5 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                    <button disabled={!canManageSettings}
-                      onClick={() => setNewFeeRows(prev => [...prev, { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                    >
-                      <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
-                      Add fee type
-                    </button>
+                  <td colSpan={3 + gridClsForFee.length + 1} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <button disabled={!canManageSettings}
+                        onClick={() => setNewFeeRows(prev => [...prev, { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
+                        className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                      >
+                        <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
+                        Add fee type
+                      </button>
+                      <button 
+                        className={btnPrimary} 
+                        disabled={!canManageSettings || savingFees || newFeeRows.length === 0} 
+                        onClick={bulkSaveFees}
+                      >
+                        {savingFees ? 'Saving...' : '💾 Bulk Save'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
