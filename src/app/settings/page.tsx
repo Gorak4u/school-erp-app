@@ -942,7 +942,12 @@ export default function SettingsPage() {
   );
 
   // ─── Structure Tab (Board / Medium / Class / Section) ─────────────────────
-  const StructureTab = () => (
+  const StructureTab = () => {
+    const [filterAY, setFilterAY] = useState(activeAY?.id || '');
+    const gridMediums = filterAY ? mediums.filter((m: any) => m.academicYearId === filterAY) : mediums;
+    const gridClasses = filterAY ? classes.filter((c: any) => c.academicYearId === filterAY) : classes;
+    const uniqueClassNames = ([...new Set(gridClasses.map((c: any) => c.name))] as string[]).sort();
+    return (
     <div className="space-y-6">
       {/* Boards */}
       <div className={card}>
@@ -993,29 +998,115 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Classes */}
+      {/* Classes — Excel Grid */}
       <div className={card}>
-        <div className="flex justify-between items-center mb-4">
+        {/* Header */}
+        <div className="flex flex-wrap justify-between items-center mb-5 gap-3">
           <h3 className={heading}>Classes</h3>
-          <button className={btnPrimary} disabled={!canManageSettings} onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: activeAY?.id || '', isActive: true })}>+ Add Class</button>
+          <div className="flex items-center gap-2">
+            <span className={subtext}>Academic Year:</span>
+            <select
+              className={`px-3 py-1.5 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              value={filterAY}
+              onChange={e => setFilterAY(e.target.value)}
+            >
+              <option value="">All Years</option>
+              {academicYears.map((ay: any) => (
+                <option key={ay.id} value={ay.id}>{ay.name}</option>
+              ))}
+            </select>
+            {activeAY && filterAY === activeAY.id && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-400 text-gray-900 shadow">Active AY</span>
+            )}
+          </div>
         </div>
-        {classes.length === 0 && <p className={subtext}>No classes configured.</p>}
-        <div className="space-y-2">
-          {classes.map((c: any) => (
-            <div key={c.id} className={`${row} flex items-center justify-between`}>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{c.name}</span>
-                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{c.code}</span>
-                <span className={`text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700`}>{c.level?.replace('_', ' ')}</span>
-                <span className={subtext}>{c.medium?.name || '—'}</span>
-                <span className={subtext}>{c.sections?.length || 0} sections</span>
-              </div>
-              <div className="flex gap-2">
-                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('class', c)}>Edit</button>
-                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('class', c.id, c.name)}>Delete</button>
-              </div>
-            </div>
-          ))}
+
+        {/* Grid */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className={`w-44 px-4 py-3 text-left font-semibold border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-300' : 'border-gray-300 bg-gray-100 text-gray-700'}`}>
+                  <div className="flex items-center justify-between">
+                    <span>Add Class</span>
+                    <button
+                      disabled={!canManageSettings}
+                      onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: gridMediums[0]?.id || '', academicYearId: filterAY || activeAY?.id || '', isActive: true })}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl transition-all disabled:opacity-40 shadow"
+                      title="Add new class"
+                    >+</button>
+                  </div>
+                </th>
+                {gridMediums.map((m: any) => (
+                  <th key={m.id} className={`px-3 py-3 text-center font-semibold border ${isDark ? 'border-gray-600 bg-gray-800 text-blue-400' : 'border-gray-300 bg-blue-50 text-blue-700'}`}>
+                    {m.name}
+                  </th>
+                ))}
+                {gridMediums.length === 0 && (
+                  <th className={`px-3 py-3 text-center font-medium border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-500' : 'border-gray-300 bg-gray-50 text-gray-400'}`}>
+                    No mediums — add mediums above first
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {uniqueClassNames.length === 0 ? (
+                <tr>
+                  <td colSpan={gridMediums.length + 1} className={`px-4 py-8 text-center border ${isDark ? 'border-gray-600 text-gray-500' : 'border-gray-200 text-gray-400'}`}>
+                    No classes configured. Click + to add.
+                  </td>
+                </tr>
+              ) : (
+                uniqueClassNames.map((className: string) => (
+                  <tr key={className} className={`transition-colors ${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-blue-50/30'}`}>
+                    <td className={`px-4 py-2.5 font-semibold border ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-200 bg-gray-50 text-gray-800'}`}>
+                      {className}
+                    </td>
+                    {gridMediums.map((m: any) => {
+                      const entry = gridClasses.find((c: any) => c.name === className && c.mediumId === m.id);
+                      return (
+                        <td key={m.id} className={`px-2 py-2 border text-center align-middle ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                          {entry ? (
+                            <div className={`rounded-lg p-2 ${isDark ? 'bg-blue-900/30 border border-blue-700/40' : 'bg-blue-50 border border-blue-200'}`}>
+                              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                <span className={`text-xs font-mono ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>{entry.code}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>{entry.level?.replace('_', ' ')}</span>
+                              </div>
+                              <div className="flex gap-1 justify-center">
+                                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('class', entry)}>Edit</button>
+                                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('class', entry.id, entry.name)}>Del</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              disabled={!canManageSettings}
+                              onClick={() => openCreate('class', { code: '', name: className, level: 'primary', mediumId: m.id, academicYearId: filterAY || activeAY?.id || '', isActive: true })}
+                              className={`w-8 h-8 rounded-lg border-2 border-dashed flex items-center justify-center mx-auto transition-all text-lg font-light
+                                ${isDark ? 'border-gray-600 text-gray-600 hover:border-blue-500 hover:text-blue-400' : 'border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500'}
+                                disabled:opacity-30 disabled:cursor-not-allowed`}
+                              title={`Add ${className} for ${m.name}`}
+                            >+</button>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+              <tr>
+                <td colSpan={gridMediums.length + 1} className={`px-4 py-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <button
+                    disabled={!canManageSettings}
+                    onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: filterAY || activeAY?.id || '', isActive: true })}
+                    className={`flex items-center gap-2 text-sm transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                  >
+                    <span className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500 text-white font-bold">+</span>
+                    <span>Add new class</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1050,7 +1141,8 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   // ─── Fee Structure Tab ─────────────────────────────────────────────────────
   const FeeTab = () => {

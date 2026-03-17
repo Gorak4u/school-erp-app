@@ -495,6 +495,7 @@ export function createSearchHandlers(ctx: any) {
             duration: 5000
           });
         }
+        return result.student;
       }
     } catch (err: any) {
       console.error('Failed to add student:', err);
