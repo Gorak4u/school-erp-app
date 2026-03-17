@@ -21,7 +21,7 @@ export async function sendWelcomeEmail(
       return { success: true, skipped: true, reason: 'Email notifications disabled' };
     }
     
-    // Build URLs - use subdomain if available, otherwise main domain
+    // Build URLs - use domain if available, otherwise main domain
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     let loginUrl: string;
     let dashboardUrl: string;

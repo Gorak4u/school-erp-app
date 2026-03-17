@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { schoolPrisma, saasPrisma } from '@/lib/prisma';
+import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendWelcomeEmail } from '@/lib/welcome-email';
+import { generateSubdomain, validateSubdomain } from '@/lib/subdomain';
 
 export async function POST(req: Request) {
   try {
@@ -77,6 +78,17 @@ export async function POST(req: Request) {
       slugSuffix++;
     }
 
+    // Auto-generate unique domain from school name
+    const baseDomain = generateSubdomain(schoolName);
+    let domain = baseDomain;
+    // Ensure uniqueness by appending a number if taken
+    let domainSuffix = 1;
+    while (true) {
+      const existing = await (saasPrisma as any).school.findUnique({ where: { domain } });
+      if (!existing) break;
+      domain = `${baseDomain}-${domainSuffix++}`;
+    }
+
     // Look up the plan config
     const planConfig = await (saasPrisma as any).plan.findUnique({ where: { name: plan } });
 
@@ -103,6 +115,7 @@ export async function POST(req: Request) {
         data: {
           name: schoolName,
           slug,
+          domain, // Add auto-generated domain
           email: email || adminEmail,
           phone: phone || null,
           address: address || null,
@@ -182,6 +195,7 @@ export async function POST(req: Request) {
         id: result.school.id,
         name: result.school.name,
         slug: result.school.slug,
+        domain: result.school.domain, // Include domain in response
       },
       user: {
         id: result.user.id,
