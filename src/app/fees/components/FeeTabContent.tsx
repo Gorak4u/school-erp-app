@@ -35,7 +35,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
     switch (columnKey) {
       case 'select':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <input
@@ -57,7 +57,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'studentName':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <div>
@@ -71,7 +71,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'admissionNo':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.admissionNo || 'N/A'}
@@ -80,7 +80,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'rollNo':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.rollNo || 'N/A'}
@@ -89,7 +89,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'studentClass':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.studentClass || 'N/A'}
@@ -98,7 +98,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'medium':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.medium || 'N/A'}
@@ -107,7 +107,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'parentName':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.parentName || student.fatherName || 'N/A'}
@@ -116,7 +116,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'parentPhone':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.parentPhone || 'N/A'}
@@ -125,7 +125,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'totalFees':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <div>
@@ -142,7 +142,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'totalPaid':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <span className="text-green-500 font-medium">
@@ -153,7 +153,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'totalPending':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <span className="text-yellow-500 font-medium">
@@ -164,7 +164,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'totalOverdue':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             <span className="text-red-500 font-medium">
@@ -175,7 +175,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'discount':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.totalDiscount > 0 ? (
@@ -192,7 +192,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'fineAmount':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.fineAmount > 0 ? (
@@ -209,7 +209,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'paymentStatus':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap`}>
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap`}>
             <span className={`px-2 py-1 text-xs rounded-full ${
               student.calculatedPaymentStatus === 'fully_paid'
                 ? 'bg-green-100 text-green-800'
@@ -226,7 +226,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'dueDate':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.dueDate || 'N/A'}
@@ -235,7 +235,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'lastPaymentDate':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.lastPaymentDate ? (
@@ -255,7 +255,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'paymentMode':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.paymentMode || 'N/A'}
@@ -264,7 +264,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'receiptNo':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.receiptNo || 'N/A'}
@@ -273,7 +273,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'concession':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap ${
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
             {student.concession || 'N/A'}
@@ -282,7 +282,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
       
       case 'actions':
         return (
-          <td className={`px-6 py-4 whitespace-nowrap text-center`}>
+          <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap text-center`}>
             <div className="flex gap-2 justify-center">
               {canManageFees && (
                 <button
