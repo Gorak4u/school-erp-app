@@ -47,6 +47,20 @@ export const ALL_PERMISSIONS = {
 
   // Student actions
   PROMOTE_STUDENTS: 'promote_students',
+
+  // Leave Management
+  VIEW_LEAVE_BALANCE: 'view_leave_balance',
+  APPLY_LEAVE: 'apply_leave',
+  VIEW_OWN_LEAVE_HISTORY: 'view_own_leave_history',
+  CANCEL_OWN_LEAVE: 'cancel_own_leave',
+  APPROVE_DEPARTMENT_LEAVE: 'approve_department_leave',
+  APPROVE_ALL_LEAVE: 'approve_all_leave',
+  APPROVE_LONG_LEAVE: 'approve_long_leave',
+  VIEW_DEPARTMENT_LEAVE_CALENDAR: 'view_department_leave_calendar',
+  MANAGE_LEAVE_SETTINGS: 'manage_leave_settings',
+  MANAGE_LEAVE_TYPES: 'manage_leave_types',
+  VIEW_ALL_LEAVE_REPORTS: 'view_all_leave_reports',
+  OVERRIDE_LEAVE_APPROVAL: 'override_leave_approval',
 } as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
@@ -77,6 +91,18 @@ export const PERMISSION_LABELS: Record<string, string> = {
   view_users: 'View Users',
   manage_users: 'Manage Users',
   view_announcements: 'View Announcements',
+  view_leave_balance: 'View Leave Balance',
+  apply_leave: 'Apply Leave',
+  view_own_leave_history: 'View Own Leave History',
+  cancel_own_leave: 'Cancel Own Leave',
+  approve_department_leave: 'Approve Department Leave',
+  approve_all_leave: 'Approve All Leave',
+  approve_long_leave: 'Approve Long Leave',
+  view_department_leave_calendar: 'View Department Leave Calendar',
+  manage_leave_settings: 'Manage Leave Settings',
+  manage_leave_types: 'Manage Leave Types',
+  view_all_leave_reports: 'View All Leave Reports',
+  override_leave_approval: 'Override Leave Approval',
 };
 
 // Permission groups for organized display in UI
@@ -120,6 +146,15 @@ export const PERMISSION_GROUPS = [
   {
     label: 'Communication',
     permissions: ['view_announcements'] as Permission[],
+  },
+  {
+    label: 'Leave Management',
+    permissions: [
+      'view_leave_balance', 'apply_leave', 'view_own_leave_history', 'cancel_own_leave',
+      'approve_department_leave', 'approve_all_leave', 'approve_long_leave',
+      'view_department_leave_calendar', 'manage_leave_settings', 'manage_leave_types',
+      'view_all_leave_reports', 'override_leave_approval'
+    ] as Permission[],
   },
 ];
 

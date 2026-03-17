@@ -13,11 +13,11 @@ export async function GET() {
 
   try {
     // Step 1: Fetch academic years first to find the active one
-    const academicYears = await (schoolPrisma as any).academicYear.findMany({ orderBy: { year: 'desc' } });
+    const academicYears = await schoolPrisma.academicYear.findMany({ orderBy: { year: 'desc' } });
     // Use the MOST RECENTLY CREATED active year to guard against multiple active years in DB
     const activeAcademicYear = [...academicYears]
-      .filter((a: any) => a.isActive)
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+      .filter((a) => a.isActive)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
     const activeAYId = activeAcademicYear?.id;
 
     // Step 2: Fetch other entities filtered by active academic year
@@ -30,8 +30,8 @@ export async function GET() {
       timings,
       settingsRaw,
     ] = await Promise.all([
-      (schoolPrisma as any).board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-      (schoolPrisma as any).medium.findMany({
+      schoolPrisma.board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      schoolPrisma.medium.findMany({
         where: { 
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
@@ -39,7 +39,7 @@ export async function GET() {
         orderBy: { name: 'asc' },
         include: { academicYear: true },
       }),
-      (schoolPrisma as any).class.findMany({
+      schoolPrisma.class.findMany({
         where: { 
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
@@ -47,7 +47,7 @@ export async function GET() {
         orderBy: { name: 'asc' },
         include: { medium: true, academicYear: true, sections: { where: { isActive: true }, orderBy: { name: 'asc' } } },
       }),
-      (schoolPrisma as any).section.findMany({
+      schoolPrisma.section.findMany({
         where: { 
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
@@ -55,8 +55,8 @@ export async function GET() {
         orderBy: { name: 'asc' },
         include: { class: { include: { medium: true } } },
       }),
-      (schoolPrisma as any).schoolTiming.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
-      (schoolPrisma as any).schoolSetting.findMany(),
+      schoolPrisma.schoolTiming.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
+      schoolPrisma.schoolSetting.findMany(),
     ]);
 
     // Group settings into a nested object

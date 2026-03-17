@@ -28,6 +28,11 @@ model School {
   students     Student[]
   teachers     Teacher[]
   User         school_User[]
+  leaveTypes   LeaveType[]
+  leaveSettings LeaveSettings[]
+  leaveWorkflows LeaveWorkflow[]
+  leaveBalances LeaveBalance[]
+  leaveApplications LeaveApplication[]
 
   @@index([slug])
   @@index([isActive])
@@ -121,6 +126,7 @@ model CustomRole {
   updatedAt   DateTime      @updatedAt
   school      School?       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   User        school_User[]
+  leaveWorkflows LeaveWorkflow[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -213,8 +219,8 @@ model PasswordResetToken {
 }
 
 model Student {
-  id                    String             @id @default(cuid())
-  admissionNo           String             @unique
+  id                    String                 @id @default(cuid())
+  admissionNo           String                 @unique
   name                  String
   email                 String?
   photo                 String?
@@ -223,7 +229,7 @@ model Student {
   rollNo                String
   gender                String
   dateOfBirth           String
-  status                String             @default("active")
+  status                String                 @default("active")
   phone                 String?
   address               String?
   city                  String?
@@ -277,37 +283,37 @@ model Student {
   bankAccountNumber     String?
   bankIfsc              String?
   documents             String?
-  gpa                   Float              @default(0)
-  rank                  Int                @default(0)
-  disciplineScore       Int                @default(100)
-  incidents             Int                @default(0)
-  achievements          Int                @default(0)
+  gpa                   Float                  @default(0)
+  rank                  Int                    @default(0)
+  disciplineScore       Int                    @default(100)
+  incidents             Int                    @default(0)
+  achievements          Int                    @default(0)
   remarks               String?
   admissionDate         String?
   enrollmentDate        String?
-  exitDate              String?
-  exitReason            String?
-  tcNumber              String?
-  exitRemarks           String?
-  higherEducation       String?
-  employment            String?
-  contactPreference     String?
-  socialLinks           String?
-  mentorshipAreas       String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  academicYear          String             @default("2024-25")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  academicYear          String                 @default("2024-25")
   academicYearId        String?
   schoolId              String?
+  contactPreference     String?
+  employment            String?
+  exitDate              String?
+  exitReason            String?
+  exitRemarks           String?
+  higherEducation       String?
+  mentorshipAreas       String?
+  socialLinks           String?
+  tcNumber              String?
+  assignmentSubmissions AssignmentSubmission[]
   attendanceRecords     AttendanceRecord[]
   examResults           ExamResult[]
   arrears               FeeArrears[]
   feeRecords            FeeRecord[]
-  academicYearRef       AcademicYear?      @relation("StudentAcademicYear", fields: [academicYearId], references: [id])
-  school                School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearRef       AcademicYear?          @relation("StudentAcademicYear", fields: [academicYearId], references: [id])
+  school                School?                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   promotions            StudentPromotion[]
   transportAssignments  StudentTransport[]
-  assignmentSubmissions AssignmentSubmission[]
 
   @@index([schoolId])
   @@index([class])
@@ -329,46 +335,50 @@ model Student {
 }
 
 model Teacher {
-  id                    String                  @id @default(cuid())
-  employeeId            String                  @unique
-  name                  String
-  email                 String                  @unique
-  phone                 String?
-  gender                String?
-  dateOfBirth           String?
-  subject               String?
-  qualification         String?
-  experience            Int?                    @default(0)
-  status                String                  @default("active")
-  address               String?
-  photo                 String?
-  joiningDate           String?
-  salary                Float?
-  department            String?
-  designation           String?
-  bloodGroup            String?
-  aadharNumber          String?
-  bankName              String?
-  bankAccountNo         String?
-  bankIfsc              String?
-  emergencyName         String?
-  emergencyPhone        String?
-  remarks               String?
-  isClassTeacher        Boolean                 @default(false)
-  classTeacherOf        String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  userId                String?                 @unique
-  schoolId              String?
-  attendanceRecords     AttendanceRecord[]
-  school                School?                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user                  school_User?            @relation(fields: [userId], references: [id])
-  schedules             TeacherSchedule[]
-  lessonPlans           LessonPlan[]
-  assignments           Assignment[]
-  leaveRequests         TeacherLeave[]
-  notes                 TeacherNote[]
+  id                      String                   @id @default(cuid())
+  employeeId              String                   @unique
+  name                    String
+  email                   String                   @unique
+  phone                   String?
+  gender                  String?
+  dateOfBirth             String?
+  subject                 String?
+  qualification           String?
+  experience              Int?                     @default(0)
+  status                  String                   @default("active")
+  address                 String?
+  photo                   String?
+  joiningDate             String?
+  salary                  Float?
+  department              String?
+  designation             String?
+  bloodGroup              String?
+  aadharNumber            String?
+  bankName                String?
+  bankAccountNo           String?
+  bankIfsc                String?
+  emergencyName           String?
+  emergencyPhone          String?
+  remarks                 String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  userId                  String?                  @unique
+  schoolId                String?
+  classTeacherOf          String?
+  isClassTeacher          Boolean                  @default(false)
+  assignments             Assignment[]
+  attendanceRecords       AttendanceRecord[]
   classTeacherAssignments ClassTeacherAssignment[]
+  lessonPlans             LessonPlan[]
+  school                  School?                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user                    school_User?             @relation(fields: [userId], references: [id])
+  leaveRequests           TeacherLeave[]
+  notes                   TeacherNote[]
+  schedules               TeacherSchedule[]
+  leaveBalance            LeaveBalance[]
+  leaveApplications       LeaveApplication[]
+  approvedApplications    LeaveApplication[] @relation("LeaveApprover")
+  approvalHistory         LeaveApprovalHistory[] @relation("LeaveApprovalApprover")
 
   @@index([schoolId])
   @@index([status])
@@ -511,21 +521,21 @@ model AssignmentSubmission {
 }
 
 model TeacherLeave {
-  id          String   @id @default(cuid())
-  teacherId   String
-  leaveType   String
-  fromDate    String
-  toDate      String
-  days        Float
-  reason      String?
-  status      String   @default("pending")
-  approvedBy  String?
-  approvedAt  DateTime?
-  remarks     String?
-  schoolId    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  teacherId  String
+  leaveType  String
+  fromDate   String
+  toDate     String
+  days       Float
+  reason     String?
+  status     String    @default("pending")
+  approvedBy String?
+  approvedAt DateTime?
+  remarks    String?
+  schoolId   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([teacherId])
   @@index([status])
@@ -789,6 +799,10 @@ model AcademicYear {
   mediums       Medium[]
   sections      Section[]
   students      Student[]      @relation("StudentAcademicYear")
+  leaveBalances LeaveBalance[]
+  leaveApplications LeaveApplication[]
+  leaveWorkflows LeaveWorkflow[]
+  leaveSettings LeaveSettings[]
 
   @@index([year])
   @@index([isActive])
@@ -938,7 +952,6 @@ model Session {
 model school_User {
   id           String      @id
   email        String      @unique
-  employeeId   String?     @unique
   password     String
   firstName    String
   lastName     String
@@ -949,6 +962,7 @@ model school_User {
   updatedAt    DateTime
   customRoleId String?
   schoolId     String?
+  employeeId   String?     @unique
   Account      Account[]
   Session      Session[]
   teacher      Teacher?
@@ -1155,9 +1169,9 @@ model Vehicle {
   fitnessExpiry   String?
   isActive        Boolean          @default(true)
   schoolId        String
-  routes          TransportRoute[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  routes          TransportRoute[]
 
   @@index([schoolId])
   @@index([isActive])
@@ -1178,10 +1192,10 @@ model TransportRoute {
   isActive       Boolean            @default(true)
   schoolId       String
   academicYearId String?
-  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id])
-  students       StudentTransport[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+  students       StudentTransport[]
+  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id])
 
   @@index([schoolId])
   @@index([isActive])
@@ -1202,8 +1216,8 @@ model StudentTransport {
   academicYearId String?
   isActive       Boolean        @default(true)
   assignedAt     DateTime       @default(now())
-  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
   route          TransportRoute @relation(fields: [routeId], references: [id])
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([routeId])
@@ -1227,10 +1241,10 @@ model ExpenseCategory {
   schoolId      String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+  budgets       Budget[]
+  expenses      Expense[]
   parent        ExpenseCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   subcategories ExpenseCategory[] @relation("CategoryHierarchy")
-  expenses      Expense[]
-  budgets       Budget[]
 
   @@index([schoolId])
   @@index([schoolId, isActive])
@@ -1239,43 +1253,43 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id             String          @id @default(cuid())
-  title          String
-  description    String?
-  amount         Float
-  categoryId     String
-  dateIncurred   String
-  paymentMethod  String?
-  status         String          @default("pending")
-  priority       String          @default("medium")
-  receiptUrl     String?
-  receiptNumber  String?
-  vendorName     String?
-  vendorDetails  String?
-  tags           String          @default("[]")
-  requestedBy    String
-  requestedByName String?
+  id               String            @id @default(cuid())
+  title            String
+  description      String?
+  amount           Float
+  categoryId       String
+  dateIncurred     String
+  paymentMethod    String?
+  status           String            @default("pending")
+  priority         String            @default("medium")
+  receiptUrl       String?
+  receiptNumber    String?
+  vendorName       String?
+  vendorDetails    String?
+  tags             String            @default("[]")
+  requestedBy      String
+  requestedByName  String?
   requestedByEmail String?
-  requestedAt    DateTime        @default(now())
-  approvedBy     String?
-  approvedByName String?
-  approvedAt     DateTime?
-  approvalNote   String?
-  rejectedBy     String?
-  rejectedAt     DateTime?
-  rejectionReason String?
-  paidBy         String?
-  paidAt         DateTime?
-  remarks        String?
-  academicYear   String          @default("2024-25")
-  academicYearId String?
-  schoolId       String?
-  deletedAt      DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  category       ExpenseCategory @relation(fields: [categoryId], references: [id])
-  budgetItems    BudgetItem[]
-  auditLogs      ExpenseAuditLog[]
+  requestedAt      DateTime          @default(now())
+  approvedBy       String?
+  approvedByName   String?
+  approvedAt       DateTime?
+  approvalNote     String?
+  rejectedBy       String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  paidBy           String?
+  paidAt           DateTime?
+  remarks          String?
+  academicYear     String            @default("2024-25")
+  academicYearId   String?
+  schoolId         String?
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  budgetItems      BudgetItem[]
+  category         ExpenseCategory   @relation(fields: [categoryId], references: [id])
+  auditLogs        ExpenseAuditLog[]
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -1293,24 +1307,24 @@ model Expense {
 }
 
 model Budget {
-  id              String          @id @default(cuid())
+  id              String           @id @default(cuid())
   name            String
   description     String?
   totalAmount     Float
-  spentAmount     Float           @default(0)
+  spentAmount     Float            @default(0)
   remainingAmount Float
   categoryId      String?
-  academicYear    String          @default("2024-25")
+  academicYear    String           @default("2024-25")
   academicYearId  String?
-  status          String          @default("active")
+  status          String           @default("active")
   startDate       String
   endDate         String
-  alertThreshold  Float           @default(80)
+  alertThreshold  Float            @default(80)
   createdBy       String
   createdByName   String?
   schoolId        String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   category        ExpenseCategory? @relation(fields: [categoryId], references: [id])
   items           BudgetItem[]
 
@@ -1361,21 +1375,184 @@ model ExpenseAuditLog {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String
   title     String
   message   String
-  priority  String   @default("medium")
+  priority  String    @default("medium")
   metadata  String?
   schoolId  String?
-  isRead    Boolean  @default(false)
+  isRead    Boolean   @default(false)
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([userId, isRead])
   @@index([schoolId])
   @@index([createdAt(sort: Desc)])
+  @@schema("school")
+}
+
+// Leave Management Models
+model LeaveType {
+  id                String    @id @default(cuid())
+  schoolId          String
+  name              String
+  code              String
+  maxDaysPerYear    Decimal?
+  isPaid            Boolean   @default(true)
+  requiresDocument  Boolean   @default(false)
+  accrualRate       Decimal?
+  canCarryForward   Boolean   @default(true)
+  maxCarryForwardDays Decimal?
+  description       String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  school            School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  leaveBalances     LeaveBalance[]
+  leaveApplications  LeaveApplication[]
+  leaveWorkflows    LeaveWorkflow[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId])
+  @@index([code])
+  @@schema("school")
+}
+
+model LeaveBalance {
+  id               String    @id @default(cuid())
+  staffId          String
+  leaveTypeId      String
+  academicYearId   String
+  totalAllocated   Decimal   @default(0)
+  used             Decimal   @default(0)
+  balance          Decimal   @default(0)
+  carriedForward   Decimal   @default(0)
+  lastAccrualDate  DateTime?
+  schoolId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  staff            Teacher      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  leaveType        LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  academicYear     AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  school           School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  leaveApplications LeaveApplication[]
+
+  @@unique([staffId, leaveTypeId, academicYearId])
+  @@index([staffId])
+  @@index([leaveTypeId])
+  @@index([academicYearId])
+  @@schema("school")
+}
+
+model LeaveApplication {
+  id               String    @id @default(cuid())
+  staffId          String
+  leaveTypeId      String
+  startDate        DateTime
+  endDate          DateTime
+  totalDays        Decimal
+  reason           String?
+  attachmentPath   String?
+  status           String    @default("pending")
+  appliedAt        DateTime  @default(now())
+  approverId       String?
+  approvedAt       DateTime?
+  approvalComments String?
+  rejectionReason  String?
+  academicYearId   String
+  schoolId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  staff            Teacher               @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  leaveType        LeaveType             @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  approver         Teacher?              @relation("LeaveApprover", fields: [approverId], references: [id])
+  academicYear     AcademicYear          @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  school           School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  leaveBalance     LeaveBalance[]
+  approvalHistory  LeaveApprovalHistory[]
+
+  @@index([staffId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([academicYearId])
+  @@index([appliedAt(sort: Desc)])
+  @@schema("school")
+}
+
+model LeaveApprovalHistory {
+  id               String    @id @default(cuid())
+  leaveApplicationId String
+  approverId       String
+  action           String
+  comments         String?
+  approverRole     String?
+  previousStatus   String?
+  newStatus        String?
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  leaveApplication  LeaveApplication @relation(fields: [leaveApplicationId], references: [id], onDelete: Cascade)
+  approver         Teacher         @relation("LeaveApprovalApprover", fields: [approverId], references: [id])
+
+  @@index([leaveApplicationId])
+  @@index([approverId])
+  @@index([createdAt(sort: Desc)])
+  @@schema("school")
+}
+
+model LeaveWorkflow {
+  id                  String    @id @default(cuid())
+  schoolId            String
+  academicYearId      String
+  leaveTypeId         String?
+  roleId              String
+  requiredPermission  String
+  sequence            Int
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  school              School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear       AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  leaveType           LeaveType?   @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  role                CustomRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([academicYearId])
+  @@index([leaveTypeId])
+  @@index([sequence])
+  @@schema("school")
+}
+
+model LeaveSettings {
+  id                    String    @id @default(cuid())
+  schoolId              String
+  academicYearId        String
+  autoApproveDays       Int       @default(1)
+  requireDocumentDays   Int       @default(3)
+  minStaffCoverage      Int?
+  examPeriodRestriction Boolean   @default(true)
+  notificationEmails    String?
+  workingDays           String?
+  halfDayRules          String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  school                School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear         AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, academicYearId])
+  @@index([schoolId])
   @@schema("school")
 }

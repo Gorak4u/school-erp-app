@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const where = group ? { group, schoolId: ctx.schoolId } : { schoolId: ctx.schoolId };
+    const where = group ? { group, schoolId: ctx.schoolId! } : { schoolId: ctx.schoolId! };
 
-    const settings = await (schoolPrisma as any).schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
+    const settings = await schoolPrisma.schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
 
     // Convert to a grouped object for easy consumption
     const grouped: Record<string, Record<string, string>> = {};
@@ -36,16 +36,16 @@ export async function POST(request: NextRequest) {
 
     const { group, key, value } = await request.json();
 
-    const setting = await (schoolPrisma as any).schoolSetting.upsert({
+    const setting = await schoolPrisma.schoolSetting.upsert({
       where: { 
         schoolId_group_key: { 
-          schoolId: ctx.schoolId, 
+          schoolId: ctx.schoolId!, 
           group, 
           key 
         } 
       },
       update: { value },
-      create: { schoolId: ctx.schoolId, group, key, value },
+      create: { schoolId: ctx.schoolId!, group, key, value },
     });
 
     return NextResponse.json({ setting }, { status: 201 });

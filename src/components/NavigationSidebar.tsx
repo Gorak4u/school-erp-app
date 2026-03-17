@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Academic',
     items: [
       { href: '/teachers', label: 'Staff', icon: '👨‍🏫', pageKey: 'teachers', permission: 'view_teachers' },
+      { href: '/leave', label: 'Leave Management', icon: '🏖️', pageKey: 'leave', permission: 'view_teachers' },
       { href: '/attendance', label: 'Attendance', icon: '📝', pageKey: 'attendance', permission: 'view_attendance' },
       { href: '/assignments', label: 'Assignments', icon: '📚', pageKey: 'assignments', permission: 'view_exams' },
     ],

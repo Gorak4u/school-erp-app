@@ -13,6 +13,7 @@ import {
 } from '@/lib/apiClient';
 import RolesManagement from '@/components/settings/RolesManagement';
 import UsersManagement from '@/components/settings/UsersManagement';
+import LeaveManagementSettings from '@/components/settings/LeaveManagementSettings';
 import { usePermissions } from '@/hooks/usePermissions';
 
 const showToast = (t: any) => { if ((window as any).toast) (window as any).toast(t); };
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'fees', label: 'Fee Structure', icon: '💰' },
   { id: 'timings', label: 'School Timings', icon: '🕐' },
   { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
+  { id: 'leave', label: 'Leave Management', icon: '🏖️' },
   { id: 'app', label: 'App Settings', icon: '⚙️' },
   { id: 'roles', label: 'Custom Roles', icon: '🎭' },
   { id: 'users', label: 'Users & Access', icon: '👥' },
@@ -1599,6 +1601,7 @@ export default function SettingsPage() {
             {activeTab === 'fees' && <FeeTab />}
             {activeTab === 'timings' && <TimingsTab />}
             {activeTab === 'integrations' && <IntegrationsTab />}
+            {activeTab === 'leave' && <LeaveManagementSettings theme={theme} isDark={isDark} />}
             {activeTab === 'app' && <AppSettingsTab />}
             {activeTab === 'roles' && <RolesManagement theme={theme} isDark={isDark} />}
             {activeTab === 'users' && <UsersManagement theme={theme} isDark={isDark} />}
