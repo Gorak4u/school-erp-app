@@ -75,6 +75,7 @@ export default function SettingsPage() {
   const [modalEntity, setModalEntity] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
+  const [showMediumDeleteModal, setShowMediumDeleteModal] = useState(null);
   
   // ─── Copy confirmation modal state ───────────────────────────────────────────
   const [showCopyModal, setShowCopyModal] = useState(false);
@@ -1236,7 +1237,6 @@ export default function SettingsPage() {
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [cloneSource, setCloneSource] = useState('');
     const [cloneTarget, setCloneTarget] = useState('');
-    const [showMediumDeleteModal, setShowMediumDeleteModal] = useState(null);
     const [globalConfig, setGlobalConfig] = useState({
       late_fee_per_day: getSetting('fee_config', 'late_fee_per_day', '0'),
       grace_period_days: getSetting('fee_config', 'grace_period_days', '7'),
