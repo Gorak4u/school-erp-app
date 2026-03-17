@@ -54,8 +54,9 @@ export async function GET() {
 
     // Check for academic years (critical for school operations)
     console.log('🔍 [SETUP CHECK] Checking academic years...');
+    // Note: AcademicYear model doesn't have schoolId, so we check all academic years
     const academicYears = await (schoolPrisma as any).academicYear.findMany({
-      where: { schoolId: schoolUser.School.id }
+      where: { isActive: true }
     });
 
     console.log('🔍 [SETUP CHECK] Found academic years:', academicYears.length);
