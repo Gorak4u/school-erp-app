@@ -38,7 +38,7 @@ const permissionBasedRoutes: Record<string, string> = {
   '/teachers': 'view_teachers',
   '/attendance': 'view_attendance',
   '/fees': 'view_fees',
-  '/fee-collection': 'view_fees',
+  '/fee-collection': 'manage_fees', // SECURITY: Fee collection requires manage_fees, not just view_fees
   '/reports': 'view_reports',
   '/settings': 'view_settings',
 };

@@ -74,7 +74,7 @@ export default function FeesPage() {
     { id: 'student-profile', label: '👤 Student Profile', permission: 'view_fees' },
   ].filter(tab => {
     if (!tab.permission) return true;
-    return canManageFees;
+    return hasPermission(tab.permission);
   });
 
   // Build handler context incrementally
