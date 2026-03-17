@@ -625,7 +625,6 @@ export default function TeachersPage() {
               {[
                 { key: 'email', label: 'Email *', type: 'email' },
                 { key: 'phone', label: 'Phone', type: 'text' },
-                { key: 'employeeId', label: 'Employee ID *', type: 'text' },
                 { key: 'department', label: 'Department', type: 'text' },
                 { key: 'subject', label: 'Subject', type: 'text' },
                 { key: 'qualification', label: 'Qualification', type: 'text' },
@@ -682,7 +681,7 @@ export default function TeachersPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName || !form.email || !form.employeeId) { setFormError('First Name, Last Name, Email and Employee ID are required'); return; }
+                  if (!form.firstName || !form.lastName || !form.email) { setFormError('First Name, Last Name, and Email are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     await teachersApi.update(editingTeacher.id, { ...form, experience: form.experience ? Number(form.experience) : null });
@@ -782,7 +781,6 @@ export default function TeachersPage() {
               {[
                 { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create teacher record without login access' },
                 { key: 'phone', label: 'Phone', type: 'text' },
-                { key: 'employeeId', label: 'Employee ID *', type: 'text' },
                 { key: 'department', label: 'Department', type: 'text' },
                 { key: 'subject', label: 'Subject', type: 'text' },
                 { key: 'qualification', label: 'Qualification', type: 'text' },
@@ -844,7 +842,7 @@ export default function TeachersPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName || !form.employeeId) { setFormError('First Name, Last Name, and Employee ID are required'); return; }
+                  if (!form.firstName || !form.lastName) { setFormError('First Name and Last Name are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     const response = await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
