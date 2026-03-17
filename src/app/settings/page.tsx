@@ -944,9 +944,39 @@ export default function SettingsPage() {
   // ─── Structure Tab (Board / Medium / Class / Section) ─────────────────────
   const StructureTab = () => {
     const [filterAY, setFilterAY] = useState(activeAY?.id || '');
-    const gridMediums = filterAY ? mediums.filter((m: any) => m.academicYearId === filterAY) : mediums;
-    const gridClasses = filterAY ? classes.filter((c: any) => c.academicYearId === filterAY) : classes;
-    const uniqueClassNames = ([...new Set(gridClasses.map((c: any) => c.name))] as string[]).sort();
+    const [newRows, setNewRows] = useState([]);
+    const gridMediums = filterAY ? mediums.filter((m) => m.academicYearId === filterAY) : mediums;
+    const gridClasses = filterAY ? classes.filter((c) => c.academicYearId === filterAY) : classes;
+    const uniqueClassNames = [...new Set(gridClasses.map((c) => c.name))].sort();
+
+    const autoCode = (name, medCode) => {
+      const parts = name.trim().split(/\s+/);
+      const abbr = parts.map((p) => p[0] || '').join('').toUpperCase();
+      return (`${abbr}${(medCode || '').replace(/[^A-Z0-9]/gi, '')}`).toUpperCase().slice(0, 8) || 'CLS';
+    };
+    const autoLevel = (name) => {
+      const n = name.toLowerCase();
+      if (/kg|kinder|nursery|lkg|ukg|pp/.test(n)) return 'kindergarten';
+      if (/\b[1-5]\b|1st|2nd|3rd|4th|5th/.test(n)) return 'primary';
+      if (/\b[6-8]\b|6th|7th|8th/.test(n)) return 'middle';
+      if (/\b(9|10)\b|9th|10th/.test(n)) return 'high';
+      if (/\b(11|12)\b|11th|12th|plus/.test(n)) return 'higher_secondary';
+      return 'primary';
+    };
+    const addNewRow = () => setNewRows((prev) => [...prev, { id: Date.now().toString(), name: '', selectedMediums: new Set(), saving: false }]);
+    const saveRow = async (rowId) => {
+      const nr = newRows.find((r) => r.id === rowId);
+      if (!nr || !nr.name.trim() || nr.selectedMediums.size === 0) return;
+      setNewRows((prev) => prev.map((r) => r.id === rowId ? { ...r, saving: true } : r));
+      try {
+        await Promise.all([...nr.selectedMediums].map((mediumId) => {
+          const med = gridMediums.find((m) => m.id === mediumId);
+          return classesApi.create({ name: nr.name.trim(), code: autoCode(nr.name, med?.code || ''), level: autoLevel(nr.name), mediumId, academicYearId: filterAY || activeAY?.id || '', isActive: true });
+        }));
+        await fetchAll();
+        setNewRows((prev) => prev.filter((r) => r.id !== rowId));
+      } catch { setNewRows((prev) => prev.map((r) => r.id === rowId ? { ...r, saving: false } : r)); }
+    };
     return (
     <div className="space-y-6">
       {/* Boards */}
@@ -998,110 +1028,130 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Classes — Excel Grid */}
+      {/* Classes — Inline Excel Grid */}
       <div className={card}>
-        {/* Header */}
-        <div className="flex flex-wrap justify-between items-center mb-5 gap-3">
+        <div className="flex flex-wrap justify-between items-center mb-3 gap-3">
           <h3 className={heading}>Classes</h3>
           <div className="flex items-center gap-2">
-            <span className={subtext}>Academic Year:</span>
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Academic Year:</span>
             <select
-              className={`px-3 py-1.5 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-              value={filterAY}
-              onChange={e => setFilterAY(e.target.value)}
+              className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              value={filterAY} onChange={e => setFilterAY(e.target.value)}
             >
               <option value="">All Years</option>
-              {academicYears.map((ay: any) => (
-                <option key={ay.id} value={ay.id}>{ay.name}</option>
-              ))}
+              {academicYears.map((ay) => <option key={ay.id} value={ay.id}>{ay.name}</option>)}
             </select>
             {activeAY && filterAY === activeAY.id && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-400 text-gray-900 shadow">Active AY</span>
+              <span className="px-2 py-0.5 rounded text-xs font-bold bg-yellow-400 text-gray-900">Active AY</span>
             )}
           </div>
         </div>
 
-        {/* Grid */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+          <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <thead>
               <tr>
-                <th className={`w-44 px-4 py-3 text-left font-semibold border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-300' : 'border-gray-300 bg-gray-100 text-gray-700'}`}>
-                  <div className="flex items-center justify-between">
-                    <span>Add Class</span>
-                    <button
-                      disabled={!canManageSettings}
-                      onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: gridMediums[0]?.id || '', academicYearId: filterAY || activeAY?.id || '', isActive: true })}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl transition-all disabled:opacity-40 shadow"
-                      title="Add new class"
-                    >+</button>
-                  </div>
+                <th className={`px-3 py-1.5 text-left font-semibold border min-w-[120px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                  Class
                 </th>
-                {gridMediums.map((m: any) => (
-                  <th key={m.id} className={`px-3 py-3 text-center font-semibold border ${isDark ? 'border-gray-600 bg-gray-800 text-blue-400' : 'border-gray-300 bg-blue-50 text-blue-700'}`}>
+                {gridMediums.map((m) => (
+                  <th key={m.id} className={`px-2 py-1.5 text-center font-semibold border w-24 ${isDark ? 'border-gray-500 bg-gray-700 text-blue-300' : 'border-gray-400 bg-blue-100 text-blue-800'}`}>
                     {m.name}
                   </th>
                 ))}
                 {gridMediums.length === 0 && (
-                  <th className={`px-3 py-3 text-center font-medium border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-500' : 'border-gray-300 bg-gray-50 text-gray-400'}`}>
-                    No mediums — add mediums above first
+                  <th className={`px-2 py-1.5 text-center border ${isDark ? 'border-gray-500 bg-gray-700 text-gray-500' : 'border-gray-400 bg-gray-100 text-gray-400'}`}>
+                    ← Add mediums first
                   </th>
                 )}
+                <th className={`px-2 py-1.5 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
               </tr>
             </thead>
             <tbody>
-              {uniqueClassNames.length === 0 ? (
-                <tr>
-                  <td colSpan={gridMediums.length + 1} className={`px-4 py-8 text-center border ${isDark ? 'border-gray-600 text-gray-500' : 'border-gray-200 text-gray-400'}`}>
-                    No classes configured. Click + to add.
+              {/* Existing class rows */}
+              {uniqueClassNames.map((className) => (
+                <tr key={className} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
+                  <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
+                    {className}
+                  </td>
+                  {gridMediums.map((m) => {
+                    const entry = gridClasses.find((c) => c.name === className && c.mediumId === m.id);
+                    return (
+                      <td key={m.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                        {entry ? (
+                          <span className="group relative inline-flex items-center justify-center">
+                            <span className="text-green-500 font-bold text-sm">✓</span>
+                            <span className="absolute hidden group-hover:flex gap-0.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow px-1 py-0.5 z-10 -top-7 left-1/2 -translate-x-1/2">
+                              <button className="text-blue-500 hover:text-blue-600 text-xs" onClick={() => openEdit('class', entry)} title="Edit">✎</button>
+                              <button className="text-red-500 hover:text-red-600 text-xs" onClick={() => handleDelete('class', entry.id, entry.name)} title="Delete">✕</button>
+                            </span>
+                          </span>
+                        ) : (
+                          <span className={`text-sm ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className={`border ${isDark ? 'border-gray-600' : 'border-gray-300'}`} />
+                </tr>
+              ))}
+
+              {/* New inline rows */}
+              {newRows.map((nr) => (
+                <tr key={nr.id} className={isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}>
+                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                    <input
+                      autoFocus
+                      value={nr.name}
+                      onChange={e => setNewRows(prev => prev.map(r => r.id === nr.id ? { ...r, name: e.target.value } : r))}
+                      onKeyDown={e => { if (e.key === 'Enter') saveRow(nr.id); if (e.key === 'Escape') setNewRows(prev => prev.filter(r => r.id !== nr.id)); }}
+                      placeholder="e.g. Class 1"
+                      className={`w-full px-2 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                    />
+                  </td>
+                  {gridMediums.map((m) => (
+                    <td key={m.id} className={`px-1 py-1 border text-center ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                      <input
+                        type="checkbox"
+                        checked={nr.selectedMediums.has(m.id)}
+                        onChange={e => setNewRows(prev => prev.map(r => {
+                          if (r.id !== nr.id) return r;
+                          const s = new Set(r.selectedMediums);
+                          e.target.checked ? s.add(m.id) : s.delete(m.id);
+                          return { ...r, selectedMediums: s };
+                        }))}
+                        className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500"
+                      />
+                    </td>
+                  ))}
+                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button
+                        disabled={!nr.name.trim() || nr.selectedMediums.size === 0 || nr.saving}
+                        onClick={() => saveRow(nr.id)}
+                        title="Save (Enter)"
+                        className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
+                      >{nr.saving ? '…' : '✓'}</button>
+                      <button
+                        onClick={() => setNewRows(prev => prev.filter(r => r.id !== nr.id))}
+                        title="Cancel (Esc)"
+                        className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
+                      >✕</button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                uniqueClassNames.map((className: string) => (
-                  <tr key={className} className={`transition-colors ${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-blue-50/30'}`}>
-                    <td className={`px-4 py-2.5 font-semibold border ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-200 bg-gray-50 text-gray-800'}`}>
-                      {className}
-                    </td>
-                    {gridMediums.map((m: any) => {
-                      const entry = gridClasses.find((c: any) => c.name === className && c.mediumId === m.id);
-                      return (
-                        <td key={m.id} className={`px-2 py-2 border text-center align-middle ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
-                          {entry ? (
-                            <div className={`rounded-lg p-2 ${isDark ? 'bg-blue-900/30 border border-blue-700/40' : 'bg-blue-50 border border-blue-200'}`}>
-                              <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                                <span className={`text-xs font-mono ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>{entry.code}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>{entry.level?.replace('_', ' ')}</span>
-                              </div>
-                              <div className="flex gap-1 justify-center">
-                                <button className={btnSecondary} disabled={!canManageSettings} onClick={() => openEdit('class', entry)}>Edit</button>
-                                <button className={btnDanger} disabled={!canManageSettings} onClick={() => handleDelete('class', entry.id, entry.name)}>Del</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              disabled={!canManageSettings}
-                              onClick={() => openCreate('class', { code: '', name: className, level: 'primary', mediumId: m.id, academicYearId: filterAY || activeAY?.id || '', isActive: true })}
-                              className={`w-8 h-8 rounded-lg border-2 border-dashed flex items-center justify-center mx-auto transition-all text-lg font-light
-                                ${isDark ? 'border-gray-600 text-gray-600 hover:border-blue-500 hover:text-blue-400' : 'border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500'}
-                                disabled:opacity-30 disabled:cursor-not-allowed`}
-                              title={`Add ${className} for ${m.name}`}
-                            >+</button>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              )}
+              ))}
+
+              {/* Add row footer */}
               <tr>
-                <td colSpan={gridMediums.length + 1} className={`px-4 py-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <td colSpan={gridMediums.length + 2} className={`px-2 py-1.5 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
                   <button
                     disabled={!canManageSettings}
-                    onClick={() => openCreate('class', { code: '', name: '', level: 'primary', mediumId: '', academicYearId: filterAY || activeAY?.id || '', isActive: true })}
-                    className={`flex items-center gap-2 text-sm transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                    onClick={addNewRow}
+                    className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
                   >
-                    <span className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500 text-white font-bold">+</span>
-                    <span>Add new class</span>
+                    <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
+                    Add class
                   </button>
                 </td>
               </tr>
