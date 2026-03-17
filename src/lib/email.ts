@@ -164,11 +164,17 @@ export async function sendSchoolEmail({
   subject,
   html,
   schoolId,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
   schoolId?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string | Buffer;
+    contentType?: string;
+  }>;
 }) {
   console.log('sendSchoolEmail called with:', { to, subject, schoolId });
   
@@ -242,6 +248,7 @@ export async function sendSchoolEmail({
       to,
       subject,
       html,
+      attachments,
     });
     return { success: true };
   } catch (error: any) {

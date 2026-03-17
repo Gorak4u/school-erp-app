@@ -5,6 +5,11 @@ export interface EmailJob {
   subject: string;
   html: string;
   schoolId?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string | Buffer;
+    contentType?: string;
+  }>;
 }
 
 export function enqueueEmail(job: EmailJob) {

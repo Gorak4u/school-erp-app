@@ -1,10 +1,11 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { StudentIdCardData, buildStudentIdCardSnippet, buildStudentIdCardDocument } from '@/lib/idCard';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 
 const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');
 const isPhoneValid = (value: string | undefined | null) => {
@@ -101,18 +102,12 @@ export default function StudentForm({
   const [planError, setPlanError] = useState<string | null>(null);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<number | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewPayload, setPreviewPayload] = useState<null | {
-    feeStructures: any[];
-    feeCalcs: ReturnType<typeof feeCalcs>;
-    transportInfo: typeof transportInfo;
-    transportFeeCalcs: ReturnType<typeof transportFeeCalcs>;
-    discountData: typeof discountData;
-    selectedDiscountFeeIds: string[];
-  }>(null);
+  const [previewPayload, setPreviewPayload] = useState<any>(null);
   const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
   const [showIdCard, setShowIdCard] = useState(false);
   const [idCardHtml, setIdCardHtml] = useState('');
   const [idCardData, setIdCardData] = useState<StudentIdCardData | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   
   // Initialize mediumId if only one medium exists
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
@@ -142,10 +137,22 @@ export default function StudentForm({
   const formatRouteFee = (route: { monthlyFee?: number; yearlyFee?: number }) => {
     const monthly = Number(route?.monthlyFee || 0);
     const yearly = Number(route?.yearlyFee || 0);
-    if (yearly > 0 && monthly === 0) {
+    if (monthly > 0 && yearly > 0) {
+      return `₹${monthly.toLocaleString('en-IN')}/mo • ₹${yearly.toLocaleString('en-IN')}/yr`;
+    }
+    if (yearly > 0) {
       return `₹${yearly.toLocaleString('en-IN')}/yr`;
     }
     return `₹${monthly.toLocaleString('en-IN')}/mo`;
+  };
+  const formatTransportAmount = (monthlyFee?: number, yearlyFee?: number) => {
+    const monthly = Number(monthlyFee || 0);
+    const yearly = Number(yearlyFee || 0);
+    if (monthly > 0 && yearly > 0) {
+      return `${fmtCurrency(monthly)}/month • ${fmtCurrency(yearly)}/year`;
+    }
+    if (yearly > 0) return `${fmtCurrency(yearly)}/year`;
+    return `${fmtCurrency(monthly)}/month`;
   };
 
   const [formData, setFormData] = useState({
@@ -253,6 +260,16 @@ export default function StudentForm({
   const autoSaveLabel = lastAutoSaveAt
     ? `Saved ${new Date(lastAutoSaveAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Saving…';
+  const schoolName = getSetting('school_details', 'name', 'Our School');
+  const schoolLogo = getSetting('school_details', 'logo_url', '');
+  const schoolAddress = [
+    getSetting('school_details', 'address'),
+    getSetting('school_details', 'city'),
+    getSetting('school_details', 'state'),
+    getSetting('school_details', 'pincode'),
+  ].filter(Boolean).join(', ');
+  const schoolPhone = getSetting('school_details', 'phone', '');
+  const schoolEmail = getSetting('school_details', 'email', '');
   const validations = {
     studentPhoneInvalid: !!formData.phone && !isPhoneValid(formData.phone),
     aadharInvalid: !!formData.aadharNumber && !isAadharValid(formData.aadharNumber),
@@ -263,6 +280,18 @@ export default function StudentForm({
     bankIfscInvalid: !!formData.bankIfsc && !isIFSCValid(formData.bankIfsc),
   };
   const submissionDisabled = isSubmitting || limitReached;
+  const selectedRoute = useMemo(
+    () => transportRoutes.find((route: any) => route.id === transportInfo.routeId) || null,
+    [transportRoutes, transportInfo.routeId]
+  );
+  const applicableFeeStructures = useMemo(() => {
+    return feeStructures.filter((fee: any) => {
+      const boardMatch = !fee.boardId || fee.boardId === formData.boardId;
+      const mediumMatch = !fee.mediumId || fee.mediumId === formData.mediumId;
+      const classMatch = !fee.classId || fee.classId === formData.classId;
+      return boardMatch && mediumMatch && classMatch;
+    });
+  }, [feeStructures, formData.boardId, formData.classId, formData.mediumId]);
 
   // Cascaded dropdown data
   const filteredClasses = useMemo(() => {
@@ -300,18 +329,12 @@ export default function StudentForm({
   useEffect(() => {
     if (!formData.classId || !activeAcademicYear?.id) { setFeeStructures([]); return; }
     setFeesLoading(true);
-    
-    // MUST pass academicYearId to only get current year's fee structures
+
     const params = new URLSearchParams({
-      classId: formData.classId,
       academicYearId: activeAcademicYear.id,
       isActive: 'true',
-      ...(formData.mediumId && { mediumId: formData.mediumId }),
     });
-    if (formData.boardId) {
-      params.append('boardId', formData.boardId);
-    }
-    
+
     fetch(`/api/fees/structures?${params}`)
       .then(r => r.json())
       .then(data => {
@@ -384,8 +407,8 @@ export default function StudentForm({
 
   // Auto-select fees when discount category is selected
   useEffect(() => {
-    if (discountData.discountCategory && feeStructures.length > 0) {
-      const categoryFees = feeStructures.filter(fee => {
+    if (discountData.discountCategory && applicableFeeStructures.length > 0) {
+      const categoryFees = applicableFeeStructures.filter(fee => {
         const feeCategory = fee.category || fee.feeCategory || 'General';
         return feeCategory === discountData.discountCategory;
       });
@@ -393,26 +416,26 @@ export default function StudentForm({
     } else {
       setSelectedDiscountFeeIds([]);
     }
-  }, [discountData.discountCategory, feeStructures]);
+  }, [discountData.discountCategory, applicableFeeStructures]);
 
   // Get unique categories from fee structures
   const feeCategories = useMemo(() => {
     const categories = new Set<string>();
-    feeStructures.forEach(fee => {
+    applicableFeeStructures.forEach(fee => {
       const category = fee.category || fee.feeCategory || 'General';
       categories.add(category);
     });
     return Array.from(categories).sort();
-  }, [feeStructures]);
+  }, [applicableFeeStructures]);
 
   const feeCalcs = useMemo(() => {
-    const selectedFees = feeStructures.filter(f => {
+    const selectedFees = applicableFeeStructures.filter(f => {
       const feeCategory = f.category || f.feeCategory || 'General';
       return selectedDiscountFeeIds.includes(f.id) && 
              (!discountData.discountCategory || discountData.discountCategory === feeCategory);
     });
     const baseTotal = selectedFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-    if (!discountData.hasDiscount || !discountData.discountValue) {
+    if (!discountData.hasDiscount || (discountData.discountType !== 'full_waiver' && !discountData.discountValue)) {
       return { baseTotal, discountAmount: 0, finalTotal: baseTotal, savingsPercent: 0, selected: selectedFees };
     }
     let discountAmount = 0;
@@ -425,7 +448,7 @@ export default function StudentForm({
       discountAmount = baseTotal;
     }
     return { baseTotal, discountAmount, finalTotal: baseTotal - discountAmount, savingsPercent: baseTotal > 0 ? Math.round((discountAmount / baseTotal) * 100) : 0, selected: selectedFees };
-  }, [feeStructures, selectedDiscountFeeIds, discountData]);
+  }, [applicableFeeStructures, selectedDiscountFeeIds, discountData]);
 
   const transportFeeCalcs = useMemo(() => {
     const baseAnnual = (() => {
@@ -448,18 +471,206 @@ export default function StudentForm({
     return { baseAnnual, discountAmount, finalAnnual: baseAnnual - discountAmount };
   }, [transportInfo, transportDiscount]);
 
-  const tuitionAnnual = useMemo(() => feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0), [feeStructures]);
+  const tuitionAnnual = useMemo(() => applicableFeeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0), [applicableFeeStructures]);
   const tuitionFinalTotal = Math.max(tuitionAnnual - feeCalcs.discountAmount, 0);
   const combinedAnnual = tuitionFinalTotal + transportFeeCalcs.finalAnnual;
+  const buildAdmissionPreviewDocument = useCallback((payload: any) => {
+    const tuitionRows = payload.tuitionRows.map((fee: any) => `
+      <tr>
+        <td style="padding:12px;border-bottom:1px solid #e5e7eb;">${fee.name}</td>
+        <td style="padding:12px;border-bottom:1px solid #e5e7eb;">${fee.category}</td>
+        <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;">${fmtCurrency(fee.amount)}</td>
+        <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;color:#059669;">${fee.discountAmount ? `- ${fmtCurrency(fee.discountAmount)}` : '—'}</td>
+        <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;">${fmtCurrency(fee.finalAmount)}</td>
+      </tr>
+    `).join('');
+    const transportSection = payload.transport.selected ? `
+      <div style="margin-top:24px;padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #dbeafe;">
+        <h3 style="margin:0 0 12px;font-size:18px;color:#0f172a;">Transport</h3>
+        <p style="margin:0 0 8px;color:#334155;"><strong>Route:</strong> ${payload.transport.routeLabel}</p>
+        <p style="margin:0 0 8px;color:#334155;"><strong>Pickup Stop:</strong> ${payload.transport.pickupStop || 'Not selected'}</p>
+        <p style="margin:0 0 8px;color:#334155;"><strong>Charge:</strong> ${payload.transport.chargeLabel}</p>
+        <p style="margin:0;color:#334155;"><strong>Discount:</strong> ${payload.transport.discountLabel}</p>
+      </div>
+    ` : '';
+    return `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Admission Preview</title>
+        </head>
+        <body style="margin:0;background:#f8fafc;font-family:Inter,Segoe UI,system-ui,sans-serif;color:#0f172a;padding:32px;">
+          <div style="max-width:960px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 20px 45px rgba(15,23,42,0.12);">
+            <div style="padding:28px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;">
+              <div style="display:flex;align-items:center;gap:16px;">
+                ${schoolLogo ? `<img src="${schoolLogo}" alt="School Logo" style="width:72px;height:72px;object-fit:contain;border-radius:18px;background:rgba(255,255,255,0.12);padding:8px;" />` : ''}
+                <div>
+                  <h1 style="margin:0;font-size:28px;">${schoolName}</h1>
+                  <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">Admission Preview • ${payload.student.name}</p>
+                </div>
+              </div>
+            </div>
+            <div style="padding:28px;">
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+                <div style="padding:18px;border:1px solid #e2e8f0;border-radius:18px;background:#f8fafc;">
+                  <h3 style="margin:0 0 12px;font-size:18px;">Student Details</h3>
+                  <p style="margin:0 0 8px;"><strong>Name:</strong> ${payload.student.name}</p>
+                  <p style="margin:0 0 8px;"><strong>Admission No:</strong> ${payload.student.admissionNo}</p>
+                  <p style="margin:0 0 8px;"><strong>Class:</strong> ${payload.student.className}</p>
+                  <p style="margin:0 0 8px;"><strong>Section:</strong> ${payload.student.section || 'Not assigned'}</p>
+                  <p style="margin:0 0 8px;"><strong>Medium:</strong> ${payload.student.medium || 'Not selected'}</p>
+                  <p style="margin:0;"><strong>Date of Birth:</strong> ${payload.student.dateOfBirth || '—'}</p>
+                </div>
+                <div style="padding:18px;border:1px solid #e2e8f0;border-radius:18px;background:#f8fafc;">
+                  <h3 style="margin:0 0 12px;font-size:18px;">Contact Details</h3>
+                  <p style="margin:0 0 8px;"><strong>Student Email:</strong> ${payload.student.email || '—'}</p>
+                  <p style="margin:0 0 8px;"><strong>Phone:</strong> ${payload.student.phone || '—'}</p>
+                  <p style="margin:0 0 8px;"><strong>Father:</strong> ${payload.student.fatherName || '—'} ${payload.student.fatherEmail ? `(${payload.student.fatherEmail})` : ''}</p>
+                  <p style="margin:0 0 8px;"><strong>Mother:</strong> ${payload.student.motherName || '—'} ${payload.student.motherEmail ? `(${payload.student.motherEmail})` : ''}</p>
+                  <p style="margin:0;"><strong>Address:</strong> ${payload.student.address || '—'}</p>
+                </div>
+              </div>
+              <div style="margin-top:24px;">
+                <h3 style="margin:0 0 12px;font-size:18px;">Fee Structure</h3>
+                <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
+                  <thead style="background:#eff6ff;">
+                    <tr>
+                      <th style="padding:12px;text-align:left;">Fee</th>
+                      <th style="padding:12px;text-align:left;">Category</th>
+                      <th style="padding:12px;text-align:right;">Base</th>
+                      <th style="padding:12px;text-align:right;">Discount</th>
+                      <th style="padding:12px;text-align:right;">Final</th>
+                    </tr>
+                  </thead>
+                  <tbody>${tuitionRows}</tbody>
+                </table>
+              </div>
+              ${transportSection}
+              <div style="margin-top:24px;padding:20px;border-radius:18px;background:#eff6ff;border:1px solid #bfdbfe;">
+                <p style="margin:0 0 8px;"><strong>Tuition Total:</strong> ${fmtCurrency(payload.summary.tuitionTotal)}</p>
+                <p style="margin:0 0 8px;"><strong>Tuition Discount:</strong> ${fmtCurrency(payload.summary.tuitionDiscount)}</p>
+                <p style="margin:0 0 8px;"><strong>Transport Total:</strong> ${fmtCurrency(payload.summary.transportTotal)}</p>
+                <p style="margin:0;font-size:20px;font-weight:800;color:#1d4ed8;"><strong>Grand Total:</strong> ${fmtCurrency(payload.summary.grandTotal)}</p>
+              </div>
+              <div style="margin-top:20px;color:#475569;font-size:13px;">
+                <p style="margin:0 0 6px;">${schoolAddress || ''}</p>
+                <p style="margin:0;">${[schoolPhone, schoolEmail].filter(Boolean).join(' • ')}</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>`;
+  }, [fmtCurrency, schoolAddress, schoolEmail, schoolLogo, schoolName, schoolPhone]);
+  const buildPreviewPayload = useCallback((studentOverride?: any) => {
+    const baseTotal = applicableFeeStructures.reduce((sum, fee) => sum + (Number(fee.amount) || 0), 0);
+    const tuitionRows = applicableFeeStructures.map((fee: any) => {
+      const feeCategory = fee.category || fee.feeCategory || 'General';
+      const isSelectedForDiscount = selectedDiscountFeeIds.includes(fee.id);
+      const isInDiscountCategory = discountData.discountCategory === feeCategory;
+      const hasDiscount = discountData.hasDiscount && isSelectedForDiscount && isInDiscountCategory && feeCalcs.baseTotal > 0;
+      const discountAmount = hasDiscount ? Math.round(Number(fee.amount || 0) * (feeCalcs.discountAmount / feeCalcs.baseTotal)) : 0;
+      return {
+        id: fee.id,
+        name: fee.name,
+        category: feeCategory,
+        amount: Number(fee.amount || 0),
+        discountAmount,
+        finalAmount: Math.max(Number(fee.amount || 0) - discountAmount, 0),
+      };
+    });
+    const effectiveStudent = studentOverride || formData;
+    const transportSelected = formData.transport === 'Yes' && !!transportInfo.routeId;
+    const idCard = {
+      name: effectiveStudent.name,
+      admissionNo: effectiveStudent.admissionNo,
+      className: [effectiveStudent.class, effectiveStudent.section].filter(Boolean).join(' - '),
+      schoolName,
+      schoolLogo,
+      photo: effectiveStudent.photo,
+      dateOfBirth: effectiveStudent.dateOfBirth,
+      issueDate: effectiveStudent.admissionDate || new Date().toISOString().split('T')[0],
+      phone: effectiveStudent.phone,
+      address: effectiveStudent.address,
+      academicYear: activeAcademicYear?.name || activeAcademicYear?.year,
+      bloodGroup: effectiveStudent.bloodGroup,
+    };
+    const payload = {
+      student: {
+        name: effectiveStudent.name,
+        admissionNo: effectiveStudent.admissionNo,
+        className: effectiveStudent.class,
+        section: effectiveStudent.section,
+        medium: effectiveStudent.languageMedium,
+        dateOfBirth: effectiveStudent.dateOfBirth,
+        email: effectiveStudent.email,
+        phone: effectiveStudent.phone,
+        fatherName: effectiveStudent.fatherName,
+        fatherEmail: effectiveStudent.fatherEmail,
+        motherName: effectiveStudent.motherName,
+        motherEmail: effectiveStudent.motherEmail,
+        address: [effectiveStudent.address, effectiveStudent.city, effectiveStudent.state, effectiveStudent.pinCode].filter(Boolean).join(', '),
+      },
+      tuitionRows,
+      tuitionCategories: feeCategories,
+      transport: {
+        selected: transportSelected,
+        routeLabel: selectedRoute ? `${selectedRoute.routeNumber} — ${selectedRoute.routeName}` : '',
+        pickupStop: transportInfo.pickupStop,
+        dropStop: transportInfo.dropStop,
+        chargeLabel: formatTransportAmount(transportInfo.monthlyFee, transportInfo.yearlyFee),
+        annualAmount: transportFeeCalcs.baseAnnual,
+        discountAmount: transportFeeCalcs.discountAmount,
+        discountLabel: transportDiscount.hasDiscount
+          ? transportDiscount.discountType === 'full_waiver'
+            ? 'Full waiver'
+            : `${transportDiscount.discountType === 'percentage' ? `${transportDiscount.discountValue}%` : fmtCurrency(transportDiscount.discountValue)} • ${transportDiscount.reason || 'Reason provided'}`
+          : 'No transport discount',
+      },
+      summary: {
+        tuitionTotal: baseTotal,
+        tuitionDiscount: feeCalcs.discountAmount,
+        tuitionFinal: tuitionFinalTotal,
+        transportTotal: transportFeeCalcs.finalAnnual,
+        grandTotal: combinedAnnual,
+      },
+      discountData,
+      transportDiscount,
+      idCardData: idCard,
+    };
+    return {
+      ...payload,
+      previewDocumentHtml: buildAdmissionPreviewDocument(payload),
+      idCardHtml: buildStudentIdCardDocument(idCard),
+    };
+  }, [
+    activeAcademicYear,
+    applicableFeeStructures,
+    buildAdmissionPreviewDocument,
+    combinedAnnual,
+    discountData,
+    feeCalcs,
+    feeCategories,
+    fmtCurrency,
+    formData,
+    schoolLogo,
+    schoolName,
+    selectedDiscountFeeIds,
+    selectedRoute,
+    transportDiscount,
+    transportFeeCalcs,
+    transportInfo,
+    tuitionFinalTotal,
+  ]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return; // Prevent multiple submissions
-    
+  const validateBeforeSubmit = useCallback(() => {
     if (!formData.name.trim()) { alert('Full Name is required'); return; }
     if (!formData.dateOfBirth) { alert('Date of Birth is required'); return; }
     if (!formData.mediumId) { alert('Please select a Language Medium'); return; }
     if (!formData.classId) { alert('Please select a Class'); return; }
+    if (formData.transport === 'Yes' && transportInfo.routeId && !transportInfo.pickupStop.trim()) {
+      alert('Please select a pickup stop for transport'); return;
+    }
     if (discountData.hasDiscount) {
       if (!discountData.discountCategory) {
         alert('Please select a discount category'); return;
@@ -475,12 +686,94 @@ export default function StudentForm({
         alert('Percentage discount cannot exceed 100%'); return;
       }
     }
+    if (transportDiscount.hasDiscount && transportInfo.routeId) {
+      if (transportDiscount.discountType !== 'full_waiver' && Number(transportDiscount.discountValue || 0) <= 0) {
+        alert('Please enter a valid transport discount amount'); return;
+      }
+      if (transportDiscount.discountType === 'percentage' && Number(transportDiscount.discountValue || 0) > 100) {
+        alert('Transport percentage discount cannot exceed 100%'); return;
+      }
+      if (!transportDiscount.reason.trim()) {
+        alert('Please provide a reason for the transport discount'); return;
+      }
+    }
+    return true;
+  }, [discountData, formData, selectedDiscountFeeIds, transportDiscount, transportInfo]);
+  const openPreview = useCallback(() => {
+    if (!validateBeforeSubmit()) return;
+    setPreviewPayload(buildPreviewPayload());
+    setPreviewOpen(true);
+  }, [buildPreviewPayload, validateBeforeSubmit]);
+  const handlePrintIdCard = useCallback(() => {
+    if (!idCardHtml) return;
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+    printWindow.document.write(idCardHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+  }, [idCardHtml]);
+  const handlePrintPreview = useCallback(() => {
+    if (!previewPayload?.previewDocumentHtml) return;
+    const printWindow = window.open('', '_blank', 'width=1100,height=850');
+    if (!printWindow) return;
+    printWindow.document.write(previewPayload.previewDocumentHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+  }, [previewPayload]);
+  const handleDownloadIdCardPdf = useCallback(async () => {
+    const element = document.getElementById('student-id-card-print');
+    if (!element) return;
+    await PDFGenerator.generateFromElement(
+      'student-id-card-print',
+      `Student_ID_Card_${(idCardData?.admissionNo || formData.admissionNo || 'student').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`
+    );
+  }, [formData.admissionNo, idCardData?.admissionNo]);
+  const handleDownloadPreviewPdf = useCallback(async () => {
+    let element = document.getElementById('admission-preview-print');
+    let tempWrapper: HTMLDivElement | null = null;
+    if (!element && previewPayload?.previewDocumentHtml) {
+      const parsed = new DOMParser().parseFromString(previewPayload.previewDocumentHtml, 'text/html');
+      tempWrapper = document.createElement('div');
+      tempWrapper.id = 'admission-preview-print';
+      tempWrapper.style.position = 'fixed';
+      tempWrapper.style.left = '-99999px';
+      tempWrapper.style.top = '0';
+      tempWrapper.style.width = '1024px';
+      tempWrapper.innerHTML = parsed.body.innerHTML;
+      document.body.appendChild(tempWrapper);
+      element = tempWrapper;
+    }
+    if (!element) return;
+    try {
+      await PDFGenerator.generateFromElement(
+        'admission-preview-print',
+        `Admission_Preview_${(formData.admissionNo || 'student').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`
+      );
+    } finally {
+      if (tempWrapper) {
+        document.body.removeChild(tempWrapper);
+      }
+    }
+  }, [formData.admissionNo, previewPayload]);
+  const submitAdmission = useCallback(async () => {
+    if (isSubmitting) return;
+    if (!validateBeforeSubmit()) return;
+
     localStorage.removeItem('studentFormAutoSave');
-    
     setIsSubmitting(true);
     try {
-      await onSubmit({
+      const payload = buildPreviewPayload();
+      const result = await onSubmit({
         ...formData,
+        _admissionFlowHandled: true,
+        _admissionPreview: {
+          previewDocumentHtml: payload.previewDocumentHtml,
+          previewSummary: payload.summary,
+          idCardData: payload.idCardData,
+          idCardHtml: payload.idCardHtml,
+        },
         ...(discountData.hasDiscount && {
           _discountInfo: { 
             ...discountData, 
@@ -488,15 +781,66 @@ export default function StudentForm({
           },
         }),
         ...(transportInfo.routeId && {
-          _transportInfo: transportInfo,
+          _transportInfo: {
+            ...transportInfo,
+            annualFee: transportFeeCalcs.baseAnnual,
+            ...(transportDiscount.hasDiscount && {
+              discountInfo: transportDiscount,
+            }),
+          },
         }),
       } as any);
+      if (!result) {
+        throw new Error('Student creation did not return a student record');
+      }
+      const created = result || null;
+      const finalPreview = buildPreviewPayload(created ? {
+        ...formData,
+        name: created.name || formData.name,
+        admissionNo: created.admissionNo || formData.admissionNo,
+        class: created.class || formData.class,
+        section: created.section || formData.section,
+        photo: created.photo || formData.photo,
+      } : undefined);
+      setCreatedStudent(created);
+      setPreviewPayload(finalPreview);
+      setPreviewOpen(false);
+      setIdCardData(finalPreview.idCardData);
+      setIdCardHtml(finalPreview.idCardHtml);
+      setShowIdCard(true);
     } catch (error) {
       console.error('Error submitting student form:', error);
       alert('Failed to submit student. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
+  }, [
+    buildPreviewPayload,
+    discountData,
+    formData,
+    isSubmitting,
+    onSubmit,
+    selectedDiscountFeeIds,
+    transportFeeCalcs.baseAnnual,
+    transportInfo,
+    validateBeforeSubmit,
+  ]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (student) {
+      if (!validateBeforeSubmit()) return;
+      setIsSubmitting(true);
+      try {
+        await onSubmit(formData as any);
+      } catch (error) {
+        console.error('Error updating student form:', error);
+        alert('Failed to update student. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    openPreview();
   };
 
   const tabBtnCls = (id: string) =>
@@ -582,7 +926,7 @@ export default function StudentForm({
       </div>
 
       {/* Tab Content */}
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="flex-1 overflow-y-auto py-4 pr-1">
 
           {/* ── TAB: ADMISSION ─────────────────────────────── */}
@@ -719,14 +1063,14 @@ export default function StudentForm({
                   </div>
                 ) : feesLoading ? (
                   <div className="text-center py-6 text-gray-400 text-sm">Loading fee structures…</div>
-                ) : feeStructures.length === 0 ? (
+                ) : applicableFeeStructures.length === 0 ? (
                   <div className={`text-sm p-3 rounded-lg text-center ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
-                    No fee structures configured for this class.{' '}
+                    No fee structures configured for this class/board/medium combination.{' '}
                     <a href="/settings" className="text-blue-500 underline">Configure in Settings</a>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {feeStructures.map(fee => (
+                    {applicableFeeStructures.map(fee => (
                       <div key={fee.id} className={`flex justify-between items-center p-3 rounded-lg border ${
                         theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'
                       }`}>
@@ -748,7 +1092,7 @@ export default function StudentForm({
                     ))}
                     <div className={`flex justify-between items-center p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
                       <span className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Total Fees:</span>
-                      <span className="text-blue-500 text-lg font-bold">₹{feeCalcs.baseTotal.toLocaleString('en-IN')}/year</span>
+                      <span className="text-blue-500 text-lg font-bold">₹{tuitionAnnual.toLocaleString('en-IN')}/year</span>
                     </div>
                   </div>
                 )}
@@ -825,7 +1169,7 @@ export default function StudentForm({
                       <div>
                         <label className={labelCls}>Fee Types for {discountData.discountCategory}</label>
                         <div className={`space-y-2 max-h-32 overflow-y-auto p-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
-                          {feeStructures
+                          {applicableFeeStructures
                             .filter(fee => {
                               const feeCategory = fee.category || fee.feeCategory || 'General';
                               return feeCategory === discountData.discountCategory;
@@ -848,7 +1192,7 @@ export default function StudentForm({
                                 </div>
                               </label>
                             ))}
-                          {feeStructures.filter(fee => {
+                          {applicableFeeStructures.filter(fee => {
                             const feeCategory = fee.category || fee.feeCategory || 'General';
                             return feeCategory === discountData.discountCategory;
                           }).length === 0 && (
@@ -918,12 +1262,119 @@ export default function StudentForm({
                 </div>
               )}
 
+              {formData.transport === 'Yes' && transportInfo.routeId && (
+                <div className={sectionCls}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className={sectionTitleCls}>🚌 Transport Charges & Discount</p>
+                      <p className={helperTextCls}>
+                        Route: {selectedRoute ? `${selectedRoute.routeNumber} — ${selectedRoute.routeName}` : 'Selected'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {formatTransportAmount(transportInfo.monthlyFee, transportInfo.yearlyFee)}
+                      </p>
+                      <p className={helperTextCls}>Annual impact: {fmtCurrency(transportFeeCalcs.baseAnnual)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <div className="relative flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={transportDiscount.hasDiscount}
+                          onChange={e => setTransportDiscount(prev => ({
+                            ...prev,
+                            hasDiscount: e.target.checked,
+                            ...(e.target.checked ? {} : transportDiscountInitial),
+                          }))}
+                        />
+                        <div className={`w-11 h-6 rounded-full transition-colors ${transportDiscount.hasDiscount ? 'bg-green-500' : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${transportDiscount.hasDiscount ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Apply Transport Discount</p>
+                        <p className={helperTextCls}>Use this when concession also applies to bus/transport.</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {transportDiscount.hasDiscount && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2">
+                        <label className={labelCls}>Transport Discount Type</label>
+                        <div className="flex gap-4 mt-1 flex-wrap">
+                          {[
+                            { value: 'percentage', label: '% Percentage' },
+                            { value: 'fixed', label: '₹ Fixed Amount' },
+                            { value: 'full_waiver', label: '🎓 Full Waiver' },
+                          ].map(opt => (
+                            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="transportDiscountType"
+                                value={opt.value}
+                                checked={transportDiscount.discountType === opt.value}
+                                onChange={() => setTransportDiscount(prev => ({ ...prev, discountType: opt.value as any, discountValue: 0 }))}
+                                className="accent-blue-600"
+                              />
+                              <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      {transportDiscount.discountType !== 'full_waiver' && (
+                        <div>
+                          <label className={labelCls}>{transportDiscount.discountType === 'percentage' ? 'Discount (%)' : 'Discount Amount (₹)'}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={transportDiscount.discountType === 'percentage' ? 100 : undefined}
+                            value={transportDiscount.discountValue || ''}
+                            onChange={e => setTransportDiscount(prev => ({ ...prev, discountValue: Number(e.target.value) }))}
+                            className={inputCls}
+                          />
+                        </div>
+                      )}
+                      <div className={transportDiscount.discountType === 'full_waiver' ? 'md:col-span-2' : ''}>
+                        <label className={labelCls}>Reason</label>
+                        <input
+                          type="text"
+                          value={transportDiscount.reason}
+                          onChange={e => setTransportDiscount(prev => ({ ...prev, reason: e.target.value }))}
+                          className={inputCls}
+                          placeholder="e.g. route concession, staff child, scholarship"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`mt-4 rounded-xl border p-4 ${theme === 'dark' ? 'border-gray-600 bg-gray-800/60' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="flex justify-between text-sm">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Transport annual total</span>
+                      <span className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{fmtCurrency(transportFeeCalcs.baseAnnual)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-2">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Transport discount</span>
+                      <span className="font-semibold text-green-600">- {fmtCurrency(transportFeeCalcs.discountAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-base mt-3 pt-3 border-t border-dashed border-gray-400/40">
+                      <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Transport final total</span>
+                      <span className="font-bold text-blue-500">{fmtCurrency(transportFeeCalcs.finalAnnual)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Live Fee Breakdown */}
-              {feeCalcs.selected.length > 0 && (
+              {applicableFeeStructures.length > 0 && (
                 <div className={`${sectionCls} ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? theme === 'dark' ? 'border-green-700' : 'border-green-300' : ''}`}>
                   <p className={sectionTitleCls}>📊 Fee Summary</p>
                   <div className="space-y-2">
-                    {feeStructures.map((fee: any) => {
+                    {applicableFeeStructures.map((fee: any) => {
                       const feeCategory = fee.category || fee.feeCategory || 'General';
                       const isSelectedForDiscount = selectedDiscountFeeIds.includes(fee.id);
                       const isInDiscountCategory = discountData.discountCategory === feeCategory;
@@ -957,7 +1408,7 @@ export default function StudentForm({
                     <div className="flex justify-between">
                       <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Total Fees:</span>
                       <span className={`text-sm font-semibold ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-                        ₹{feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0).toLocaleString('en-IN')}/year
+                        ₹{tuitionAnnual.toLocaleString('en-IN')}/year
                       </span>
                     </div>
                     {discountData.hasDiscount && feeCalcs.discountAmount > 0 && (
@@ -970,7 +1421,7 @@ export default function StudentForm({
                         <div className="flex justify-between items-center">
                           <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Final Annual Fees:</span>
                           <span className="text-base font-bold text-blue-500">
-                            ₹{(feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0) - feeCalcs.discountAmount).toLocaleString('en-IN')}/year
+                            ₹{tuitionFinalTotal.toLocaleString('en-IN')}/year
                           </span>
                         </div>
                         <div className={`flex items-center justify-center gap-2 p-2 rounded-lg mt-1 ${theme === 'dark' ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
@@ -990,7 +1441,7 @@ export default function StudentForm({
                           <div key={opt.label} className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{opt.label}</p>
                             <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-                              ₹{Math.round((feeStructures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0) - feeCalcs.discountAmount) / opt.divisor).toLocaleString('en-IN')}
+                              ₹{Math.round(tuitionFinalTotal / opt.divisor).toLocaleString('en-IN')}
                             </p>
                             {opt.divisor > 1 && <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>× {opt.divisor}</p>}
                           </div>
@@ -1384,16 +1835,214 @@ export default function StudentForm({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                     </svg>
-                    {student ? 'Updating...' : 'Adding...'}
+                    {student ? 'Updating...' : 'Preparing...'}
                   </span>
                 ) : (
-                  student ? 'Update Student' : 'Add Student'
+                  student ? 'Update Student' : 'Preview Admission'
                 )}
               </button>
             )}
           </div>
         </div>
       </form>
+
+      {previewOpen && previewPayload && (
+        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-gray-50'}`}>
+              <div>
+                <h2 className="text-xl font-bold">Admission Preview</h2>
+                <p className={helperTextCls}>Review all details, fee structure, transport, and discounts before submitting.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className={`w-10 h-10 rounded-xl border ${theme === 'dark' ? 'border-gray-600 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <div id="admission-preview-print" className={`rounded-2xl border p-6 space-y-6 ${theme === 'dark' ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-white'}`}>
+                <div className={`rounded-2xl p-6 ${theme === 'dark' ? 'bg-gradient-to-r from-blue-700 to-indigo-700 text-white' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'}`}>
+                  <div className="flex items-center gap-4">
+                    {schoolLogo ? (
+                      <img src={schoolLogo} alt={schoolName} className="w-16 h-16 object-contain rounded-2xl bg-white/10 p-2" />
+                    ) : null}
+                    <div>
+                      <h3 className="text-2xl font-bold">{schoolName}</h3>
+                      <p className="text-sm opacity-90">Student Admission Preview</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+                    <h4 className="font-bold mb-3">Student Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Name</span><span className="font-medium text-right">{previewPayload.student.name || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Admission No</span><span className="font-medium text-right">{previewPayload.student.admissionNo || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Class</span><span className="font-medium text-right">{previewPayload.student.className || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Section</span><span className="font-medium text-right">{previewPayload.student.section || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Medium</span><span className="font-medium text-right">{previewPayload.student.medium || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Date of Birth</span><span className="font-medium text-right">{previewPayload.student.dateOfBirth || '—'}</span></div>
+                    </div>
+                  </div>
+                  <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+                    <h4 className="font-bold mb-3">Contact & Family</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Student Email</span><span className="font-medium text-right">{previewPayload.student.email || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Student Phone</span><span className="font-medium text-right">{previewPayload.student.phone || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Father</span><span className="font-medium text-right">{previewPayload.student.fatherName || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Mother</span><span className="font-medium text-right">{previewPayload.student.motherName || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Address</span><span className="font-medium text-right">{previewPayload.student.address || '—'}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                  <div className={`px-4 py-3 border-b font-bold ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>Fee Structure</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className={theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-600'}>
+                        <tr>
+                          <th className="px-4 py-3 text-left">Fee</th>
+                          <th className="px-4 py-3 text-left">Category</th>
+                          <th className="px-4 py-3 text-right">Base</th>
+                          <th className="px-4 py-3 text-right">Discount</th>
+                          <th className="px-4 py-3 text-right">Final</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewPayload.tuitionRows.map((fee: any) => (
+                          <tr key={fee.id} className={theme === 'dark' ? 'border-t border-gray-800' : 'border-t border-gray-100'}>
+                            <td className="px-4 py-3 font-medium">{fee.name}</td>
+                            <td className="px-4 py-3">{fee.category}</td>
+                            <td className="px-4 py-3 text-right">{fmtCurrency(fee.amount)}</td>
+                            <td className="px-4 py-3 text-right text-green-600">{fee.discountAmount ? `- ${fmtCurrency(fee.discountAmount)}` : '—'}</td>
+                            <td className="px-4 py-3 text-right font-semibold">{fmtCurrency(fee.finalAmount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {previewPayload.transport.selected && (
+                  <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+                    <h4 className="font-bold mb-3">Transport</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Route</span><span className="font-medium text-right">{previewPayload.transport.routeLabel}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Pickup Stop</span><span className="font-medium text-right">{previewPayload.transport.pickupStop || '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Charge</span><span className="font-medium text-right">{previewPayload.transport.chargeLabel}</span></div>
+                      <div className="flex justify-between gap-4"><span className={helperTextCls}>Discount</span><span className="font-medium text-right">{previewPayload.transport.discountLabel}</span></div>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`rounded-2xl border p-5 ${theme === 'dark' ? 'border-blue-800 bg-blue-950/40' : 'border-blue-200 bg-blue-50'}`}>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                    <div><p className={helperTextCls}>Tuition Total</p><p className="font-bold text-lg">{fmtCurrency(previewPayload.summary.tuitionTotal)}</p></div>
+                    <div><p className={helperTextCls}>Tuition Discount</p><p className="font-bold text-lg text-green-600">{fmtCurrency(previewPayload.summary.tuitionDiscount)}</p></div>
+                    <div><p className={helperTextCls}>Transport Total</p><p className="font-bold text-lg">{fmtCurrency(previewPayload.summary.transportTotal)}</p></div>
+                    <div><p className={helperTextCls}>Grand Total</p><p className="font-bold text-xl text-blue-600">{fmtCurrency(previewPayload.summary.grandTotal)}</p></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex gap-2">
+                <button type="button" onClick={handlePrintPreview} className={`px-4 py-2 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>Print Preview</button>
+                <button type="button" onClick={handleDownloadPreviewPdf} className={`px-4 py-2 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>Save PDF</button>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setPreviewOpen(false)} className={`px-4 py-2 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>Edit</button>
+                <button type="button" onClick={onCancel} className={`px-4 py-2 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-red-700 text-red-300 hover:bg-red-950/50' : 'border-red-200 text-red-600 hover:bg-red-50'}`}>Cancel</button>
+                <button type="button" disabled={submissionDisabled} onClick={submitAdmission} className={`px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg ${submissionDisabled ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform'}`}>
+                  {isSubmitting ? 'Submitting...' : 'Submit Admission'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIdCard && idCardData && (
+        <div className="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+            <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-green-500">Admission Completed Successfully</h2>
+                  <p className="text-sm mt-1">
+                    {createdStudent?.name || formData.name} admitted successfully for {createdStudent?.class || formData.class || 'the selected class'} with admission number {createdStudent?.admissionNo || formData.admissionNo}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+                <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
+                  <h3 className="text-lg font-bold mb-4">Admission Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Student Name</p>
+                      <p className="font-semibold mt-1">{createdStudent?.name || formData.name}</p>
+                    </div>
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Admission Number</p>
+                      <p className="font-semibold mt-1">{createdStudent?.admissionNo || formData.admissionNo}</p>
+                    </div>
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Class</p>
+                      <p className="font-semibold mt-1">{createdStudent?.class || formData.class || '—'}</p>
+                    </div>
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Section</p>
+                      <p className="font-semibold mt-1">{createdStudent?.section || formData.section || '—'}</p>
+                    </div>
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Grand Total</p>
+                      <p className="font-semibold mt-1">{previewPayload ? fmtCurrency(previewPayload.summary.grandTotal) : fmtCurrency(combinedAnnual)}</p>
+                    </div>
+                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Welcome Emails</p>
+                      <p className="font-semibold mt-1">Queued for provided student/parent emails</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div id="student-id-card-print" className="flex justify-center">
+                    <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData) }} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button type="button" onClick={handlePrintIdCard} className="px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
+                      Print ID Card
+                    </button>
+                    <button type="button" onClick={handleDownloadIdCardPdf} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Save ID Card as PDF
+                    </button>
+                    <button type="button" onClick={handlePrintPreview} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Print Admission Preview
+                    </button>
+                    <button type="button" onClick={handleDownloadPreviewPdf} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Save Admission Preview PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
+function stripUnsupportedStudentFields(data: Record<string, any>) {
+  const {
+    boardId,
+    mediumId,
+    classId,
+    sectionId,
+    _ts,
+    _mediumId,
+    _classId,
+    _sectionId,
+    _skipWelcomeEmails,
+    _admissionFlowHandled,
+    _admissionPreview,
+    _discountInfo,
+    _transportInfo,
+    ...rest
+  } = data;
+  return rest;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
@@ -60,6 +80,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const body = await request.json();
     const { documents, fees, attendance, academics, behavior, feeRecords, attendanceRecords, examResults, _bypassLock, ...data } = body;
+    const sanitizedData = stripUnsupportedStudentFields(data);
 
     // Verify ownership before update
     const existing = await (schoolPrisma as any).student.findFirst({ where: { id, ...tenantWhere(ctx) } });
@@ -68,7 +89,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // ── Lock guard ──────────────────────────────────────────────────────────
     // If student has an academicYearId, check it matches the current active AY.
     // Status-only updates (promote/exit) and explicit _bypassLock flag bypass this.
-    const isStatusOnlyUpdate = Object.keys(data).length === 1 && 'status' in data;
+    const isStatusOnlyUpdate = Object.keys(sanitizedData).length === 1 && 'status' in sanitizedData;
     if (!isStatusOnlyUpdate && !_bypassLock && existing.academicYearId) {
       const activeAY = await (schoolPrisma as any).academicYear.findFirst({
         where: { ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {}), isActive: true },
@@ -89,7 +110,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const student = await (schoolPrisma as any).student.update({
       where: { id },
       data: {
-        ...data,
+        ...sanitizedData,
         documents: documents ? JSON.stringify(documents) : undefined,
         gpa: academics?.gpa,
         rank: academics?.rank,

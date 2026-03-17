@@ -650,9 +650,12 @@ export default function StudentTable({
                           : theme === 'dark' ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'
                       }`}
                     >
-                      {visibleColumns.map(columnKey => 
-                        renderTableCell(student, columnKey)
-                      )}
+                      {visibleColumns.map(columnKey => {
+                        const cell = renderTableCell(student, columnKey);
+                        return React.isValidElement(cell)
+                          ? React.cloneElement(cell, { key: `${student.id}-${columnKey}` })
+                          : cell;
+                      })}
                     </motion.tr>
                   ))
                 )}

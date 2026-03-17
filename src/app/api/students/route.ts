@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { documents, academics, behavior, transferCertificateNumber, ...rawData } = body;
+    const { documents, academics, behavior, transferCertificateNumber, _skipWelcomeEmails, ...rawData } = body;
 
     const limitError = await checkSubscriptionLimit(ctx, 'students', schoolPrisma);
     if (limitError) return limitError;
@@ -334,8 +334,10 @@ export async function POST(request: NextRequest) {
       return student;
     });
 
-    const schoolName = await getSchoolDisplayName(ctx.schoolId);
-    enqueueWelcomeEmails(result, ctx.schoolId, schoolName);
+    if (!_skipWelcomeEmails) {
+      const schoolName = await getSchoolDisplayName(ctx.schoolId);
+      enqueueWelcomeEmails(result, ctx.schoolId, schoolName);
+    }
     await logAuditActionSafe(ctx.email, 'student_created', result.id, result.name, {
       admissionNo: result.admissionNo,
       academicYear: result.academicYear,
@@ -391,6 +393,7 @@ async function nextRollNumber(className: string, section: string, schoolId: stri
 function stripUnsupportedFields(data: Record<string, any>) {
   const {
     grade,
+    boardId,
     mediumId,
     classId,
     sectionId,
@@ -398,6 +401,7 @@ function stripUnsupportedFields(data: Record<string, any>) {
     _mediumId,
     _classId,
     _sectionId,
+    _skipWelcomeEmails,
     ...rest
   } = data;
   return rest;
@@ -419,15 +423,17 @@ async function autoApplyFees(tx: any, {
         academicYearId: academicYear.id,
         ...(ctx.schoolId && { schoolId: ctx.schoolId }),
       },
-      include: { class: true },
+      include: { class: true, board: true, medium: true },
     });
 
     const year = new Date().getFullYear();
     for (const structure of feeStructures) {
       const classMatch = !structure.classId || structure.class?.name === student.class;
+      const boardMatch = !structure.boardId || structure.board?.name === student.board;
+      const mediumMatch = !structure.mediumId || structure.medium?.name === student.languageMedium;
       const cats = structure.applicableCategories || 'all';
       const categoryMatch = cats === 'all' || cats.includes(student.category || 'General');
-      if (!classMatch || !categoryMatch) continue;
+      if (!classMatch || !boardMatch || !mediumMatch || !categoryMatch) continue;
 
       const existing = await tx.feeRecord.findFirst({
         where: { studentId: student.id, feeStructureId: structure.id },
@@ -502,10 +508,11 @@ function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName:
 async function getSchoolDisplayName(schoolId: string | null): Promise<string> {
   if (!schoolId) return 'Our School';
   try {
-    const setting = await (schoolPrisma as any).schoolSetting.findFirst({
-      where: { schoolId, group: 'school_details', key: 'school_name' },
+    const settings = await (schoolPrisma as any).schoolSetting.findMany({
+      where: { schoolId, group: 'school_details', key: { in: ['name', 'school_name'] } },
     });
-    return setting?.value || 'Our School';
+    const byKey = new Map(settings.map((setting: any) => [setting.key, setting.value]));
+    return byKey.get('name') || byKey.get('school_name') || 'Our School';
   } catch (error) {
     console.error('Failed to fetch school name:', error);
     return 'Our School';

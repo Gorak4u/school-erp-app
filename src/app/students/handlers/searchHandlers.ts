@@ -422,13 +422,52 @@ export function createSearchHandlers(ctx: any) {
   const handleAddStudent = async (studentData: Partial<Student>) => {
     try {
       const { studentsApi } = await import('@/lib/apiClient');
-      const { _discountInfo, _transportInfo, ...cleanStudentData } = studentData as any;
-      const result = await studentsApi.create(cleanStudentData);
+      const {
+        _discountInfo,
+        _transportInfo,
+        _admissionFlowHandled,
+        _admissionPreview,
+        ...cleanStudentData
+      } = studentData as any;
+      const result = await studentsApi.create({
+        ...cleanStudentData,
+        _skipWelcomeEmails: !!_admissionPreview,
+      });
       if (result.student) {
+        const replaceAllSafe = (value: string, search: string | undefined, replacement: string | undefined) => {
+          if (!value || !search || !replacement || search === replacement) return value;
+          return value.split(search).join(replacement);
+        };
+        const resolvedAdmissionPreview = _admissionPreview ? (() => {
+          const originalAdmissionNo = _admissionPreview.idCardData?.admissionNo || cleanStudentData.admissionNo;
+          const originalName = _admissionPreview.idCardData?.name || cleanStudentData.name;
+          const originalClassName = _admissionPreview.idCardData?.className || cleanStudentData.class;
+          let previewDocumentHtml = _admissionPreview.previewDocumentHtml || '';
+          let idCardHtml = _admissionPreview.idCardHtml || '';
+          previewDocumentHtml = replaceAllSafe(previewDocumentHtml, originalAdmissionNo, result.student.admissionNo);
+          previewDocumentHtml = replaceAllSafe(previewDocumentHtml, originalName, result.student.name);
+          previewDocumentHtml = replaceAllSafe(previewDocumentHtml, originalClassName, result.student.class);
+          idCardHtml = replaceAllSafe(idCardHtml, originalAdmissionNo, result.student.admissionNo);
+          idCardHtml = replaceAllSafe(idCardHtml, originalName, result.student.name);
+          idCardHtml = replaceAllSafe(idCardHtml, originalClassName, result.student.class);
+          return {
+            ..._admissionPreview,
+            previewDocumentHtml,
+            idCardHtml,
+            idCardData: {
+              ..._admissionPreview.idCardData,
+              name: result.student.name,
+              admissionNo: result.student.admissionNo,
+              className: result.student.class,
+            },
+          };
+        })() : null;
+        let transportAssignmentResult: any = null;
+
         // Auto-assign transport route if provided
         if (_transportInfo?.routeId && _transportInfo?.pickupStop) {
           try {
-            await fetch('/api/transport/students', {
+            const transportRes = await fetch('/api/transport/students', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -437,9 +476,12 @@ export function createSearchHandlers(ctx: any) {
                 pickupStop: _transportInfo.pickupStop,
                 dropStop: _transportInfo.dropStop || null,
                 monthlyFee: Number(_transportInfo.monthlyFee) || 0,
+                yearlyFee: Number(_transportInfo.yearlyFee) || 0,
+                annualFee: Number(_transportInfo.annualFee) || 0,
                 generateFeeRecord: true,
               }),
             });
+            transportAssignmentResult = await transportRes.json().catch(() => null);
           } catch (transportErr) {
             console.error('Transport assignment failed:', transportErr);
           }
@@ -447,6 +489,7 @@ export function createSearchHandlers(ctx: any) {
 
         // Create discount request if provided
         let discountCreated = false;
+        let transportDiscountCreated = false;
         if (_discountInfo?.hasDiscount) {
           try {
             const academicYear = result.student.academicYear ||
@@ -479,17 +522,68 @@ export function createSearchHandlers(ctx: any) {
           }
         }
 
+        if (_transportInfo?.discountInfo?.hasDiscount && transportAssignmentResult?.feeStructure?.id) {
+          try {
+            const academicYear = result.student.academicYear ||
+              `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+            const discountRes = await fetch('/api/fees/discount-requests', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: `Transport discount for ${result.student.name}`,
+                description: _transportInfo.discountInfo.reason,
+                discountType: _transportInfo.discountInfo.discountType,
+                discountValue: Number(_transportInfo.discountInfo.discountValue) || 0,
+                maxCapAmount: null,
+                scope: 'student',
+                targetType: 'individual',
+                studentIds: [result.student.id],
+                classIds: [],
+                sectionIds: [],
+                feeStructureIds: [transportAssignmentResult.feeStructure.id],
+                academicYear,
+                reason: _transportInfo.discountInfo.reason || 'Transport concession',
+                validFrom: _discountInfo?.validFrom || new Date().toISOString().split('T')[0],
+                validTo: _discountInfo?.validTo || null,
+              }),
+            });
+            if (discountRes.ok) transportDiscountCreated = true;
+            else console.error('Transport discount request failed:', await discountRes.text());
+          } catch (transportDiscountErr) {
+            console.error('Transport discount request creation failed:', transportDiscountErr);
+          }
+        }
+
+        if (resolvedAdmissionPreview) {
+          try {
+            await fetch(`/api/students/${result.student.id}/welcome-package`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...resolvedAdmissionPreview,
+                transport: transportAssignmentResult?.assignment || null,
+                tuitionDiscountCreated: discountCreated,
+                transportDiscountCreated,
+              }),
+            });
+          } catch (welcomeErr) {
+            console.error('Failed to trigger welcome package email:', welcomeErr);
+          }
+        }
+
         // Refresh the student list to get updated data
         const updatedResult = await studentsApi.list({ page: '1', pageSize: '50' });
         if (updatedResult.students) {
           setStudents(updatedResult.students);
         }
-        setShowAddModal(false);
-        if ((window as any).toast) {
+        if (!_admissionFlowHandled) {
+          setShowAddModal(false);
+        }
+        if (!_admissionFlowHandled && (window as any).toast) {
           (window as any).toast({
             type: 'success',
             title: 'Student Added',
-            message: discountCreated
+            message: discountCreated || transportDiscountCreated
               ? `${result.student.name} added (${result.student.admissionNo}). Discount request created & sent for approval.`
               : `${result.student.name} has been added successfully with admission number ${result.student.admissionNo}`,
             duration: 5000

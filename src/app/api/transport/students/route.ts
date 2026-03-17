@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { studentId, routeId, pickupStop, dropStop, monthlyFee, academicYearId, generateFeeRecord } = body;
+    const { studentId, routeId, pickupStop, dropStop, monthlyFee, yearlyFee, annualFee, academicYearId, generateFeeRecord } = body;
 
     if (!studentId || !routeId || !pickupStop) {
       return NextResponse.json({ error: 'studentId, routeId, pickupStop are required' }, { status: 400 });
@@ -104,7 +104,14 @@ export async function POST(request: NextRequest) {
       data: { isActive: false }
     });
 
-    const fee = monthlyFee ?? route.monthlyFee;
+    const effectiveMonthlyFee = Number(monthlyFee ?? route.monthlyFee ?? 0);
+    const effectiveYearlyFee = Number(yearlyFee ?? route.yearlyFee ?? 0);
+    const fee = Number(annualFee || 0) > 0
+      ? Number(annualFee)
+      : effectiveYearlyFee > 0
+        ? effectiveYearlyFee
+        : effectiveMonthlyFee;
+    const feeFrequency = effectiveYearlyFee > 0 || Number(annualFee || 0) > 0 ? 'yearly' : 'monthly';
 
     const assignment = await (schoolPrisma as any).studentTransport.create({
       data: {
@@ -112,7 +119,7 @@ export async function POST(request: NextRequest) {
         routeId,
         pickupStop,
         dropStop: dropStop || null,
-        monthlyFee: fee,
+        monthlyFee: effectiveMonthlyFee,
         academicYearId: academicYearId || null,
         isActive: true,
       },
@@ -130,10 +137,10 @@ export async function POST(request: NextRequest) {
 
     // Auto-generate transport FeeRecord if requested or fee > 0
     let feeRecord = null;
+    let feeStructure = null;
     if (generateFeeRecord !== false && fee > 0) {
       try {
-        // Find or create a transport FeeStructure for this route
-        let feeStructure = await (schoolPrisma as any).feeStructure.findFirst({
+        feeStructure = await (schoolPrisma as any).feeStructure.findFirst({
           where: {
             schoolId: ctx.schoolId,
             category: 'transport',
@@ -148,14 +155,23 @@ export async function POST(request: NextRequest) {
               name: `Transport - ${route.routeName}`,
               category: 'transport',
               amount: fee,
-              frequency: 'monthly',
+              frequency: feeFrequency,
               dueDate: 10,
               lateFee: 0,
-              description: `Monthly transport fee for route ${route.routeNumber} - ${route.routeName}`,
+              description: `${feeFrequency === 'yearly' ? 'Annual' : 'Monthly'} transport fee for route ${route.routeNumber} - ${route.routeName}`,
               applicableCategories: 'all',
               isActive: true,
               schoolId: ctx.schoolId,
               academicYearId: academicYearId || null,
+            }
+          });
+        } else if (Number(feeStructure.amount || 0) !== fee || feeStructure.frequency !== feeFrequency) {
+          feeStructure = await (schoolPrisma as any).feeStructure.update({
+            where: { id: feeStructure.id },
+            data: {
+              amount: fee,
+              frequency: feeFrequency,
+              description: `${feeFrequency === 'yearly' ? 'Annual' : 'Monthly'} transport fee for route ${route.routeNumber} - ${route.routeName}`,
             }
           });
         }
@@ -181,7 +197,7 @@ export async function POST(request: NextRequest) {
               status: 'pending',
               academicYear: academicYearLabel,
               receiptNumber: `TRNSP-${Date.now()}-${studentId.slice(-4)}`,
-              remarks: `Transport fee - Route ${route.routeNumber} (${pickupStop})`
+              remarks: `${feeFrequency === 'yearly' ? 'Annual' : 'Monthly'} transport fee - Route ${route.routeNumber} (${pickupStop})`
             }
           });
         }
@@ -202,6 +218,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       assignment, 
+      feeStructure,
       feeRecord,
       message: 'Student assigned to transport successfully. Confirmation email sent to parent.'
     }, { status: 201 });
