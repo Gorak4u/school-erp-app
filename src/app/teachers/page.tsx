@@ -882,7 +882,7 @@ export default function StaffPage() {
             </div>
 
             {/* Form Content */}
-            <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
               {formError && (
                 <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                   <div className="flex items-center gap-2">
@@ -1380,7 +1380,7 @@ export default function StaffPage() {
             </div>
 
             {/* Form Content */}
-            <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
               {formError && (
                 <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                   <div className="flex items-center gap-2">
