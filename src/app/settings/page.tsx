@@ -601,6 +601,14 @@ export default function SettingsPage() {
       fetchAll();
       refreshSchoolConfig();
     } catch (e: any) {
+      // Handle foreign key constraint with reassignment option
+      if (e.message?.includes('FOREIGN_KEY_CONSTRAINT') && entity === 'medium') {
+        const affectedClasses = classes.filter((c: any) => c.mediumId === id);
+        if (affectedClasses.length > 0) {
+          setShowMediumDeleteModal({ mediumId: id, mediumName: name, affectedClasses, targetMediumId: '' });
+          return;
+        }
+      }
       showToast({ type: 'error', title: 'Delete failed', message: e.message });
     }
   };
@@ -1228,6 +1236,7 @@ export default function SettingsPage() {
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [cloneSource, setCloneSource] = useState('');
     const [cloneTarget, setCloneTarget] = useState('');
+    const [showMediumDeleteModal, setShowMediumDeleteModal] = useState(null);
     const [globalConfig, setGlobalConfig] = useState({
       late_fee_per_day: getSetting('fee_config', 'late_fee_per_day', '0'),
       grace_period_days: getSetting('fee_config', 'grace_period_days', '7'),
@@ -1638,8 +1647,8 @@ export default function SettingsPage() {
                   <div><label className={label}>Target Academic Year</label><select className={input} value={cloneTarget} onChange={e => setCloneTarget(e.target.value)}><option value="">Select target...</option>{academicYears.filter((a: any) => a.id !== cloneSource).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
                 </div>
                 <div className="flex gap-3 mt-6">
-                  <button className={btnPrimary} disabled={saving || !cloneSource || !cloneTarget} onClick={handleClone}>{saving ? 'Cloning...' : 'Clone Structures'}</button>
                   <button className={btnSecondary} onClick={() => setShowCloneModal(false)}>Cancel</button>
+                  <button className={btnPrimary} disabled={!cloneSource || !cloneTarget || cloning} onClick={handleClone}>{cloning ? 'Cloning...' : 'Clone'}</button>
                 </div>
               </motion.div>
             </motion.div>
@@ -2212,6 +2221,77 @@ export default function SettingsPage() {
                   onClick={() => handleConfirmLock(false)}
                 >
                   Skip for Now
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Medium Delete with Reassignment Modal */}
+      <AnimatePresence>
+        {showMediumDeleteModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowMediumDeleteModal(null)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Cannot Delete Medium</h3>
+                <button onClick={() => setShowMediumDeleteModal(null)} className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}>
+                  <span className="text-xl leading-none">×</span>
+                </button>
+              </div>
+              <p className={`${subtext} mb-4`}>
+                The medium <strong>"{showMediumDeleteModal.mediumName}"</strong> is being used by <strong>{showMediumDeleteModal.affectedClasses.length} class(es)</strong>. Please reassign these classes to another medium before deleting.
+              </p>
+              <div className={`p-3 rounded-lg mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+                <h4 className={`font-semibold mb-2 text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Affected Classes:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {showMediumDeleteModal.affectedClasses.map((cls: any) => (
+                    <span key={cls.id} className={`px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
+                      {cls.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mb-6">
+                <label className={label}>Reassign to Medium:</label>
+                <select
+                  className={input}
+                  value={showMediumDeleteModal.targetMediumId}
+                  onChange={e => setShowMediumDeleteModal({ ...showMediumDeleteModal, targetMediumId: e.target.value })}
+                >
+                  <option value="">Select target medium...</option>
+                  {mediums.filter((m: any) => m.id !== showMediumDeleteModal.mediumId).map((m: any) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <button className={btnSecondary} onClick={() => setShowMediumDeleteModal(null)}>Cancel</button>
+                <button
+                  className={btnPrimary}
+                  disabled={!showMediumDeleteModal.targetMediumId || showMediumDeleteModal.reassigning}
+                  onClick={async () => {
+                    setShowMediumDeleteModal({ ...showMediumDeleteModal, reassigning: true });
+                    try {
+                      // Reassign all affected classes
+                      await Promise.all(
+                        showMediumDeleteModal.affectedClasses.map((cls: any) =>
+                          classesApi.update(cls.id, { mediumId: showMediumDeleteModal.targetMediumId })
+                        )
+                      );
+                      // Now delete the medium
+                      await mediumsApi.delete(showMediumDeleteModal.mediumId);
+                      showToast({ type: 'success', title: `Medium "${showMediumDeleteModal.mediumName}" deleted and classes reassigned` });
+                      await fetchAll();
+                      refreshSchoolConfig();
+                      setShowMediumDeleteModal(null);
+                    } catch (e: any) {
+                      showToast({ type: 'error', title: 'Reassignment failed', message: e.message });
+                      setShowMediumDeleteModal({ ...showMediumDeleteModal, reassigning: false });
+                    }
+                  }}
+                >
+                  {showMediumDeleteModal.reassigning ? 'Reassigning...' : 'Reassign & Delete'}
                 </button>
               </div>
             </motion.div>
