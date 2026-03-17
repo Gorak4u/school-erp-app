@@ -84,9 +84,12 @@ export async function POST(req: Request) {
     const maxStudents = planConfig?.maxStudents ?? 50;
     const maxTeachers = planConfig?.maxTeachers ?? 5;
     const features = planConfig?.features ?? '["student-management","attendance-tracking","fee-management","basic-reports"]';
-    
+
+    // Determine if this is a free/trial plan by price (not by name)
+    const isTrialPlan = (planConfig?.priceMonthly ?? 0) === 0;
+
     // Calculate price based on billing cycle
-    const price = billingCycle === 'yearly' 
+    const price = billingCycle === 'yearly'
       ? (planConfig?.priceYearly || planConfig?.priceMonthly || 0)
       : (planConfig?.priceMonthly || 0);
 
@@ -106,7 +109,7 @@ export async function POST(req: Request) {
           city: city || null,
           state: state || null,
           pinCode: pinCode || null,
-          isDemo: plan === 'trial',
+          isDemo: isTrialPlan,
         },
       });
 
@@ -123,7 +126,7 @@ export async function POST(req: Request) {
         price,
       };
 
-      if (plan === 'trial') {
+      if (isTrialPlan) {
         subscriptionData.status = 'trial';
         subscriptionData.trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
       } else {
@@ -172,7 +175,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: plan === 'trial'
+      message: isTrialPlan
         ? `Trial account created! You have ${trialDays} days to explore.`
         : 'Account created successfully!',
       school: {
