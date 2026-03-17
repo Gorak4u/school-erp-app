@@ -89,37 +89,80 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const cascade = searchParams.get('cascade') === 'true';
 
     if (!id) {
       return NextResponse.json({ error: 'Medium ID is required' }, { status: 400 });
     }
 
-    // Verify medium exists
-    const existing = await (schoolPrisma as any).medium.findUnique({ where: { id } });
+    // Verify medium exists and get related counts
+    const existing = await (schoolPrisma as any).medium.findUnique({ 
+      where: { id },
+      include: {
+        classes: {
+          include: {
+            sections: true
+          }
+        }
+      }
+    });
     if (!existing) return NextResponse.json({ error: 'Medium not found' }, { status: 404 });
 
-    // Check for foreign key relationships - classes using this medium
-    const classCount = await (schoolPrisma as any).class.count({ where: { mediumId: id } });
-    if (classCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete medium', 
-        details: `This medium is being used by ${classCount} class(es). Please delete or reassign the classes first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
-    }
-
+    const classCount = existing.classes.length;
+    const sectionCount = existing.classes.reduce((sum: number, cls: any) => sum + cls.sections.length, 0);
+    
     // Check for fee structures using this medium
     const feeStructureCount = await (schoolPrisma as any).feeStructure.count({ where: { mediumId: id } });
-    if (feeStructureCount > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete medium', 
-        details: `This medium is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
-        code: 'FOREIGN_KEY_CONSTRAINT'
-      }, { status: 400 });
+
+    // If not cascading, check for foreign key relationships
+    if (!cascade) {
+      if (classCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete medium', 
+          details: `This medium is being used by ${classCount} class(es). Please delete or reassign the classes first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
+      if (feeStructureCount > 0) {
+        return NextResponse.json({ 
+          error: 'Cannot delete medium', 
+          details: `This medium is being used by ${feeStructureCount} fee structure(s). Please delete the fee structures first.`,
+          code: 'FOREIGN_KEY_CONSTRAINT'
+        }, { status: 400 });
+      }
     }
 
+    // Perform cascading deletion if requested
+    if (cascade) {
+      // Delete fee structures for this medium
+      if (feeStructureCount > 0) {
+        await (schoolPrisma as any).feeStructure.deleteMany({ where: { mediumId: id } });
+      }
+
+      // Delete sections for all classes in this medium
+      if (sectionCount > 0) {
+        const classIds = existing.classes.map((cls: any) => cls.id);
+        await (schoolPrisma as any).section.deleteMany({ where: { classId: { in: classIds } } });
+      }
+
+      // Delete classes for this medium
+      if (classCount > 0) {
+        await (schoolPrisma as any).class.deleteMany({ where: { mediumId: id } });
+      }
+    }
+
+    // Delete the medium
     await (schoolPrisma as any).medium.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    
+    return NextResponse.json({ 
+      success: true,
+      cascaded: cascade,
+      deleted: {
+        classes: classCount,
+        sections: sectionCount,
+        feeStructures: feeStructureCount
+      }
+    });
   } catch (error: any) {
     console.error('Error deleting medium:', error);
     if (error.code === 'P2025') return NextResponse.json({ error: 'Medium not found' }, { status: 404 });

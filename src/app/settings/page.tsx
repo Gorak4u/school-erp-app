@@ -602,11 +602,21 @@ export default function SettingsPage() {
       fetchAll();
       refreshSchoolConfig();
     } catch (e: any) {
-      // Handle foreign key constraint with reassignment option
+      // Handle foreign key constraint with cascading deletion option
       if (e.message?.includes('FOREIGN_KEY_CONSTRAINT') && entity === 'medium') {
         const affectedClasses = classes.filter((c: any) => c.mediumId === id);
-        if (affectedClasses.length > 0) {
-          setShowMediumDeleteModal({ mediumId: id, mediumName: name, affectedClasses, targetMediumId: '' });
+        const affectedSections = affectedClasses.reduce((sum: number, cls: any) => sum + (cls.sections?.length || 0), 0);
+        const affectedFeeStructures = feeStructures.filter((fs: any) => fs.mediumId === id).length;
+        
+        if (affectedClasses.length > 0 || affectedFeeStructures > 0) {
+          setShowMediumDeleteModal({ 
+            mediumId: id, 
+            mediumName: name, 
+            affectedClasses, 
+            affectedSections,
+            affectedFeeStructures,
+            deleting: false
+          });
           return;
         }
       }
@@ -2228,70 +2238,75 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
 
-      {/* Medium Delete with Reassignment Modal */}
+      {/* Medium Delete with Cascading Confirmation Modal */}
       <AnimatePresence>
         {showMediumDeleteModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowMediumDeleteModal(null)}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-4">
-                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Cannot Delete Medium</h3>
+                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>⚠️ Cascading Delete Confirmation</h3>
                 <button onClick={() => setShowMediumDeleteModal(null)} className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}>
                   <span className="text-xl leading-none">×</span>
                 </button>
               </div>
               <p className={`${subtext} mb-4`}>
-                The medium <strong>"{showMediumDeleteModal.mediumName}"</strong> is being used by <strong>{showMediumDeleteModal.affectedClasses.length} class(es)</strong>. Please reassign these classes to another medium before deleting.
+                Deleting medium <strong>"{showMediumDeleteModal.mediumName}"</strong> will also permanently delete:
               </p>
-              <div className={`p-3 rounded-lg mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
-                <h4 className={`font-semibold mb-2 text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Affected Classes:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {showMediumDeleteModal.affectedClasses.map((cls: any) => (
-                    <span key={cls.id} className={`px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
-                      {cls.name}
-                    </span>
-                  ))}
+              <div className={`space-y-3 mb-6`}>
+                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700/30' : 'bg-red-50 border border-red-200'}`}>
+                  <span className={`font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Classes</span>
+                  <span className={`font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{showMediumDeleteModal.affectedClasses.length}</span>
+                </div>
+                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-orange-900/20 border border-orange-700/30' : 'bg-orange-50 border border-orange-200'}`}>
+                  <span className={`font-medium ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>Sections</span>
+                  <span className={`font-bold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{showMediumDeleteModal.affectedSections || 0}</span>
+                </div>
+                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-yellow-50 border border-yellow-200'}`}>
+                  <span className={`font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>Fee Structures</span>
+                  <span className={`font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{showMediumDeleteModal.affectedFeeStructures || 0}</span>
                 </div>
               </div>
-              <div className="mb-6">
-                <label className={label}>Reassign to Medium:</label>
-                <select
-                  className={input}
-                  value={showMediumDeleteModal.targetMediumId}
-                  onChange={e => setShowMediumDeleteModal({ ...showMediumDeleteModal, targetMediumId: e.target.value })}
-                >
-                  <option value="">Select target medium...</option>
-                  {mediums.filter((m: any) => m.id !== showMediumDeleteModal.mediumId).map((m: any) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+              {showMediumDeleteModal.affectedClasses.length > 0 && (
+                <div className={`p-3 rounded-lg mb-6 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+                  <h4 className={`font-semibold mb-2 text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Classes to be deleted:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {showMediumDeleteModal.affectedClasses.map((cls: any) => (
+                      <span key={cls.id} className={`px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
+                        {cls.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className={`p-3 rounded-lg mb-6 ${isDark ? 'bg-red-900/10 border border-red-700/20' : 'bg-red-50 border border-red-200'}`}>
+                <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
+                  ⚠️ This action cannot be undone. All data will be permanently deleted.
+                </p>
               </div>
               <div className="flex gap-3">
                 <button className={btnSecondary} onClick={() => setShowMediumDeleteModal(null)}>Cancel</button>
                 <button
-                  className={btnPrimary}
-                  disabled={!showMediumDeleteModal.targetMediumId || showMediumDeleteModal.reassigning}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white' : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white'}`}
+                  disabled={showMediumDeleteModal.deleting}
                   onClick={async () => {
-                    setShowMediumDeleteModal({ ...showMediumDeleteModal, reassigning: true });
+                    setShowMediumDeleteModal({ ...showMediumDeleteModal, deleting: true });
                     try {
-                      // Reassign all affected classes
-                      await Promise.all(
-                        showMediumDeleteModal.affectedClasses.map((cls: any) =>
-                          classesApi.update(cls.id, { mediumId: showMediumDeleteModal.targetMediumId })
-                        )
-                      );
-                      // Now delete the medium
-                      await mediumsApi.delete(showMediumDeleteModal.mediumId);
-                      showToast({ type: 'success', title: `Medium "${showMediumDeleteModal.mediumName}" deleted and classes reassigned` });
+                      const result = await mediumsApi.delete(showMediumDeleteModal.mediumId, true);
+                      showToast({ 
+                        type: 'success', 
+                        title: `Medium "${showMediumDeleteModal.mediumName}" deleted`,
+                        message: `Also deleted: ${result.deleted?.classes || 0} classes, ${result.deleted?.sections || 0} sections, ${result.deleted?.feeStructures || 0} fee structures`
+                      });
                       await fetchAll();
                       refreshSchoolConfig();
                       setShowMediumDeleteModal(null);
                     } catch (e: any) {
-                      showToast({ type: 'error', title: 'Reassignment failed', message: e.message });
-                      setShowMediumDeleteModal({ ...showMediumDeleteModal, reassigning: false });
+                      showToast({ type: 'error', title: 'Delete failed', message: e.message });
+                      setShowMediumDeleteModal({ ...showMediumDeleteModal, deleting: false });
                     }
                   }}
                 >
-                  {showMediumDeleteModal.reassigning ? 'Reassigning...' : 'Reassign & Delete'}
+                  {showMediumDeleteModal.deleting ? 'Deleting...' : 'Delete All'}
                 </button>
               </div>
             </motion.div>

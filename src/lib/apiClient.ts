@@ -186,7 +186,10 @@ export const mediumsApi = {
   },
   create: (data: any) => request<any>('/api/school-structure/mediums', { method: 'POST', body: JSON.stringify(data) }),
   update: (data: any) => request<any>('/api/school-structure/mediums', { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) => request<any>(`/api/school-structure/mediums?id=${id}`, { method: 'DELETE' }),
+  delete: (id: string, cascade: boolean = false) => {
+    const qs = new URLSearchParams({ id, cascade: cascade.toString() }).toString();
+    return request<any>(`/api/school-structure/mediums?${qs}`, { method: 'DELETE' });
+  },
 };
 
 export const classesApi = {
