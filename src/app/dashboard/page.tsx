@@ -17,6 +17,7 @@ import DashboardAnalytics from './components/DashboardAnalytics';
 import DashboardPerformance from './components/DashboardPerformance';
 import DashboardQuickActions from './components/DashboardQuickActions';
 import DashboardAlerts from './components/DashboardAlerts';
+import { dashboardApi } from '@/lib/apiClient';
 
 export default function DashboardPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
