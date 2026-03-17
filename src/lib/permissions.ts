@@ -501,13 +501,99 @@ export function canPromoteStudentsAccess(input: {
     || hasPermissionByName(input.permissions, ALL_PERMISSIONS.PROMOTE_STUDENTS);
 }
 
-export function canLockStudentsAccess(input: {
+export function canViewStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [
+      ALL_PERMISSIONS.VIEW_STUDENTS,
+      ALL_PERMISSIONS.CREATE_STUDENTS,
+      ALL_PERMISSIONS.EDIT_STUDENTS,
+      ALL_PERMISSIONS.DELETE_STUDENTS,
+      ALL_PERMISSIONS.PROMOTE_STUDENTS,
+    ]);
+}
+
+export function canCreateStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.CREATE_STUDENTS);
+}
+
+export function canEditStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.EDIT_STUDENTS);
+}
+
+export function canDeleteStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.DELETE_STUDENTS);
+}
+
+export function canManageStudentLifecycleAccess(input: {
   role?: string | null;
   isSuperAdmin?: boolean | null;
   permissions?: readonly string[] | null;
 }): boolean {
   return canPromoteStudentsAccess(input)
     || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.EDIT_STUDENTS, ALL_PERMISSIONS.MANAGE_SETTINGS]);
+}
+
+export function canLockStudentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canManageStudentLifecycleAccess(input)
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.EDIT_STUDENTS, ALL_PERMISSIONS.MANAGE_SETTINGS]);
+}
+
+export function canViewAlumniAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasAnyPermissionByName(input.permissions, [
+      ALL_PERMISSIONS.VIEW_ALUMNI,
+      ALL_PERMISSIONS.VIEW_STUDENTS,
+      ALL_PERMISSIONS.EDIT_STUDENTS,
+      ALL_PERMISSIONS.PROMOTE_STUDENTS,
+    ]);
+}
+
+export function canManageAlumniAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.EDIT_STUDENTS);
+}
+
+export function canViewAlumniDuesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canViewAlumniAccess(input) && canViewFeesAccess(input);
 }
 
 export function canApproveDiscountsAccess(input: {

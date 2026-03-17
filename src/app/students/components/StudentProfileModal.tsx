@@ -10,11 +10,13 @@ import StudentMedicalInfo from './StudentMedicalInfo';
 
 interface StudentProfileModalProps {
   activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
+  canEditStudents?: boolean;
+  canPromoteStudents?: boolean;
   onPromoteSingle?: (studentId: string) => void;
   onMarkExit?: (studentId: string) => void;
 }
 
-export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], onPromoteSingle, onMarkExit }: StudentProfileModalProps) {
+export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit }: StudentProfileModalProps) {
   return (
     <>
       {/* Student Profile Modal */}
@@ -90,17 +92,18 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     >
                       🖨️ Print
                     </button>
-                    
-                    <button
-                      onClick={() => setEditingStudent(selectedStudent)}
-                      className={`px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
-                        theme === 'dark'
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white'
-                      }`}
-                    >
-                      ✏️ Edit
-                    </button>
+                    {canEditStudents && (
+                      <button
+                        onClick={() => setEditingStudent(selectedStudent)}
+                        className={`px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
+                          theme === 'dark'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => setSelectedStudent(null)}
@@ -132,7 +135,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {onPromoteSingle && (
+                      {canPromoteStudents && onPromoteSingle && (
                         <button
                           onClick={() => { setSelectedStudent(null); onPromoteSingle(selectedStudent.id); }}
                           className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors"
@@ -140,7 +143,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                           🎓 Promote Now
                         </button>
                       )}
-                      {onMarkExit && (
+                      {canPromoteStudents && onMarkExit && (
                         <button
                           onClick={() => { onMarkExit(selectedStudent.id); setSelectedStudent(null); }}
                           className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-500 hover:bg-gray-600 text-white transition-colors"

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Alumni {
   id: string;
@@ -47,7 +48,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function AlumniPage() {
   const { theme } = useTheme();
+  const { isAdmin, hasPermission } = usePermissions();
   const isDark = theme === 'dark';
+  const canViewAlumniDues = isAdmin || hasPermission('view_fees') || hasPermission('manage_fees');
 
   const [alumni, setAlumni] = useState<Alumni[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +90,7 @@ export default function AlumniPage() {
           total: data.pagination.total,
           graduated: all.filter(a => a.exitReason === 'graduated').length,
           transferred: all.filter(a => a.exitReason === 'transferred').length,
-          withDues: all.filter(a => a.pendingDues > 0).length,
+          withDues: canViewAlumniDues ? all.filter(a => a.pendingDues > 0).length : 0,
         });
       }
     } catch (err) {
@@ -95,7 +98,7 @@ export default function AlumniPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterReason, filterYear]);
+  }, [search, filterReason, filterYear, canViewAlumniDues]);
 
   useEffect(() => {
     const t = setTimeout(() => loadAlumni(1), 300);
@@ -106,7 +109,7 @@ export default function AlumniPage() {
     { label: 'Total Alumni', value: total, icon: '👥', color: 'text-blue-500' },
     { label: 'Graduated', value: stats.graduated, icon: '🎓', color: 'text-green-500' },
     { label: 'Transferred', value: stats.transferred, icon: '🔄', color: 'text-purple-500' },
-    { label: 'With Dues', value: stats.withDues, icon: '💸', color: 'text-red-500' },
+    ...(canViewAlumniDues ? [{ label: 'With Dues', value: stats.withDues, icon: '💸', color: 'text-red-500' }] : []),
   ];
 
   return (
@@ -251,7 +254,7 @@ export default function AlumniPage() {
                   </div>
 
                   {/* Dues warning */}
-                  {a.pendingDues > 0 && (
+                  {canViewAlumniDues && a.pendingDues > 0 && (
                     <div className={`text-xs px-2 py-1 rounded-lg mb-3 ${isDark ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
                       ⚠️ Pending dues: <strong>₹{a.pendingDues.toLocaleString()}</strong>
                     </div>
@@ -265,7 +268,7 @@ export default function AlumniPage() {
                     >
                       View Profile
                     </Link>
-                    {a.pendingDues > 0 && (
+                    {canViewAlumniDues && a.pendingDues > 0 && (
                       <Link
                         href={`/alumni/${a.id}?tab=dues`}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500 hover:bg-red-600 text-white transition-colors"

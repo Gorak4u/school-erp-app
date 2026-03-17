@@ -17,14 +17,16 @@ interface StudentDashboardProps {
   students: any[];
   theme: 'dark' | 'light';
   filteredStudents: any[];
-  canManageStudents?: boolean;
+  canCreateStudents?: boolean;
+  canManageStudentBulk?: boolean;
 }
 
 export default function StudentDashboard({
   dashboardStats, selectedStudents, setBulkOperations, setShowAddModal,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowDashboard,
   showAdvancedFilters, showDashboard, students, theme, filteredStudents,
-  canManageStudents = true
+  canCreateStudents = true,
+  canManageStudentBulk = true
 }: StudentDashboardProps) {
   const statCards = [
     { label: 'Total Students', value: dashboardStats.totalStudents, icon: '👨‍🎓', color: 'blue', trend: `${dashboardStats.recentAdmissions} new` },
@@ -53,7 +55,7 @@ export default function StudentDashboard({
           {showDashboard ? '📊 Hide Dashboard' : '📊 Show Dashboard'}
         </button>
         <div className="flex gap-2">
-          {canManageStudents && (
+          {canCreateStudents && (
             <button
               onClick={() => setShowAddModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity"
@@ -61,7 +63,7 @@ export default function StudentDashboard({
               ➕ Add Student
             </button>
           )}
-          {canManageStudents && (
+          {canCreateStudents && (
             <button
               onClick={() => setBulkOperations(prev => ({ ...prev, showImportModal: true }))}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -71,7 +73,7 @@ export default function StudentDashboard({
               📥 Import
             </button>
           )}
-          {canManageStudents && selectedStudents.length > 0 && (
+          {canManageStudentBulk && selectedStudents.length > 0 && (
             <button
               onClick={() => setShowBulkOperationModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white transition-colors"

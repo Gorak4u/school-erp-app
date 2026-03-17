@@ -8,6 +8,7 @@ import { apiError } from '@/lib/apiError';
 import { logAuditAction } from '@/lib/auditLog';
 import { enqueueEmailBatch } from '@/lib/queues/emailQueue';
 import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
+import { canCreateStudentsAccess, canViewStudentsAccess } from '@/lib/permissions';
 import {
   isValidEmail,
   isValidPhone,
@@ -26,6 +27,9 @@ export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canViewStudentsAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Rate limiting check
     const clientId = getClientIdentifier(request);
@@ -209,6 +213,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { ctx, error } = await getSessionContext();
   if (error) return error;
+  if (!canCreateStudentsAccess(ctx)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   try {
     const clientId = getClientIdentifier(request);

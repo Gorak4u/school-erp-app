@@ -42,7 +42,11 @@ import { StudentSearchEngine } from './search/StudentSearchEngine';
 export default function StudentsPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const { hasPermission, isAdmin } = usePermissions();
-  const canManageStudents = isAdmin || hasPermission('create_students') || hasPermission('edit_students');
+  const canCreateStudents = isAdmin || hasPermission('create_students');
+  const canEditStudents = isAdmin || hasPermission('edit_students');
+  const canDeleteStudents = isAdmin || hasPermission('delete_students');
+  const canPromoteStudents = isAdmin || hasPermission('promote_students');
+  const canManageStudentBulk = canCreateStudents || canEditStudents || canDeleteStudents || canPromoteStudents;
   const state = useStudentState();
   // Build handler context incrementally so each group can access previous groups
   const ctx: any = { ...state };
@@ -271,7 +275,7 @@ export default function StudentsPage() {
     <AppLayout currentPage="students" title="Students Management">
       <div className="space-y-4 pb-6">
         {/* ── Promotion Alert Banner ─────────────────────────────────────── */}
-        {promotionCount > 0 && (
+        {promotionCount > 0 && canPromoteStudents && (
           <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
             <div className="flex items-center gap-2">
               <span className="text-orange-500 text-lg">🔒</span>
@@ -287,13 +291,13 @@ export default function StudentsPage() {
             </button>
           </div>
         )}
-        <StudentDashboard dashboardStats={dashboardStats} filteredStudents={filteredStudents} selectedStudents={selectedStudents} setBulkOperations={setBulkOperations} setShowAddModal={setShowAddModal} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowDashboard={setShowDashboard} showAdvancedFilters={showAdvancedFilters} showDashboard={showDashboard} students={students} theme={theme} canManageStudents={canManageStudents} />
-        <StudentFilters advancedFilters={advancedFilters} advancedSearch={advancedSearch} applySavedFilter={applySavedFilter} attendanceFilter={attendanceFilter} clearAdvancedFilters={clearAdvancedFilters} deleteSavedFilter={deleteSavedFilter} exportAllFilteredStudents={exportAllFilteredStudents} exportSelectedStudents={exportSelectedStudents} filteredStudents={filteredStudents} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} performAdvancedSearch={performAdvancedSearch} savedFilters={savedFilters} searchTerm={searchTerm} selectedClass={selectedClass} selectedGender={selectedGender} selectedLanguage={selectedLanguage} selectedStatus={selectedStatus} selectedStudents={selectedStudents} setAdvancedFilters={setAdvancedFilters} setAdvancedSearch={setAdvancedSearch} setAttendanceFilter={setAttendanceFilter} setCurrentPage={setCurrentPage} setMobileView={setMobileView} setPageSize={setPageSize} setSearchTerm={setSearchTerm} setSelectedClass={setSelectedClass} setSelectedGender={setSelectedGender} setSelectedLanguage={setSelectedLanguage} setSelectedStatus={setSelectedStatus} setSelectedStudents={setSelectedStudents} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowColumnSettings={setShowColumnSettings} setShowSaveFilterModal={setShowSaveFilterModal} showAdvancedFilters={showAdvancedFilters} showColumnSettings={showColumnSettings} students={students} theme={theme} onPromoteBulk={() => { setPromotionMode('bulk'); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} canManageStudents={canManageStudents} />
-        <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} columnSettings={columnSettings} onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} onExitSingle={handleExitSingle} canManageStudents={canManageStudents} />
+        <StudentDashboard dashboardStats={dashboardStats} filteredStudents={filteredStudents} selectedStudents={selectedStudents} setBulkOperations={setBulkOperations} setShowAddModal={setShowAddModal} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowDashboard={setShowDashboard} showAdvancedFilters={showAdvancedFilters} showDashboard={showDashboard} students={students} theme={theme} canCreateStudents={canCreateStudents} canManageStudentBulk={canManageStudentBulk} />
+        <StudentFilters advancedFilters={advancedFilters} advancedSearch={advancedSearch} applySavedFilter={applySavedFilter} attendanceFilter={attendanceFilter} clearAdvancedFilters={clearAdvancedFilters} deleteSavedFilter={deleteSavedFilter} exportAllFilteredStudents={exportAllFilteredStudents} exportSelectedStudents={exportSelectedStudents} filteredStudents={filteredStudents} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} performAdvancedSearch={performAdvancedSearch} savedFilters={savedFilters} searchTerm={searchTerm} selectedClass={selectedClass} selectedGender={selectedGender} selectedLanguage={selectedLanguage} selectedStatus={selectedStatus} selectedStudents={selectedStudents} setAdvancedFilters={setAdvancedFilters} setAdvancedSearch={setAdvancedSearch} setAttendanceFilter={setAttendanceFilter} setCurrentPage={setCurrentPage} setMobileView={setMobileView} setPageSize={setPageSize} setSearchTerm={setSearchTerm} setSelectedClass={setSelectedClass} setSelectedGender={setSelectedGender} setSelectedLanguage={setSelectedLanguage} setSelectedStatus={setSelectedStatus} setSelectedStudents={setSelectedStudents} setShowAdvancedFilters={setShowAdvancedFilters} setShowBulkOperationModal={setShowBulkOperationModal} setShowColumnSettings={setShowColumnSettings} setShowSaveFilterModal={setShowSaveFilterModal} showAdvancedFilters={showAdvancedFilters} showColumnSettings={showColumnSettings} students={students} theme={theme} onPromoteBulk={() => { setPromotionMode('bulk'); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} canPromoteStudents={canPromoteStudents} canManageStudentBulk={canManageStudentBulk} />
+        <StudentTable activeTab={activeTab} currentPage={currentPage} filteredStudents={filteredStudents} handleDeleteStudent={handleDeleteStudent} isMobile={isMobile} mobileView={mobileView} pageSize={pageSize} selectedStudents={selectedStudents} setActiveTab={setActiveTab} setCurrentPage={setCurrentPage} setEditingStudent={setEditingStudent} setSelectedStudent={setSelectedStudent} sortConfig={sortConfig} setSortConfig={setSortConfig} theme={theme} toggleAllStudentsSelection={toggleAllStudentsSelection} toggleStudentSelection={toggleStudentSelection} totalPages={totalPages} visibleColumns={visibleColumns} columnSettings={columnSettings} onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }} onPromoteClass={(cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }} onExitSingle={handleExitSingle} canEditStudents={canEditStudents} canPromoteStudents={canPromoteStudents} />
       </div>
       {/* Add/Edit Modal */}
       <AnimatePresence>
-        {(showAddModal || editingStudent) && (
+        {((showAddModal && canCreateStudents) || (editingStudent && canEditStudents)) && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]"
             initial={{ opacity: 0 }}
@@ -362,6 +366,8 @@ export default function StudentsPage() {
         setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter}
         setEditingStudent={setEditingStudent} setFeeManagement={setFeeManagement} setParentPortal={setParentPortal}
         setSelectedStudent={setSelectedStudent} theme={theme} students={students}
+        canEditStudents={canEditStudents}
+        canPromoteStudents={canPromoteStudents}
         onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }}
         onMarkExit={handleMarkExit}
       />

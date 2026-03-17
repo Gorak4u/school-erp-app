@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canDeleteStudentsAccess, canEditStudentsAccess, canViewStudentsAccess } from '@/lib/permissions';
 
 function stripUnsupportedStudentFields(data: Record<string, any>) {
   const {
@@ -27,6 +28,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canViewStudentsAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
     
@@ -76,6 +80,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canEditStudentsAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await request.json();
@@ -132,6 +139,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canDeleteStudentsAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
     // Verify ownership before delete

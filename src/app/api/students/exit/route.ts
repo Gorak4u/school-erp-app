@@ -2,12 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageStudentLifecycleAccess } from '@/lib/permissions';
 
 // GET /api/students/exit?class=10&section=A  → preview students eligible for exit
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canManageStudentLifecycleAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const cls = searchParams.get('class');
@@ -70,6 +74,9 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canManageStudentLifecycleAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const {

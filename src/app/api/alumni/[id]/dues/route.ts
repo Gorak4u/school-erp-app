@@ -2,11 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canViewAlumniDuesAccess } from '@/lib/permissions';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canViewAlumniDuesAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
     const student = await schoolPrisma.student.findFirst({

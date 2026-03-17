@@ -2,24 +2,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageAlumniAccess, canViewAlumniAccess, canViewAlumniDuesAccess } from '@/lib/permissions';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canViewAlumniAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const canViewDues = canViewAlumniDuesAccess(ctx);
 
     const { id } = await params;
     const alumni = await schoolPrisma.student.findFirst({
       where: { id, ...tenantWhere(ctx) },
       include: {
-        feeRecords: {
+        feeRecords: canViewDues ? {
           select: { id: true, amount: true, paidAmount: true, discount: true, status: true, dueDate: true, paidDate: true },
           orderBy: { createdAt: 'desc' },
-        },
-        arrears: {
+        } : false,
+        arrears: canViewDues ? {
           select: { id: true, amount: true, paidAmount: true, fromAcademicYear: true, dueDate: true, status: true, description: true },
           orderBy: { createdAt: 'desc' },
-        },
+        } : false,
         promotions: {
           select: { fromClass: true, toClass: true, fromAcademicYear: true, toAcademicYear: true, promotedAt: true },
           orderBy: { promotedAt: 'desc' },
@@ -29,10 +35,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!alumni) return NextResponse.json({ error: 'Alumni not found' }, { status: 404 });
 
-    const feeTotal = alumni.feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
-    const feePaid = alumni.feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
-    const arrearsTotal = alumni.arrears.reduce((sum, a) => sum + (a.amount || 0) - (a.paidAmount || 0), 0);
-    const pendingDues = Math.max(0, feeTotal - feePaid) + Math.max(0, arrearsTotal);
+    const feeRecords = Array.isArray((alumni as any).feeRecords) ? (alumni as any).feeRecords : [];
+    const arrears = Array.isArray((alumni as any).arrears) ? (alumni as any).arrears : [];
+    const feeTotal = feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const feePaid = feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
+    const arrearsTotal = arrears.reduce((sum, a) => sum + (a.amount || 0) - (a.paidAmount || 0), 0);
+    const pendingDues = canViewDues ? Math.max(0, feeTotal - feePaid) + Math.max(0, arrearsTotal) : 0;
 
     return NextResponse.json({
       success: true,
@@ -56,6 +64,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canManageAlumniAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await request.json();

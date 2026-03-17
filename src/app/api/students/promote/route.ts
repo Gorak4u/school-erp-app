@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
-import { canPromoteStudentsAccess } from '@/lib/permissions';
+import { canManageStudentLifecycleAccess } from '@/lib/permissions';
 import { sendBulkTransportNotification, sendRouteChangeNotification } from '@/lib/transportNotifications';
 import { findAcademicYearByYear } from '@/lib/schoolScope';
 
@@ -451,8 +451,8 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (!canPromoteStudentsAccess(ctx)) {
-      return NextResponse.json({ error: 'Only admins can promote students' }, { status: 403 });
+    if (!canManageStudentLifecycleAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();

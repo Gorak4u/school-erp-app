@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface AlumniDetail {
   id: string;
@@ -59,10 +60,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function AlumniProfilePage() {
   const { theme } = useTheme();
+  const { isAdmin, hasPermission } = usePermissions();
   const params = useParams();
   const searchParams = useSearchParams();
   const id = params.id as string;
   const isDark = theme === 'dark';
+  const canEditAlumni = isAdmin || hasPermission('edit_students');
+  const canViewAlumniDues = isAdmin || hasPermission('view_fees') || hasPermission('manage_fees');
+  const canManageFees = isAdmin || hasPermission('manage_fees');
 
   const [alumni, setAlumni] = useState<AlumniDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,6 +114,12 @@ export default function AlumniProfilePage() {
 
   useEffect(() => { loadAlumni(); }, [loadAlumni]);
 
+  useEffect(() => {
+    if (!canViewAlumniDues && activeTab === 'dues') {
+      setActiveTab('profile');
+    }
+  }, [activeTab, canViewAlumniDues]);
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMsg('');
@@ -145,7 +156,7 @@ export default function AlumniProfilePage() {
 
   const tabs = [
     { id: 'profile', label: '👤 Profile' },
-    { id: 'dues', label: '💸 Dues & Fees' },
+    ...(canViewAlumniDues ? [{ id: 'dues', label: '💸 Dues & Fees' }] : []),
     { id: 'career', label: '💼 Career' },
     { id: 'history', label: '📚 History' },
   ];
@@ -208,7 +219,7 @@ export default function AlumniProfilePage() {
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>
                     {STATUS_LABELS[alumni.status] || alumni.status}
                   </span>
-                  {alumni.pendingDues > 0 && (
+                  {canViewAlumniDues && alumni.pendingDues > 0 && (
                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
                       ₹{alumni.pendingDues.toLocaleString()} dues
                     </span>
@@ -280,18 +291,18 @@ export default function AlumniProfilePage() {
             <div className={sectionClass}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-semibold ${text}`}>Privacy & Mentorship</h3>
-                {!isEditing ? (
+                {!isEditing && canEditAlumni ? (
                   <button onClick={() => setIsEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white">
                     ✏️ Edit
                   </button>
-                ) : (
+                ) : isEditing && canEditAlumni ? (
                   <div className="flex gap-2">
                     <button onClick={() => setIsEditing(false)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>Cancel</button>
                     <button onClick={handleSave} disabled={isSaving} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white">
                       {isSaving ? 'Saving...' : '✓ Save'}
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {isEditing ? (
@@ -343,15 +354,17 @@ export default function AlumniProfilePage() {
         )}
 
         {/* Tab: Dues & Fees */}
-        {activeTab === 'dues' && (
+        {activeTab === 'dues' && canViewAlumniDues && (
           <div className="space-y-4">
             {/* Dues summary */}
             <div className={sectionClass}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-semibold ${text}`}>Fee & Dues Summary</h3>
-                <Link href={`/fee-collection?studentId=${alumni.id}`} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white">
-                  💰 Collect Fee
-                </Link>
+                {canManageFees && (
+                  <Link href={`/fee-collection?studentId=${alumni.id}`} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white">
+                    💰 Collect Fee
+                  </Link>
+                )}
               </div>
               {alumni.pendingDues > 0 ? (
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-red-900/10 border border-red-800/20' : 'bg-red-50 border border-red-100'}`}>
@@ -433,7 +446,7 @@ export default function AlumniProfilePage() {
             <div className={sectionClass}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-semibold ${text}`}>Higher Education</h3>
-                {!isEditing && <button onClick={() => setIsEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white">✏️ Edit</button>}
+                {!isEditing && canEditAlumni && <button onClick={() => setIsEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white">✏️ Edit</button>}
               </div>
               {isEditing ? (
                 <div className="grid grid-cols-2 gap-3">
@@ -497,7 +510,7 @@ export default function AlumniProfilePage() {
                 </div>
               )}
 
-              {isEditing && (
+              {isEditing && canEditAlumni && (
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => setIsEditing(false)} className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>Cancel</button>
                   <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 rounded-lg text-sm font-medium bg-green-500 hover:bg-green-600 text-white">

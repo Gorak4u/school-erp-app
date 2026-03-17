@@ -30,7 +30,8 @@ interface StudentTableProps {
   onPromoteSingle?: (studentId: string) => void;
   onPromoteClass?: (cls: string, section: string) => void;
   onExitSingle?: (studentId: string) => void;
-  canManageStudents?: boolean;
+  canEditStudents?: boolean;
+  canPromoteStudents?: boolean;
 }
 
 export default function StudentTable({
@@ -38,7 +39,7 @@ export default function StudentTable({
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns, columnSettings,
-  onPromoteSingle, onPromoteClass, onExitSingle, canManageStudents = true
+  onPromoteSingle, onPromoteClass, onExitSingle, canEditStudents = true, canPromoteStudents = true
 }: StudentTableProps) {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState('');
@@ -431,7 +432,7 @@ export default function StudentTable({
               >
                 👁️
               </button>
-              {canManageStudents && (
+              {canEditStudents && (
                 <button
                   onClick={() => setEditingStudent(student)}
                   className={`text-green-600 hover:text-green-800 text-lg ${
@@ -442,7 +443,7 @@ export default function StudentTable({
                   ✏️
                 </button>
               )}
-              {canManageStudents && onPromoteSingle && (
+              {canPromoteStudents && onPromoteSingle && (
                 <button
                   onClick={() => onPromoteSingle(student.id.toString())}
                   className={`text-purple-600 hover:text-purple-800 text-lg ${
@@ -453,7 +454,7 @@ export default function StudentTable({
                   🎓
                 </button>
               )}
-              {canManageStudents && onExitSingle && (
+              {canPromoteStudents && onExitSingle && (
                 <button
                   onClick={() => onExitSingle(student.id.toString())}
                   className={`text-red-600 hover:text-red-800 text-lg ${

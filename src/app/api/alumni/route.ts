@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canViewAlumniAccess, canViewAlumniDuesAccess } from '@/lib/permissions';
 
 const ALUMNI_STATUSES = ['graduated', 'transferred', 'exit', 'suspended'];
 
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+    if (!canViewAlumniAccess(ctx)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const canViewDues = canViewAlumniDuesAccess(ctx);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -46,13 +52,13 @@ export async function GET(request: NextRequest) {
           contactPreference: true, socialLinks: true, mentorshipAreas: true,
           parentName: true, parentPhone: true, parentEmail: true,
           city: true, state: true, dateOfBirth: true,
-          arrears: {
+          arrears: canViewDues ? {
             where: { status: { not: 'paid' } },
             select: { amount: true, paidAmount: true },
-          },
-          feeRecords: {
+          } : false,
+          feeRecords: canViewDues ? {
             select: { amount: true, paidAmount: true, discount: true },
-          },
+          } : false,
         },
         orderBy: [{ exitDate: 'desc' }, { name: 'asc' }],
         skip: (page - 1) * pageSize,
@@ -62,10 +68,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     const shaped = alumni.map(a => {
-      const feeTotal = a.feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
-      const feePaid = a.feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
-      const arrearsTotal = a.arrears.reduce((sum, arr) => sum + (arr.amount || 0) - (arr.paidAmount || 0), 0);
-      const pendingDues = Math.max(0, feeTotal - feePaid) + Math.max(0, arrearsTotal);
+      const feeRecords = Array.isArray((a as any).feeRecords) ? (a as any).feeRecords : [];
+      const arrears = Array.isArray((a as any).arrears) ? (a as any).arrears : [];
+      const feeTotal = feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
+      const feePaid = feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
+      const arrearsTotal = arrears.reduce((sum, arr) => sum + (arr.amount || 0) - (arr.paidAmount || 0), 0);
+      const pendingDues = canViewDues ? Math.max(0, feeTotal - feePaid) + Math.max(0, arrearsTotal) : 0;
 
       return {
         ...a,
