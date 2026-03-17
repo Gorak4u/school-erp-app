@@ -105,11 +105,11 @@ export default function StaffPage() {
   const searchHandlers = createTeacherSearchHandlers({ teachers, refresh });
   const { teacherSearch, setTeacherSearch, performTeacherSearch, toggleTeacherSearch, clearSearchHistory } = searchHandlers;
 
-  const card = `p-6 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
+  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const txt = isDark ? 'text-white' : 'text-gray-900';
   const sub = isDark ? 'text-gray-400' : 'text-gray-600';
-  const inputCls = `w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-blue-500 ${
-    isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'
+  const inputCls = `w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${
+    isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
   }`;
   const thCls = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none hover:opacity-80 ${sub}`;
   const tdCls = `px-4 py-3 text-sm ${txt}`;
@@ -842,23 +842,30 @@ export default function StaffPage() {
           </div>
 
           {/* Pagination */}
-          <div className={`flex flex-wrap gap-3 items-center justify-between px-4 py-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <p className={`text-sm ${sub}`}>
               {loading ? 'Loading…' : `Showing ${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString()}`}
             </p>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(1)} disabled={page === 1} className={`px-2 py-1 rounded text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}>«</button>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className={`px-3 py-1 rounded text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}>‹ Prev</button>
-              <span className={`px-3 py-1 rounded text-sm font-medium ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`}>
+              <button
+                onClick={() => setPage(1)} disabled={page === 1} className={`px-2 py-1 rounded-lg text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+              >«</button>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className={`px-3 py-1 rounded-lg text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+              >‹ Prev</button>
+              <span
+                className={`px-3 py-1 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`}
+              >
                 {page} / {totalPages || 1}
               </span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className={`px-3 py-1 rounded text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}>Next ›</button>
-              <button onClick={() => setPage(totalPages)} disabled={page >= totalPages} className={`px-2 py-1 rounded text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}>»</button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className={`px-3 py-1 rounded-lg text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+              >Next ›</button>
+              <button
+                onClick={() => setPage(totalPages)} disabled={page >= totalPages} className={`px-2 py-1 rounded-lg text-sm disabled:opacity-40 ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+              >»</button>
             </div>
           </div>
         </div>
-      </div>
-
       {/* Edit Staff Modal - Modern Design */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowEditModal(false)}>

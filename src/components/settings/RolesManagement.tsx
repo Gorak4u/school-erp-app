@@ -89,7 +89,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
         body: JSON.stringify({
           name: form.name.trim(),
           description: form.description.trim(),
-          permissions: form.permissions.join(','),
+          permissions: JSON.stringify(form.permissions),
           isDefault: form.isDefault,
         }),
       });

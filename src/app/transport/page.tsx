@@ -15,16 +15,17 @@ const VEHICLE_TYPES = ['bus', 'van', 'auto', 'minibus', 'tempo'];
 
 export default function TransportPage() {
   const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-  const bg = theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50';
-  const card = theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const text = theme === 'dark' ? 'text-white' : 'text-gray-900';
-  const subtext = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
-  const input = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`;
-  const label = `block text-xs font-semibold uppercase tracking-wide mb-1 ${subtext}`;
-  const btnPrimary = 'px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors';
-  const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = 'px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors';
+  const bg = isDark ? 'bg-gray-900' : 'bg-gray-50';
+  const card = isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200';
+  const text = isDark ? 'text-white' : 'text-gray-900';
+  const subtext = isDark ? 'text-gray-400' : 'text-gray-500';
+  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
+  const label = `block text-xs font-semibold uppercase tracking-wide mb-2 ${subtext}`;
+  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
+  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
+  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState<any>({ totalRoutes: 0, totalVehicles: 0, totalStudents: 0, pendingTransportFees: 0 });
@@ -632,7 +633,7 @@ export default function TransportPage() {
               </div>
             </div>
 
-            <div className={`rounded-xl border overflow-hidden ${card}`}>
+            <div className={`rounded-2xl border overflow-hidden shadow-lg ${card}`}>
               {filteredRoutes.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No routes found. Create your first transport route.</div>
               ) : (
@@ -735,7 +736,7 @@ export default function TransportPage() {
               </div>
             </div>
 
-            <div className={`rounded-xl border overflow-hidden ${card}`}>
+            <div className={`rounded-2xl border overflow-hidden shadow-lg ${card}`}>
               {filteredVehicles.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No vehicles found. Add your first vehicle.</div>
               ) : (
@@ -830,7 +831,7 @@ export default function TransportPage() {
               </div>
             </div>
 
-            <div className={`rounded-xl border overflow-hidden ${card}`}>
+            <div className={`rounded-2xl border overflow-hidden shadow-lg ${card}`}>
               {filteredStudents.length === 0 ? (
                 <div className={`p-8 text-center ${subtext}`}>No student transport assignments found.</div>
               ) : (
@@ -871,10 +872,23 @@ export default function TransportPage() {
 
         {/* ── ROUTE MODAL ─────────────────────────────────────────────────── */}
         {showRouteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setShowRouteModal(false)} />
-            <div className={`relative w-full max-w-xl rounded-2xl border p-6 shadow-2xl ${card} z-10 max-h-[90vh] overflow-y-auto`}>
-              <h3 className={`text-lg font-bold mb-5 ${text}`}>{editingRoute ? 'Edit Route' : 'New Transport Route'}</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowRouteModal(false)}>
+            <div className={`relative w-full max-w-xl rounded-2xl border overflow-hidden shadow-2xl ${card} z-10 max-h-[90vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+              <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-600/20' : 'bg-green-100'}`}>
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${text}`}>{editingRoute ? 'Edit Route' : 'New Transport Route'}</h3>
+                    <p className={`text-xs ${subtext}`}>{editingRoute ? 'Update route details' : 'Create a new transport route'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowRouteModal(false)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className={label}>Route Number *</label><input className={input} value={routeForm.routeNumber} onChange={e => setRouteForm({ ...routeForm, routeNumber: e.target.value })} placeholder="R001" /></div>
                 <div><label className={label}>Route Name *</label><input className={input} value={routeForm.routeName} onChange={e => setRouteForm({ ...routeForm, routeName: e.target.value })} placeholder="Main Road Route" /></div>
@@ -911,8 +925,11 @@ export default function TransportPage() {
                   <div><label className={label}>Driver Phone</label><input className={input} value={routeForm.driverPhone} onChange={e => setRouteForm({ ...routeForm, driverPhone: e.target.value })} /></div>
                 </>}
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={saveRoute} disabled={saving} className={btnPrimary}>{saving ? 'Saving...' : 'Save Route'}</button>
+              </div>
+              <div className={`px-6 py-4 border-t flex gap-3 flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button onClick={saveRoute} disabled={saving} className={`flex-1 ${btnPrimary} justify-center flex items-center gap-2`}>
+                  {saving ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Saving...</> : 'Save Route'}
+                </button>
                 <button onClick={() => setShowRouteModal(false)} className={btnSecondary}>Cancel</button>
               </div>
             </div>
@@ -921,10 +938,23 @@ export default function TransportPage() {
 
         {/* ── VEHICLE MODAL ───────────────────────────────────────────────── */}
         {showVehicleModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setShowVehicleModal(false)} />
-            <div className={`relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl ${card} z-10 max-h-[90vh] overflow-y-auto`}>
-              <h3 className={`text-lg font-bold mb-5 ${text}`}>{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowVehicleModal(false)}>
+            <div className={`relative w-full max-w-lg rounded-2xl border overflow-hidden shadow-2xl ${card} z-10 max-h-[90vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+              <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${text}`}>{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</h3>
+                    <p className={`text-xs ${subtext}`}>{editingVehicle ? 'Update vehicle details' : 'Register a new vehicle'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowVehicleModal(false)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className={label}>Vehicle Number *</label><input className={input} value={vehicleForm.vehicleNumber} onChange={e => setVehicleForm({ ...vehicleForm, vehicleNumber: e.target.value })} placeholder="KA01AB1234" /></div>
                 <div>
@@ -940,8 +970,11 @@ export default function TransportPage() {
                 <div><label className={label}>Insurance Expiry</label><input type="date" className={input} value={vehicleForm.insuranceExpiry} onChange={e => setVehicleForm({ ...vehicleForm, insuranceExpiry: e.target.value })} /></div>
                 <div><label className={label}>Fitness Expiry</label><input type="date" className={input} value={vehicleForm.fitnessExpiry} onChange={e => setVehicleForm({ ...vehicleForm, fitnessExpiry: e.target.value })} /></div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={saveVehicle} disabled={saving} className={btnPrimary}>{saving ? 'Saving...' : 'Save Vehicle'}</button>
+              </div>
+              <div className={`px-6 py-4 border-t flex gap-3 flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button onClick={saveVehicle} disabled={saving} className={`flex-1 ${btnPrimary} justify-center flex items-center gap-2`}>
+                  {saving ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Saving...</> : 'Save Vehicle'}
+                </button>
                 <button onClick={() => setShowVehicleModal(false)} className={btnSecondary}>Cancel</button>
               </div>
             </div>
@@ -950,11 +983,23 @@ export default function TransportPage() {
 
         {/* ── ASSIGN STUDENT MODAL ────────────────────────────────────────── */}
         {showAssignModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setShowAssignModal(false)} />
-            <div className={`relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl ${card} z-10 max-h-[90vh] overflow-y-auto`}>
-              <h3 className={`text-lg font-bold mb-5 ${text}`}>Assign Student to Route</h3>
-              <p className={`text-xs ${subtext} mb-4`}>A transport fee record will be auto-created and will appear in fee collection, receipts, and promotion arrears.</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)}>
+            <div className={`relative w-full max-w-lg rounded-2xl border overflow-hidden shadow-2xl ${card} z-10 max-h-[90vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+              <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-600/20' : 'bg-purple-100'}`}>
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${text}`}>Assign Student to Route</h3>
+                    <p className={`text-xs ${subtext}`}>Auto-creates transport fee record in fee collection</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowAssignModal(false)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
 
               {/* Student search */}
               <div className="mb-4">
@@ -1022,11 +1067,14 @@ export default function TransportPage() {
                   <input type="number" className={input} value={assignForm.monthlyFee} onChange={e => setAssignForm({ ...assignForm, monthlyFee: e.target.value })} />
                 </div>
               </div>
-              <div className={`mt-4 p-3 rounded-lg text-xs ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>
+              <div className={`mt-4 p-3 rounded-xl text-xs ${isDark ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
                 ✅ A transport FeeRecord will be auto-created. It will appear in <strong>Fee Collection</strong>, <strong>Receipts</strong>, and <strong>Promotion Arrears</strong>.
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={saveAssignment} disabled={saving} className={btnPrimary}>{saving ? 'Assigning...' : 'Assign & Create Fee'}</button>
+              </div>
+              <div className={`px-6 py-4 border-t flex gap-3 flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button onClick={saveAssignment} disabled={saving} className={`flex-1 ${btnPrimary} justify-center flex items-center gap-2`}>
+                  {saving ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Assigning...</> : 'Assign & Create Fee'}
+                </button>
                 <button onClick={() => setShowAssignModal(false)} className={btnSecondary}>Cancel</button>
               </div>
             </div>
