@@ -197,7 +197,7 @@ export default function CategoryManager({
               </div>
               <div>
                 <label className={lbl}>Description</label>
-                <input className={inp} placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                <textarea className={inp} rows={2} placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               </div>
               <div>
                 <label className={lbl}>Icon</label>

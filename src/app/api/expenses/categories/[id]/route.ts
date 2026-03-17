@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       where: { id },
       data: {
         ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description }),
+        ...(description !== undefined && { description: description?.trim() || null }),
         ...(color !== undefined && { color }),
         ...(icon !== undefined && { icon }),
         ...(parentId !== undefined && { parentId: parentId || null }),

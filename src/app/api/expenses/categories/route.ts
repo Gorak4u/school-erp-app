@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const category = await (schoolPrisma as any).expenseCategory.create({
       data: {
         name: name.trim(),
-        description: description || null,
+        description: description?.trim() || null,
         color: color || null,
         icon: icon || null,
         parentId: parentId || null,
