@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 interface SubscriptionData {
   plan: string;
@@ -22,15 +23,21 @@ interface SubscriptionData {
 export default function TrialBanner() {
   const [sub, setSub] = useState<SubscriptionData | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const { data: session } = useSession();
 
   useEffect(() => {
+    // Don't fetch subscription for super admins
+    if (session?.user?.isSuperAdmin) {
+      return;
+    }
+    
     fetch('/api/subscription')
       .then(res => res.json())
       .then(data => {
         if (data.subscription) setSub(data.subscription);
       })
       .catch(() => {});
-  }, []);
+  }, [session]);
 
   if (!sub || dismissed) return null;
 
