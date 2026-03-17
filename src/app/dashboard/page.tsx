@@ -40,17 +40,25 @@ export default function DashboardPage() {
 
   // Check setup status and redirect if needed
   useEffect(() => {
-    if (!setupStatus.loading && setupStatus.redirectToSettings && isAdmin) {
-      setShowSetupAlert(true);
+    if (!setupStatus.loading) {
+      if (setupStatus.error) {
+        console.error('Setup check error:', setupStatus.error);
+        // Don't redirect on error, just log it and continue
+        return;
+      }
       
-      // Auto-redirect after 10 seconds if user doesn't act
-      const redirectTimer = setTimeout(() => {
-        router.push('/settings');
-      }, 10000);
+      if (setupStatus.redirectToSettings && isAdmin) {
+        setShowSetupAlert(true);
+        
+        // Auto-redirect after 10 seconds if user doesn't act
+        const redirectTimer = setTimeout(() => {
+          router.push('/settings');
+        }, 10000);
 
-      return () => clearTimeout(redirectTimer);
+        return () => clearTimeout(redirectTimer);
+      }
     }
-  }, [setupStatus.loading, setupStatus.redirectToSettings, isAdmin, router]);
+  }, [setupStatus.loading, setupStatus.redirectToSettings, setupStatus.error, isAdmin, router]);
 
   const loadDashboardData = async () => {
     try {
