@@ -842,139 +842,424 @@ export default function StaffPage() {
         engine={TeacherSearchEngine.getInstance()} 
       />
 
-      {/* Add Teacher Modal */}
+      {/* Add Staff Modal - Modern Design */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
-          <div className={`w-full max-w-lg mx-4 rounded-xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-bold ${txt}`}>Add New Staff</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowAddModal(false)}>
+          <div className={`w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className={`px-8 py-6 border-b ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`text-2xl font-bold ${txt}`}>Add New Staff Member</h3>
+                  <p className={`text-sm ${sub} mt-1`}>Fill in the details to add a new staff member to your school</p>
+                </div>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-              {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${sub}`}>First Name *</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={form.firstName}
-                    onChange={e => setForm(prev => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${form.lastName}`.trim() }))}
-                    placeholder="First name"
-                  />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${sub}`}>Last Name *</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={form.lastName}
-                    onChange={e => setForm(prev => ({ ...prev, lastName: e.target.value, name: `${form.firstName} ${e.target.value}`.trim() }))}
-                    placeholder="Last name"
-                  />
-                </div>
-              </div>
-              {/* Role Selection */}
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${sub}`}>Role *</label>
-                <select className={inputCls} value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}>
-                  <option value="admin">Admin</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="parent">Parent</option>
-                  <option value="student">Student</option>
-                </select>
-              </div>
 
-              {[
-                { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create staff record without login access' },
-                { key: 'phone', label: 'Phone', type: 'text' },
-                { key: 'designation', label: 'Designation', type: 'text' },
-                { key: 'department', label: 'Department', type: 'text' },
-                { key: 'subject', label: 'Subject', type: 'text' },
-                { key: 'qualification', label: 'Qualification', type: 'text' },
-                { key: 'experience', label: 'Experience (years)', type: 'number' },
-                { key: 'salary', label: 'Salary', type: 'number' },
-                { key: 'joiningDate', label: 'Joining Date', type: 'date' },
-                { key: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
-                { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-                { key: 'address', label: 'Address', type: 'textarea' },
-                { key: 'photo', label: 'Photo URL', type: 'text', helper: 'Optional - URL to staff photo' },
-                { key: 'bankName', label: 'Bank Name', type: 'text' },
-                { key: 'bankAccountNo', label: 'Bank Account Number', type: 'text' },
-                { key: 'bankIfsc', label: 'Bank IFSC Code', type: 'text' },
-                { key: 'aadharNumber', label: 'Aadhar Number', type: 'text' },
-                { key: 'emergencyName', label: 'Emergency Contact Name', type: 'text' },
-                { key: 'emergencyPhone', label: 'Emergency Contact Phone', type: 'text' },
-                { key: 'remarks', label: 'Remarks', type: 'textarea' },
-                { key: 'password', label: 'Password (if email provided)', type: 'password' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
-                  {f.type === 'select' ? (
-                    <select className={inputCls} value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}>
-                      <option value="">Select...</option>
-                      {(f as any).options?.map((opt: string) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  ) : f.type === 'textarea' ? (
-                    <textarea
-                      className={inputCls}
-                      value={(form as any)[f.key]}
-                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                      placeholder={f.key === 'address' ? 'Enter full address' : f.key === 'remarks' ? 'Enter any remarks' : ''}
-                      rows={3}
-                    />
-                  ) : (
-                    <input
-                      type={f.type}
-                      className={inputCls}
-                      value={(form as any)[f.key]}
-                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                      placeholder={f.key === 'email' ? 'Leave blank to create record without login' : f.key === 'photo' ? 'Enter photo URL' : f.key === 'bankAccountNo' ? 'Enter account number' : f.key === 'bankIfsc' ? 'Enter IFSC code' : f.key === 'aadharNumber' ? 'Enter Aadhar number' : f.key === 'emergencyName' ? 'Enter emergency contact name' : f.key === 'emergencyPhone' ? 'Enter emergency contact phone' : ''}
-                    />
-                  )}
-                  {(f as any).helper && (
-                    <p className={`text-xs ${sub} mt-1`}>{(f as any).helper}</p>
-                  )}
+            {/* Form Content */}
+            <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {formError && (
+                <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {formError}
+                  </div>
                 </div>
-              ))}
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${sub}`}>Status</label>
-                <select className={inputCls} value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="on_leave">On Leave</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-3 py-2">
-                <input
-                  type="checkbox"
-                  id="isClassTeacher"
-                  checked={form.isClassTeacher}
-                  onChange={e => setForm(prev => ({ ...prev, isClassTeacher: e.target.checked, classTeacherAssignments: e.target.checked ? prev.classTeacherAssignments : [] }))}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="isClassTeacher" className={`text-sm font-medium ${txt}`}>
-                  Is this staff member a Class Teacher?
-                </label>
-              </div>
-
-              {form.isClassTeacher && (
-                <ClassTeacherFormAssignments
-                  assignments={form.classTeacherAssignments}
-                  boards={boards}
-                  mediums={mediums}
-                  classes={dbClasses}
-                  sections={dbSections}
-                  academicYears={academicYears}
-                  theme={theme}
-                  onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
-                />
               )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column - Photo & Basic Info */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Photo Upload */}
+                  <div>
+                    <label className={`block text-sm font-semibold mb-3 ${txt}`}>Staff Photo</label>
+                    <div className="flex flex-col items-center">
+                      <div className={`w-32 h-32 rounded-full border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-50'} flex items-center justify-center overflow-hidden`}>
+                        {form.photo ? (
+                          <img src={form.photo} alt="Staff preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center p-4">
+                            <svg className={`w-12 h-12 mx-auto mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No photo</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // For now, just create a preview URL
+                              // In production, you'd upload to server
+                              const previewUrl = URL.createObjectURL(file);
+                              setForm(prev => ({ ...prev, photo: previewUrl }));
+                            }
+                          }}
+                          className="hidden"
+                          id="photo-upload"
+                        />
+                        <label
+                          htmlFor="photo-upload"
+                          className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                            isDark 
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          Upload Photo
+                        </label>
+                        <div className="text-center">
+                          <input
+                            type="url"
+                            placeholder="Or enter photo URL"
+                            value={form.photo}
+                            onChange={e => setForm(prev => ({ ...prev, photo: e.target.value }))}
+                            className={`w-full px-3 py-2 text-sm rounded-lg border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Basic Info */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Basic Information</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>First Name *</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          value={form.firstName}
+                          onChange={e => setForm(prev => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${form.lastName}`.trim() }))}
+                          placeholder="First name"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>Last Name *</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          value={form.lastName}
+                          onChange={e => setForm(prev => ({ ...prev, lastName: e.target.value, name: `${form.firstName} ${e.target.value}`.trim() }))}
+                          placeholder="Last name"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Role *</label>
+                      <select className={inputCls} value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}>
+                        <option value="">Select Role...</option>
+                        <option value="admin">Admin</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="parent">Parent</option>
+                        <option value="student">Student</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Designation</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.designation}
+                        onChange={e => setForm(prev => ({ ...prev, designation: e.target.value }))}
+                        placeholder="e.g., Mathematics Teacher"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Department</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.department}
+                        onChange={e => setForm(prev => ({ ...prev, department: e.target.value }))}
+                        placeholder="e.g., Science Department"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Middle Column - Contact & Professional */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Contact Information */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Contact Information</h4>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Email (for login account)</label>
+                      <input
+                        type="email"
+                        className={inputCls}
+                        value={form.email}
+                        onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="staff@school.com"
+                      />
+                      <p className={`text-xs ${sub} mt-1`}>Optional - Leave blank to create staff record without login access</p>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Phone</label>
+                      <input
+                        type="tel"
+                        className={inputCls}
+                        value={form.phone}
+                        onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Address</label>
+                      <textarea
+                        className={inputCls}
+                        value={form.address}
+                        onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Enter full address"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Professional Information */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Professional Information</h4>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Qualification</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.qualification}
+                        onChange={e => setForm(prev => ({ ...prev, qualification: e.target.value }))}
+                        placeholder="e.g., M.Sc. Mathematics"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Subject</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.subject}
+                        onChange={e => setForm(prev => ({ ...prev, subject: e.target.value }))}
+                        placeholder="e.g., Mathematics"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>Experience (years)</label>
+                        <input
+                          type="number"
+                          className={inputCls}
+                          value={form.experience}
+                          onChange={e => setForm(prev => ({ ...prev, experience: e.target.value }))}
+                          placeholder="5"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>Salary</label>
+                        <input
+                          type="number"
+                          className={inputCls}
+                          value={form.salary}
+                          onChange={e => setForm(prev => ({ ...prev, salary: e.target.value }))}
+                          placeholder="50000"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>Joining Date</label>
+                        <input
+                          type="date"
+                          className={inputCls}
+                          value={form.joiningDate}
+                          onChange={e => setForm(prev => ({ ...prev, joiningDate: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${sub}`}>Date of Birth</label>
+                        <input
+                          type="date"
+                          className={inputCls}
+                          value={form.dateOfBirth}
+                          onChange={e => setForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Gender</label>
+                      <select className={inputCls} value={form.gender} onChange={e => setForm(prev => ({ ...prev, gender: e.target.value }))}>
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Financial & Additional */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Bank Details */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Bank Details</h4>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Bank Name</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.bankName}
+                        onChange={e => setForm(prev => ({ ...prev, bankName: e.target.value }))}
+                        placeholder="e.g., State Bank of India"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Bank Account Number</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.bankAccountNo}
+                        onChange={e => setForm(prev => ({ ...prev, bankAccountNo: e.target.value }))}
+                        placeholder="Enter account number"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Bank IFSC Code</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.bankIfsc}
+                        onChange={e => setForm(prev => ({ ...prev, bankIfsc: e.target.value }))}
+                        placeholder="e.g., SBIN0001234"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Emergency Contact</h4>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Contact Name</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.emergencyName}
+                        onChange={e => setForm(prev => ({ ...prev, emergencyName: e.target.value }))}
+                        placeholder="Emergency contact name"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Contact Phone</label>
+                      <input
+                        type="tel"
+                        className={inputCls}
+                        value={form.emergencyPhone}
+                        onChange={e => setForm(prev => ({ ...prev, emergencyPhone: e.target.value }))}
+                        placeholder="Emergency contact phone"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Additional Information */}
+                  <div className="space-y-4">
+                    <h4 className={`text-sm font-semibold ${txt}`}>Additional Information</h4>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Aadhar Number</label>
+                      <input
+                        type="text"
+                        className={inputCls}
+                        value={form.aadharNumber}
+                        onChange={e => setForm(prev => ({ ...prev, aadharNumber: e.target.value }))}
+                        placeholder="Enter Aadhar number"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Remarks</label>
+                      <textarea
+                        className={inputCls}
+                        value={form.remarks}
+                        onChange={e => setForm(prev => ({ ...prev, remarks: e.target.value }))}
+                        placeholder="Enter any additional remarks"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${sub}`}>Status</label>
+                      <select className={inputCls} value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))}>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="on_leave">On Leave</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Settings */}
+              <div className={`mt-8 p-4 rounded-lg border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50/50 border-gray-200'}`}>
+                <h4 className={`text-sm font-semibold ${txt} mb-4`}>Account Settings</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${sub}`}>Password (if email provided)</label>
+                    <input
+                      type="password"
+                      className={inputCls}
+                      value={form.password}
+                      onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Leave blank for auto-generated password"
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isClassTeacher"
+                      checked={form.isClassTeacher}
+                      onChange={e => setForm(prev => ({ ...prev, isClassTeacher: e.target.checked, classTeacherAssignments: e.target.checked ? prev.classTeacherAssignments : [] }))}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="isClassTeacher" className={`ml-2 text-sm font-medium ${txt}`}>
+                      Is this staff member a Class Teacher?
+                    </label>
+                  </div>
+                </div>
+
+                {form.isClassTeacher && (
+                  <div className="mt-4">
+                    <ClassTeacherFormAssignments
+                      assignments={form.classTeacherAssignments}
+                      boards={boards}
+                      mediums={mediums}
+                      classes={dbClasses}
+                      sections={dbSections}
+                      academicYears={academicYears}
+                      theme={theme}
+                      onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <button onClick={() => { setShowAddModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
+
+            {/* Footer */}
+            <div className={`px-8 py-6 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+              <button 
+                onClick={() => { setShowAddModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} 
+                className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors ${
+                  isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Cancel
+              </button>
               <button
                 disabled={saving}
                 onClick={async () => {
@@ -1045,9 +1330,16 @@ export default function StaffPage() {
                   }
                   finally { setSaving(false); }
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                className="px-6 py-3 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Saving…' : 'Save Staff'}
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Saving Staff Member...
+                  </span>
+                ) : 'Save Staff Member'}
               </button>
             </div>
           </div>
