@@ -53,12 +53,18 @@ export function createSearchHandlers(ctx: any) {
     return calculateSimilarity(textLower, queryLower) >= threshold;
   };
 
-  // AI-powered search with recommendations
+  // AI-powered search with SmartSearchEngine
   const performAdvancedSearch = async (query: string) => {
     setAdvancedSearch(prev => ({ ...prev, isSearching: true, query }));
     
-    // AI-powered search (in production, implement actual AI search API)
-    // const aiResults = await performAISearch(query);
+    // Import SmartSearchEngine dynamically to avoid circular dependencies
+    const { StudentSearchEngine } = await import('../search/StudentSearchEngine');
+    const searchEngine = StudentSearchEngine.getInstance();
+    
+    // Ensure index is built
+    if (searchEngine.getMetrics().totalRecords === 0) {
+      searchEngine.buildIndex(students);
+    }
     
     // Update search analytics
     setAdvancedSearch(prev => ({
@@ -77,43 +83,18 @@ export function createSearchHandlers(ctx: any) {
       }));
     }
     
-    // Enhanced AI-powered search logic
-    const queryLower = query.toLowerCase();
-    let results: Student[] = [];
-    
-    // Natural language processing for complex queries
-    if (queryLower.includes('and') || queryLower.includes('or')) {
-      // Handle compound queries
-      const conditions = queryLower.split(/\s+(and|or)\s+/);
-      const operators = queryLower.match(/\s+(and|or)\s+/g) || [];
-      
-      results = students.filter(student => {
-        let conditionResults = conditions.map(condition => evaluateCondition(student, condition.trim()));
-        
-        // Apply operators
-        let result = conditionResults[0];
-        for (let i = 0; i < operators.length; i++) {
-          const operator = operators[i].trim();
-          if (operator === 'and') {
-            result = result && conditionResults[i + 1];
-          } else {
-            result = result || conditionResults[i + 1];
-          }
-        }
-        return result;
-      });
-    } else {
-      // Simple queries
-      results = students.filter(student => evaluateCondition(student, queryLower));
-    }
-    
-    // Sort by relevance
-    results.sort((a, b) => {
-      const aScore = calculateRelevanceScore(a, queryLower);
-      const bScore = calculateRelevanceScore(b, queryLower);
-      return bScore - aScore;
+    // Execute smart search
+    const searchResult = searchEngine.searchStudents({
+      text: query,
+      includeInactive: false,
+      includeGraduated: false,
+      sortBy: 'name',
+      sortOrder: 'asc'
     });
     
+    const results = searchResult.students;
+    
+    // Update search state
     setAdvancedSearch(prev => ({
       ...prev,
       recommendations: results.slice(0, 5),

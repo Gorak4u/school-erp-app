@@ -186,14 +186,36 @@ export function useFeeState() {
     recentSearches: [] as string[]
   });
 
-  // AI Search Handler
-  const handleAISearch = (query: string) => {
+  // AI Search Handler with SmartSearchEngine
+  const handleAISearch = async (query: string) => {
     // Update search analytics
     setSearchAnalytics(prev => ({
       ...prev,
       totalSearches: prev.totalSearches + 1,
       recentSearches: [query, ...prev.recentSearches.slice(0, 4)]
     }));
+    
+    // Import FeeSearchEngine dynamically
+    const { FeeSearchEngine } = await import('../search/FeeSearchEngine');
+    const searchEngine = FeeSearchEngine.getInstance();
+    
+    // Ensure index is built
+    if (searchEngine.getMetrics().totalRecords === 0) {
+      searchEngine.buildIndex(studentFeeSummaries);
+    }
+    
+    // Execute smart fee search
+    const searchResult = searchEngine.searchFees({
+      text: query,
+      sortBy: 'name',
+      sortOrder: 'asc'
+    });
+    
+    // Update search suggestions with AI insights
+    setFeeSuggestions(searchResult.suggestions);
+    
+    // Log search performance
+    console.log(`Fee search completed in ${searchResult.searchTime.toFixed(2)}ms with ${searchResult.totalCount} results`);
   };
 
   // Debounce effect
