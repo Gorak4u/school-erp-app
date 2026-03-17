@@ -192,15 +192,15 @@ function SchoolLoginInner() {
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Email Address
+                    Email or Employee ID
                   </label>
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
                     autoFocus
-                    placeholder="Enter your email"
+                    placeholder="Enter your email or Employee ID (e.g., TCH0001)"
                     className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 </div>
@@ -282,15 +282,15 @@ function SchoolLoginInner() {
                 <form onSubmit={handleForgotPassword} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Email Address
+                      Email or Employee ID
                     </label>
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       required
                       autoFocus
-                      placeholder="Enter your email"
+                      placeholder="Enter your email or Employee ID (e.g., TCH0001)"
                       className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     />
                   </div>

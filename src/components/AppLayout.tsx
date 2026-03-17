@@ -438,7 +438,26 @@ export default function AppLayout({
                           globalTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                         }`} />
                         <button
-                          onClick={() => signOut({ callbackUrl: '/login' })}
+                          onClick={() => {
+                            // Smart logout redirect - check if we're on a school subdomain
+                            let callbackUrl = '/login';
+                            if (typeof window !== 'undefined') {
+                              const host = window.location.hostname;
+                              const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
+                              
+                              // Check if we're on a school subdomain
+                              if (host !== 'localhost' && host !== '127.0.0.1' && host !== appDomain) {
+                                if (host.endsWith(`.${appDomain}`)) {
+                                  // Production subdomain
+                                  callbackUrl = '/school-login';
+                                } else if (host.endsWith('.localhost')) {
+                                  // Development subdomain
+                                  callbackUrl = '/school-login';
+                                }
+                              }
+                            }
+                            signOut({ callbackUrl });
+                          }}
                           className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                             globalTheme === 'dark' 
                               ? 'hover:bg-gray-700 text-gray-300' 

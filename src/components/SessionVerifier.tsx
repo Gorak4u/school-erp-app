@@ -19,7 +19,20 @@ export default function SessionVerifier() {
             // If user doesn't exist in DB anymore, log them out
             if (!data.valid) {
               console.log('Session invalid (user removed from DB), logging out...');
-              await signOut({ callbackUrl: '/login?error=SessionExpired' });
+              // Smart logout redirect - check if we're on a school subdomain
+              let callbackUrl = '/login?error=SessionExpired';
+              if (typeof window !== 'undefined') {
+                const host = window.location.hostname;
+                const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
+                
+                // Check if we're on a school subdomain
+                if (host !== 'localhost' && host !== '127.0.0.1' && host !== appDomain) {
+                  if (host.endsWith(`.${appDomain}`) || host.endsWith('.localhost')) {
+                    callbackUrl = '/school-login?error=SessionExpired';
+                  }
+                }
+              }
+              await signOut({ callbackUrl });
             }
           }
         } catch (error) {
