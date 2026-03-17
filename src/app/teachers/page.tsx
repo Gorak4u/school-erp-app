@@ -12,9 +12,40 @@ import ClassTeacherFormAssignments from './components/ClassTeacherFormAssignment
 import TeacherProfileModal from './components/TeacherProfileModal';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const EMPTY_FORM = { name: '', firstName: '', lastName: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', password: '', isClassTeacher: false, classTeacherAssignments: [] as any[] };
+const EMPTY_FORM = { 
+  name: '', 
+  firstName: '', 
+  lastName: '', 
+  email: '', 
+  phone: '', 
+  department: '', 
+  subject: '', 
+  qualification: '', 
+  experience: '', 
+  employeeId: '', 
+  status: 'active', 
+  joiningDate: '', 
+  password: '', 
+  isClassTeacher: false, 
+  classTeacherAssignments: [] as any[],
+  // New fields
+  role: 'teacher',
+  photo: '',
+  salary: '',
+  designation: '',
+  bankName: '',
+  bankAccountNo: '',
+  bankIfsc: '',
+  gender: '',
+  dateOfBirth: '',
+  address: '',
+  aadharNumber: '',
+  emergencyName: '',
+  emergencyPhone: '',
+  remarks: ''
+};
 
-export default function TeachersPage() {
+export default function StaffPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [showAddModal, setShowAddModal] = useState(false);
@@ -172,14 +203,14 @@ export default function TeachersPage() {
   };
 
   return (
-    <AppLayout currentPage="teachers" title="Teachers Management">
+    <AppLayout currentPage="teachers" title="Staff Management">
       <div className="space-y-6 pb-8">
         {/* Header */}
         <div className="flex flex-wrap gap-3 justify-between items-start">
           <div>
-            <h2 className={`text-2xl font-bold ${txt}`}>Teachers Management</h2>
+            <h2 className={`text-2xl font-bold ${txt}`}>Staff Management</h2>
             <p className={`mt-1 text-sm ${sub}`}>
-              {loading ? 'Loading…' : `${total.toLocaleString()} teachers total`}
+              {loading ? 'Loading…' : `${total.toLocaleString()} staff members total`}
             </p>
           </div>
           <div className="flex gap-2">
@@ -187,7 +218,7 @@ export default function TeachersPage() {
               onClick={() => setShowAddModal(true)}
               className="px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
             >
-              + Add Teacher
+              + Add Staff
             </button>
             <div className="relative">
               <button
@@ -542,7 +573,22 @@ export default function TeachersPage() {
                                 joiningDate: teacher.joiningDate || '',
                                 password: '',
                                 isClassTeacher: teacher.isClassTeacher || false,
-                                classTeacherAssignments: teacher.classTeacherAssignments || []
+                                classTeacherAssignments: teacher.classTeacherAssignments || [],
+                                // New fields
+                                role: teacher.user?.role || 'teacher',
+                                photo: teacher.photo || '',
+                                salary: teacher.salary?.toString() || '',
+                                designation: teacher.designation || '',
+                                bankName: teacher.bankName || '',
+                                bankAccountNo: teacher.bankAccountNo || '',
+                                bankIfsc: teacher.bankIfsc || '',
+                                gender: teacher.gender || '',
+                                dateOfBirth: teacher.dateOfBirth || '',
+                                address: teacher.address || '',
+                                aadharNumber: teacher.aadharNumber || '',
+                                emergencyName: teacher.emergencyName || '',
+                                emergencyPhone: teacher.emergencyPhone || '',
+                                remarks: teacher.remarks || ''
                               });
                               setShowEditModal(true);
                             }}
@@ -596,7 +642,7 @@ export default function TeachersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowEditModal(false)}>
           <div className={`w-full max-w-lg mx-4 rounded-xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
             <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-bold ${txt}`}>Edit Teacher</h3>
+              <h3 className={`text-lg font-bold ${txt}`}>Edit Staff</h3>
             </div>
             <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
               {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
@@ -622,23 +668,68 @@ export default function TeachersPage() {
                   />
                 </div>
               </div>
+              {/* Role Selection */}
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${sub}`}>Role *</label>
+                <select className={inputCls} value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}>
+                  <option value="admin">Admin</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="parent">Parent</option>
+                  <option value="student">Student</option>
+                </select>
+              </div>
+
               {[
-                { key: 'email', label: 'Email *', type: 'email' },
+                { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create staff record without login access' },
                 { key: 'phone', label: 'Phone', type: 'text' },
+                { key: 'designation', label: 'Designation', type: 'text' },
                 { key: 'department', label: 'Department', type: 'text' },
                 { key: 'subject', label: 'Subject', type: 'text' },
                 { key: 'qualification', label: 'Qualification', type: 'text' },
                 { key: 'experience', label: 'Experience (years)', type: 'number' },
+                { key: 'salary', label: 'Salary', type: 'number' },
                 { key: 'joiningDate', label: 'Joining Date', type: 'date' },
+                { key: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
+                { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+                { key: 'address', label: 'Address', type: 'textarea' },
+                { key: 'photo', label: 'Photo URL', type: 'text', helper: 'Optional - URL to staff photo' },
+                { key: 'bankName', label: 'Bank Name', type: 'text' },
+                { key: 'bankAccountNo', label: 'Bank Account Number', type: 'text' },
+                { key: 'bankIfsc', label: 'Bank IFSC Code', type: 'text' },
+                { key: 'aadharNumber', label: 'Aadhar Number', type: 'text' },
+                { key: 'emergencyName', label: 'Emergency Contact Name', type: 'text' },
+                { key: 'emergencyPhone', label: 'Emergency Contact Phone', type: 'text' },
+                { key: 'remarks', label: 'Remarks', type: 'textarea' },
               ].map(f => (
                 <div key={f.key}>
                   <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
-                  <input
-                    type={f.type}
-                    className={inputCls}
-                    value={(form as any)[f.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  />
+                  {f.type === 'select' ? (
+                    <select className={inputCls} value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}>
+                      <option value="">Select...</option>
+                      {(f as any).options?.map((opt: string) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : f.type === 'textarea' ? (
+                    <textarea
+                      className={inputCls}
+                      value={(form as any)[f.key]}
+                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.key === 'address' ? 'Enter full address' : f.key === 'remarks' ? 'Enter any remarks' : ''}
+                      rows={3}
+                    />
+                  ) : (
+                    <input
+                      type={f.type}
+                      className={inputCls}
+                      value={(form as any)[f.key]}
+                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.key === 'email' ? 'Leave blank to create record without login' : f.key === 'photo' ? 'Enter photo URL' : f.key === 'bankAccountNo' ? 'Enter account number' : f.key === 'bankIfsc' ? 'Enter IFSC code' : f.key === 'aadharNumber' ? 'Enter Aadhar number' : f.key === 'emergencyName' ? 'Enter emergency contact name' : f.key === 'emergencyPhone' ? 'Enter emergency contact phone' : ''}
+                    />
+                  )}
+                  {(f as any).helper && (
+                    <p className={`text-xs ${sub} mt-1`}>{(f as any).helper}</p>
+                  )}
                 </div>
               ))}
               <div>
@@ -659,7 +750,7 @@ export default function TeachersPage() {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="isClassTeacherEdit" className={`text-sm font-medium ${txt}`}>
-                  Is this teacher a Class Teacher?
+                  Is this staff member a Class Teacher?
                 </label>
               </div>
 
@@ -684,16 +775,20 @@ export default function TeachersPage() {
                   if (!form.firstName || !form.lastName || !form.email) { setFormError('First Name, Last Name, and Email are required'); return; }
                   setSaving(true); setFormError('');
                   try {
-                    await teachersApi.update(editingTeacher.id, { ...form, experience: form.experience ? Number(form.experience) : null });
+                    await teachersApi.update(editingTeacher.id, { 
+                      ...form, 
+                      experience: form.experience ? Number(form.experience) : null,
+                      salary: form.salary ? Number(form.salary) : null,
+                    });
                     setShowEditModal(false); setForm({ ...EMPTY_FORM }); refresh();
                   } catch (err: any) { 
-                    setFormError(err.message || 'Failed to update teacher');
+                    setFormError(err.message || 'Failed to update staff');
                   }
                   finally { setSaving(false); }
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               >
-                {saving ? 'Updating…' : 'Update Teacher'}
+                {saving ? 'Updating…' : 'Update Staff'}
               </button>
             </div>
           </div>
@@ -752,7 +847,7 @@ export default function TeachersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
           <div className={`w-full max-w-lg mx-4 rounded-xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
             <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-bold ${txt}`}>Add New Teacher</h3>
+              <h3 className={`text-lg font-bold ${txt}`}>Add New Staff</h3>
             </div>
             <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
               {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
@@ -778,25 +873,66 @@ export default function TeachersPage() {
                   />
                 </div>
               </div>
+              {/* Role Selection */}
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${sub}`}>Role *</label>
+                <select className={inputCls} value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}>
+                  <option value="admin">Admin</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="parent">Parent</option>
+                  <option value="student">Student</option>
+                </select>
+              </div>
+
               {[
-                { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create teacher record without login access' },
+                { key: 'email', label: 'Email (for login account)', type: 'email', helper: 'Optional - Leave blank to create staff record without login access' },
                 { key: 'phone', label: 'Phone', type: 'text' },
+                { key: 'designation', label: 'Designation', type: 'text' },
                 { key: 'department', label: 'Department', type: 'text' },
                 { key: 'subject', label: 'Subject', type: 'text' },
                 { key: 'qualification', label: 'Qualification', type: 'text' },
                 { key: 'experience', label: 'Experience (years)', type: 'number' },
+                { key: 'salary', label: 'Salary', type: 'number' },
                 { key: 'joiningDate', label: 'Joining Date', type: 'date' },
+                { key: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
+                { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+                { key: 'address', label: 'Address', type: 'textarea' },
+                { key: 'photo', label: 'Photo URL', type: 'text', helper: 'Optional - URL to staff photo' },
+                { key: 'bankName', label: 'Bank Name', type: 'text' },
+                { key: 'bankAccountNo', label: 'Bank Account Number', type: 'text' },
+                { key: 'bankIfsc', label: 'Bank IFSC Code', type: 'text' },
+                { key: 'aadharNumber', label: 'Aadhar Number', type: 'text' },
+                { key: 'emergencyName', label: 'Emergency Contact Name', type: 'text' },
+                { key: 'emergencyPhone', label: 'Emergency Contact Phone', type: 'text' },
+                { key: 'remarks', label: 'Remarks', type: 'textarea' },
                 { key: 'password', label: 'Password (if email provided)', type: 'password' },
               ].map(f => (
                 <div key={f.key}>
                   <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
-                  <input
-                    type={f.type}
-                    className={inputCls}
-                    value={(form as any)[f.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    placeholder={f.key === 'email' ? 'Leave blank to create record without login' : ''}
-                  />
+                  {f.type === 'select' ? (
+                    <select className={inputCls} value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}>
+                      <option value="">Select...</option>
+                      {(f as any).options?.map((opt: string) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : f.type === 'textarea' ? (
+                    <textarea
+                      className={inputCls}
+                      value={(form as any)[f.key]}
+                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.key === 'address' ? 'Enter full address' : f.key === 'remarks' ? 'Enter any remarks' : ''}
+                      rows={3}
+                    />
+                  ) : (
+                    <input
+                      type={f.type}
+                      className={inputCls}
+                      value={(form as any)[f.key]}
+                      onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.key === 'email' ? 'Leave blank to create record without login' : f.key === 'photo' ? 'Enter photo URL' : f.key === 'bankAccountNo' ? 'Enter account number' : f.key === 'bankIfsc' ? 'Enter IFSC code' : f.key === 'aadharNumber' ? 'Enter Aadhar number' : f.key === 'emergencyName' ? 'Enter emergency contact name' : f.key === 'emergencyPhone' ? 'Enter emergency contact phone' : ''}
+                    />
+                  )}
                   {(f as any).helper && (
                     <p className={`text-xs ${sub} mt-1`}>{(f as any).helper}</p>
                   )}
@@ -820,7 +956,7 @@ export default function TeachersPage() {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="isClassTeacher" className={`text-sm font-medium ${txt}`}>
-                  Is this teacher a Class Teacher?
+                  Is this staff member a Class Teacher?
                 </label>
               </div>
 
@@ -845,7 +981,11 @@ export default function TeachersPage() {
                   if (!form.firstName || !form.lastName) { setFormError('First Name and Last Name are required'); return; }
                   setSaving(true); setFormError('');
                   try {
-                    const response = await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
+                    const response = await teachersApi.create({ 
+                      ...form, 
+                      experience: form.experience ? Number(form.experience) : null,
+                      salary: form.salary ? Number(form.salary) : null,
+                    });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
                     
                     // Show appropriate message based on whether user account was created
@@ -853,35 +993,35 @@ export default function TeachersPage() {
                       if ((window as any).toast) {
                         (window as any).toast({
                           type: 'success',
-                          title: 'Teacher Created Successfully',
+                          title: 'Staff Created Successfully',
                           message: `Login account created! Welcome email sent to ${response.user.email}. Admin notification sent.`,
                           duration: 8000,
                         });
                       } else {
-                        alert(`Teacher created! Login account created for ${response.user.email}\nWelcome email and admin notification sent.`);
+                        alert(`Staff created! Login account created for ${response.user.email}\nWelcome email and admin notification sent.`);
                       }
                     } else {
                       if ((window as any).toast) {
                         (window as any).toast({
                           type: 'info',
-                          title: 'Teacher Record Created',
-                          message: 'Teacher record created without login account (no email provided). Admin notification sent.',
+                          title: 'Staff Record Created',
+                          message: 'Staff record created without login account (no email provided). Admin notification sent.',
                           duration: 6000,
                         });
                       } else {
-                        alert('Teacher record created! No login account created as no email was provided.\nAdmin notification sent with next steps.');
+                        alert('Staff record created! No login account created as no email was provided.\nAdmin notification sent with next steps.');
                       }
                     }
                   } catch (err: any) { 
                     // Check for subscription limit errors
                     if (err.message.includes('limit reached') || err.message.includes('quota') || err.message.includes('upgrade')) {
-                      setFormError(err.message || 'Teacher limit reached. Please upgrade your plan to add more teachers.');
+                      setFormError(err.message || 'Staff limit reached. Please upgrade your plan to add more staff.');
                       // Show upgrade prompt toast
                       if ((window as any).toast) {
                         (window as any).toast({
                           type: 'warning',
-                          title: 'Teacher Limit Reached',
-                          message: err.message || 'Teacher limit reached. Please upgrade your plan to add more teachers.',
+                          title: 'Staff Limit Reached',
+                          message: err.message || 'Staff limit reached. Please upgrade your plan to add more staff.',
                           duration: 6000,
                           actions: [
                             {
@@ -900,14 +1040,14 @@ export default function TeachersPage() {
                         });
                       }
                     } else {
-                      setFormError(err.message || 'Failed to create teacher');
+                      setFormError(err.message || 'Failed to create staff');
                     }
                   }
                   finally { setSaving(false); }
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save Teacher'}
+                {saving ? 'Saving…' : 'Save Staff'}
               </button>
             </div>
           </div>
