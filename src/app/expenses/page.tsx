@@ -10,6 +10,7 @@ import CategoryManager from './components/CategoryManager';
 import ExpenseReports from './components/ExpenseReports';
 import ExpenseForm from './ExpenseForm';
 import { DEFAULT_CATEGORIES } from './utils';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const TABS = [
   { id: 'dashboard',  label: 'Dashboard',  icon: '📊' },
@@ -25,7 +26,9 @@ const BLANK_CAT_FORM = { name: '', description: '', color: '#6366f1', icon: '�
 
 export default function ExpensesPage() {
   const { theme } = useTheme();
+  const { isAdmin, isSuperAdmin, hasPermission } = usePermissions();
   const isDark = theme === 'dark';
+  const canCreateExpenses = isSuperAdmin || isAdmin || hasPermission('create_expenses');
 
   // Modern UI template CSS variables
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
@@ -425,25 +428,6 @@ export default function ExpensesPage() {
 
   // ── Selected state (passed to ExpenseList) ─────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [userRole, setUserRole] = useState<string>('');
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-  // Get user role on component mount
-  useEffect(() => {
-    const getUserRole = async () => {
-      try {
-        const response = await fetch('/api/auth/verify-session');
-        if (response.ok) {
-          const data = await response.json();
-          setUserRole(data.user?.role || '');
-          setIsSuperAdmin(data.user?.isSuperAdmin || false);
-        }
-      } catch (error) {
-        console.error('Failed to get user role:', error);
-      }
-    };
-    getUserRole();
-  }, []);
 
   return (
     <AppLayout currentPage="expenses" title="Expense Management" theme={theme}>
@@ -489,21 +473,23 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 
-                <button 
-                  onClick={openAddExpense} 
-                  className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
-                    isDark 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Expense
-                  </span>
-                </button>
+                {canCreateExpenses && (
+                  <button 
+                    onClick={openAddExpense} 
+                    className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
+                      isDark 
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Expense
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -574,8 +560,6 @@ export default function ExpensesPage() {
             onAction={(e, action) => { setActionModal({ expense: e, action }); setActionNote(''); }}
             onExport={exportCSV}
             isDark={isDark}
-            userRole={userRole}
-            isSuperAdmin={isSuperAdmin}
           />
         )}
 

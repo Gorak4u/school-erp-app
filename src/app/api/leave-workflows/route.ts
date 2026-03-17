@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageLeaveWorkflowsAccess } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageLeaveWorkflowsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can manage leave workflows' }, { status: 403 });
     }
 

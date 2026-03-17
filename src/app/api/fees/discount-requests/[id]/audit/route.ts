@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canViewDiscountAuditAccess } from '@/lib/permissions';
 
 export async function GET(
   request: NextRequest,
@@ -12,8 +13,6 @@ export async function GET(
 
     const { id } = await params;
     
-    // Admins and Principals can view audit logs. 
-    // Requesters can also view audit logs for their own requests.
     const discountReq = await (schoolPrisma as any).DiscountRequest.findUnique({
       where: { id, ...tenantWhere(ctx) }
     });
@@ -22,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Discount request not found' }, { status: 404 });
     }
 
-    if (ctx.role !== 'admin' && ctx.role !== 'principal' && !ctx.isSuperAdmin && discountReq.requestedBy !== ctx.userId) {
+    if (!canViewDiscountAuditAccess(ctx) && discountReq.requestedBy !== ctx.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

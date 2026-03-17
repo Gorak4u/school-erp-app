@@ -2,18 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
-
-function hasBudgetAccess(ctx: any) {
-  if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
-  const perms: string[] = ctx.permissions || [];
-  return perms.includes('expenses.manage_budgets');
-}
+import { canManageBudgetsAccess } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (!hasBudgetAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canManageBudgetsAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
     const academicYear = searchParams.get('academicYear');
@@ -55,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (!hasBudgetAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canManageBudgetsAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
     const { name, description, totalAmount, categoryId, academicYear, academicYearId, startDate, endDate, alertThreshold } = body;

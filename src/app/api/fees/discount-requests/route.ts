@@ -11,6 +11,7 @@ import {
   sanitizePaginationParams,
   validateDateRange 
 } from '@/lib/apiSecurity';
+import { canApproveDiscountsAccess } from '@/lib/permissions';
 
 // Validation function for discount applications
 async function validateDiscountApplication(
@@ -298,6 +299,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const academicYear = searchParams.get('academicYear');
     const scope = searchParams.get('scope');
+    const mine = searchParams.get('mine') === 'true';
     const search = validateSearchQuery(searchParams.get('search') || '');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
@@ -335,8 +337,7 @@ export async function GET(request: NextRequest) {
       if (dateValidation.dateTo) where.createdAt.lte = new Date(dateValidation.dateTo!.getTime() + 86399999); // End of day
     }
 
-    // Users can only see requests they created, UNLESS they are admin/principal
-    if (ctx.role !== 'admin' && ctx.role !== 'principal' && !ctx.isSuperAdmin) {
+    if (mine || !canApproveDiscountsAccess(ctx)) {
       where.requestedBy = ctx.userId;
     }
 
@@ -470,14 +471,29 @@ export async function POST(request: NextRequest) {
       });
       const schoolName = schoolSetting?.value || 'School';
 
-      // Find eligible approvers (admin users)
-      const approvers = await (schoolPrisma as any).school_User.findMany({
+      const approverCandidates = await (schoolPrisma as any).school_User.findMany({
         where: {
           schoolId: ctx.schoolId,
-          role: 'admin',
           isActive: true
+        },
+        include: {
+          CustomRole: {
+            select: {
+              permissions: true,
+            },
+          },
         }
       });
+
+      const approvers = approverCandidates.filter((approver: any) =>
+        canApproveDiscountsAccess({
+          role: approver.role,
+          isSuperAdmin: approver.isSuperAdmin,
+          permissions: approver.CustomRole?.permissions
+            ? JSON.parse(approver.CustomRole.permissions)
+            : undefined,
+        })
+      );
 
       // Get submitter user details
       const submitter = await (schoolPrisma as any).school_User.findUnique({

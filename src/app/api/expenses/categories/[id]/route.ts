@@ -2,12 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { canManageExpenseCategoriesAccess } from '@/lib/permissions';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canManageExpenseCategoriesAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
@@ -41,7 +42,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canManageExpenseCategoriesAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
 

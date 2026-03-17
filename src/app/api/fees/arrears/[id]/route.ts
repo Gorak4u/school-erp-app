@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canManageFeesAccess } from '@/lib/permissions';
 
 export async function GET(
   _req: NextRequest,
@@ -31,7 +32,7 @@ export async function PATCH(
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageFeesAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can record arrears payments' }, { status: 403 });
     }
 

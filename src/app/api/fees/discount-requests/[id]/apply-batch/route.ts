@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
+import { canApplyDiscountsAccess } from '@/lib/permissions';
 
 // Import shared job status from the status API
 import { jobStatus } from './[jobId]/status/route';
@@ -28,8 +29,7 @@ export async function POST(
       return NextResponse.json({ error: 'Only approved requests can be applied' }, { status: 400 });
     }
 
-    // Only admins can apply discounts
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canApplyDiscountsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can apply discounts' }, { status: 403 });
     }
 

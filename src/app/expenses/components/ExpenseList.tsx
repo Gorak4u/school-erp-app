@@ -2,6 +2,7 @@
 'use client';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface ExpenseListProps {
   expenses: any[];
@@ -21,8 +22,6 @@ interface ExpenseListProps {
   onAction: (expense: any, action: string) => void;
   onExport: () => void;
   isDark: boolean;
-  userRole?: string;
-  isSuperAdmin?: boolean;
 }
 
 export default function ExpenseList({
@@ -42,10 +41,14 @@ export default function ExpenseList({
   onDelete,
   onAction,
   onExport,
-  isDark,
-  userRole,
-  isSuperAdmin
+  isDark
 }: ExpenseListProps) {
+  const { isAdmin, isSuperAdmin, hasPermission } = usePermissions();
+  const canCreateExpenses = isSuperAdmin || isAdmin || hasPermission('create_expenses');
+  const canEditExpenses = isSuperAdmin || isAdmin || hasPermission('edit_expenses');
+  const canApproveExpenses = isSuperAdmin || isAdmin || hasPermission('approve_expenses');
+  const canPayExpenses = isSuperAdmin || isAdmin || hasPermission('pay_expenses');
+  const canDeleteExpenses = isSuperAdmin || isAdmin || hasPermission('delete_expenses');
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const text = isDark ? 'text-white' : 'text-gray-900';
   const subtext = isDark ? 'text-gray-400' : 'text-gray-600';
@@ -104,9 +107,11 @@ export default function ExpenseList({
               <button onClick={onExport} className={btnSecondary}>
                 📊 Export
               </button>
-              <button onClick={onAdd} className={btnPrimary}>
-                + Add Expense
-              </button>
+              {canCreateExpenses && (
+                <button onClick={onAdd} className={btnPrimary}>
+                  + Add Expense
+                </button>
+              )}
             </div>
           </div>
 
@@ -203,10 +208,12 @@ export default function ExpenseList({
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      <button onClick={() => onEdit(expense)} className={btnSecondary}>
-                        Edit
-                      </button>
-                      {expense.status === 'pending' && (
+                      {canEditExpenses && expense.status === 'pending' && (
+                        <button onClick={() => onEdit(expense)} className={btnSecondary}>
+                          Edit
+                        </button>
+                      )}
+                      {expense.status === 'pending' && canApproveExpenses && (
                         <>
                           <button onClick={() => onAction(expense, 'approve')} className="px-3 py-2 text-xs bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors">
                             Approve
@@ -216,14 +223,16 @@ export default function ExpenseList({
                           </button>
                         </>
                       )}
-                      {expense.status === 'approved' && (
+                      {expense.status === 'approved' && canPayExpenses && (
                         <button onClick={() => onAction(expense, 'pay')} className="px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-colors">
                           Mark Paid
                         </button>
                       )}
-                      <button onClick={() => onDelete(expense.id)} className={btnDanger}>
-                        Delete
-                      </button>
+                      {canDeleteExpenses && (
+                        <button onClick={() => onDelete(expense.id)} className={btnDanger}>
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

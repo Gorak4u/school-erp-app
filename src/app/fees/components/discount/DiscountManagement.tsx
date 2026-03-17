@@ -5,15 +5,17 @@ import DiscountRequestForm from './DiscountRequestForm';
 import EnhancedDiscountApprovalQueue from './EnhancedDiscountApprovalQueue';
 import EnhancedDiscountAuditLog from './EnhancedDiscountAuditLog';
 import DiscountAnalytics from './DiscountAnalytics';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface DiscountManagementProps {
   theme: 'dark' | 'light';
-  userRole: string;
 }
 
-export default function DiscountManagement({ theme, userRole }: DiscountManagementProps) {
+export default function DiscountManagement({ theme }: DiscountManagementProps) {
   const [activeTab, setActiveTab] = useState<'requests' | 'approvals' | 'audit' | 'analytics'>('requests');
   const [showForm, setShowForm] = useState(false);
+  const { isAdmin, isSuperAdmin, hasPermission } = usePermissions();
+  const canApproveDiscounts = isSuperAdmin || isAdmin || hasPermission('manage_fees');
 
   const isDark = theme === 'dark';
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
@@ -47,7 +49,7 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
         >
           My Requests
         </button>
-        {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'principal') && (
+        {canApproveDiscounts && (
           <button
             onClick={() => setActiveTab('approvals')}
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
@@ -59,7 +61,7 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
             Approval Queue
           </button>
         )}
-        {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'principal') && (
+        {canApproveDiscounts && (
           <button
             onClick={() => setActiveTab('audit')}
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
@@ -71,7 +73,7 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
             Audit Logs
           </button>
         )}
-        {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'principal') && (
+        {canApproveDiscounts && (
           <button
             onClick={() => setActiveTab('analytics')}
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
@@ -86,8 +88,8 @@ export default function DiscountManagement({ theme, userRole }: DiscountManageme
       </div>
 
       <div className={`p-6 rounded-xl border ${bgCard}`}>
-        {activeTab === 'requests' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="my_requests" />}
-        {activeTab === 'approvals' && <EnhancedDiscountApprovalQueue theme={theme} userRole={userRole} viewMode="all" />}
+        {activeTab === 'requests' && <EnhancedDiscountApprovalQueue theme={theme} canApproveDiscounts={canApproveDiscounts} viewMode="my_requests" />}
+        {activeTab === 'approvals' && <EnhancedDiscountApprovalQueue theme={theme} canApproveDiscounts={canApproveDiscounts} viewMode="all" />}
         {activeTab === 'audit' && <EnhancedDiscountAuditLog theme={theme} />}
         {activeTab === 'analytics' && <DiscountAnalytics theme={theme} />}
       </div>

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { canManageSettingsAccess } from '@/lib/permissions';
 
 export async function POST() {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canManageSettingsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can fix permissions' }, { status: 403 });
     }
 

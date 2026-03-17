@@ -304,14 +304,16 @@ export function resolvePermissions(
   builtInRole: string,
   customRolePermissions?: string | null
 ): Permission[] {
+  const basePermissions = DEFAULT_ROLE_PERMISSIONS[builtInRole] || DEFAULT_ROLE_PERMISSIONS['teacher'];
   if (customRolePermissions) {
     try {
-      return JSON.parse(customRolePermissions) as Permission[];
+      const parsedPermissions = JSON.parse(customRolePermissions) as Permission[];
+      return Array.from(new Set([...basePermissions, ...parsedPermissions]));
     } catch {
       // fall through to default
     }
   }
-  return DEFAULT_ROLE_PERMISSIONS[builtInRole] || DEFAULT_ROLE_PERMISSIONS['teacher'];
+  return basePermissions;
 }
 
 /**
@@ -379,6 +381,116 @@ export function canManageSubscriptionAccess(input: {
     || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.MANAGE_SETTINGS, ALL_PERMISSIONS.MANAGE_USERS]);
 }
 
+export function canViewFeesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.VIEW_FEES, ALL_PERMISSIONS.MANAGE_FEES]);
+}
+
+export function canManageFeesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_FEES);
+}
+
+export function canViewExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.VIEW_EXPENSES, ALL_PERMISSIONS.CREATE_EXPENSES, ALL_PERMISSIONS.MANAGE_BUDGETS]);
+}
+
+export function canCreateExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.CREATE_EXPENSES);
+}
+
+export function canEditExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.EDIT_EXPENSES);
+}
+
+export function canDeleteExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.DELETE_EXPENSES);
+}
+
+export function canApproveExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.APPROVE_EXPENSES);
+}
+
+export function canPayExpensesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.PAY_EXPENSES);
+}
+
+export function canManageExpenseCategoriesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_EXPENSE_CATEGORIES);
+}
+
+export function canManageBudgetsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_BUDGETS);
+}
+
+export function canManageLeaveWorkflowsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.MANAGE_LEAVE_SETTINGS, ALL_PERMISSIONS.APPROVE_ALL_LEAVE, ALL_PERMISSIONS.OVERRIDE_LEAVE_APPROVAL]);
+}
+
 export function canPromoteStudentsAccess(input: {
   role?: string | null;
   isSuperAdmin?: boolean | null;
@@ -403,7 +515,37 @@ export function canApproveDiscountsAccess(input: {
   isSuperAdmin?: boolean | null;
   permissions?: readonly string[] | null;
 }): boolean {
-  return !!input.isSuperAdmin
-    || input.role === 'admin'
-    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_FEES);
+  return canManageFeesAccess(input);
+}
+
+export function canViewDiscountRequestsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canViewFeesAccess(input);
+}
+
+export function canViewDiscountAuditAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canApproveDiscountsAccess(input);
+}
+
+export function canApplyDiscountsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canApproveDiscountsAccess(input);
+}
+
+export function canReverseDiscountsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return canApproveDiscountsAccess(input);
 }

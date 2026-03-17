@@ -4,6 +4,7 @@ import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
 import { sendSchoolEmail } from '@/lib/email';
 import { generateDiscountApprovedEmail } from '@/lib/discount-email-templates';
+import { canApproveDiscountsAccess, canViewDiscountRequestsAccess, isAdminLikeAccess } from '@/lib/permissions';
 
 // Helper function to resolve class target student IDs
 async function resolveClassTargetStudentIds(classIds: string[], sectionIds: string[], ctx: SessionContext) {
@@ -244,8 +245,7 @@ export async function GET(
       return NextResponse.json({ error: 'Discount request not found' }, { status: 404 });
     }
 
-    // Access control: only admins/principals or the original requester can view details
-    if (ctx.role !== 'admin' && ctx.role !== 'principal' && !ctx.isSuperAdmin && discountReq.requestedBy !== ctx.userId) {
+    if (!canViewDiscountRequestsAccess(ctx) && discountReq.requestedBy !== ctx.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -264,8 +264,7 @@ export async function PATCH(
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    // Only admins/super_admins can approve or reject
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canApproveDiscountsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can approve or reject discounts' }, { status: 403 });
     }
 
@@ -291,7 +290,7 @@ export async function PATCH(
 
     // Allow self-approval for admins (but not other roles)
     // This allows admins to approve their own discount requests
-    if (action === 'approve' && existingReq.requestedBy === ctx.userId && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (action === 'approve' && existingReq.requestedBy === ctx.userId && !isAdminLikeAccess(ctx)) {
       return NextResponse.json({ error: 'You cannot approve your own discount request' }, { status: 403 });
     }
 

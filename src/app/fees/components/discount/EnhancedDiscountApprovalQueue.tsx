@@ -5,11 +5,11 @@ import { Search, Filter, ChevronLeft, ChevronRight, Calendar, User, Clock } from
 
 interface EnhancedDiscountApprovalQueueProps {
   theme: 'dark' | 'light';
-  userRole: string;
+  canApproveDiscounts: boolean;
   viewMode: 'my_requests' | 'all';
 }
 
-export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMode }: EnhancedDiscountApprovalQueueProps) {
+export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscounts, viewMode }: EnhancedDiscountApprovalQueueProps) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,6 +47,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
     const params = new URLSearchParams();
     params.set('page', currentPage.toString());
     params.set('pageSize', pageSize.toString());
+    if (viewMode === 'my_requests') params.set('mine', 'true');
     
     // Apply status filter for both my_requests and all views
     if (statusFilter !== 'all') {
@@ -804,7 +805,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                 </div>
               )}
               
-              {selectedRequest.status === 'pending' && (userRole === 'admin' || userRole === 'super_admin') && (
+              {selectedRequest.status === 'pending' && canApproveDiscounts && (
                 <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <h3 className={`font-semibold ${textPrimary} mb-4`}>Approval Action</h3>
                   <div className="space-y-4">
@@ -839,7 +840,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, userRole, viewMod
                 </div>
               )}
               
-              {selectedRequest.status === 'approved' && (userRole === 'admin' || userRole === 'super_admin') && (
+              {selectedRequest.status === 'approved' && canApproveDiscounts && (
                 <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-4">
                     <p className="text-blue-800 dark:text-blue-300 text-sm">

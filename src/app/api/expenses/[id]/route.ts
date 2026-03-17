@@ -3,18 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 import { sendExpenseApprovedEmail, sendExpenseRejectedEmail, sendExpensePaidEmail } from '@/lib/expenseEmails';
-
-function hasExpenseAccess(ctx: any, action = 'view') {
-  if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
-  const perms: string[] = ctx.permissions || [];
-  if (action === 'view') return perms.includes('view_expenses') || perms.includes('create_expenses');
-  if (action === 'create') return perms.includes('create_expenses');
-  if (action === 'edit') return perms.includes('edit_expenses');
-  if (action === 'delete') return perms.includes('delete_expenses');
-  if (action === 'approve') return perms.includes('approve_expenses');
-  if (action === 'pay') return perms.includes('pay_expenses');
-  return false;
-}
+import { canApproveExpensesAccess, canDeleteExpensesAccess, canEditExpensesAccess, canPayExpensesAccess, canViewExpensesAccess } from '@/lib/permissions';
 
 async function logAudit(schoolId: string, expenseId: string, ctx: any, action: string, prevStatus?: string, newStatus?: string, details?: string) {
   try {
@@ -39,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (!hasExpenseAccess(ctx, 'view')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canViewExpensesAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
     const expense = await (schoolPrisma as any).expense.findFirst({
@@ -69,16 +58,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { action, ...fields } = body;
 
     // Check specific permission based on action
-    if (action === 'approve' && !hasExpenseAccess(ctx, 'approve')) {
+    if (action === 'approve' && !canApproveExpensesAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    if (action === 'pay' && !hasExpenseAccess(ctx, 'pay')) {
+    if (action === 'pay' && !canPayExpensesAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    if (!action && !hasExpenseAccess(ctx, 'edit')) {
+    if (!action && !canEditExpensesAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    if (!hasExpenseAccess(ctx, 'view')) {
+    if (!canViewExpensesAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -194,15 +183,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot delete a paid expense' }, { status: 400 });
     
     // Admin-only delete restriction for rejected expenses
-    if (existing.status === 'rejected' && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (existing.status === 'rejected' && !canDeleteExpensesAccess(ctx)) {
       return NextResponse.json({ 
         error: 'Only administrators can delete rejected expenses', 
         details: 'Rejected expenses require admin-level privileges for deletion to maintain audit trail.'
       }, { status: 403 });
     }
 
-    // For non-rejected expenses, require admin or super admin
-    if (existing.status !== 'rejected' && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (existing.status !== 'rejected' && !canDeleteExpensesAccess(ctx)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

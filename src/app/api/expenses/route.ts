@@ -3,15 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 import { sendExpenseCreatedEmail } from '@/lib/expenseEmails';
-
-function hasExpenseAccess(ctx: any, action = 'view') {
-  if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
-  const perms: string[] = ctx.permissions || [];
-  if (action === 'view') return perms.includes('view_expenses') || perms.includes('create_expenses');
-  if (action === 'create') return perms.includes('create_expenses');
-  if (action === 'approve') return perms.includes('approve_expenses');
-  return false;
-}
+import { canCreateExpensesAccess, canViewExpensesAccess } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (!ctx.schoolId) {
       return NextResponse.json({ error: 'No school selected. Please select a school to continue.' }, { status: 400 });
     }
-    if (!hasExpenseAccess(ctx, 'view')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canViewExpensesAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
@@ -93,7 +85,7 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (!hasExpenseAccess(ctx, 'create')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canCreateExpensesAccess(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Handle both JSON and FormData (for file uploads)
     const contentType = request.headers.get('content-type') || '';

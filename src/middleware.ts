@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { ensureSuperAdmin } from '@/lib/super-admin-init';
 import { extractSubdomain } from '@/lib/subdomain';
+import { canManageFeesAccess, canViewFeesAccess } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 
@@ -263,8 +264,20 @@ export async function middleware(request: NextRequest) {
     
     // Fee operations
     if (pathname.startsWith('/api/fees')) {
-      if (userCustomRoleId && !userPermissions.includes('manage_fees')) {
-        return NextResponse.json({ error: 'Insufficient permissions to manage fees' }, { status: 403 });
+      if (userCustomRoleId) {
+        const feeAccessInput = {
+          role: userRole,
+          isSuperAdmin: false,
+          permissions: userPermissions,
+        };
+
+        if (request.method === 'GET') {
+          if (!canViewFeesAccess(feeAccessInput)) {
+            return NextResponse.json({ error: 'Insufficient permissions to view fees' }, { status: 403 });
+          }
+        } else if (!canManageFeesAccess(feeAccessInput)) {
+          return NextResponse.json({ error: 'Insufficient permissions to manage fees' }, { status: 403 });
+        }
       }
     }
     

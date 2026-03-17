@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canApproveDiscountsAccess } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const canApproveDiscounts = ctx.role === 'admin' || ctx.isSuperAdmin;
+    const canApproveDiscounts = canApproveDiscountsAccess(ctx);
     const canApproveLeaves = ctx.role === 'admin' || ctx.permissions?.includes('approve_department_leave') || ctx.permissions?.includes('approve_all_leave');
 
     if (!canApproveDiscounts && !canApproveLeaves) {

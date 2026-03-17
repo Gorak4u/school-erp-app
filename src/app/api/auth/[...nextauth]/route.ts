@@ -134,6 +134,46 @@ export const authOptions = {
         token.employeeId = (user as any).employeeId || null;
       }
 
+      if (token.schema === 'school' && token.email) {
+        try {
+          const currentUser = await (schoolPrisma as any).school_User.findFirst({
+            where: {
+              OR: [
+                { id: token.sub as string },
+                { email: token.email as string },
+              ],
+            },
+            select: {
+              role: true,
+              schoolId: true,
+              customRoleId: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              CustomRole: {
+                select: {
+                  name: true,
+                  permissions: true,
+                },
+              },
+            },
+          });
+
+          if (currentUser) {
+            token.role = currentUser.role;
+            token.schoolId = currentUser.schoolId;
+            token.customRoleId = currentUser.customRoleId;
+            token.customRoleName = currentUser.CustomRole?.name ?? null;
+            token.permissions = resolvePermissions(currentUser.role, currentUser.CustomRole?.permissions || null);
+            token.firstName = currentUser.firstName;
+            token.lastName = currentUser.lastName;
+            token.employeeId = currentUser.employeeId || null;
+          }
+        } catch (error) {
+          console.error('Failed to refresh RBAC data in JWT:', error);
+        }
+      }
+
       // Always re-fetch subscription status for school users so middleware
       // gets fresh status immediately after payment verification.
       if (token.schema === 'school' && token.schoolId) {

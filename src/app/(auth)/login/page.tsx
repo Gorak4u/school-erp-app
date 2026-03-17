@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { signIn } from 'next-auth/react';
+import { canManageSettingsAccess } from '@/lib/permissions';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -67,9 +68,14 @@ export default function LoginPage() {
           router.push('/admin');
         } else {
           console.log('Redirecting regular user to /dashboard');
+          const canManageSchoolSetup = canManageSettingsAccess({
+            role: session?.user?.role,
+            isSuperAdmin: session?.user?.isSuperAdmin,
+            permissions: session?.user?.permissions,
+          });
           
           // For school admins, check if setup is needed before redirecting
-          if (session?.user?.role === 'admin') {
+          if (canManageSchoolSetup) {
             try {
               const setupRes = await fetch('/api/school-setup/check');
               if (setupRes.ok) {

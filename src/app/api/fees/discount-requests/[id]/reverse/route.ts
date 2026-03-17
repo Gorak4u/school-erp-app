@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { canReverseDiscountsAccess } from '@/lib/permissions';
 
 export async function POST(
   request: NextRequest,
@@ -10,8 +11,7 @@ export async function POST(
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    // Only admins/super_admins can reverse discounts
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+    if (!canReverseDiscountsAccess(ctx)) {
       return NextResponse.json({ error: 'Only admins can reverse discounts' }, { status: 403 });
     }
 
