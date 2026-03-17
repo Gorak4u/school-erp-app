@@ -24,6 +24,9 @@ interface SchoolTheme {
   backgroundColor: string;
   textColor: string;
   gradient: string;
+  inputBackgroundColor: string;
+  inputBorderColor: string;
+  inputFocusColor: string;
 }
 
 // Generate unique theme colors based on school name
@@ -42,11 +45,23 @@ function generateSchoolTheme(schoolName: string): SchoolTheme {
   const secondaryHue = (hue + 120) % 360;
   const accentHue = (hue + 240) % 360;
   
-  // Generate colors with good contrast
-  const primaryColor = `hsl(${primaryHue}, 70%, 50%)`;
-  const secondaryColor = `hsl(${secondaryHue}, 60%, 45%)`;
-  const accentColor = `hsl(${accentHue}, 80%, 60%)`;
-  const backgroundColor = `hsl(${primaryHue}, 20%, 5%)`;
+  // Generate colors with improved contrast and visibility
+  const primaryColor = `hsl(${primaryHue}, 70%, 55%)`;
+  const secondaryColor = `hsl(${secondaryHue}, 65%, 50%)`;
+  const accentColor = `hsl(${accentHue}, 75%, 60%)`;
+  
+  // Lighter background with subtle gradient
+  const backgroundGradient = `linear-gradient(135deg, 
+    hsl(${primaryHue}, 30%, 8%) 0%, 
+    hsl(${secondaryHue}, 25%, 12%) 50%, 
+    hsl(${primaryHue}, 20%, 6%) 100%
+  )`;
+  
+  // Light input colors for better visibility
+  const inputBackgroundColor = `hsl(${primaryHue}, 15%, 25%)`;
+  const inputBorderColor = `hsl(${primaryHue}, 40%, 40%)`;
+  const inputFocusColor = `hsl(${accentHue}, 65%, 55%)`;
+  
   const textColor = '#ffffff';
   const gradient = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
   
@@ -54,9 +69,12 @@ function generateSchoolTheme(schoolName: string): SchoolTheme {
     primaryColor,
     secondaryColor,
     accentColor,
-    backgroundColor,
+    backgroundColor: backgroundGradient,
     textColor,
-    gradient
+    gradient,
+    inputBackgroundColor,
+    inputBorderColor,
+    inputFocusColor
   };
 }
 
@@ -195,7 +213,10 @@ function SchoolLoginInner() {
   return (
     <div 
       className="min-h-screen flex flex-col"
-      style={{ backgroundColor: theme?.backgroundColor || '#030712' }}
+      style={{ 
+        background: theme?.backgroundColor || '#030712',
+        minHeight: '100vh'
+      }}
     >
       {/* Header */}
       <div 
@@ -284,11 +305,17 @@ function SchoolLoginInner() {
                     required
                     autoFocus
                     placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                    className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors pr-12"
+                    className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12"
                     style={{
-                      backgroundColor: theme?.secondaryColor || '#374151',
-                      borderColor: theme?.accentColor || '#6b7280',
+                      backgroundColor: theme?.inputBackgroundColor || '#374151',
+                      borderColor: theme?.inputBorderColor || '#6b7280',
                       borderWidth: '1px'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
                     }}
                   />
                 </div>
@@ -307,11 +334,17 @@ function SchoolLoginInner() {
                       onChange={e => setPassword(e.target.value)}
                       required
                       placeholder="Enter your password"
-                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors pr-12"
+                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12"
                       style={{
-                        backgroundColor: theme?.secondaryColor || '#374151',
-                        borderColor: theme?.accentColor || '#6b7280',
+                        backgroundColor: theme?.inputBackgroundColor || '#374151',
+                        borderColor: theme?.inputBorderColor || '#6b7280',
                         borderWidth: '1px'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
                       }}
                     />
                     <button
@@ -416,11 +449,17 @@ function SchoolLoginInner() {
                       required
                       autoFocus
                       placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-colors"
+                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all"
                       style={{
-                        backgroundColor: theme?.secondaryColor || '#374151',
-                        borderColor: theme?.accentColor || '#6b7280',
+                        backgroundColor: theme?.inputBackgroundColor || '#374151',
+                        borderColor: theme?.inputBorderColor || '#6b7280',
                         borderWidth: '1px'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
                       }}
                     />
                   </div>
