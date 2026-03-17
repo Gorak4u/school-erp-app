@@ -7,6 +7,8 @@ import AppLayout from '@/components/AppLayout';
 import { Student } from './types';
 import { useStudentState } from './hooks/useStudentState';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { studentsApi, academicYearsApi, classesApi, sectionsApi } from '@/lib/apiClient';
 
 import { createSearchHandlers } from './handlers/searchHandlers';
 import { createActionsHandlers } from './handlers/actionsHandlers';
@@ -14,6 +16,7 @@ import { createMobileHandlers } from './handlers/mobileHandlers';
 import { createDocumentHandlers } from './handlers/documentHandlers';
 import { createTrackingHandlers } from './handlers/trackingHandlers';
 import { createFeeHandlers } from './handlers/feeHandlers';
+import { createStudentHandlers } from './handlers/studentHandlers';
 
 import StudentForm from './components/StudentForm';
 import StudentDashboard from './components/StudentDashboard';
@@ -32,6 +35,8 @@ import ColumnSettingsModal from './components/ColumnSettingsModal';
 import SaveFilterModal from './components/SaveFilterModal';
 import PromotionModal from './components/PromotionModal';
 import ExitStudentModal from './components/ExitStudentModal';
+import SearchPerformanceMonitor from '../shared/search/components/SearchPerformanceMonitor';
+import { StudentSearchEngine } from './search/StudentSearchEngine';
 
 export default function StudentsPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
@@ -378,6 +383,12 @@ export default function StudentsPage() {
         studentIds={exitStudentIds}
         theme={theme}
         onSuccess={() => { loadStudents(); }}
+      />
+      
+      {/* Search Performance Monitor */}
+      <SearchPerformanceMonitor 
+        theme={theme} 
+        engine={StudentSearchEngine.getInstance()} 
       />
     </AppLayout>
   );

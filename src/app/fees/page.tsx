@@ -22,6 +22,8 @@ import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi
 import { useFeeState } from './hooks/useFeeState';
 import { createFeeDataHandlers } from './handlers/feeDataHandlers';
 import { createFeeActionHandlers } from './handlers/feeActionHandlers';
+import SearchPerformanceMonitor from '../shared/search/components/SearchPerformanceMonitor';
+import { FeeSearchEngine } from './search/FeeSearchEngine';
 import FeeDashboard from './components/FeeDashboard';
 import FeeFilters from './components/FeeFilters';
 import FeeTabContent from './components/FeeTabContent';
@@ -342,6 +344,12 @@ export default function FeesPage() {
           </motion.div>
         </motion.div>
       )}
+      
+      {/* Search Performance Monitor */}
+      <SearchPerformanceMonitor 
+        theme={theme} 
+        engine={FeeSearchEngine.getInstance()} 
+      />
     </AppLayout>
   );
 }

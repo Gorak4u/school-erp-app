@@ -1,4 +1,5 @@
 // @ts-nocheck
+import React, { useState, useCallback, useEffect } from 'react';
 import { Student } from '../types';
 
 export function createSearchHandlers(ctx: any) {
@@ -52,6 +53,25 @@ export function createSearchHandlers(ctx: any) {
     
     return calculateSimilarity(textLower, queryLower) >= threshold;
   };
+
+  // Initialize search engine when data loads
+  useEffect(() => {
+    const initializeSearchEngine = async () => {
+      if (students.length > 0) {
+        const { StudentSearchEngine } = await import('../search/StudentSearchEngine');
+        const searchEngine = StudentSearchEngine.getInstance();
+        
+        // Build index if not already built or if data changed
+        const metrics = searchEngine.getMetrics();
+        if (metrics.totalRecords === 0 || metrics.totalRecords !== students.length) {
+          searchEngine.buildIndex(students);
+          console.log(`Student search engine initialized with ${students.length} records`);
+        }
+      }
+    };
+    
+    initializeSearchEngine();
+  }, [students.length]);
 
   // AI-powered search with SmartSearchEngine
   const performAdvancedSearch = async (query: string) => {

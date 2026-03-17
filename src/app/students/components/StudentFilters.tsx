@@ -257,6 +257,56 @@ export default function StudentFilters({
           </button>
         </div>
 
+        {/* AI Search Suggestions */}
+        {advancedSearch.enabled && advancedSearch.searchAnalytics.recentSearches.length > 0 && (
+          <div className={`mt-3 p-3 rounded-lg border ${
+            theme === 'dark' 
+              ? 'bg-purple-900/20 border-purple-700/50' 
+              : 'bg-purple-50 border-purple-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium">🤖 Recent Searches:</span>
+              <button
+                onClick={() => {
+                  // Clear search history
+                  setAdvancedSearch(prev => ({
+                    ...prev,
+                    searchAnalytics: {
+                      ...prev.searchAnalytics,
+                      recentSearches: []
+                    }
+                  }));
+                }}
+                className={`text-xs p-1 rounded ${
+                  theme === 'dark' 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {advancedSearch.searchAnalytics.recentSearches.slice(0, 5).map((search, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    performAdvancedSearch(search);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-purple-800/50 text-purple-300 hover:bg-purple-700/50'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                >
+                  {search}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 mt-4">
           <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>

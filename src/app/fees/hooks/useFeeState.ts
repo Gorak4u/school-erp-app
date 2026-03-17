@@ -186,6 +186,25 @@ export function useFeeState() {
     recentSearches: [] as string[]
   });
 
+  // Initialize search engine when data loads
+  useEffect(() => {
+    const initializeSearchEngine = async () => {
+      if (studentFeeSummaries.length > 0) {
+        const { FeeSearchEngine } = await import('../search/FeeSearchEngine');
+        const searchEngine = FeeSearchEngine.getInstance();
+        
+        // Build index if not already built or if data changed
+        const metrics = searchEngine.getMetrics();
+        if (metrics.totalRecords === 0 || metrics.totalRecords !== studentFeeSummaries.length) {
+          searchEngine.buildIndex(studentFeeSummaries);
+          console.log(`Fee search engine initialized with ${studentFeeSummaries.length} records`);
+        }
+      }
+    };
+    
+    initializeSearchEngine();
+  }, [studentFeeSummaries.length]);
+
   // AI Search Handler with SmartSearchEngine
   const handleAISearch = async (query: string) => {
     // Update search analytics

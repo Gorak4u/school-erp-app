@@ -205,22 +205,14 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {[
-                'Students with pending fees',
-                'Overdue payments > 30 days',
-                'Class 10 fee defaulters',
-                'Highest fee payers',
-                'Students with scholarships',
-                'Transport fee pending',
-                'Last payment this month',
-                'Fee amount > 50000'
-              ].map((suggestion, idx) => (
+              {feeSuggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
                     setSearchTerm(suggestion);
                     setCurrentPage(1);
                     setShowAISuggestions(false);
+                    handleAISearch(suggestion);
                   }}
                   className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                     theme === 'dark'
