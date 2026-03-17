@@ -145,6 +145,29 @@ export default function AdminPlansPage() {
     }
   };
 
+  const deletePlan = async (plan: PlanData) => {
+    if (!window.confirm(`Are you sure you want to delete "${plan.displayName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/admin/plans?id=${plan.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showSuccessToast(`"${plan.displayName}" deleted successfully`);
+        load();
+      } else {
+        if (data.code === 'FOREIGN_KEY_CONSTRAINT') {
+          showErrorToast('Cannot Delete', data.details || 'Plan is in use by schools');
+        } else {
+          showErrorToast('Error', data.error || 'Failed to delete plan');
+        }
+      }
+    } catch {
+      showErrorToast('Network Error', 'Failed to delete plan');
+    }
+  };
+
   const toggleFeature = (f: string) =>
     setEditFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
 
@@ -457,10 +480,16 @@ export default function AdminPlansPage() {
                             ₹{(subCount * plan.priceMonthly).toLocaleString()}
                           </span>
                         </div>
-                        <button onClick={() => startEdit(plan)}
-                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
-                          ✏ Edit Plan
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => startEdit(plan)}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
+                            ✏ Edit Plan
+                          </button>
+                          <button onClick={() => deletePlan(plan)}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30' : 'bg-red-100 hover:bg-red-200 text-red-600 border border-red-200'}`}>
+                            🗑 Delete
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}
