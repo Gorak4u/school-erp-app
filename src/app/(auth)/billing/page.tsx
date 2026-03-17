@@ -389,7 +389,7 @@ export default function BillingPage() {
                 
                 return (
                 <div 
-                  key={plan.id}
+                  key={`plan-${plan.id}`}
                   className={`p-4 rounded-lg border border-gray-700 ${
                     subscription?.plan === plan.name ? 'ring-2 ring-blue-500' : ''
                   }`}

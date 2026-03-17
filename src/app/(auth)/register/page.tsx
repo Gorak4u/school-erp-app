@@ -1,6 +1,3 @@
-// School ERP SaaS Registration Page
-// Flow: Choose Plan (from /pricing) → School Details → Payment (paid) or Create (trial) → Auto-login
-
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -24,11 +21,48 @@ interface PlanFromDB {
   sortOrder: number;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function planGradient(name: string) {
+  if (name === 'trial') return 'from-emerald-500 to-teal-500';
+  if (name === 'basic') return 'from-blue-500 to-cyan-500';
+  if (name === 'professional') return 'from-purple-500 to-pink-500';
+  return 'from-orange-500 to-red-500';
+}
+
+function StepDot({ num, label, active, done }: { num: number; label: string; active: boolean; done: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+        done ? 'bg-green-500 text-white' : active ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-500 border border-gray-700'
+      }`}>
+        {done ? '✓' : num}
+      </div>
+      <span className={`text-sm font-medium hidden sm:block ${active ? 'text-white' : done ? 'text-green-400' : 'text-gray-500'}`}>{label}</span>
+    </div>
+  );
+}
+
+function FieldInput({ label, name, type = 'text', placeholder, value, onChange, required }: {
+  label: string; name: string; type?: string; placeholder?: string;
+  value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}{required && <span className="text-red-400 ml-1">*</span>}</label>
+      <input
+        name={name} type={type} placeholder={placeholder} value={value} onChange={onChange} autoComplete="off"
+        className="w-full px-4 py-3 bg-gray-800/60 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+      />
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get('plan') || '';
-  const billingParam = searchParams.get('billing') as 'monthly' | 'yearly' || 'monthly';
+  const billingParam = (searchParams.get('billing') as 'monthly' | 'yearly') || 'monthly';
   const [selectedPlan, setSelectedPlan] = useState(planParam || '');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(billingParam);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
