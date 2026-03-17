@@ -447,20 +447,32 @@ export default function ExpensesPage() {
               </div>
               
               <div className="flex flex-wrap gap-3">
-                <select 
-                  value={selectedAY} 
-                  onChange={e => { setSelectedAY(e.target.value); setExpFilters(f => ({ ...f, academicYear: e.target.value })); }} 
-                  className={`${inp} w-auto rounded-xl`}
-                >
-                  <option value="all">All Years</option>
-                  {academicYears.map(y => <option key={y.id} value={y.year}>{y.name || y.year}</option>)}
-                </select>
+                <div className={`relative ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} backdrop-blur-sm`}>
+                  <div className="flex items-center gap-2 px-4 py-2">
+                    <svg className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <select 
+                      value={selectedAY} 
+                      onChange={e => { setSelectedAY(e.target.value); setExpFilters(f => ({ ...f, academicYear: e.target.value })); }} 
+                      className={`bg-transparent border-0 text-sm font-medium focus:outline-none focus:ring-0 ${isDark ? 'text-white' : 'text-gray-900'}`}
+                    >
+                      <option value="all">All Academic Years</option>
+                      {academicYears.map(y => (
+                        <option key={y.id} value={y.year}>
+                          {y.isActive ? '📚 ' : ''}{y.name || y.year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
                 <button 
                   onClick={openAddExpense} 
-                  className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
+                  className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
                     isDark 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
                   }`}
                 >
                   <span className="flex items-center gap-2">

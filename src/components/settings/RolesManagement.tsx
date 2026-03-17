@@ -47,10 +47,19 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
 
   const openEdit = (role: CustomRole) => {
     setEditingRole(role);
+    // Better permission parsing with debugging
+    const parsedPermissions = role.permissions
+      .split(',')
+      .map(p => p.trim())
+      .filter(Boolean) as Permission[];
+    
+    console.log('Role permissions:', role.permissions);
+    console.log('Parsed permissions:', parsedPermissions);
+    
     setForm({
       name: role.name,
       description: role.description,
-      permissions: role.permissions.split(',').filter(Boolean) as Permission[],
+      permissions: parsedPermissions,
       isDefault: role.isDefault,
     });
     setShowForm(true);
@@ -348,6 +357,12 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                               <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                 {PERMISSION_LABELS[perm] || perm}
                               </span>
+                              {/* Debug info */}
+                              {editingRole && (
+                                <span className="text-xs text-red-500">
+                                  {form.permissions.includes(perm) ? '✓' : '✗'}
+                                </span>
+                              )}
                             </label>
                           ))}
                         </div>
