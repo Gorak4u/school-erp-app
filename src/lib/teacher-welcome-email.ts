@@ -46,6 +46,7 @@ export async function sendTeacherWelcomeEmail(
         phone: true,
         city: true,
         state: true,
+        subdomain: true,
       }
     });
 
@@ -101,8 +102,12 @@ export async function sendTeacherWelcomeEmail(
           
           <div class="credentials">
             <h3>🔐 Your Login Credentials</h3>
-            <p><strong>Email:</strong> ${user.email}</p>
-            <p><strong>Temporary Password:</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${temporaryPassword}</code></p>
+            <p><strong>Login Options (use either one):</strong></p>
+            <p>
+              <strong>📧 Email:</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${user.email}</code><br>
+              <strong>🆔 Employee ID:</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${teacher.employeeId}</code>
+            </p>
+            <p><strong>Password:</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${temporaryPassword}</code></p>
             <p><strong>⚠️ Important:</strong> Please change your password after your first login for security.</p>
           </div>
           

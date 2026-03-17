@@ -938,6 +938,7 @@ model Session {
 model school_User {
   id           String      @id
   email        String      @unique
+  employeeId   String?     @unique
   password     String
   firstName    String
   lastName     String
@@ -956,6 +957,7 @@ model school_User {
 
   @@index([customRoleId])
   @@index([schoolId])
+  @@index([employeeId])
   @@map("User")
   @@schema("school")
 }

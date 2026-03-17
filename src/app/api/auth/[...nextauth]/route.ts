@@ -5,13 +5,14 @@ import bcrypt from 'bcryptjs';
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/superAdmin';
 import { resolvePermissions } from '@/lib/permissions';
+import { findUserByEmailOrEmployeeId, isValidLoginIdentifier } from '@/lib/dualLoginHelper';
 
 export const authOptions = {
   providers: [
     Credentials({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        email: { label: 'Email or Employee ID', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
@@ -19,20 +20,27 @@ export const authOptions = {
           return null;
         }
 
+        // Validate identifier format (email or employeeId)
+        if (!isValidLoginIdentifier(credentials.email)) {
+          throw new Error('Invalid email or Employee ID format');
+        }
+
         // Try SaaS first (for super admin), then school
         let user = null;
         
         try {
-          // Try SaaS schema with raw SQL
-          const saasUser = await (saasPrisma as any).$queryRaw`
-            SELECT id, email, name, password, role, "isActive", "isSuperAdmin", 
-                   'saas' as schema, null as "schoolId", null as "customRoleId"
-            FROM saas."User" 
-            WHERE email = ${credentials.email}
-          `;
-          
-          if (saasUser.length > 0) {
-            user = saasUser[0];
+          // Try SaaS schema with raw SQL (only for email)
+          if (credentials.email.includes('@')) {
+            const saasUser = await (saasPrisma as any).$queryRaw`
+              SELECT id, email, name, password, role, "isActive", "isSuperAdmin", 
+                     'saas' as schema, null as "schoolId", null as "customRoleId"
+              FROM saas."User" 
+              WHERE email = ${credentials.email}
+            `;
+            
+            if (saasUser.length > 0) {
+              user = saasUser[0];
+            }
           }
         } catch (error) {
           // If SaaS query fails, continue to school schema
@@ -40,13 +48,17 @@ export const authOptions = {
         }
 
         if (!user) {
-          // Try school schema
-          user = await (schoolPrisma as any).school_User.findUnique({
-            where: { email: credentials.email },
-            include: {
-              CustomRole: true,
-            },
-          });
+          // Try school schema - support both email and employeeId
+          user = await findUserByEmailOrEmployeeId(credentials.email);
+          
+          if (user) {
+            // Add CustomRole if exists
+            if (user.customRoleId) {
+              user.CustomRole = await (schoolPrisma as any).CustomRole.findUnique({
+                where: { id: user.customRoleId }
+              });
+            }
+          }
         }
 
         if (!user) {

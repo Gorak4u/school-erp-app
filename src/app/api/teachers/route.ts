@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
           data: {
             id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             email,
+            employeeId,
             password: hashedPassword,
             firstName,
             lastName,
