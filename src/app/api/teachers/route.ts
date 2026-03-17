@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
+import bcrypt from 'bcryptjs';
+import { sendTeacherWelcomeEmail } from '@/lib/teacher-welcome-email';
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,8 +79,86 @@ export async function POST(request: NextRequest) {
     if (limitError) return limitError;
 
     const body = await request.json();
-    const teacher = await (schoolPrisma as any).teacher.create({ data: { ...body, schoolId: ctx.schoolId } });
-    return NextResponse.json({ teacher }, { status: 201 });
+    const { email, password, firstName, lastName, phone, ...teacherData } = body;
+
+    // Validate required fields for user account
+    if (!email || !firstName || !lastName) {
+      return NextResponse.json({ error: 'Email, first name, and last name are required' }, { status: 400 });
+    }
+
+    // Check if email already exists in school_User
+    const existingUser = await (schoolPrisma as any).school_User.findUnique({
+      where: { email }
+    });
+    if (existingUser) {
+      return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
+    }
+
+    // Generate default password if not provided
+    const defaultPassword = password || `Teach@${Date.now().toString().slice(-6)}`;
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+
+    // Create both Teacher and school_User records in transaction
+    const result = await (schoolPrisma as any).$transaction(async (tx: any) => {
+      // Create Teacher record
+      const teacher = await tx.teacher.create({
+        data: {
+          ...teacherData,
+          email,
+          phone: phone || null,
+          schoolId: ctx.schoolId,
+        },
+      });
+
+      // Create school_User record for login
+      const user = await (tx as any).school_User.create({
+        data: {
+          id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          role: 'teacher',
+          schoolId: ctx.schoolId,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // Create NextAuth Account record
+      await (tx as any).account.create({
+        data: {
+          id: `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          userId: user.id,
+          type: 'credentials',
+          provider: 'credentials',
+          providerAccountId: user.id,
+        },
+      });
+
+      return { teacher, user, defaultPassword };
+    });
+
+    // Send welcome email (non-blocking)
+    if (ctx.schoolId) {
+      sendTeacherWelcomeEmail(result.user, result.teacher, result.defaultPassword, ctx.schoolId).catch(error => {
+        console.error('Teacher welcome email failed:', error);
+      });
+    }
+
+    return NextResponse.json({ 
+      teacher: result.teacher,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: `${result.user.firstName} ${result.user.lastName}`,
+        role: result.user.role,
+      },
+      temporaryPassword: result.defaultPassword,
+      message: 'Teacher created successfully. Welcome email sent with login credentials.'
+    }, { status: 201 });
+
   } catch (error: any) {
     if (error.code === 'P2002') {
       return NextResponse.json({ error: 'Employee ID or email already exists' }, { status: 409 });

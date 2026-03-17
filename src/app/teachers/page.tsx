@@ -12,7 +12,7 @@ import ClassTeacherFormAssignments from './components/ClassTeacherFormAssignment
 import TeacherProfileModal from './components/TeacherProfileModal';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', isClassTeacher: false, classTeacherAssignments: [] as any[] };
+const EMPTY_FORM = { name: '', firstName: '', lastName: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', password: '', isClassTeacher: false, classTeacherAssignments: [] as any[] };
 
 export default function TeachersPage() {
   const { theme } = useTheme();
@@ -529,6 +529,8 @@ export default function TeachersPage() {
                               setEditingTeacher(teacher);
                               setForm({
                                 name: teacher.name || '',
+                                firstName: teacher.name?.split(' ')[0] || '',
+                                lastName: teacher.name?.split(' ').slice(1).join(' ') || '',
                                 email: teacher.email || '',
                                 phone: teacher.phone || '',
                                 department: teacher.department || '',
@@ -538,6 +540,7 @@ export default function TeachersPage() {
                                 employeeId: teacher.employeeId || '',
                                 status: teacher.status || 'active',
                                 joiningDate: teacher.joiningDate || '',
+                                password: '',
                                 isClassTeacher: teacher.isClassTeacher || false,
                                 classTeacherAssignments: teacher.classTeacherAssignments || []
                               });
@@ -597,8 +600,29 @@ export default function TeachersPage() {
             </div>
             <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
               {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${sub}`}>First Name *</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={form.firstName}
+                    onChange={e => setForm(prev => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${form.lastName}`.trim() }))}
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${sub}`}>Last Name *</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={form.lastName}
+                    onChange={e => setForm(prev => ({ ...prev, lastName: e.target.value, name: `${form.firstName} ${e.target.value}`.trim() }))}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
               {[
-                { key: 'name', label: 'Full Name *', type: 'text' },
                 { key: 'email', label: 'Email *', type: 'email' },
                 { key: 'phone', label: 'Phone', type: 'text' },
                 { key: 'employeeId', label: 'Employee ID *', type: 'text' },
@@ -658,7 +682,7 @@ export default function TeachersPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.name || !form.email || !form.employeeId) { setFormError('Name, Email and Employee ID are required'); return; }
+                  if (!form.firstName || !form.lastName || !form.email || !form.employeeId) { setFormError('First Name, Last Name, Email and Employee ID are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     await teachersApi.update(editingTeacher.id, { ...form, experience: form.experience ? Number(form.experience) : null });
@@ -733,8 +757,29 @@ export default function TeachersPage() {
             </div>
             <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
               {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${sub}`}>First Name *</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={form.firstName}
+                    onChange={e => setForm(prev => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${form.lastName}`.trim() }))}
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${sub}`}>Last Name *</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={form.lastName}
+                    onChange={e => setForm(prev => ({ ...prev, lastName: e.target.value, name: `${form.firstName} ${e.target.value}`.trim() }))}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
               {[
-                { key: 'name', label: 'Full Name *', type: 'text' },
                 { key: 'email', label: 'Email *', type: 'email' },
                 { key: 'phone', label: 'Phone', type: 'text' },
                 { key: 'employeeId', label: 'Employee ID *', type: 'text' },
@@ -743,6 +788,7 @@ export default function TeachersPage() {
                 { key: 'qualification', label: 'Qualification', type: 'text' },
                 { key: 'experience', label: 'Experience (years)', type: 'number' },
                 { key: 'joiningDate', label: 'Joining Date', type: 'date' },
+                { key: 'password', label: 'Password (optional)', type: 'password' },
               ].map(f => (
                 <div key={f.key}>
                   <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
@@ -794,11 +840,25 @@ export default function TeachersPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.name || !form.email || !form.employeeId) { setFormError('Name, Email and Employee ID are required'); return; }
+                  if (!form.firstName || !form.lastName || !form.email || !form.employeeId) { setFormError('First Name, Last Name, Email and Employee ID are required'); return; }
                   setSaving(true); setFormError('');
                   try {
-                    await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
+                    const response = await teachersApi.create({ ...form, experience: form.experience ? Number(form.experience) : null });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
+                    
+                    // Show temporary password if provided
+                    if (response.temporaryPassword) {
+                      if ((window as any).toast) {
+                        (window as any).toast({
+                          type: 'success',
+                          title: 'Teacher Created Successfully',
+                          message: `Temporary password: ${response.temporaryPassword}. Welcome email sent to ${response.user.email}.`,
+                          duration: 8000,
+                        });
+                      } else {
+                        alert(`Teacher created! Temporary password: ${response.temporaryPassword}\nWelcome email sent to ${response.user.email}`);
+                      }
+                    }
                   } catch (err: any) { 
                     // Check for subscription limit errors
                     if (err.message.includes('limit reached') || err.message.includes('quota') || err.message.includes('upgrade')) {
