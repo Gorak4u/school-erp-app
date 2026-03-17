@@ -382,6 +382,7 @@ export default function TeachersPage() {
                     { label: 'Employee ID', field: 'employeeId' },
                     { label: 'Department', field: 'department' },
                     { label: 'Subject', field: 'subject' },
+                    { label: 'Class Teacher', field: 'classTeacher' },
                     { label: 'Experience', field: 'experience' },
                     { label: 'Status', field: 'status' },
                     { label: 'Joined', field: 'joiningDate' },
@@ -447,6 +448,15 @@ export default function TeachersPage() {
                       <td className={`${tdCls} font-mono text-xs`}>{teacher.employeeId}</td>
                       <td className={tdCls}>{teacher.department || '—'}</td>
                       <td className={tdCls}>{teacher.subject || '—'}</td>
+                      <td className={tdCls}>
+                        <div className={`text-xs px-2 py-1 rounded-full ${
+                          teacher.classTeacher?.length > 0
+                            ? isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                            : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {teacher.classTeacher?.length > 0 ? teacher.classTeacher.join(', ') : 'Not Assigned'}
+                        </div>
+                      </td>
                       <td className={tdCls}>{teacher.experience != null ? `${teacher.experience}y` : '—'}</td>
                       <td className={tdCls}>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
