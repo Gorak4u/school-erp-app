@@ -258,7 +258,7 @@ export default function StudentFilters({
         </div>
 
         {/* AI Search Suggestions */}
-        {advancedSearch.enabled && advancedSearch.searchAnalytics.recentSearches.length > 0 && (
+        {advancedSearch.enabled && advancedSearch.searchAnalytics?.recentSearches?.length > 0 && (
           <div className={`mt-3 p-3 rounded-lg border ${
             theme === 'dark' 
               ? 'bg-purple-900/20 border-purple-700/50' 
@@ -272,7 +272,8 @@ export default function StudentFilters({
                   setAdvancedSearch(prev => ({
                     ...prev,
                     searchAnalytics: {
-                      ...prev.searchAnalytics,
+                      totalSearches: prev.searchAnalytics?.totalSearches || 0,
+                      averageResults: prev.searchAnalytics?.averageResults || 0,
                       recentSearches: []
                     }
                   }));
@@ -287,7 +288,7 @@ export default function StudentFilters({
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {advancedSearch.searchAnalytics.recentSearches.slice(0, 5).map((search, index) => (
+              {(advancedSearch.searchAnalytics?.recentSearches || []).slice(0, 5).map((search, index) => (
                 <button
                   key={index}
                   onClick={() => {

@@ -205,7 +205,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {feeSuggestions.map((suggestion, idx) => (
+              {(feeSuggestions || []).map((suggestion, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
