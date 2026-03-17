@@ -125,6 +125,9 @@ export default function FeesPage() {
   return (
     <AppLayout currentPage="fees" title="Fees Management">
       <div className="space-y-0 pb-6">
+        {/* Dashboard Section */}
+        <FeeDashboard ctx={ctx} />
+
         {/* Filters bar (search + dropdowns + action buttons) */}
         <FeeFilters ctx={ctx} />
 
