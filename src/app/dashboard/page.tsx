@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
-import { dashboardApi } from '@/lib/apiClient';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSchoolSetup } from '@/hooks/useSchoolSetup';
 import DashboardKPICards from './components/DashboardKPICards';
@@ -32,6 +31,7 @@ export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showSetupAlert, setShowSetupAlert] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -40,17 +40,21 @@ export default function DashboardPage() {
 
   // Check setup status and redirect if needed
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSetupDismissed(localStorage.getItem('schoolSetupAlertDismissed') === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
     if (!setupStatus.loading) {
       if (setupStatus.error) {
         console.error('Setup check error:', setupStatus.error);
-        // Don't redirect on error, just log it and continue
         return;
       }
-      
-      if (setupStatus.redirectToSettings && isAdmin) {
+
+      if (setupStatus.redirectToSettings && isAdmin && !setupDismissed) {
         setShowSetupAlert(true);
-        
-        // Auto-redirect after 10 seconds if user doesn't act
+
         const redirectTimer = setTimeout(() => {
           router.push('/settings');
         }, 10000);
@@ -58,7 +62,7 @@ export default function DashboardPage() {
         return () => clearTimeout(redirectTimer);
       }
     }
-  }, [setupStatus.loading, setupStatus.redirectToSettings, setupStatus.error, isAdmin, router]);
+  }, [setupStatus.loading, setupStatus.redirectToSettings, setupStatus.error, isAdmin, router, setupDismissed]);
 
   const loadDashboardData = async () => {
     try {
@@ -78,6 +82,10 @@ export default function DashboardPage() {
 
   const handleDismissAlert = () => {
     setShowSetupAlert(false);
+    setSetupDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('schoolSetupAlertDismissed', 'true');
+    }
   };
 
   // Chart data built from real API response

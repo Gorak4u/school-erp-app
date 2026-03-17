@@ -122,23 +122,54 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
     });
   };
 
-  const markDeleted = (id: string) => {
+  const deleteRole = async (id: string) => {
     const draft = roleDrafts[id];
+    
+    if (!draft) return;
+    
     if (draft.usersCount > 0) {
       showErrorToast('Cannot Delete', `This role is assigned to ${draft.usersCount} user(s).`);
       return;
     }
+    
     if (confirm(`Are you sure you want to delete the role "${draft.name || 'New Role'}"?`)) {
-      setRoleDrafts(prev => ({
-        ...prev,
-        [id]: { ...prev[id], isDeleted: true, isModified: true }
-      }));
+      if (draft.isNew) {
+        // Just remove from state
+        setRoleDrafts(prev => {
+          const newState = { ...prev };
+          delete newState[id];
+          return newState;
+        });
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/roles/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          showSuccessToast('Success', 'Role deleted successfully');
+          load(); // reload roles
+        } else {
+          const errorText = await response.text();
+          try {
+            const errorData = JSON.parse(errorText);
+            showErrorToast('Error', `Failed to delete role: ${errorData.error}`);
+          } catch {
+            showErrorToast('Error', `Failed to delete role: ${errorText}`);
+          }
+          setLoading(false);
+        }
+      } catch (e) {
+        showErrorToast('Error', 'An error occurred while deleting the role.');
+        setLoading(false);
+      }
     }
   };
 
   const bulkSave = async () => {
     setSaving(true);
     let hasErrors = false;
+    const errorMessages: string[] = [];
     
     try {
       const promises = [];
@@ -146,15 +177,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       for (const [id, draft] of Object.entries(roleDrafts)) {
         if (!draft.isModified) continue;
         
-        if (draft.isDeleted) {
-          if (!draft.isNew) {
-            promises.push(
-              fetch(`/api/roles/${id}`, { method: 'DELETE' }).then(async r => {
-                if (!r.ok) { hasErrors = true; console.error(await r.text()); }
-              })
-            );
-          }
-        } else if (draft.isNew) {
+        if (draft.isNew) {
           if (!draft.name.trim()) continue; // skip empty
           promises.push(
             fetch('/api/roles', {
@@ -166,7 +189,17 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                 isDefault: draft.isDefault
               })
             }).then(async r => {
-              if (!r.ok) { hasErrors = true; console.error(await r.text()); }
+              if (!r.ok) { 
+                hasErrors = true;
+                const errorText = await r.text();
+                console.error('Create error:', errorText);
+                try {
+                  const errorData = JSON.parse(errorText);
+                  errorMessages.push(`Failed to create "${draft.name}": ${errorData.error}`);
+                } catch {
+                  errorMessages.push(`Failed to create "${draft.name}": ${errorText}`);
+                }
+              }
             })
           );
         } else {
@@ -186,7 +219,17 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                 isDefault: draft.isDefault
               })
             }).then(async r => {
-              if (!r.ok) { hasErrors = true; console.error(await r.text()); }
+              if (!r.ok) { 
+                hasErrors = true;
+                const errorText = await r.text();
+                console.error('Update error:', errorText);
+                try {
+                  const errorData = JSON.parse(errorText);
+                  errorMessages.push(`Failed to update "${draft.name}": ${errorData.error}`);
+                } catch {
+                  errorMessages.push(`Failed to update "${draft.name}": ${errorText}`);
+                }
+              }
             })
           );
         }
@@ -194,7 +237,11 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
       
       await Promise.all(promises);
       if (hasErrors) {
-        showErrorToast('Warning', 'Some changes could not be saved. Check if role names are unique.');
+        if (errorMessages.length > 0) {
+          showErrorToast('Error', errorMessages.join('; '));
+        } else {
+          showErrorToast('Warning', 'Some changes could not be saved. Check if role names are unique.');
+        }
       } else {
         showSuccessToast('Success', 'Roles and permissions updated successfully');
       }
@@ -293,7 +340,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                   })}
                   <td className={`px-4 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <button
-                      onClick={() => markDeleted(id)}
+                      onClick={() => deleteRole(id)}
                       title="Delete Role"
                       className={`p-1.5 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'}`}
                     >

@@ -29,50 +29,57 @@ export async function GET() {
       return NextResponse.json({ error: 'School not found' }, { status: 404 });
     }
 
-    // Check essential school settings
-    const essentialSettings = [
-      'school_name',
-      'school_address', 
-      'school_phone',
-      'school_email'
-    ];
+    const essentialChecks = [] as string[];
+    const hasSchoolName = !!schoolUser.School.name?.trim();
+    if (hasSchoolName) essentialChecks.push('school_name');
 
-    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', schoolUser.School.id);
-    const settings = await (schoolPrisma as any).schoolSetting.findMany({
-      where: {
-        schoolId: schoolUser.School.id,
-        key: { in: essentialSettings }
-      }
+    console.log('🔍 [SETUP CHECK] Looking up active academic years...');
+    const activeAcademicYears = await (schoolPrisma as any).academicYear.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' }
     });
+    const hasActiveAcademicYear = activeAcademicYears.length > 0;
+    if (hasActiveAcademicYear) essentialChecks.push('active_academic_year');
 
-    console.log('🔍 [SETUP CHECK] Found settings:', settings.length);
+    const selectedAcademicYear = activeAcademicYears[0] || null;
+    const mediumCount = selectedAcademicYear
+      ? await (schoolPrisma as any).medium.count({
+          where: { academicYearId: selectedAcademicYear.id, isActive: true }
+        })
+      : 0;
+    const hasMediums = mediumCount > 0;
+    if (hasMediums) essentialChecks.push('mediums');
 
-    const configuredSettings = settings.filter((s: any) => s.value && s.value.trim() !== '');
-    const isConfigured = configuredSettings.length >= essentialSettings.length * 0.5; // At least 50% configured
+    const classCount = selectedAcademicYear
+      ? await (schoolPrisma as any).class.count({
+          where: { academicYearId: selectedAcademicYear.id, isActive: true }
+        })
+      : 0;
+    const hasClasses = classCount > 0;
+    if (hasClasses) essentialChecks.push('classes');
 
-    console.log('🔍 [SETUP CHECK] Configured settings:', configuredSettings.length, '/', essentialSettings.length);
+    const configuredSettings = essentialChecks.length;
+    const isConfigured = hasSchoolName && hasActiveAcademicYear && hasMediums && hasClasses;
 
-    // Check for academic years (critical for school operations)
-    console.log('🔍 [SETUP CHECK] Checking academic years...');
-    // Note: AcademicYear model doesn't have schoolId, so we check all academic years
-    const academicYears = await (schoolPrisma as any).academicYear.findMany({
-      where: { isActive: true }
-    });
-
-    console.log('🔍 [SETUP CHECK] Found academic years:', academicYears.length);
-
-    const hasAcademicYears = academicYears.length > 0;
+    const totalEssential = 4;
+    const missingEssential = [] as string[];
+    if (!hasSchoolName) missingEssential.push('school_name');
+    if (!hasActiveAcademicYear) missingEssential.push('active_academic_year');
+    if (!hasMediums) missingEssential.push('mediums');
+    if (!hasClasses) missingEssential.push('classes');
 
     const result = {
       isConfigured,
-      configuredSettings: configuredSettings.length,
-      totalEssential: essentialSettings.length,
-      hasAcademicYears,
-      academicYearsCount: academicYears.length,
-      redirectToSettings: !isConfigured || !hasAcademicYears,
-      missingEssential: essentialSettings.filter(key => 
-        !settings.find((s: any) => s.key === key && s.value && s.value.trim() !== '')
-      )
+      configuredSettings,
+      totalEssential,
+      hasAcademicYears: hasActiveAcademicYear,
+      academicYearsCount: activeAcademicYears.length,
+      hasSchoolName,
+      hasActiveAcademicYear,
+      hasMediums,
+      hasClasses,
+      redirectToSettings: !isConfigured,
+      missingEssential
     };
 
     console.log('✅ [SETUP CHECK] Result:', result);

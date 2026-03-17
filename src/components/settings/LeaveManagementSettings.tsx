@@ -44,6 +44,20 @@ interface AcademicYear {
   isActive: boolean;
 }
 
+interface CustomRole {
+  id: string;
+  name: string;
+}
+
+interface LeaveWorkflow {
+  id?: string;
+  leaveTypeId: string | null;
+  roleId: string;
+  requiredPermission: string;
+  sequence: number;
+  isActive: boolean;
+}
+
 export default function LeaveManagementSettings({ theme, isDark }: LeaveManagementSettingsProps) {
   const [activeTab, setActiveTab] = useState('types');
   const [loading, setLoading] = useState(false);
@@ -78,6 +92,11 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
     workingDays: [1, 2, 3, 4, 5], // Mon-Fri
   });
 
+  // Roles & Workflows State
+  const [roles, setRoles] = useState<CustomRole[]>([]);
+  const [workflows, setWorkflows] = useState<LeaveWorkflow[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(false);
+
   // CSS Variables
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
@@ -89,13 +108,43 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
   useEffect(() => {
     fetchAcademicYears();
     fetchLeaveTypes();
+    fetchRoles();
   }, []);
 
   useEffect(() => {
     if (selectedAcademicYear) {
       fetchLeaveSettings();
+      fetchWorkflows();
     }
   }, [selectedAcademicYear]);
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('/api/roles');
+      if (response.ok) {
+        const data = await response.json();
+        setRoles(data.roles || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch roles:', error);
+    }
+  };
+
+  const fetchWorkflows = async () => {
+    if (!selectedAcademicYear) return;
+    setWorkflowsLoading(true);
+    try {
+      const response = await fetch(`/api/leave-workflows?academicYearId=${selectedAcademicYear}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkflows(data.workflows || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch workflows:', error);
+    } finally {
+      setWorkflowsLoading(false);
+    }
+  };
 
   const fetchAcademicYears = async () => {
     try {
@@ -228,6 +277,45 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       }
     } catch (error) {
       showMsg('Failed to save leave settings', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveWorkflows = async () => {
+    if (!selectedAcademicYear) return;
+
+    // Validate
+    for (let i = 0; i < workflows.length; i++) {
+      if (!workflows[i].roleId) {
+        showMsg(`Please select a role for step ${i + 1}`, 'error');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/leave-workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          academicYearId: selectedAcademicYear,
+          workflows: workflows.map((wf, index) => ({
+            ...wf,
+            sequence: index + 1
+          }))
+        }),
+      });
+
+      if (response.ok) {
+        showMsg('Leave workflow saved successfully', 'success');
+        fetchWorkflows();
+      } else {
+        const error = await response.json();
+        showMsg(error.error || 'Failed to save workflows', 'error');
+      }
+    } catch (error) {
+      showMsg('Failed to save workflows', 'error');
     } finally {
       setLoading(false);
     }
@@ -537,19 +625,150 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className={card}
+          className="space-y-6"
         >
-          <div className="p-6">
-            <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Approval Workflow Configuration
-            </h3>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Configure the approval workflow for different leave types and durations.
-            </p>
-            <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                <strong>Coming Soon:</strong> Dynamic workflow configuration based on custom roles and permissions.
+          <div className={card}>
+            <div className="p-6">
+              <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Approval Workflow Configuration
+              </h3>
+              <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Configure the sequence of approvals required for leave applications.
               </p>
+
+              {/* Academic Year Selection */}
+              <div className="mb-6 max-w-md">
+                <label className={label}>Academic Year</label>
+                <select
+                  value={selectedAcademicYear}
+                  onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                  className={input}
+                >
+                  <option value="">Select Academic Year</option>
+                  {academicYears.map((year) => (
+                    <option key={year.id} value={year.id}>
+                      {year.name} ({year.year})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedAcademicYear && (
+                <div className="space-y-4">
+                  {workflowsLoading ? (
+                    <div className="text-sm text-gray-500">Loading workflows...</div>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {workflows.map((wf, index) => (
+                          <div key={index} className={`flex items-center gap-4 p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                            <div className="flex flex-col items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
+                              {index + 1}
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+                              <div>
+                                <label className="block text-xs font-semibold mb-1 text-gray-500">Leave Type</label>
+                                <select
+                                  value={wf.leaveTypeId || ''}
+                                  onChange={(e) => {
+                                    const newWf = [...workflows];
+                                    newWf[index].leaveTypeId = e.target.value || null;
+                                    setWorkflows(newWf);
+                                  }}
+                                  className={input}
+                                >
+                                  <option value="">All Leave Types</option>
+                                  {leaveTypes.map(lt => (
+                                    <option key={lt.id} value={lt.id}>{lt.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold mb-1 text-gray-500">Approver Role</label>
+                                <select
+                                  value={wf.roleId}
+                                  onChange={(e) => {
+                                    const newWf = [...workflows];
+                                    newWf[index].roleId = e.target.value;
+                                    setWorkflows(newWf);
+                                  }}
+                                  className={input}
+                                >
+                                  <option value="">Select Role</option>
+                                  {roles.map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold mb-1 text-gray-500">Required Permission</label>
+                                <select
+                                  value={wf.requiredPermission}
+                                  onChange={(e) => {
+                                    const newWf = [...workflows];
+                                    newWf[index].requiredPermission = e.target.value;
+                                    setWorkflows(newWf);
+                                  }}
+                                  className={input}
+                                >
+                                  <option value="approve_department_leave">Approve Department Leave</option>
+                                  <option value="approve_all_leave">Approve All Leave</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                const newWf = workflows.filter((_, i) => i !== index);
+                                setWorkflows(newWf);
+                              }}
+                              className={btnDanger}
+                              title="Remove step"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        
+                        {workflows.length === 0 && (
+                          <div className={`p-8 text-center rounded-xl border border-dashed ${isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
+                            No workflow steps defined. Add a step to get started.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
+                        <button
+                          onClick={() => {
+                            setWorkflows([
+                              ...workflows,
+                              { leaveTypeId: null, roleId: '', requiredPermission: 'approve_department_leave', sequence: workflows.length + 1, isActive: true }
+                            ]);
+                          }}
+                          className={btnSecondary}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="font-bold text-blue-500">+</span> Add Step
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={saveWorkflows}
+                          disabled={loading}
+                          className={btnPrimary}
+                        >
+                          {loading ? 'Saving...' : 'Save Workflow'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
