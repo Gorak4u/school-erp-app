@@ -316,19 +316,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
               >
                 👤
               </button>
-              <button
-                onClick={() => {
-                  setSelectedStudents([student.studentId]);
-                  setActiveTab('workflows');
-                }}
-                className={`text-orange-600 hover:text-orange-800 text-lg ${
-                  theme === 'dark' ? 'text-orange-400 hover:text-orange-300' : ''
-                }`}
-                title="Student Workflows"
-              >
-                ⚙️
-              </button>
-            </div>
+                          </div>
           </td>
         );
       

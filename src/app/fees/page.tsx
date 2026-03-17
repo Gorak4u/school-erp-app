@@ -60,9 +60,10 @@ export default function FeesPage() {
 
   const canManageFees = isAdmin || hasPermission('manage_fees');
 
-  // Teachers see only the Dashboard (all-students view); manage_fees unlocks everything else
+  // Teachers see only All Students view; manage_fees unlocks everything else
   const availableTabs = [
-    { id: 'dashboard', label: '📊 Dashboard', permission: null },
+    { id: 'all-students', label: '👥 All Students', permission: null },
+    { id: 'fee-records', label: '📋 Fee Records', permission: 'manage_fees' },
     { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
     { id: 'collections', label: '💵 Collections', permission: 'manage_fees' },
     { id: 'discounts', label: '🎁 Discounts', permission: 'manage_fees' },
@@ -70,6 +71,7 @@ export default function FeesPage() {
     { id: 'invoices', label: '🧾 Invoices', permission: 'manage_fees' },
     { id: 'analytics', label: '📉 Analytics', permission: 'manage_fees' },
     { id: 'notifications', label: '🔔 Notifications', permission: 'manage_fees' },
+    { id: 'student-profile', label: '👤 Student Profile', permission: 'view_fees' },
   ].filter(tab => {
     if (!tab.permission) return true;
     return canManageFees;
@@ -123,9 +125,6 @@ export default function FeesPage() {
   return (
     <AppLayout currentPage="fees" title="Fees Management">
       <div className="space-y-0 pb-6">
-                {/* Dashboard Section — same pattern as Students page */}
-        <FeeDashboard ctx={ctx} />
-
         {/* Filters bar (search + dropdowns + action buttons) */}
         <FeeFilters ctx={ctx} />
 
@@ -232,54 +231,7 @@ export default function FeesPage() {
         </div>
       )}
       
-      {/* Student Workflows Modal */}
-      {activeTab === 'workflows' && selectedStudents.length === 1 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border ${
-            theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-          }`}>
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Fee Management
-                </h1>
-              </div>
-              <div className="flex gap-3">
-                <RequirePermission permission="manage_fees">
-                  <button
-                    onClick={() => setShowFeeStructureModal(true)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                      theme === 'dark'
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    }`}
-                  >
-                    💰 Create Fee Structure
-                  </button>
-                </RequirePermission>
-                
-                {/* Show message for users without manage_fees permission */}
-                {!hasPermission('manage_fees') && (
-                  <div className={`px-4 py-2 rounded-lg text-sm ${
-                    theme === 'dark'
-                      ? 'bg-gray-800 text-gray-400 border border-gray-700'
-                      : 'bg-gray-100 text-gray-600 border border-gray-300'
-                  }`}>
-                    🔒 Fee management requires additional permissions
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="p-6">
-              <StudentWorkflows 
-                theme={theme} 
-                studentData={studentFeeSummaries.find(s => s.studentId === selectedStudents[0])}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
+      
       {/* Detailed Receipt Modal */}
       {showDetailedReceipt && (
         <motion.div
