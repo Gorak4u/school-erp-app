@@ -2909,22 +2909,22 @@ export default function SettingsPage() {
           </div>
 
           {/* Modern Tabs */}
-          <div className={`rounded-2xl border p-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
-            <div className="flex flex-wrap gap-1">
+          <div className={`rounded-2xl border p-1.5 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm overflow-x-auto`}>
+            <div className="flex flex-nowrap md:flex-wrap gap-1 min-w-max md:min-w-0">
               {TABS.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transform scale-100'
                       : isDark 
                         ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200' 
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-lg">{tab.icon}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="text-sm">{tab.icon}</span>
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </div>
