@@ -32,14 +32,34 @@ export async function isEmailNotificationEnabled(schoolId?: string): Promise<boo
   }
 }
 
-// Reads SaaS-level SMTP from SaasSetting (group: saas_smtp)
+// Reads SaaS-level SMTP with priority: .env first, then database
 // This is SEPARATE from school-level SMTP in SchoolSetting (group: smtp)
 export async function getSaasSmtpConfig() {
   const settings = await (saasPrisma as any).SaasSetting.findMany({
     where: { group: 'saas_smtp' },
   });
+  
   const config: Record<string, string> = {};
-  for (const s of settings) config[s.key] = s.value;
+  
+  // Define all possible SaaS SMTP keys
+  const saasSmtpKeys = [
+    'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
+    'smtp_from_email', 'smtp_from_name', 'smtp_enabled'
+  ];
+  
+  // For each key, check .env first, then database
+  for (const key of saasSmtpKeys) {
+    const envValue = process.env[key.toUpperCase()];
+    if (envValue) {
+      config[key] = envValue;
+    } else {
+      const dbSetting = settings.find((s: any) => s.key === key);
+      if (dbSetting) {
+        config[key] = dbSetting.value;
+      }
+    }
+  }
+  
   return config;
 }
 
@@ -70,7 +90,7 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
-  // Only use SaaS SMTP settings from database - no fallbacks
+  // Get SaaS SMTP config with .env priority
   const smtp = await getSaasSmtpConfig();
 
   const host = smtp.smtp_host;
@@ -78,17 +98,41 @@ export async function sendEmail({
   const user = smtp.smtp_username;
   const pass = smtp.smtp_password;
   const from = smtp.smtp_from_email || user;
+  const enabled = smtp.smtp_enabled === 'true';
+
+  // Check if SaaS SMTP is enabled
+  if (enabled === false) {
+    console.log('\n📧 [EMAIL - SaaS SMTP disabled]');
+    console.log('SMTP is explicitly disabled in configuration');
+    console.log('To enable: Set SMTP_ENABLED=true in .env or via admin panel');
+    console.log('--- END ---\n');
+    return { success: false, error: 'SaaS SMTP disabled' };
+  }
 
   // Check if SaaS SMTP is properly configured
   if (!host || !user || !pass) {
     console.log('\n📧 [EMAIL - SaaS SMTP not configured]');
-    console.log('Missing settings in SaasSetting table (group: saas_smtp):');
+    console.log('Missing settings:');
     console.log('- smtp_host:', host ? '✓' : '✗ Missing');
     console.log('- smtp_username:', user ? '✓' : '✗ Missing');
     console.log('- smtp_password:', pass ? '✓' : '✗ Missing');
+    
+    // Show source information for debugging
+    console.log('\n📋 Configuration Sources:');
+    console.log('- SMTP_HOST:', process.env.SMTP_HOST ? '✓ From .env' : '✗ Not in .env');
+    console.log('- SMTP_USERNAME:', process.env.SMTP_USERNAME ? '✓ From .env' : '✗ Not in .env');
+    console.log('- SMTP_PASSWORD:', process.env.SMTP_PASSWORD ? '✓ From .env' : '✗ Not in .env');
     console.log('--- END ---\n');
+    
     return { success: false, error: 'SaaS SMTP not configured' };
   }
+
+  console.log('\n📧 [EMAIL - Sending via SaaS SMTP]');
+  console.log(`Host: ${host}:${port}`);
+  console.log(`User: ${user}`);
+  console.log(`From: ${from}`);
+  console.log(`To: ${to}`);
+  console.log(`Subject: ${subject}`);
 
   const transporter = nodemailer.createTransport({
     host,
@@ -104,10 +148,11 @@ export async function sendEmail({
       subject,
       html,
     });
-    console.log('✅ Email sent via SaaS SMTP');
+    console.log('✅ Email sent successfully via SaaS SMTP\n');
     return { success: true };
   } catch (error: any) {
-    console.error('SaaS SMTP send error:', error);
+    console.error('❌ SaaS SMTP send error:', error.message);
+    console.log('--- END ---\n');
     return { success: false, error: error.message };
   }
 }
