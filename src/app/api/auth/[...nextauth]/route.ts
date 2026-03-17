@@ -80,6 +80,9 @@ export const authOptions = {
           permissions = resolvePermissions(user.CustomRole.permissions || '[]');
         } else if (user.role === 'admin') {
           permissions = resolvePermissions('[]');
+        } else {
+          // For teachers and other built-in roles without custom roles
+          permissions = resolvePermissions(user.role);
         }
 
         // Build user object with proper name field

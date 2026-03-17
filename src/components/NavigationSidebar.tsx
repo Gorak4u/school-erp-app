@@ -82,7 +82,7 @@ export default function NavigationSidebar({
 
   // Filter navigation items based on role + permissions
   const filteredGroups = useMemo(() => {
-    return NAV_GROUPS
+    const filtered = NAV_GROUPS
       .map(group => ({
         ...group,
         items: group.items.filter(item => {
@@ -100,6 +100,8 @@ export default function NavigationSidebar({
         }),
       }))
       .filter(group => group.items.length > 0); // Hide empty groups
+    
+    return filtered;
   }, [userRole, userPermissions, isAdmin, userIsSuperAdmin]);
 
   const linkCls = (pageKey: string) =>
