@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { Student } from '../types';
 
 interface StudentTableProps {
@@ -38,6 +39,7 @@ export default function StudentTable({
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns, columnSettings,
   onPromoteSingle, onPromoteClass, onExitSingle
 }: StudentTableProps) {
+  const router = useRouter();
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -67,10 +69,10 @@ export default function StudentTable({
   const actualTotalPages = Math.ceil(filteredStudents.length / pageSize) || 1;
 
   const tabs = [
-    { key: 'overview', label: '📋 Overview' },
-    { key: 'academics', label: '📚 Academics' },
-    { key: 'attendance', label: '📊 Attendance' },
-    { key: 'fees', label: '💰 Fees' },
+    { key: 'overview', label: '📋 Overview', href: '/students' },
+    { key: 'academics', label: '📚 Academics', href: '/academics' },
+    { key: 'attendance', label: '📊 Attendance', href: '/attendance' },
+    { key: 'fees', label: '💰 Fees', href: '/fees' },
   ];
 
   const getStatusColor = (status: string) => {
@@ -509,12 +511,15 @@ export default function StudentTable({
         {tabs.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => router.push(tab.href)}
             className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab.key
+              // Check if current path matches the tab href
+              (typeof window !== 'undefined' && window.location.pathname === tab.href) ||
+              (tab.key === 'overview' && typeof window !== 'undefined' && window.location.pathname === '/students')
                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                 : theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-white'
             }`}
+            title={`Navigate to ${tab.label}`}
           >
             {tab.label}
           </button>
