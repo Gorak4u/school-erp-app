@@ -92,6 +92,7 @@ export default function ExpensesPage() {
   // Action modal (approve / reject / pay)
   const [actionModal, setActionModal] = useState<{ expense: any; action: string } | null>(null);
   const [actionNote,  setActionNote]  = useState('');
+  const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
 
   const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
     setMsg({ text, type });
@@ -256,7 +257,20 @@ export default function ExpensesPage() {
       const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...expForm, amount: Number(expForm.amount) }) });
       const data   = await res.json();
       if (!res.ok) { showMsg(data.error || 'Failed', 'error'); return; }
-      showMsg(editingExp ? 'Expense updated' : 'Expense created');
+      
+      // Handle X-Toast header from API
+      const toastHeader = res.headers.get('X-Toast');
+      if (toastHeader) {
+        try {
+          const toast = JSON.parse(toastHeader);
+          showMsg(toast.message, toast.type === 'error' ? 'error' : 'success');
+        } catch {
+          showMsg(editingExp ? 'Expense updated' : 'Expense created');
+        }
+      } else {
+        showMsg(editingExp ? 'Expense updated' : 'Expense created');
+      }
+      
       setExpFormShow(false); setEditingExp(null); setExpForm({ ...BLANK_EXP_FORM });
       fetchExpenses(); fetchAnalytics(); fetchBudgets();
     } finally { setSaving(false); }
@@ -289,7 +303,17 @@ export default function ExpensesPage() {
 
   const doAction = async () => {
     if (!actionModal) return;
+    
+    // Prevent duplicate actions
+    const actionKey = `${actionModal.expense.id}-${actionModal.action}`;
+    if (processingActions.has(actionKey)) {
+      showMsg('Action already in progress', 'error');
+      return;
+    }
+    
     setSaving(true);
+    setProcessingActions(prev => new Set(prev).add(actionKey));
+    
     try {
       const body: any = { action: actionModal.action };
       if (actionModal.action === 'approve') body.approvalNote = actionNote;
@@ -297,11 +321,34 @@ export default function ExpensesPage() {
       if (actionModal.action === 'pay')     body.paymentMethod = actionNote;
       const res  = await fetch(`/api/expenses/${actionModal.expense.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) { showMsg(data.error || 'Failed', 'error'); return; }
-      showMsg(`Expense ${actionModal.action}d successfully`);
+      if (!res.ok) { 
+        showMsg(data.error || 'Failed', 'error'); 
+        return; 
+      }
+      
+      // Handle X-Toast header from API
+      const toastHeader = res.headers.get('X-Toast');
+      if (toastHeader) {
+        try {
+          const toast = JSON.parse(toastHeader);
+          showMsg(toast.message, toast.type === 'error' ? 'error' : 'success');
+        } catch {
+          showMsg(`Expense ${actionModal.action}d successfully`);
+        }
+      } else {
+        showMsg(`Expense ${actionModal.action}d successfully`);
+      }
+      
       setActionModal(null); setActionNote('');
       fetchExpenses(); fetchAnalytics(); fetchBudgets();
-    } finally { setSaving(false); }
+    } finally { 
+      setSaving(false);
+      setProcessingActions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(actionKey);
+        return newSet;
+      });
+    }
   };
 
   // ── Export CSV ────────────────────────────────────────────────────────────────

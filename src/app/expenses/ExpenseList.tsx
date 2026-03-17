@@ -165,21 +165,23 @@ export default function ExpenseList({
                             {e.status === 'pending' && (
                               <>
                                 <button onClick={() => onAction(e, 'approve')} title="Approve"
-                                  className="w-7 h-7 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 flex items-center justify-center text-sm transition-colors">✓</button>
+                                  className="w-7 h-7 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 flex items-center justify-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">✓</button>
                                 <button onClick={() => onAction(e, 'reject')} title="Reject"
-                                  className="w-7 h-7 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 flex items-center justify-center text-sm transition-colors">✗</button>
+                                  className="w-7 h-7 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 flex items-center justify-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">✗</button>
                               </>
                             )}
                             {e.status === 'approved' && (
                               <button onClick={() => onAction(e, 'pay')} title="Mark Paid"
-                                className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 flex items-center justify-center text-sm transition-colors">💳</button>
+                                className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 flex items-center justify-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">💳</button>
                             )}
                             {e.status === 'pending' && (
                               <button onClick={() => onEdit(e)} title="Edit"
-                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-colors ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>✏️</button>
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>✏️</button>
                             )}
-                            <button onClick={() => onDelete(e.id)} title="Delete"
-                              className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center text-xs transition-colors">🗑</button>
+                            {e.status !== 'paid' && (
+                              <button onClick={() => onDelete(e.id)} title="Delete"
+                                className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🗑</button>
+                            )}
                           </div>
                         </td>
                       </tr>
