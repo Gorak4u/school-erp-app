@@ -94,6 +94,14 @@ export default function BillingPage() {
       // Get pricing from database
       const amount = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
       console.log('Payment amount:', amount, 'Billing cycle:', billing);
+      console.log('Plan details:', { name: plan.name, priceMonthly: plan.priceMonthly, priceYearly: plan.priceYearly });
+
+      // Validate amount before sending
+      if (!amount || amount <= 0) {
+        console.error('Invalid amount:', amount);
+        alert('Invalid plan amount. Please select a different plan or contact support.');
+        return;
+      }
 
       // Create payment order
       const response = await fetch('/api/create-payment-order', {
