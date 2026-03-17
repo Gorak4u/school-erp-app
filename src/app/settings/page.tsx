@@ -694,46 +694,114 @@ export default function SettingsPage() {
     const textFields = Object.entries(local).filter(([key]) => key !== 'logo_url');
 
     return (
-      <div className={card}>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className={heading}>School Details</h3>
-          <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('school_details', local)}>
-            {saving ? 'Saving...' : 'Save Details'}
+      <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-8 shadow-lg`}>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>School Details</h3>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Configure your school's basic information</p>
+            </div>
+          </div>
+          <button 
+            className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 disabled:opacity-50 ${
+              isDark 
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+            }`}
+            disabled={saving} 
+            onClick={() => saveBatchSettings('school_details', local)}
+          >
+            <span className="flex items-center gap-2">
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Details
+                </>
+              )}
+            </span>
           </button>
         </div>
 
-        {/* Logo Upload Section */}
-        <div className={`mb-6 p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/30' : 'border-gray-200 bg-gray-50'}`}>
-          <label className={`${label} mb-3`}>School Logo</label>
+        {/* Modern Logo Upload Section */}
+        <div className={`mb-8 p-6 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
           <div className="flex items-center gap-6">
-            <div className={`w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-300 bg-white'}`}>
+            <div className={`w-32 h-32 rounded-2xl border-4 flex items-center justify-center overflow-hidden ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'} shadow-lg`}>
               {local.logo_url ? (
-                <img src={local.logo_url} alt="School Logo" className="w-full h-full object-contain" />
+                <img src={local.logo_url} alt="School Logo" className="w-full h-full object-contain p-2" />
               ) : (
-                <span className={`text-3xl ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>🏫</span>
+                <span className={`text-5xl ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>🏫</span>
               )}
             </div>
             <div className="flex-1">
-              <p className={subtext}>Upload your school logo (PNG, JPG, WEBP, SVG — max 2MB).</p>
-              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This logo will appear on all receipts, print documents, and reports.</p>
-              <div className="flex items-center gap-3 mt-3">
-                <label className={`${btnPrimary} cursor-pointer`}>
-                  {uploading ? 'Uploading...' : 'Choose File'}
+              <label className={`block text-base font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>School Logo</label>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Upload your school logo for branding</p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-4`}>
+                Supported formats: PNG, JPG, WEBP, SVG • Maximum size: 2MB<br />
+                This logo will appear on receipts, reports, and official documents
+              </p>
+              <div className="flex items-center gap-3">
+                <label className={`px-5 py-2.5 rounded-xl font-medium cursor-pointer transition-all transform hover:scale-105 ${
+                  isDark 
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                    : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+                }`}>
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    {uploading ? 'Uploading...' : 'Choose File'}
+                  </span>
                   <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
                 </label>
                 {local.logo_url && (
-                  <button className={btnDanger} onClick={() => setLocal({ ...local, logo_url: '' })}>Remove</button>
+                  <button 
+                    className={`px-5 py-2.5 rounded-xl font-medium transition-colors ${
+                      isDark 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                    onClick={() => setLocal({ ...local, logo_url: '' })}
+                  >
+                    Remove Logo
+                  </button>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Modern Form Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {textFields.map(([key, val]) => (
             <div key={key}>
-              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
-              <input className={input} value={val} onChange={e => setLocal({ ...local, [key]: e.target.value })} />
+              <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </label>
+              <input 
+                className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                  isDark 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                }`}
+                value={val} 
+                onChange={e => setLocal({ ...local, [key]: e.target.value })} 
+                placeholder={`Enter ${key.replace(/_/g, ' ').toLowerCase()}`}
+              />
             </div>
           ))}
         </div>
@@ -743,40 +811,128 @@ export default function SettingsPage() {
 
   // ─── Academic Years Tab ────────────────────────────────────────────────────
   const AcademicYearsTab = () => (
-    <div className={card}>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className={heading}>Academic Years</h3>
-        <button className={btnPrimary} onClick={() => openCreate('academicYear', { year: '', name: '', startDate: '', endDate: '', isActive: false })}>
-          + Add Academic Year
+    <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-8 shadow-lg`}>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-600/20' : 'bg-purple-100'}`}>
+            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Academic Years</h3>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Manage academic year periods and activations</p>
+          </div>
+        </div>
+        <button 
+          className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
+            isDark 
+              ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg' 
+              : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg'
+          }`}
+          onClick={() => openCreate('academicYear', { year: '', name: '', startDate: '', endDate: '', isActive: false })}
+        >
+          <span className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Academic Year
+          </span>
         </button>
       </div>
-      {academicYears.length === 0 && <p className={subtext}>No academic years configured yet.</p>}
-      <div className="space-y-3">
-        {academicYears.map((ay: any) => (
-          <div key={ay.id} className={`${row} flex items-center justify-between`}>
-            <div className="flex items-center gap-4">
-              <div>
-                <div className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{ay.name}</div>
-                <div className={subtext}>{ay.year} &middot; {ay.startDate} to {ay.endDate}</div>
+      
+      {academicYears.length === 0 ? (
+        <div className={`text-center py-12 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
+          <svg className={`mx-auto h-12 w-12 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <p className={`mt-4 text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No academic years configured yet</p>
+          <p className={`mt-1 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Add your first academic year to get started</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {academicYears.map((ay: any) => (
+            <div 
+              key={ay.id} 
+              className={`p-5 rounded-xl border transition-all ${
+                ay.isActive 
+                  ? isDark 
+                    ? 'bg-green-900/20 border-green-700 shadow-md' 
+                    : 'bg-green-50 border-green-300 shadow-sm'
+                  : isDark 
+                    ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-800' 
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    ay.isActive 
+                      ? isDark ? 'bg-green-600/20' : 'bg-green-100' 
+                      : isDark ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <svg className={`w-6 h-6 ${ay.isActive ? 'text-green-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{ay.name}</h4>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        ay.isActive 
+                          ? 'bg-green-500 text-white' 
+                          : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {ay.isActive ? '✓ Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <span className="font-medium">{ay.year}</span> • {ay.startDate} to {ay.endDate}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {!ay.isActive && (
+                    <button
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all transform hover:scale-105 ${
+                        isDark 
+                          ? 'bg-green-600 hover:bg-green-700 text-white' 
+                          : 'bg-green-500 hover:bg-green-600 text-white'
+                      }`}
+                      onClick={() => handleActivateAcademicYear(ay)}
+                      title="Set as active academic year"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        ⚡ Activate
+                      </span>
+                    </button>
+                  )}
+                  <button 
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      isDark 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}
+                    onClick={() => openEdit('academicYear', ay)}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      isDark 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                    onClick={() => handleDelete('academicYear', ay.id, ay.name)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <span className={badge(ay.isActive)}>{ay.isActive ? 'Active' : 'Inactive'}</span>
             </div>
-            <div className="flex gap-2">
-              {!ay.isActive && (
-                <button
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleActivateAcademicYear(ay)}
-                  title="Set as active academic year"
-                >
-                  ⚡ Activate
-                </button>
-              )}
-              <button className={btnSecondary} onClick={() => openEdit('academicYear', ay)}>Edit</button>
-              <button className={btnDanger} onClick={() => handleDelete('academicYear', ay.id, ay.name)}>Delete</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 

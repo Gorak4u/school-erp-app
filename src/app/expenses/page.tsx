@@ -587,21 +587,92 @@ export default function ExpensesPage() {
       {/* ── Action Modal (Approve / Reject / Pay) ───────────────────────────── */}
       {actionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} max-h-[90vh] overflow-hidden flex flex-col`}>
             <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
               <h2 className={`text-lg font-bold ${text}`}>
                 {actionModal.action === 'approve' ? '✅ Approve Expense' : actionModal.action === 'reject' ? '❌ Reject Expense' : '💳 Mark as Paid'}
               </h2>
               <button onClick={() => setActionModal(null)} className={`w-8 h-8 flex items-center justify-center rounded-full text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>×</button>
             </div>
-            <div className="p-6">
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Expense Details */}
               <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                 <p className={`text-sm font-semibold ${text}`}>{actionModal.expense.title}</p>
                 <p className={`text-lg font-bold mt-1 ${text}`}>
                   {actionModal.expense.amount?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                 </p>
                 <p className={`text-xs mt-0.5 ${sub}`}>{actionModal.expense.category?.name} · {actionModal.expense.dateIncurred}</p>
+                {actionModal.expense.vendorName && (
+                  <p className={`text-xs mt-1 ${sub}`}>Vendor: {actionModal.expense.vendorName}</p>
+                )}
+                {actionModal.expense.description && (
+                  <p className={`text-xs mt-2 ${sub}`}>{actionModal.expense.description}</p>
+                )}
               </div>
+
+              {/* Document Preview Section */}
+              {actionModal.expense.receiptUrl && (
+                <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className={`text-sm font-semibold ${isDark ? 'text-blue-400' : 'text-blue-700'} flex items-center gap-2`}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Attached Receipt/Bill
+                    </h3>
+                    <a 
+                      href={actionModal.expense.receiptUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors ${
+                        isDark 
+                          ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30' 
+                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                      }`}
+                    >
+                      Open in New Tab ↗
+                    </a>
+                  </div>
+                  
+                  <div className="rounded-lg overflow-hidden border border-opacity-20">
+                    {actionModal.expense.receiptUrl.toLowerCase().includes('.pdf') ? (
+                      // PDF Preview
+                      <div className="relative">
+                        <iframe 
+                          src={`${actionModal.expense.receiptUrl}#view=FitH&toolbar=0`}
+                          className="w-full h-64 border-0"
+                          title="Receipt Preview"
+                        />
+                        <div className={`absolute bottom-0 left-0 right-0 p-2 text-center ${isDark ? 'bg-gray-900/80' : 'bg-white/80'}`}>
+                          <p className={`text-xs ${sub}`}>PDF Document - Click "Open in New Tab" for full view</p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Image Preview
+                      <div className="relative group">
+                        <img 
+                          src={actionModal.expense.receiptUrl} 
+                          alt="Receipt/Bill"
+                          className="w-full h-64 object-contain bg-white"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
+                          <a 
+                            href={actionModal.expense.receiptUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-gray-900 px-3 py-1 rounded-lg text-sm font-medium shadow-lg"
+                          >
+                            View Full Size
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Note */}
               <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${sub}`}>
                 {actionModal.action === 'approve' ? 'Approval Note (optional)' : actionModal.action === 'reject' ? 'Rejection Reason *' : 'Payment Method (optional)'}
               </label>
@@ -609,6 +680,7 @@ export default function ExpensesPage() {
                 placeholder={actionModal.action === 'reject' ? 'Reason for rejection...' : actionModal.action === 'approve' ? 'Optional note for approver...' : 'cash, upi, bank_transfer...'}
                 className={`w-full px-3 py-2 rounded-lg border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`} />
             </div>
+            
             <div className={`flex gap-3 justify-end px-6 py-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
               <button onClick={() => setActionModal(null)} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>Cancel</button>
               <button onClick={doAction} disabled={saving || (actionModal.action === 'reject' && !actionNote.trim())}
