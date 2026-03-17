@@ -22,6 +22,37 @@ export default function ExpenseForm({ form, setForm, onSave, onClose, saving, ed
   const text = isDark ? 'text-white' : 'text-gray-900';
   const subText = isDark ? 'text-gray-400' : 'text-gray-500';
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a PDF or image file (JPG, PNG, WEBP)');
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      
+      // Store file for upload
+      setForm({ ...form, receiptFile: file, receiptFileName: file.name });
+    }
+  };
+
+  const removeFile = () => {
+    setForm({ ...form, receiptFile: null, receiptFileName: '' });
+    // Clear the file input
+    const fileInput = document.getElementById('receipt-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className={`w-full max-w-4xl rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} max-h-[90vh] overflow-hidden flex flex-col`}>
@@ -175,6 +206,75 @@ export default function ExpenseForm({ form, setForm, onSave, onClose, saving, ed
                   <div>
                     <label className={lbl}>Internal Remarks</label>
                     <textarea rows={2} className={`${inp} resize-none`} placeholder="Internal notes for reference..." value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} />
+                  </div>
+
+                  <div>
+                    <label className={lbl}>Bill/Receipt Attachment</label>
+                    <div className="space-y-3">
+                      {!form.receiptFile ? (
+                        <div className="relative">
+                          <input
+                            id="receipt-file-input"
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                            isDark 
+                              ? 'border-gray-600 hover:border-gray-500 bg-gray-700/30' 
+                              : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                          }`}>
+                            <div className="flex flex-col items-center gap-2">
+                              <svg className={`w-8 h-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              <div>
+                                <p className={`text-sm font-medium ${text}`}>Click to upload bill/receipt</p>
+                                <p className={`text-xs ${subText}`}>PDF, JPG, PNG or WEBP (max 5MB)</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`flex items-center justify-between p-4 rounded-xl border ${
+                          isDark ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-gray-50'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              form.receiptFile.type === 'application/pdf' 
+                                ? 'bg-red-500/10 text-red-500' 
+                                : 'bg-blue-500/10 text-blue-500'
+                            }`}>
+                              {form.receiptFile.type === 'application/pdf' ? (
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-medium ${text}`}>{form.receiptFileName}</p>
+                              <p className={`text-xs ${subText}`}>{(form.receiptFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removeFile}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark ? 'hover:bg-gray-600 text-gray-400' : 'hover:bg-gray-200 text-gray-500'
+                            }`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

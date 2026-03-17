@@ -171,14 +171,26 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
+    
     const { id } = await params;
     const existing = await (schoolPrisma as any).expense.findFirst({
       where: { id, schoolId: ctx.schoolId, deletedAt: null },
     });
     if (!existing) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
     if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot delete a paid expense' }, { status: 400 });
+    
+    // Admin-only delete restriction for rejected expenses
+    if (existing.status === 'rejected' && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+      return NextResponse.json({ 
+        error: 'Only administrators can delete rejected expenses', 
+        details: 'Rejected expenses require admin-level privileges for deletion to maintain audit trail.'
+      }, { status: 403 });
+    }
+
+    // For non-rejected expenses, require admin or super admin
+    if (existing.status !== 'rejected' && ctx.role !== 'admin' && !ctx.isSuperAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Soft delete
     await (schoolPrisma as any).expense.update({

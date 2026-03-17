@@ -254,8 +254,36 @@ export default function ExpensesPage() {
     try {
       const url    = editingExp ? `/api/expenses/${editingExp.id}` : '/api/expenses';
       const method = editingExp ? 'PUT' : 'POST';
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...expForm, amount: Number(expForm.amount) }) });
-      const data   = await res.json();
+      
+      let res: Response;
+      
+      // Handle file upload
+      if (expForm.receiptFile) {
+        const formData = new FormData();
+        formData.append('title', expForm.title);
+        formData.append('description', expForm.description || '');
+        formData.append('amount', String(Number(expForm.amount)));
+        formData.append('categoryId', expForm.categoryId);
+        formData.append('dateIncurred', expForm.dateIncurred);
+        formData.append('paymentMethod', expForm.paymentMethod || '');
+        formData.append('priority', expForm.priority);
+        formData.append('vendorName', expForm.vendorName || '');
+        formData.append('remarks', expForm.remarks || '');
+        formData.append('academicYear', expForm.academicYear);
+        formData.append('budgetId', expForm.budgetId || '');
+        formData.append('receiptFile', expForm.receiptFile);
+        
+        res = await fetch(url, { method, body: formData });
+      } else {
+        // Regular JSON submission without file
+        res = await fetch(url, { 
+          method, 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ ...expForm, amount: Number(expForm.amount) }) 
+        });
+      }
+      
+      const data = await res.json();
       if (!res.ok) { showMsg(data.error || 'Failed', 'error'); return; }
       
       // Handle X-Toast header from API
@@ -363,6 +391,25 @@ export default function ExpensesPage() {
 
   // ── Selected state (passed to ExpenseList) ─────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [userRole, setUserRole] = useState<string>('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Get user role on component mount
+  useEffect(() => {
+    const getUserRole = async () => {
+      try {
+        const response = await fetch('/api/auth/verify-session');
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.user?.role || '');
+          setIsSuperAdmin(data.user?.isSuperAdmin || false);
+        }
+      } catch (error) {
+        console.error('Failed to get user role:', error);
+      }
+    };
+    getUserRole();
+  }, []);
 
   return (
     <AppLayout currentPage="expenses" title="Expense Management" theme={theme}>
@@ -481,6 +528,8 @@ export default function ExpensesPage() {
             onAction={(e, action) => { setActionModal({ expense: e, action }); setActionNote(''); }}
             onExport={exportCSV}
             isDark={isDark}
+            userRole={userRole}
+            isSuperAdmin={isSuperAdmin}
           />
         )}
 

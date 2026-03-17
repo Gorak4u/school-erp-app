@@ -20,17 +20,32 @@ interface Props {
   onAction: (e: any, action: string) => void;
   onExport: () => void;
   isDark: boolean;
+  userRole: string;
+  isSuperAdmin: boolean;
 }
 
 export default function ExpenseList({
   expenses, loading, loadingMore, hasMore, totalCount, selected, setSelected,
-  filters, setFilters, categories, onLoadMore, onAdd, onEdit, onDelete, onAction, onExport, isDark,
+  filters, setFilters, categories, onLoadMore, onAdd, onEdit, onDelete, onAction, onExport, isDark, userRole, isSuperAdmin,
 }: Props) {
   const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const sub  = isDark ? 'text-gray-400' : 'text-gray-500';
   const inp  = `px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
   const btnSec = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`;
+
+  const canDeleteExpense = (expense: any) => {
+    // Paid expenses cannot be deleted by anyone
+    if (expense.status === 'paid') return false;
+    
+    // Rejected expenses can only be deleted by admins and super admins
+    if (expense.status === 'rejected') {
+      return userRole === 'admin' || isSuperAdmin;
+    }
+    
+    // Pending and approved expenses can be deleted by admins and super admins
+    return userRole === 'admin' || isSuperAdmin;
+  };
 
   const toggleSelect = (id: string) => {
     const ns = new Set(selected);
@@ -178,7 +193,7 @@ export default function ExpenseList({
                               <button onClick={() => onEdit(e)} title="Edit"
                                 className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>✏️</button>
                             )}
-                            {e.status !== 'paid' && (
+                            {canDeleteExpense(e) && (
                               <button onClick={() => onDelete(e.id)} title="Delete"
                                 className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🗑</button>
                             )}

@@ -92,7 +92,28 @@ export async function POST(request: NextRequest) {
     if (error) return error;
     if (!hasExpenseAccess(ctx, 'create')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const body = await request.json();
+    // Handle both JSON and FormData (for file uploads)
+    const contentType = request.headers.get('content-type') || '';
+    let body: any;
+    let receiptFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      // Handle FormData with file upload
+      const formData = await request.formData();
+      body = {};
+      receiptFile = formData.get('receiptFile') as File | null;
+      
+      // Extract all form fields
+      for (const [key, value] of formData.entries()) {
+        if (key !== 'receiptFile') {
+          body[key] = value;
+        }
+      }
+    } else {
+      // Handle regular JSON
+      body = await request.json();
+    }
+
     const {
       title, description, amount, categoryId, dateIncurred, paymentMethod,
       priority, vendorName, vendorDetails, tags, remarks,
@@ -112,6 +133,48 @@ export async function POST(request: NextRequest) {
     const expenseAmount = Number(amount);
     const receiptNumber = `EXP-${Date.now()}-${Math.random().toString(36).slice(-4).toUpperCase()}`;
 
+    // Handle file upload if present
+    let receiptUrl: string | null = null;
+    if (receiptFile) {
+      try {
+        // Validate file type and size
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(receiptFile.type)) {
+          return NextResponse.json({ error: 'Invalid file type. Only PDF, JPG, PNG, and WEBP are allowed' }, { status: 400 });
+        }
+        
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (receiptFile.size > maxSize) {
+          return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 });
+        }
+
+        // Create uploads directory if it doesn't exist
+        const fs = require('fs');
+        const path = require('path');
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'expenses');
+        
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).slice(-8);
+        const extension = receiptFile.name.split('.').pop();
+        const filename = `receipt-${timestamp}-${randomString}.${extension}`;
+        const filepath = path.join(uploadsDir, filename);
+
+        // Save file
+        const buffer = Buffer.from(await receiptFile.arrayBuffer());
+        fs.writeFileSync(filepath, buffer);
+        
+        receiptUrl = `/uploads/expenses/${filename}`;
+      } catch (uploadError: any) {
+        console.error('File upload error:', uploadError);
+        return NextResponse.json({ error: 'Failed to upload receipt file', details: uploadError.message }, { status: 500 });
+      }
+    }
+
     const expense = await (schoolPrisma as any).expense.create({
       data: {
         title: title.trim(),
@@ -129,6 +192,7 @@ export async function POST(request: NextRequest) {
         remarks: remarks || null,
         academicYear: academicYear || '2024-25',
         academicYearId: academicYearId || null,
+        receiptUrl,
         schoolId: ctx.schoolId,
         requestedBy: ctx.userId,
         requestedByName: ctx.email,
