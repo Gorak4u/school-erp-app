@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
@@ -8,9 +8,10 @@ import { teachersApi } from '@/lib/apiClient';
 import { createTeacherSearchHandlers } from './handlers/searchHandlers';
 import SearchPerformanceMonitor from '../shared/search/components/SearchPerformanceMonitor';
 import { TeacherSearchEngine } from './search/TeacherSearchEngine';
+import ClassTeacherFormAssignments from './components/ClassTeacherFormAssignments';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '' };
+const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', classTeacherAssignments: [] as any[] };
 
 export default function TeachersPage() {
   const { theme } = useTheme();
@@ -25,12 +26,47 @@ export default function TeachersPage() {
   const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [boards, setBoards] = useState<any[]>([]);
+  const [mediums, setMediums] = useState<any[]>([]);
+  const [dbClasses, setDbClasses] = useState<any[]>([]);
+  const [dbSections, setDbSections] = useState<any[]>([]);
+  const [academicYears, setAcademicYears] = useState<any[]>([]);
 
   const fetcher = useCallback((p: any) => teachersApi.list(p), []);
   const {
     data: teachers, total, page, pageSize, totalPages, loading, error,
     filters, setFilter, resetFilters, setPage, setPageSize, toggleSort, sortBy, sortOrder, refresh,
   } = usePaginatedQuery(fetcher, 'teachers', {}, { pageSize: 50 });
+
+  // Load school data for class teacher assignments
+  useEffect(() => {
+    const loadSchoolData = async () => {
+      try {
+        // Load school configuration
+        const schoolConfigRes = await fetch('/api/school-config');
+        if (schoolConfigRes.ok) {
+          const schoolConfigData = await schoolConfigRes.json();
+          setSchoolData(schoolConfigData);
+          setBoards(schoolConfigData.dropdowns?.boards || []);
+          setMediums(schoolConfigData.dropdowns?.mediums || []);
+          setDbClasses(schoolConfigData.dropdowns?.classes || []);
+          setDbSections(schoolConfigData.dropdowns?.sections || []);
+        }
+
+        // Load academic years
+        const academicYearsRes = await fetch('/api/school-structure/academic-years');
+        if (academicYearsRes.ok) {
+          const academicYearsData = await academicYearsRes.json();
+          setAcademicYears(academicYearsData.academicYears || []);
+        }
+      } catch (error) {
+        console.error('Failed to load school data:', error);
+      }
+    };
+
+    loadSchoolData();
+  }, []);
 
   // Search handlers
   const searchHandlers = createTeacherSearchHandlers({ teachers, refresh });
@@ -485,7 +521,8 @@ export default function TeachersPage() {
                                 experience: teacher.experience?.toString() || '',
                                 employeeId: teacher.employeeId || '',
                                 status: teacher.status || 'active',
-                                joiningDate: teacher.joiningDate || ''
+                                joiningDate: teacher.joiningDate || '',
+                                classTeacherAssignments: teacher.classTeacherAssignments || []
                               });
                               setShowEditModal(true);
                             }}
@@ -572,6 +609,17 @@ export default function TeachersPage() {
                   <option value="on_leave">On Leave</option>
                 </select>
               </div>
+
+              <ClassTeacherFormAssignments
+                assignments={form.classTeacherAssignments}
+                boards={boards}
+                mediums={mediums}
+                classes={dbClasses}
+                sections={dbSections}
+                academicYears={academicYears}
+                theme={theme}
+                onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
+              />
             </div>
             <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <button onClick={() => { setShowEditModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
@@ -674,6 +722,17 @@ export default function TeachersPage() {
                   <option value="on_leave">On Leave</option>
                 </select>
               </div>
+
+              <ClassTeacherFormAssignments
+                assignments={form.classTeacherAssignments}
+                boards={boards}
+                mediums={mediums}
+                classes={dbClasses}
+                sections={dbSections}
+                academicYears={academicYears}
+                theme={theme}
+                onChange={(assignments) => setForm(prev => ({ ...prev, classTeacherAssignments: assignments }))}
+              />
             </div>
             <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <button onClick={() => { setShowAddModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
