@@ -1407,12 +1407,12 @@ export default function SettingsPage() {
 
           {/* Modern Tabs */}
           <div className={`rounded-2xl border p-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2">
+            <div className="flex flex-wrap gap-1">
               {TABS.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
                       : isDark 
@@ -1420,8 +1420,8 @@ export default function SettingsPage() {
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-2xl">{tab.icon}</span>
-                  <span className="text-center leading-tight">{tab.label}</span>
+                  <span className="text-lg">{tab.icon}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               ))}
             </div>
