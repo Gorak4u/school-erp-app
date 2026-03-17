@@ -5,6 +5,9 @@ import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { teachersApi } from '@/lib/apiClient';
+import { createTeacherSearchHandlers } from './handlers/searchHandlers';
+import SearchPerformanceMonitor from '../shared/search/components/SearchPerformanceMonitor';
+import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const EMPTY_FORM = { name: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '' };
@@ -13,15 +16,25 @@ export default function TeachersPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const fetcher = useCallback((p: any) => teachersApi.list(p), []);
   const {
     data: teachers, total, page, pageSize, totalPages, loading, error,
     filters, setFilter, resetFilters, setPage, setPageSize, toggleSort, sortBy, sortOrder, refresh,
   } = usePaginatedQuery(fetcher, 'teachers', {}, { pageSize: 50 });
+
+  // Search handlers
+  const searchHandlers = createTeacherSearchHandlers({ teachers, refresh });
+  const { teacherSearch, setTeacherSearch, performTeacherSearch, toggleTeacherSearch, clearSearchHistory } = searchHandlers;
 
   const card = `p-6 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
   const txt = isDark ? 'text-white' : 'text-gray-900';
@@ -37,6 +50,89 @@ export default function TeachersPage() {
 
   const activeCount = teachers.filter((t: any) => t.status === 'active').length;
 
+  // Export functions
+  const exportToCSV = () => {
+    const csvContent = [
+      ['Name', 'Email', 'Employee ID', 'Department', 'Subject', 'Experience', 'Status', 'Joining Date'],
+      ...teachers.map((t: any) => [
+        t.name || '',
+        t.email || '',
+        t.employeeId || '',
+        t.department || '',
+        t.subject || '',
+        t.experience || '',
+        t.status || '',
+        t.joiningDate || ''
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `teachers_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportToJSON = () => {
+    const jsonContent = JSON.stringify(teachers, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `teachers_export_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Bulk actions
+  const toggleTeacherSelection = (teacherId: number) => {
+    setSelectedTeachers(prev => 
+      prev.includes(teacherId) 
+        ? prev.filter(id => id !== teacherId)
+        : [...prev, teacherId]
+    );
+  };
+
+  const toggleAllTeachers = () => {
+    if (selectedTeachers.length === teachers.length) {
+      setSelectedTeachers([]);
+    } else {
+      setSelectedTeachers(teachers.map((t: any) => t.id));
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selectedTeachers.length === 0) return;
+    
+    if (confirm(`Are you sure you want to deactivate ${selectedTeachers.length} teachers?`)) {
+      try {
+        await Promise.all(selectedTeachers.map(id => teachersApi.delete(id.toString())));
+        setSelectedTeachers([]);
+        refresh();
+      } catch (error) {
+        console.error('Bulk delete error:', error);
+      }
+    }
+  };
+
+  const bulkUpdateStatus = async (status: string) => {
+    if (selectedTeachers.length === 0) return;
+    
+    try {
+      await Promise.all(selectedTeachers.map(id => teachersApi.update(id.toString(), { status })));
+      setSelectedTeachers([]);
+      refresh();
+    } catch (error) {
+      console.error('Bulk update error:', error);
+    }
+  };
+
   return (
     <AppLayout currentPage="teachers" title="Teachers Management">
       <div className="space-y-6 pb-8">
@@ -48,12 +144,88 @@ export default function TeachersPage() {
               {loading ? 'Loading…' : `${total.toLocaleString()} teachers total`}
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-          >
-            + Add Teacher
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            >
+              + Add Teacher
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedTeachers.length > 0
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {selectedTeachers.length > 0 ? `${selectedTeachers.length} Selected` : 'Bulk Actions'}
+              </button>
+              {showBulkActions && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg border shadow-lg z-10 ${
+                  isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                }`}>
+                  <button
+                    onClick={() => { bulkUpdateStatus('active'); setShowBulkActions(false); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}
+                  >
+                    Mark as Active
+                  </button>
+                  <button
+                    onClick={() => { bulkUpdateStatus('inactive'); setShowBulkActions(false); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}
+                  >
+                    Mark as Inactive
+                  </button>
+                  <button
+                    onClick={() => { bulkDelete(); setShowBulkActions(false); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 ${
+                      isDark ? 'text-red-400' : 'text-red-600'
+                    }`}
+                  >
+                    Deactivate Selected
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+              >
+                Export
+              </button>
+              {showExportMenu && (
+                <div className={`absolute right-0 mt-2 w-40 rounded-lg border shadow-lg z-10 ${
+                  isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                }`}>
+                  <button
+                    onClick={exportToCSV}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}
+                  >
+                    Export as CSV
+                  </button>
+                  <button
+                    onClick={exportToJSON}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}
+                  >
+                    Export as JSON
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
@@ -78,12 +250,91 @@ export default function TeachersPage() {
 
         {/* Filters */}
         <div className={`rounded-xl border p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          {/* AI Search Input */}
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 relative">
+              <input
+                className={`${inputCls} pl-10`}
+                placeholder={teacherSearch.enabled ? "AI Search: try 'mathematics department teachers' or 'senior teachers with PhD'..." : "Search name, email, ID, subject…"}
+                value={teacherSearch.enabled ? teacherSearch.query : (filters.search as string) || ''}
+                onChange={e => {
+                  if (teacherSearch.enabled) {
+                    setTeacherSearch(prev => ({ ...prev, query: e.target.value }));
+                    performTeacherSearch(e.target.value);
+                  } else {
+                    setFilter('search', e.target.value);
+                  }
+                }}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {teacherSearch.isSearching ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+                ) : (
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={toggleTeacherSearch}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                teacherSearch.enabled
+                  ? 'bg-purple-600 text-white'
+                  : isDark ? 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700' : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {teacherSearch.enabled ? '🤖 AI Search ON' : '🔤 Basic Search'}
+            </button>
+          </div>
+
+          {/* AI Search Suggestions */}
+          {teacherSearch.enabled && teacherSearch.searchAnalytics?.recentSearches?.length > 0 && (
+            <div className={`mb-4 p-3 rounded-lg border ${
+              isDark 
+                ? 'bg-purple-900/20 border-purple-700/50' 
+                : 'bg-purple-50 border-purple-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium">🤖 Recent Searches:</span>
+                <button
+                  onClick={clearSearchHistory}
+                  className={`text-xs p-1 rounded ${
+                    isDark 
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(teacherSearch.searchAnalytics?.recentSearches || []).slice(0, 5).map((search, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      performTeacherSearch(search);
+                    }}
+                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                      isDark
+                        ? 'bg-purple-800/50 text-purple-300 hover:bg-purple-700/50'
+                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                    }`}
+                  >
+                    {search}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <input
               className={inputCls}
               placeholder="Search name, email, ID, subject…"
-              value={(filters.search as string) || ''}
-              onChange={e => setFilter('search', e.target.value)}
+              value={teacherSearch.enabled ? '' : (filters.search as string) || ''}
+              onChange={e => !teacherSearch.enabled && setFilter('search', e.target.value)}
+              disabled={teacherSearch.enabled}
             />
             <select
               className={inputCls}
@@ -126,6 +377,7 @@ export default function TeachersPage() {
               <thead className={isDark ? 'bg-gray-900/50' : 'bg-gray-50'}>
                 <tr>
                   {[
+                    { label: '', field: 'checkbox' },
                     { label: 'Teacher', field: 'name' },
                     { label: 'Employee ID', field: 'employeeId' },
                     { label: 'Department', field: 'department' },
@@ -133,9 +385,21 @@ export default function TeachersPage() {
                     { label: 'Experience', field: 'experience' },
                     { label: 'Status', field: 'status' },
                     { label: 'Joined', field: 'joiningDate' },
+                    { label: 'Actions', field: 'actions' },
                   ].map(col => (
-                    <th key={col.field} className={thCls} onClick={() => toggleSort(col.field)}>
-                      {col.label}<SortIcon field={col.field} />
+                    <th key={col.field} className={thCls} onClick={() => col.field !== 'checkbox' && toggleSort(col.field)}>
+                      {col.field === 'checkbox' ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedTeachers.length === teachers.length && teachers.length > 0}
+                          onChange={toggleAllTeachers}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <>
+                          {col.label}<SortIcon field={col.field} />
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -144,7 +408,7 @@ export default function TeachersPage() {
                 {loading && teachers.length === 0 ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className={`h-4 rounded animate-pulse ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${60 + (j * 7) % 30}%` }} />
                         </td>
@@ -153,7 +417,7 @@ export default function TeachersPage() {
                   ))
                 ) : teachers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
+                    <td colSpan={9} className="px-4 py-16 text-center">
                       <p className={`text-lg font-medium ${txt}`}>No teachers found</p>
                       <p className={`text-sm mt-1 ${sub}`}>Try adjusting your filters</p>
                     </td>
@@ -161,6 +425,14 @@ export default function TeachersPage() {
                 ) : (
                   teachers.map((teacher: any) => (
                     <tr key={teacher.id} className={`transition-colors ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`}>
+                      <td className={tdCls}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTeachers.includes(teacher.id)}
+                          onChange={() => toggleTeacherSelection(teacher.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className={tdCls}>
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
@@ -188,6 +460,45 @@ export default function TeachersPage() {
                         </span>
                       </td>
                       <td className={`${tdCls} text-xs`}>{teacher.joiningDate || '—'}</td>
+                      <td className={tdCls}>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingTeacher(teacher);
+                              setForm({
+                                name: teacher.name || '',
+                                email: teacher.email || '',
+                                phone: teacher.phone || '',
+                                department: teacher.department || '',
+                                subject: teacher.subject || '',
+                                qualification: teacher.qualification || '',
+                                experience: teacher.experience?.toString() || '',
+                                employeeId: teacher.employeeId || '',
+                                status: teacher.status || 'active',
+                                joiningDate: teacher.joiningDate || ''
+                              });
+                              setShowEditModal(true);
+                            }}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                              isDark 
+                                ? 'border-blue-600 text-blue-400 hover:bg-blue-600/20' 
+                                : 'border-blue-500 text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(teacher)}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                              isDark 
+                                ? 'border-red-600 text-red-400 hover:bg-red-600/20' 
+                                : 'border-red-500 text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -212,6 +523,108 @@ export default function TeachersPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Teacher Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowEditModal(false)}>
+          <div className={`w-full max-w-lg mx-4 rounded-xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-bold ${txt}`}>Edit Teacher</h3>
+            </div>
+            <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {formError && <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">{formError}</div>}
+              {[
+                { key: 'name', label: 'Full Name *', type: 'text' },
+                { key: 'email', label: 'Email *', type: 'email' },
+                { key: 'phone', label: 'Phone', type: 'text' },
+                { key: 'employeeId', label: 'Employee ID *', type: 'text' },
+                { key: 'department', label: 'Department', type: 'text' },
+                { key: 'subject', label: 'Subject', type: 'text' },
+                { key: 'qualification', label: 'Qualification', type: 'text' },
+                { key: 'experience', label: 'Experience (years)', type: 'number' },
+                { key: 'joiningDate', label: 'Joining Date', type: 'date' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className={`block text-xs font-medium mb-1 ${sub}`}>{f.label}</label>
+                  <input
+                    type={f.type}
+                    className={inputCls}
+                    value={(form as any)[f.key]}
+                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${sub}`}>Status</label>
+                <select className={inputCls} value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="on_leave">On Leave</option>
+                </select>
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button onClick={() => { setShowEditModal(false); setForm({ ...EMPTY_FORM }); setFormError(''); }} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  if (!form.name || !form.email || !form.employeeId) { setFormError('Name, Email and Employee ID are required'); return; }
+                  setSaving(true); setFormError('');
+                  try {
+                    await teachersApi.update(editingTeacher.id, { ...form, experience: form.experience ? Number(form.experience) : null });
+                    setShowEditModal(false); setForm({ ...EMPTY_FORM }); refresh();
+                  } catch (err: any) { 
+                    setFormError(err.message || 'Failed to update teacher');
+                  }
+                  finally { setSaving(false); }
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                {saving ? 'Updating…' : 'Update Teacher'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
+          <div className={`w-full max-w-md mx-4 rounded-xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-bold ${txt}`}>Confirm Deletion</h3>
+            </div>
+            <div className="px-6 py-4">
+              <p className={`text-sm ${sub}`}>
+                Are you sure you want to deactivate <span className="font-medium text-white">{deleteConfirm.name}</span>? This action can be undone by reactivating the teacher.
+              </p>
+            </div>
+            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button onClick={() => setDeleteConfirm(null)} className={`px-4 py-2 rounded-lg text-sm ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}>Cancel</button>
+              <button
+                onClick={async () => {
+                  try {
+                    await teachersApi.delete(deleteConfirm.id);
+                    setDeleteConfirm(null);
+                    refresh();
+                  } catch (err: any) {
+                    console.error('Delete error:', err);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white"
+              >
+                Deactivate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Performance Monitor */}
+      <SearchPerformanceMonitor 
+        theme={theme} 
+        engine={TeacherSearchEngine.getInstance()} 
+      />
 
       {/* Add Teacher Modal */}
       {showAddModal && (
