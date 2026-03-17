@@ -7,9 +7,12 @@ import { sendExpenseApprovedEmail, sendExpenseRejectedEmail, sendExpensePaidEmai
 function hasExpenseAccess(ctx: any, action = 'view') {
   if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
   const perms: string[] = ctx.permissions || [];
-  if (action === 'view') return perms.includes('expenses.view') || perms.includes('expenses.create');
-  if (action === 'create') return perms.includes('expenses.create');
-  if (action === 'approve') return perms.includes('expenses.approve');
+  if (action === 'view') return perms.includes('view_expenses') || perms.includes('create_expenses');
+  if (action === 'create') return perms.includes('create_expenses');
+  if (action === 'edit') return perms.includes('edit_expenses');
+  if (action === 'delete') return perms.includes('delete_expenses');
+  if (action === 'approve') return perms.includes('approve_expenses');
+  if (action === 'pay') return perms.includes('pay_expenses');
   return false;
 }
 
@@ -60,11 +63,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (!hasExpenseAccess(ctx, 'create')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
+    
     const { id } = await params;
     const body = await request.json();
     const { action, ...fields } = body;
+
+    // Check specific permission based on action
+    if (action === 'approve' && !hasExpenseAccess(ctx, 'approve')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (action === 'pay' && !hasExpenseAccess(ctx, 'pay')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!action && !hasExpenseAccess(ctx, 'edit')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!hasExpenseAccess(ctx, 'view')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const existing = await (schoolPrisma as any).expense.findFirst({
       where: { id, schoolId: ctx.schoolId, deletedAt: null },
@@ -73,7 +89,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Action-based state transitions
     if (action === 'approve') {
-      if (!hasExpenseAccess(ctx, 'approve')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       if (existing.status !== 'pending') return NextResponse.json({ error: `Cannot approve expense with status '${existing.status}'` }, { status: 400 });
 
       const expense = await (schoolPrisma as any).expense.update({
@@ -95,7 +110,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (action === 'reject') {
-      if (!hasExpenseAccess(ctx, 'approve')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       if (existing.status !== 'pending') return NextResponse.json({ error: `Cannot reject expense with status '${existing.status}'` }, { status: 400 });
       if (!fields.rejectionReason?.trim()) return NextResponse.json({ error: 'rejectionReason is required' }, { status: 400 });
 

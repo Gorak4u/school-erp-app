@@ -1,19 +1,35 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { schoolPrisma } from '@/lib/prisma';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 
 // Single endpoint that returns ALL school configuration data
 // Used by SchoolConfigContext to populate dropdowns across the entire app
 export async function GET() {
   // Require authentication — never expose school data to unauthenticated requests
-  const session = await getServerSession();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { ctx, error } = await getSessionContext();
+  if (error) return error;
 
   try {
+    // Super admins can see all schools, regular users are scoped to their school
+    // Explicitly handle null schoolId for super admins
+    let schoolFilter = {};
+    if (!ctx.isSuperAdmin && ctx.schoolId) {
+      schoolFilter = { schoolId: ctx.schoolId };
+    }
+    // If ctx.isSuperAdmin is true OR ctx.schoolId is null/undefined, use empty filter (no school restriction)
+    
+    console.log('🔍 School Config Debug:', {
+      isSuperAdmin: ctx.isSuperAdmin,
+      schoolId: ctx.schoolId,
+      email: ctx.email,
+      finalFilter: schoolFilter
+    });
+    
     // Step 1: Fetch academic years first to find the active one
-    const academicYears = await schoolPrisma.academicYear.findMany({ orderBy: { year: 'desc' } });
+    const academicYears = await schoolPrisma.academicYear.findMany({ 
+      where: schoolFilter,
+      orderBy: { year: 'desc' } 
+    });
     // Use the MOST RECENTLY CREATED active year to guard against multiple active years in DB
     const activeAcademicYear = [...academicYears]
       .filter((a) => a.isActive)
@@ -30,9 +46,10 @@ export async function GET() {
       timings,
       settingsRaw,
     ] = await Promise.all([
-      schoolPrisma.board.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+      schoolPrisma.board.findMany({ where: { ...schoolFilter, isActive: true }, orderBy: { name: 'asc' } }),
       schoolPrisma.medium.findMany({
         where: { 
+          ...schoolFilter,
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
         },
@@ -41,6 +58,7 @@ export async function GET() {
       }),
       schoolPrisma.class.findMany({
         where: { 
+          ...schoolFilter,
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
         },
@@ -49,14 +67,15 @@ export async function GET() {
       }),
       schoolPrisma.section.findMany({
         where: { 
+          ...schoolFilter,
           isActive: true,
           ...(activeAYId && { academicYearId: activeAYId })
         },
         orderBy: { name: 'asc' },
         include: { class: { include: { medium: true } } },
       }),
-      schoolPrisma.schoolTiming.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
-      schoolPrisma.schoolSetting.findMany(),
+      schoolPrisma.schoolTiming.findMany({ where: { ...schoolFilter, isActive: true }, orderBy: { sortOrder: 'asc' } }),
+      schoolPrisma.schoolSetting.findMany({ where: schoolFilter }),
     ]);
 
     // Group settings into a nested object

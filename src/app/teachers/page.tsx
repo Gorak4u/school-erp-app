@@ -1820,6 +1820,7 @@ export default function StaffPage() {
                       employeeId: form.employeeId,
                     });
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
+                    const generatedEmployeeId = response?.teacher?.employeeId;
                     
                     // Show appropriate message based on whether user account was created
                     if (response.createUserAccount && response.temporaryPassword) {
@@ -1827,22 +1828,22 @@ export default function StaffPage() {
                         (window as any).toast({
                           type: 'success',
                           title: 'Staff Created Successfully',
-                          message: `Login account created! Welcome email sent to ${response.user.email}. Admin notification sent.`,
+                          message: `${generatedEmployeeId ? `Employee ID: ${generatedEmployeeId}. ` : ''}Login account created! Welcome email sent to ${response.user.email}. Admin notification sent.`,
                           duration: 8000,
                         });
                       } else {
-                        alert(`Staff created! Login account created for ${response.user.email}\nWelcome email and admin notification sent.`);
+                        alert(`Staff created! ${generatedEmployeeId ? `\nEmployee ID: ${generatedEmployeeId}` : ''}\nLogin account created for ${response.user.email}\nWelcome email and admin notification sent.`);
                       }
                     } else {
                       if ((window as any).toast) {
                         (window as any).toast({
                           type: 'info',
                           title: 'Staff Record Created',
-                          message: 'Staff record created without login account (no email provided). Admin notification sent.',
+                          message: `${generatedEmployeeId ? `Employee ID: ${generatedEmployeeId}. ` : ''}Staff record created without login account (no email provided). Admin notification sent.`,
                           duration: 6000,
                         });
                       } else {
-                        alert('Staff record created! No login account created as no email was provided.\nAdmin notification sent with next steps.');
+                        alert(`Staff record created!${generatedEmployeeId ? `\nEmployee ID: ${generatedEmployeeId}` : ''}\nNo login account created as no email was provided.\nAdmin notification sent with next steps.`);
                       }
                     }
                   } catch (err: any) { 

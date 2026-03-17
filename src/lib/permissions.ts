@@ -48,6 +48,17 @@ export const ALL_PERMISSIONS = {
   // Student actions
   PROMOTE_STUDENTS: 'promote_students',
 
+  // Expenses
+  VIEW_EXPENSES: 'view_expenses',
+  CREATE_EXPENSES: 'create_expenses',
+  EDIT_EXPENSES: 'edit_expenses',
+  DELETE_EXPENSES: 'delete_expenses',
+  APPROVE_EXPENSES: 'approve_expenses',
+  PAY_EXPENSES: 'pay_expenses',
+  MANAGE_EXPENSE_CATEGORIES: 'manage_expense_categories',
+  MANAGE_BUDGETS: 'manage_budgets',
+  VIEW_EXPENSE_REPORTS: 'view_expense_reports',
+
   // Leave Management
   VIEW_LEAVE_BALANCE: 'view_leave_balance',
   APPLY_LEAVE: 'apply_leave',
@@ -91,6 +102,15 @@ export const PERMISSION_LABELS: Record<string, string> = {
   view_users: 'View Users',
   manage_users: 'Manage Users',
   view_announcements: 'View Announcements',
+  view_expenses: 'View Expenses',
+  create_expenses: 'Create Expenses',
+  edit_expenses: 'Edit Expenses',
+  delete_expenses: 'Delete Expenses',
+  approve_expenses: 'Approve Expenses',
+  pay_expenses: 'Pay Expenses',
+  manage_expense_categories: 'Manage Expense Categories',
+  manage_budgets: 'Manage Budgets',
+  view_expense_reports: 'View Expense Reports',
   view_leave_balance: 'View Leave Balance',
   apply_leave: 'Apply Leave',
   view_own_leave_history: 'View Own Leave History',
@@ -132,6 +152,10 @@ export const PERMISSION_GROUPS = [
     permissions: ['view_fees', 'manage_fees'] as Permission[],
   },
   {
+    label: 'Expenses',
+    permissions: ['view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses', 'approve_expenses', 'pay_expenses', 'manage_expense_categories', 'manage_budgets', 'view_expense_reports'] as Permission[],
+  },
+  {
     label: 'Exams',
     permissions: ['view_exams', 'manage_exams'] as Permission[],
   },
@@ -167,18 +191,21 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_attendance', 'manage_attendance',
     'view_exams',
     'view_fees',
+    'view_expenses',
     'view_reports',
     'view_announcements',
     // Note: NO view_admin_dashboard (financial KPIs hidden)
     // Note: NO view_alumni (alumni page hidden)
     // Note: NO create/edit/delete/promote_students (read-only)
     // Note: NO manage_fees (view-only on fees page)
+    // Note: NO create/edit/delete/approve/pay expenses (view-only on expenses page)
   ],
   parent: [
     'view_dashboard',
     'view_students',
     'view_attendance',
     'view_fees',
+    'view_expenses',
     'view_reports',
     'view_announcements',
   ],

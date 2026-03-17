@@ -107,6 +107,7 @@ export const authOptions = {
           schema: user.schema || 'school',
           schoolId: user.schoolId || null,
           isSuperAdmin,
+          employeeId: user.employeeId || null,
         };
       },
     }),
@@ -130,6 +131,7 @@ export const authOptions = {
         token.lastName = user.lastName;
         token.schema = user.schema;
         token.isSuperAdmin = (user as any).isSuperAdmin ?? (user.role === 'super_admin');
+        token.employeeId = (user as any).employeeId || null;
       }
 
       // Always re-fetch subscription status for school users so middleware
@@ -178,6 +180,7 @@ export const authOptions = {
         session.user.subscriptionStatus = token.subscriptionStatus;
         session.user.trialEndsAt = token.trialEndsAt;
         session.user.plan = token.plan;
+        session.user.employeeId = token.employeeId;
       }
       return session;
     },

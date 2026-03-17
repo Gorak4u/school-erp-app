@@ -10,6 +10,18 @@ const DEFAULT_CUSTOM_ROLES = [
     permissions: DEFAULT_ROLE_PERMISSIONS.teacher,
     isDefault: true,
   },
+  {
+    name: 'Parent',
+    description: 'Default parent role — view access to dashboard, students, attendance, fees, and reports for their children.',
+    permissions: DEFAULT_ROLE_PERMISSIONS.parent,
+    isDefault: false,
+  },
+  {
+    name: 'Student',
+    description: 'Default student role — view access to dashboard, attendance, exams, and reports.',
+    permissions: DEFAULT_ROLE_PERMISSIONS.student,
+    isDefault: false,
+  },
 ];
 
 export async function POST() {

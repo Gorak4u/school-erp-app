@@ -89,6 +89,14 @@ export default function ProfilePage() {
                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   {role.charAt(0).toUpperCase() + role.slice(1)}
                 </p>
+                {user?.employeeId && user.role === 'teacher' && (
+                  <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                    theme === 'dark' ? 'bg-indigo-600/20 text-indigo-200' : 'bg-indigo-50 text-indigo-700'
+                  }`}>
+                    <span>Employee ID:</span>
+                    <span className="font-mono tracking-wide">{user.employeeId}</span>
+                  </div>
+                )}
                 <button className={`mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   theme === 'dark'
                     ? 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -149,6 +157,28 @@ export default function ProfilePage() {
                   }`}
                 />
               </div>
+              {user?.employeeId && user.role === 'teacher' && (
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Employee ID
+                  </label>
+                  <input
+                    type="text"
+                    value={user.employeeId}
+                    readOnly
+                    className={`w-full px-3 py-2 rounded-lg border font-mono tracking-wide ${
+                      theme === 'dark'
+                        ? 'bg-gray-800 border-indigo-600/40 text-indigo-200'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                    }`}
+                  />
+                  <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    This ID is auto-generated for staff accounts and is used for login and records.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${
                   theme === 'dark' ? 'text-gray-300' : 'text-gray-700'

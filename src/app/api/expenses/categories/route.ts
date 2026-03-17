@@ -6,7 +6,7 @@ import { getSessionContext } from '@/lib/apiAuth';
 function hasExpenseAccess(ctx: any) {
   if (ctx.role === 'admin' || ctx.isSuperAdmin) return true;
   const perms: string[] = ctx.permissions || [];
-  return perms.includes('expenses.view') || perms.includes('expenses.create') || perms.includes('expenses.manage_budgets');
+  return perms.includes('view_expenses') || perms.includes('create_expenses') || perms.includes('manage_expense_categories');
 }
 
 export async function GET(request: NextRequest) {
@@ -47,7 +47,13 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
-    if (ctx.role !== 'admin' && !ctx.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!hasExpenseAccess(ctx) && ctx.role !== 'admin' && !ctx.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    // Check for specific manage permission
+    const perms: string[] = ctx.permissions || [];
+    if (ctx.role !== 'admin' && !ctx.isSuperAdmin && !perms.includes('manage_expense_categories')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { name, description, color, icon, parentId } = body;

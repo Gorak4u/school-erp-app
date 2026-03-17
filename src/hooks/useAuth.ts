@@ -12,6 +12,7 @@ export interface User {
   schoolId?: string;
   classId?: string;
   grade?: string;
+  employeeId?: string | null;
 }
 
 export function useAuth() {
@@ -20,9 +21,10 @@ export function useAuth() {
   const user: User | null = session?.user ? {
     id: session.user.id || '',
     email: session.user.email || '',
-    firstName: session.user.firstName || '',
-    lastName: session.user.lastName || '',
-    role: session.user.role as any || 'student',
+    firstName: (session.user as any).firstName || '',
+    lastName: (session.user as any).lastName || '',
+    role: (session.user as any).role || 'student',
+    employeeId: (session.user as any).employeeId || null,
   } : null;
 
   return {

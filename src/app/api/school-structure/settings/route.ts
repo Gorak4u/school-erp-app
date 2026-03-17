@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const where = group ? { group, schoolId: ctx.schoolId! } : { schoolId: ctx.schoolId! };
+    // Super admins can see all schools, regular users are scoped to their school
+    const schoolFilter = (!ctx.isSuperAdmin && ctx.schoolId) ? { schoolId: ctx.schoolId } : {};
+    const where = group ? { ...schoolFilter, group } : schoolFilter;
 
     const settings = await schoolPrisma.schoolSetting.findMany({ where, orderBy: { key: 'asc' } });
 
@@ -34,18 +36,23 @@ export async function POST(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
+    // Super admins must have a schoolId to create settings
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'schoolId is required to create settings' }, { status: 400 });
+    }
+
     const { group, key, value } = await request.json();
 
     const setting = await schoolPrisma.schoolSetting.upsert({
       where: { 
         schoolId_group_key: { 
-          schoolId: ctx.schoolId!, 
+          schoolId: ctx.schoolId, 
           group, 
           key 
         } 
       },
       update: { value },
-      create: { schoolId: ctx.schoolId!, group, key, value },
+      create: { schoolId: ctx.schoolId, group, key, value },
     });
 
     return NextResponse.json({ setting }, { status: 201 });
@@ -60,6 +67,11 @@ export async function PUT(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+
+    // Super admins must have a schoolId to create/update settings
+    if (!ctx.schoolId) {
+      return NextResponse.json({ error: 'schoolId is required to save settings' }, { status: 400 });
+    }
 
     const { group, settings } = await request.json() as { group: string; settings: Record<string, string> };
 
