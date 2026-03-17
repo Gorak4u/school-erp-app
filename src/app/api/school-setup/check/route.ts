@@ -14,17 +14,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's school
-    console.log('🔍 [SETUP CHECK] Looking up user for email:', session.user.email);
-    const user = await (schoolPrisma as any).user.findUnique({
+    // Get user's school - use school_User model instead of User
+    console.log('🔍 [SETUP CHECK] Looking up school user for email:', session.user.email);
+    const schoolUser = await (schoolPrisma as any).school_User.findUnique({
       where: { email: session.user.email },
       include: { school: true }
     });
 
-    console.log('🔍 [SETUP CHECK] User found:', !!user);
-    console.log('🔍 [SETUP CHECK] School found:', !!user?.school);
+    console.log('🔍 [SETUP CHECK] School user found:', !!schoolUser);
+    console.log('🔍 [SETUP CHECK] School found:', !!schoolUser?.school);
 
-    if (!user || !user.school) {
+    if (!schoolUser || !schoolUser.school) {
       console.log('❌ [SETUP CHECK] School not found for user:', session.user.email);
       return NextResponse.json({ error: 'School not found' }, { status: 404 });
     }
@@ -37,10 +37,10 @@ export async function GET() {
       'school_email'
     ];
 
-    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', user.school.id);
+    console.log('🔍 [SETUP CHECK] Fetching settings for school ID:', schoolUser.school.id);
     const settings = await (schoolPrisma as any).schoolSetting.findMany({
       where: {
-        schoolId: user.school.id,
+        schoolId: schoolUser.school.id,
         key: { in: essentialSettings }
       }
     });
@@ -55,7 +55,7 @@ export async function GET() {
     // Check for academic years (critical for school operations)
     console.log('🔍 [SETUP CHECK] Checking academic years...');
     const academicYears = await (schoolPrisma as any).academicYear.findMany({
-      where: { schoolId: user.school.id }
+      where: { schoolId: schoolUser.school.id }
     });
 
     console.log('🔍 [SETUP CHECK] Found academic years:', academicYears.length);
