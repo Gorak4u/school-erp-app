@@ -228,6 +228,10 @@ function RegisterContent() {
       }
 
       // Auto-login after registration
+      console.log('Registration successful, attempting auto-login...');
+      console.log('Plan selected:', selectedPlan);
+      console.log('Is trial:', isTrial);
+      
       const loginResult = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
@@ -239,8 +243,17 @@ function RegisterContent() {
         return;
       }
 
+      console.log('Login successful, checking subscription status...');
+      
+      // Fetch session to verify subscription status
+      const sessionRes = await fetch('/api/auth/session');
+      const session = await sessionRes.json();
+      console.log('Session after login:', session);
+      console.log('Subscription status:', session?.user?.subscriptionStatus);
+
       // For trial users, skip payment and go to dashboard
       if (isTrial) {
+        console.log('Trial user detected, redirecting to dashboard...');
         setSuccess('Trial account created! Redirecting to dashboard...');
         setTimeout(() => {
           window.location.href = '/dashboard';

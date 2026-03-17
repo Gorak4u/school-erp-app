@@ -173,7 +173,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle pending_payment users - restrict access to billing pages only
-  if (effectiveStatus === 'pending_payment') {
+  // BUT: Trial users should NEVER have pending_payment status, so this only applies to paid plans
+  if (effectiveStatus === 'pending_payment' && token.plan !== 'trial') {
     // Allow API routes for payment processing
     if (pathname.startsWith('/api/')) return NextResponse.next();
     
