@@ -1449,36 +1449,135 @@ export default function SettingsPage() {
       {/* ─── CRUD Modal ─────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
-              <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {editingItem ? 'Edit' : 'Create'} {modalEntity.replace(/([A-Z])/g, ' $1').trim()}
-              </h3>
-              <div className="space-y-4">
-                {(modalFields[modalEntity] || []).map(field => (
-                  <div key={field.key}>
-                    <label className={label}>{field.label}</label>
-                    {field.type === 'checkbox' ? (
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={!!formData[field.key]} onChange={e => setFormData({ ...formData, [field.key]: e.target.checked })} className="w-4 h-4" />
-                        <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Enabled</span>
-                      </label>
-                    ) : field.type === 'select' ? (
-                      <select className={input} value={formData[field.key] || ''} onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}>
-                        <option value="">Select...</option>
-                        {field.options?.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    ) : (
-                      <input className={input} type={field.type || 'text'} value={formData[field.key] ?? ''} onChange={e => setFormData({ ...formData, [field.key]: field.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} />
-                    )}
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" 
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 20 }} 
+              className={`w-full max-w-lg max-h-[85vh] overflow-hidden rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`} 
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {editingItem ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        )}
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {editingItem ? 'Edit' : 'Create New'} {modalEntity.replace(/([A-Z])/g, ' $1').trim()}
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {editingItem ? 'Update the information below' : 'Fill in the details to create'}
+                      </p>
+                    </div>
                   </div>
-                ))}
+                  <button 
+                    onClick={() => setShowModal(false)}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button className={btnPrimary} disabled={saving} onClick={handleSave}>
-                  {saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
-                </button>
-                <button className={btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
+
+              {/* Modal Body */}
+              <div className="px-6 py-6 max-h-[calc(85vh-140px)] overflow-y-auto">
+                <div className="space-y-5">
+                  {(modalFields[modalEntity] || []).map(field => (
+                    <div key={field.key}>
+                      <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {field.label}
+                        {field.type !== 'checkbox' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      {field.type === 'checkbox' ? (
+                        <label className={`flex items-center gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${isDark ? 'border-gray-600 hover:bg-gray-700/50' : 'border-gray-300 hover:bg-gray-50'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!formData[field.key]} 
+                            onChange={e => setFormData({ ...formData, [field.key]: e.target.checked })} 
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                          />
+                          <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Enabled</span>
+                        </label>
+                      ) : field.type === 'select' ? (
+                        <select 
+                          className={`${input} rounded-xl`} 
+                          value={formData[field.key] || ''} 
+                          onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
+                        >
+                          <option value="">Select an option...</option>
+                          {field.options?.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      ) : (
+                        <input 
+                          className={`${input} rounded-xl`} 
+                          type={field.type || 'text'} 
+                          value={formData[field.key] ?? ''} 
+                          onChange={e => setFormData({ ...formData, [field.key]: field.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} 
+                          placeholder={`Enter ${field.label.toLowerCase()}...`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className={`px-6 py-4 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex gap-3">
+                  <button 
+                    className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDark 
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+                    }`}
+                    disabled={saving} 
+                    onClick={handleSave}
+                  >
+                    {saving ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {editingItem ? 'Update' : 'Create'}
+                      </span>
+                    )}
+                  </button>
+                  <button 
+                    className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+                      isDark 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}
+                    onClick={() => setShowModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

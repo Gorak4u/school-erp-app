@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     // Toast to creator
     const res = NextResponse.json({ expense }, { status: 201 });
-    res.headers.set('X-Toast', JSON.stringify({ type: 'info', title: '💸 Expense submitted', message: `Your expense "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')}) is pending approval.` }));
+    res.headers.set('X-Toast', JSON.stringify({ type: 'info', title: 'Expense submitted', message: `Your expense "${expense.title}" (₹${expense.amount.toLocaleString('en-IN')}) is pending approval.` }));
     return res;
   } catch (err: any) {
     console.error('POST /api/expenses:', err);

@@ -19,7 +19,7 @@ const TABS = [
   { id: 'reports',    label: 'Reports',    icon: '📈' },
 ];
 
-const BLANK_EXP_FORM = { title: '', description: '', amount: '', categoryId: '', dateIncurred: new Date().toISOString().split('T')[0], paymentMethod: '', priority: 'medium', vendorName: '', remarks: '', academicYear: '2024-25', budgetId: '' };
+const BLANK_EXP_FORM = { title: '', description: '', amount: '', categoryId: '', dateIncurred: new Date().toISOString().split('T')[0], paymentMethod: '', priority: 'medium', vendorName: '', remarks: '', academicYear: '', budgetId: '' };
 const BLANK_BUDGET_FORM = { name: '', description: '', totalAmount: '', categoryId: '', startDate: '', endDate: '', alertThreshold: '80', academicYear: '2024-25' };
 const BLANK_CAT_FORM = { name: '', description: '', color: '#6366f1', icon: '📦', parentId: '' };
 
@@ -279,7 +279,11 @@ export default function ExpensesPage() {
 
   const openAddExpense = () => {
     setEditingExp(null);
-    setExpForm({ ...BLANK_EXP_FORM, academicYear: selectedAY === 'all' ? '2024-25' : selectedAY });
+    // Get the active academic year or fallback to the first available year
+    const activeAcademicYear = academicYears.find(ay => ay.isActive)?.year || 
+                               academicYears[0]?.year || 
+                               new Date().getFullYear().toString();
+    setExpForm({ ...BLANK_EXP_FORM, academicYear: selectedAY === 'all' ? activeAcademicYear : selectedAY });
     setExpFormShow(true);
   };
 
@@ -480,6 +484,7 @@ export default function ExpensesPage() {
           categories={categories}
           budgets={budgets}
           isDark={isDark}
+          academicYears={academicYears}
         />
       )}
 
