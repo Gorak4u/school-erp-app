@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Student } from '../types';
@@ -40,6 +40,12 @@ export default function StudentTable({
   onPromoteSingle, onPromoteClass, onExitSingle
 }: StudentTableProps) {
   const router = useRouter();
+  const [currentPath, setCurrentPath] = useState('');
+  
+  // Set current path on client side only
+  useEffect(() => {
+    setCurrentPath(window.location.pathname);
+  }, []);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -508,22 +514,25 @@ export default function StudentTable({
     <>
       {/* Navigation Tabs */}
       <div className={`flex gap-1 mb-4 p-1 rounded-xl ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => router.push(tab.href)}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              // Check if current path matches the tab href
-              (typeof window !== 'undefined' && window.location.pathname === tab.href) ||
-              (tab.key === 'overview' && typeof window !== 'undefined' && window.location.pathname === '/students')
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                : theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-white'
-            }`}
-            title={`Navigate to ${tab.label}`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const isActive = currentPath === tab.href || 
+                          (tab.key === 'overview' && currentPath === '/students');
+          
+          return (
+            <button
+              key={tab.key}
+              onClick={() => router.push(tab.href)}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              }`}
+              title={`Navigate to ${tab.label}`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Student Table */}
