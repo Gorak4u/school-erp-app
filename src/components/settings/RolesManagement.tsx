@@ -351,26 +351,26 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                   <label className={`block text-sm font-semibold mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     Permissions <span className="text-red-500">*</span>
                   </label>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {Object.entries(PERMISSION_GROUPS).map(([group, groupData]) => (
-                      <div key={group} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                        <h4 className={`text-sm font-bold mb-3 capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div key={group} className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h4 className={`text-sm font-bold mb-2 capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {group.replace('_', ' ')} Permissions
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {groupData.permissions.map((perm: Permission) => (
-                            <label key={perm} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            <label key={perm} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all hover:scale-[1.02] ${
                               isDark 
-                                ? 'border-gray-600 hover:bg-gray-700/50' 
-                                : 'border-gray-300 hover:bg-gray-50'
+                                ? 'border-gray-600 hover:bg-gray-700/50 hover:border-gray-500' 
+                                : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                             }`}>
                               <input
                                 type="checkbox"
                                 checked={form.permissions.includes(perm)}
                                 onChange={() => togglePermission(perm)}
-                                className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                                className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500/30 focus:ring-offset-0"
                               />
-                              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                              <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                                 {PERMISSION_LABELS[perm] || perm}
                               </span>
                             </label>
