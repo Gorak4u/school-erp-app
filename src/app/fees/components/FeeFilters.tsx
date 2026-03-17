@@ -13,6 +13,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
     showColumnSettings, setShowColumnSettings, advancedFilters, setAdvancedFilters,
     filteredStudentSummaries, studentFeeSummaries, selectedStudents, setSelectedStudents,
     setShowBulkOperations, setShowExportModal, showAISuggestions, setShowAISuggestions, handleAISearch,
+    feeSuggestions,
   } = ctx;
   const { dropdowns } = useSchoolConfig();
 

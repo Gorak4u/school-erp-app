@@ -179,6 +179,7 @@ export function useFeeState() {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [feeSuggestions, setFeeSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchAnalytics, setSearchAnalytics] = useState({
     totalSearches: 0,
@@ -622,6 +623,7 @@ export function useFeeState() {
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,
     showAISuggestions, setShowAISuggestions,
+    feeSuggestions, setFeeSuggestions,
     handleAISearch,
     searchAnalytics, setSearchAnalytics,
     isLoading, setIsLoading,
