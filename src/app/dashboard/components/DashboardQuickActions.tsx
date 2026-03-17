@@ -58,10 +58,10 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
     },
     {
       id: 'generate-report',
-      title: 'Generate Report',
-      description: 'Create performance reports',
-      icon: '📊',
-      link: '/reports?action=generate',
+      title: 'View Fees',
+      description: 'Manage fee collection and reports',
+      icon: '�',
+      link: '/fees',
       color: 'cyan'
     },
     {
@@ -75,10 +75,10 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
     },
     {
       id: 'send-notice',
-      title: 'Send Notice',
-      description: 'Broadcast announcements',
-      icon: '📢',
-      link: '/notices?action=send',
+      title: 'View Students',
+      description: 'Manage student records',
+      icon: '�',
+      link: '/students',
       color: 'red'
     },
     {
@@ -91,10 +91,10 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
     },
     {
       id: 'update-grades',
-      title: 'Update Grades',
-      description: 'Enter student grades',
-      icon: '🎯',
-      link: '/grades?action=update',
+      title: 'View Attendance',
+      description: 'Track student attendance',
+      icon: '📊',
+      link: '/attendance',
       color: 'green'
     }
   ];
@@ -176,7 +176,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
                   className={`relative p-4 rounded-lg border transition-all duration-300 cursor-pointer ${
                     getColorClasses(action.color)
                   } ${
-                    theme === 'light' ? 'border-gray-700' : 'border-gray-200'
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                   }`}
                 >
                   {action.badge && (
@@ -221,11 +221,11 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
 
       {/* Additional Quick Stats */}
       <div className={`mt-6 pt-6 border-t ${
-        theme === 'light' ? 'border-gray-700' : 'border-gray-200'
+        theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
       }`}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className={`text-center p-3 rounded-lg ${
-            theme === 'light' ? 'bg-gray-700/50' : 'bg-gray-50'
+            theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               24
@@ -235,7 +235,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
             </div>
           </div>
           <div className={`text-center p-3 rounded-lg ${
-            theme === 'light' ? 'bg-gray-700/50' : 'bg-gray-50'
+            theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               8
@@ -245,7 +245,7 @@ export default function DashboardQuickActions({ theme }: DashboardQuickActionsPr
             </div>
           </div>
           <div className={`text-center p-3 rounded-lg ${
-            theme === 'light' ? 'bg-gray-700/50' : 'bg-gray-50'
+            theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
           }`}>
             <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               3
