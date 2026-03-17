@@ -78,17 +78,6 @@ export async function POST(req: Request) {
       slugSuffix++;
     }
 
-    // Auto-generate unique domain from school name
-    const baseDomain = generateSubdomain(schoolName);
-    let domain = baseDomain;
-    // Ensure uniqueness by appending a number if taken
-    let domainSuffix = 1;
-    while (true) {
-      const existing = await (saasPrisma as any).school.findUnique({ where: { domain } });
-      if (!existing) break;
-      domain = `${baseDomain}-${domainSuffix++}`;
-    }
-
     // Look up the plan config
     const planConfig = await (saasPrisma as any).plan.findUnique({ where: { name: plan } });
 
@@ -99,6 +88,21 @@ export async function POST(req: Request) {
 
     // Determine if this is a free/trial plan by price (not by name)
     const isTrialPlan = (planConfig?.priceMonthly ?? 0) === 0;
+
+    // Only generate domain for paid plans (not trial users)
+    let domain = null;
+    if (!isTrialPlan) {
+      // Auto-generate unique domain from school name
+      const baseDomain = generateSubdomain(schoolName);
+      domain = baseDomain;
+      // Ensure uniqueness by appending a number if taken
+      let domainSuffix = 1;
+      while (true) {
+        const existing = await (saasPrisma as any).school.findUnique({ where: { domain } });
+        if (!existing) break;
+        domain = `${baseDomain}-${domainSuffix++}`;
+      }
+    }
 
     // Calculate price based on billing cycle
     const price = billingCycle === 'yearly'
@@ -189,13 +193,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: isTrialPlan
-        ? `Trial account created! You have ${trialDays} days to explore.`
-        : 'Account created successfully!',
+        ? `Trial account created! You have ${trialDays} days to explore. Upgrade to a paid plan to get a custom domain (yourname.schoolerp.com).`
+        : 'Account created successfully! Your custom domain will be ready shortly.',
       school: {
         id: result.school.id,
         name: result.school.name,
         slug: result.school.slug,
-        domain: result.school.domain, // Include domain in response
+        domain: result.school.domain, // Will be null for trial users
       },
       user: {
         id: result.user.id,
