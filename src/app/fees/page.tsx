@@ -40,16 +40,40 @@ import StudentFinancialProfile from './components/StudentFinancialProfile';
 import FeeWorkflows from './components/FeeWorkflows';
 import DiscountManagement from './components/discount/DiscountManagement';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PermissionGuard, AdminOnly, RequirePermission } from '@/components/PermissionGuard';
 
 export default function FeesPage() {
   const { theme } = useTheme();
   const state = useFeeState();
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<any>(null);
-  
-  // User role detection (in real app, this would come from auth context)
-  const [userRole, setUserRole] = useState('admin'); // Default to admin for demo
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
+  
+  // Permission-based access control
+  const { 
+    hasPermission, 
+    isAdmin, 
+    isTeacher,
+    permissions 
+  } = usePermissions();
+
+  // Filter tabs based on user permissions
+  const availableTabs = [
+    { id: 'dashboard', label: '📊 Dashboard', permission: null },
+    { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
+    { id: 'collections', label: '💵 Collections', permission: 'manage_fees' },
+    { id: 'discounts', label: '🎁 Discounts', permission: 'manage_fees' },
+    { id: 'reports', label: '📈 Reports', permission: null },
+    { id: 'invoices', label: '🧾 Invoices', permission: 'view_fees' },
+    { id: 'analytics', label: '📉 Analytics', permission: null },
+    { id: 'notifications', label: '🔔 Notifications', permission: null },
+  ].filter(tab => {
+    // If no permission required, always show
+    if (!tab.permission) return true;
+    // Otherwise, check if user has the permission
+    return hasPermission(tab.permission);
+  });
 
   // Build handler context incrementally
   const ctx: any = { ...state, theme, feeCollections: state.feeCollections };
@@ -107,17 +131,7 @@ export default function FeesPage() {
 
         {/* Tab Navigation — outside the filter tile, above the data table */}
         <div className={`flex gap-1 overflow-x-auto mb-4 pb-1 scrollbar-hide`}>
-          {[
-            { id: 'all-students', label: '👥 All Students' },
-            { id: 'fee-records', label: '📋 Fee Records' },
-            { id: 'structures', label: '🏗️ Structures' },
-            { id: 'collections', label: '💵 Collections' },
-            { id: 'discounts', label: '🎁 Discounts' },
-            { id: 'reports', label: '📈 Reports' },
-            { id: 'invoices', label: '🧾 Invoices' },
-            { id: 'analytics', label: '📉 Analytics' },
-            { id: 'notifications', label: '🔔 Notifications' },
-                      ].map(tab => (
+          {availableTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => ctx.setActiveTab(tab.id)}
@@ -142,7 +156,7 @@ export default function FeesPage() {
         ) : activeTab === 'notifications' ? (
           <FeeNotificationManager theme={theme} />
         ) : activeTab === 'discounts' ? (
-          <DiscountManagement theme={theme} userRole={userRole} />
+          <DiscountManagement theme={theme} />
         ) : (
           <FeeTabContent ctx={ctx} />
         )}
@@ -156,7 +170,6 @@ export default function FeesPage() {
                 setShowFeeStructureModal={setShowFeeStructureModal} 
                 showFeeStructureModal={showFeeStructureModal} 
                 theme={theme}
-                userRole={userRole}
               />
             ) : (
               <FeeStructureModal 
@@ -165,7 +178,7 @@ export default function FeesPage() {
                 setFeeStructureForm={setFeeStructureForm} 
                 setShowFeeStructureModal={setShowFeeStructureModal} 
                 showFeeStructureModal={showFeeStructureModal} 
-                theme={theme} 
+                theme={theme}
               />
             )}
       <FeeColumnSettingsModal 
@@ -264,16 +277,29 @@ export default function FeesPage() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setShowFeeStructureModal(true)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                <RequirePermission permission="manage_fees">
+                  <button
+                    onClick={() => setShowFeeStructureModal(true)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      theme === 'dark'
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
+                    }`}
+                  >
+                    💰 Create Fee Structure
+                  </button>
+                </RequirePermission>
+                
+                {/* Show message for users without manage_fees permission */}
+                {!hasPermission('manage_fees') && (
+                  <div className={`px-4 py-2 rounded-lg text-sm ${
                     theme === 'dark'
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
-                >
-                  💰 Create Fee Structure
-                </button>
+                      ? 'bg-gray-800 text-gray-400 border border-gray-700'
+                      : 'bg-gray-100 text-gray-600 border border-gray-300'
+                  }`}>
+                    🔒 Fee management requires additional permissions
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-6">
