@@ -16,50 +16,63 @@ export interface StudentIdCardData {
 const createCardContent = (data: StudentIdCardData) => {
   const issueDate = data.issueDate || new Date().toISOString().split('T')[0];
   const dobLine = data.dateOfBirth
-    ? `<p style="margin: 0; font-size: 14px; color: #94a3b8;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
+    ? `<p style="margin: 0; font-size: 11px; color: #94a3b8;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
     : '';
   const logoBlock = data.schoolLogo
-    ? `<img src="${data.schoolLogo}" alt="${data.schoolName}" style="width: 56px; height: 56px; object-fit: contain; border-radius: 14px; background: rgba(255,255,255,0.16); padding: 6px;" />`
+    ? `<img src="${data.schoolLogo}" alt="${data.schoolName}" style="width: 48px; height: 48px; object-fit: contain; border-radius: 12px; background: rgba(255,255,255,0.16); padding: 4px;" />`
     : '';
   const photoBlock = data.photo
-    ? `<img src="${data.photo}" alt="Student" style="width: 110px; height: 110px; object-fit: cover; border-radius: 12px; border: 3px solid #fff;"/>`
-    : `<div style="width: 110px; height: 110px; background: rgba(255,255,255,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>`;
-  const metaRows = [
-    data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;"><strong style="color:#f8fafc;">Blood Group</strong><span>${data.bloodGroup}</span></div>` : '',
-    data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : '',
-    data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : '',
-    data.address ? `<div style="margin-top:8px;font-size:12px;color:#94a3b8;line-height:1.5;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : '',
-  ].filter(Boolean).join('');
+    ? `<img src="${data.photo}" alt="Student" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"/>`
+    : `<div style="width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>`;
 
   return `
-    <div style="width: 360px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827);">
-      <div style="padding: 24px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-          <div>
-            <span style="display: inline-flex; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em;">${data.schoolName}</span>
-            <h1 style="margin: 8px 0 0; font-size: 22px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
-          </div>
+    <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
+      <!-- Header Section -->
+      <div style="padding: 12px 16px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
           ${logoBlock}
+          <div>
+            <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
+            <h1 style="margin: 2px 0 0; font-size: 14px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
+          </div>
         </div>
-        <p style="margin: 8px 0 0; font-size: 12px; color: rgba(248,250,252,0.8);">Issued: ${issueDate}</p>
+        <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Issued: ${issueDate}</p>
       </div>
-      <div style="padding: 24px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;">
-        <div style="display: flex; justify-content: center; margin-top: 20px;">${photoBlock}</div>
-        <div style="height: 1px; background: rgba(255,255,255,0.15); margin: 16px 0;"></div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 14px;">
-          <strong style="color: #f8fafc;">Name</strong>
-          <span>${data.name}</span>
+      
+      <!-- Main Content - Horizontal Layout -->
+      <div style="padding: 16px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; display: flex; gap: 16px;">
+        <!-- Left Section - Photo -->
+        <div style="flex-shrink: 0;">
+          ${photoBlock}
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 14px;">
-          <strong style="color: #f8fafc;">Admission No</strong>
-          <span>${data.admissionNo}</span>
+        
+        <!-- Right Section - Student Information -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+          <!-- Basic Info -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+              <strong style="color: #f8fafc;">Name</strong>
+              <span>${data.name}</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+              <strong style="color: #f8fafc;">Admission No</strong>
+              <span>${data.admissionNo}</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+              <strong style="color: #f8fafc;">Class</strong>
+              <span>${data.className}</span>
+            </div>
+            ${dobLine}
+          </div>
+          
+          <!-- Additional Info -->
+          <div style="font-size: 9px; margin-top: 2px;">
+            ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Blood Group</strong><span>${data.bloodGroup}</span></div>` : ''}
+            ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
+            ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
+            ${data.address ? `<div style="margin-top:2px;font-size:8px;color:#94a3b8;line-height:1.1;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
+          </div>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 14px;">
-          <strong style="color: #f8fafc;">Class</strong>
-          <span>${data.className}</span>
-        </div>
-        ${dobLine}
-        ${metaRows}
       </div>
     </div>
   `.trim();
@@ -78,7 +91,7 @@ export function buildStudentIdCardDocument(data: StudentIdCardData) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>ID Card</title>
         <style>
-          body { margin: 0; background: #0f172a; display: flex; justify-content: center; padding: 40px; }
+          body { margin: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
         </style>
       </head>
       <body>

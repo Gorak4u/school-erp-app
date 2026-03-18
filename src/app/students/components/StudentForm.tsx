@@ -1400,28 +1400,98 @@ export default function StudentForm({
                         </div>
                       );
                     })}
+                    {/* Transport Fees Section */}
+                    {transportInfo.routeId && (
+                      <>
+                        <div className="flex justify-between items-center py-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                              🚌 Transport ({selectedRoute?.routeNumber} — {selectedRoute?.routeName})
+                            </span>
+                            {transportDiscount.hasDiscount && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded">DISCOUNT</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${transportDiscount.hasDiscount ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                              ₹{transportFeeCalcs.baseAnnual.toLocaleString('en-IN')}/year
+                            </span>
+                            {transportDiscount.hasDiscount && (
+                              <>
+                                <span className="text-xs text-green-500">(-₹{transportFeeCalcs.discountAmount.toLocaleString('en-IN')})</span>
+                                <span className={`text-sm font-bold text-green-600 dark:text-green-400`}>
+                                  ₹{transportFeeCalcs.finalAnnual.toLocaleString('en-IN')}/year
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {transportDiscount.hasDiscount && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            {transportDiscount.discountType === 'full_waiver' 
+                              ? 'Full waiver' 
+                              : `${transportDiscount.discountType === 'percentage' ? `${transportDiscount.discountValue}%` : `₹${transportDiscount.discountValue}`} • ${transportDiscount.reason || 'Reason provided'}`
+                            }
+                          </div>
+                        )}
+                      </>
+                    )}
                     <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
                     <div className="flex justify-between">
-                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Total Fees:</span>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Academic Fees:</span>
                       <span className={`text-sm font-semibold ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
                         ₹{tuitionAnnual.toLocaleString('en-IN')}/year
                       </span>
                     </div>
-                    {discountData.hasDiscount && feeCalcs.discountAmount > 0 && (
+                    {transportInfo.routeId && (
+                      <div className="flex justify-between">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Transport Fees:</span>
+                        <span className={`text-sm font-semibold ${transportDiscount.hasDiscount ? 'line-through text-gray-400' : theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                          ₹{transportFeeCalcs.baseAnnual.toLocaleString('en-IN')}/year
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Total Base Fees:</span>
+                      <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                        ₹{combinedAnnual.toLocaleString('en-IN')}/year
+                      </span>
+                    </div>
+                    {(discountData.hasDiscount && feeCalcs.discountAmount > 0) || (transportDiscount.hasDiscount && transportFeeCalcs.discountAmount > 0) ? (
                       <>
+                        {discountData.hasDiscount && feeCalcs.discountAmount > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-green-600 dark:text-green-400">Academic Discount:</span>
+                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">-₹{feeCalcs.discountAmount.toLocaleString('en-IN')}/year</span>
+                          </div>
+                        )}
+                        {transportDiscount.hasDiscount && transportFeeCalcs.discountAmount > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-green-600 dark:text-green-400">Transport Discount:</span>
+                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">-₹{transportFeeCalcs.discountAmount.toLocaleString('en-IN')}/year</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
-                          <span className="text-sm text-green-600 dark:text-green-400">Discount Applied:</span>
-                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">-₹{feeCalcs.discountAmount.toLocaleString('en-IN')}/year</span>
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">Total Discount:</span>
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">-₹{(feeCalcs.discountAmount + transportFeeCalcs.discountAmount).toLocaleString('en-IN')}/year</span>
                         </div>
                         <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
                         <div className="flex justify-between items-center">
                           <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Final Annual Fees:</span>
                           <span className="text-base font-bold text-blue-500">
-                            ₹{tuitionFinalTotal.toLocaleString('en-IN')}/year
+                            ₹{combinedAnnual.toLocaleString('en-IN')}/year
                           </span>
                         </div>
                         <div className={`flex items-center justify-center gap-2 p-2 rounded-lg mt-1 ${theme === 'dark' ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
-                          <span className="text-sm font-semibold">🎉 Savings: ₹{feeCalcs.discountAmount.toLocaleString('en-IN')} ({feeCalcs.savingsPercent}% off)</span>
+                          <span className="text-sm font-semibold">🎉 Total Savings: ₹{(feeCalcs.discountAmount + transportFeeCalcs.discountAmount).toLocaleString('en-IN')} ({Math.round(((feeCalcs.discountAmount + transportFeeCalcs.discountAmount) / (tuitionAnnual + transportFeeCalcs.baseAnnual)) * 100)}% off)</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} />
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Final Annual Fees:</span>
+                          <span className="text-base font-bold text-blue-500">
+                            ₹{combinedAnnual.toLocaleString('en-IN')}/year
+                          </span>
                         </div>
                       </>
                     )}
@@ -1437,7 +1507,7 @@ export default function StudentForm({
                           <div key={opt.label} className={`p-2 rounded border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{opt.label}</p>
                             <p className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-                              ₹{Math.round(tuitionFinalTotal / opt.divisor).toLocaleString('en-IN')}
+                              ₹{Math.round(combinedAnnual / opt.divisor).toLocaleString('en-IN')}
                             </p>
                             {opt.divisor > 1 && <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>× {opt.divisor}</p>}
                           </div>

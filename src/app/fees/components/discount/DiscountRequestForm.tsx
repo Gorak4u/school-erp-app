@@ -238,6 +238,40 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     });
   }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames]);
 
+  // Map classes with their fee structures
+  const classesWithFees = useMemo(() => {
+    return classes.map((cls: any) => {
+      // Find fee structures for this class
+      const classFeeStructures = feeStructures.filter((fs: any) => 
+        fs.class?.id === cls.id || fs.classId === cls.id
+      );
+      
+      // Calculate total fees from all structures for this class
+      const monthlyFees = classFeeStructures
+        .filter((fs: any) => fs.category === 'monthly' || fs.frequency === 'monthly')
+        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+      
+      const yearlyFees = classFeeStructures
+        .filter((fs: any) => fs.category === 'yearly' || fs.frequency === 'yearly')
+        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+      
+      const totalFees = classFeeStructures
+        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+
+      return {
+        ...cls,
+        // Count students from sections
+        studentCount: cls.sections?.reduce((sum: number, section: any) => sum + (section.studentCount || 0), 0) || 0,
+        // Fee information
+        monthlyFee: monthlyFees > 0 ? monthlyFees : null,
+        yearlyFee: yearlyFees > 0 ? yearlyFees : null,
+        totalFee: totalFees > 0 ? totalFees : null,
+        feeStructures: classFeeStructures,
+        hasFeeData: classFeeStructures.length > 0
+      };
+    });
+  }, [classes, feeStructures]);
+
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -685,28 +719,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Classes:</div>
                             <div className="flex flex-wrap gap-1">
                               {formData.classIds.slice(0, 8).map((classId) => {
-                                const cls = classes.find((c: any) => c.id === classId);
+                                const cls = classesWithFees.find((c: any) => c.id === classId);
                                 return cls ? (
                                   <span key={classId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                                     {cls.name}
-                                    {cls.feeStructure?.monthlyFee && (
+                                    {cls.monthlyFee && (
                                       <span className="ml-1 text-green-800 dark:text-green-200">
-                                        ₹{cls.feeStructure.monthlyFee.toLocaleString()}/mo
+                                        ₹{cls.monthlyFee.toLocaleString()}/mo
                                       </span>
                                     )}
-                                    {cls.feeStructure?.yearlyFee && !cls.feeStructure.monthlyFee && (
+                                    {cls.yearlyFee && !cls.monthlyFee && (
                                       <span className="ml-1 text-blue-800 dark:text-blue-200">
-                                        ₹{cls.feeStructure.yearlyFee.toLocaleString()}/yr
-                                      </span>
-                                    )}
-                                    {cls.fees?.monthlyFee && (
-                                      <span className="ml-1 text-green-800 dark:text-green-200">
-                                        ₹{cls.fees.monthlyFee.toLocaleString()}/mo
-                                      </span>
-                                    )}
-                                    {cls.fees?.yearlyFee && !cls.fees?.monthlyFee && (
-                                      <span className="ml-1 text-blue-800 dark:text-blue-200">
-                                        ₹{cls.fees.yearlyFee.toLocaleString()}/yr
+                                        ₹{cls.yearlyFee.toLocaleString()}/yr
                                       </span>
                                     )}
                                     <button
@@ -735,7 +759,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         
                         <div className={`max-h-56 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                           <div className="space-y-1">
-                            {classes
+                            {classesWithFees
                               .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
                               .map((cls: any) => (
                               <label key={cls.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
@@ -759,27 +783,17 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     {cls.studentCount && <span>{cls.studentCount}st</span>}
                                   </div>
                                   <div className="flex gap-2 truncate">
-                                    {cls.feeStructure?.monthlyFee && (
+                                    {cls.monthlyFee && (
                                       <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                                        ₹{cls.feeStructure.monthlyFee.toLocaleString()}/mo
+                                        ₹{cls.monthlyFee.toLocaleString()}/mo
                                       </span>
                                     )}
-                                    {cls.feeStructure?.yearlyFee && (
+                                    {cls.yearlyFee && (
                                       <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                                        ₹{cls.feeStructure.yearlyFee.toLocaleString()}/yr
+                                        ₹{cls.yearlyFee.toLocaleString()}/yr
                                       </span>
                                     )}
-                                    {cls.fees?.monthlyFee && (
-                                      <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                                        ₹{cls.fees.monthlyFee.toLocaleString()}/mo
-                                      </span>
-                                    )}
-                                    {cls.fees?.yearlyFee && (
-                                      <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                                        ₹{cls.fees.yearlyFee.toLocaleString()}/yr
-                                      </span>
-                                    )}
-                                    {!cls.feeStructure?.monthlyFee && !cls.feeStructure?.yearlyFee && !cls.fees?.monthlyFee && !cls.fees?.yearlyFee && (
+                                    {!cls.monthlyFee && !cls.yearlyFee && (
                                       <span className="text-xs text-gray-400">
                                         No fee data
                                       </span>
