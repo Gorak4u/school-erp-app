@@ -99,7 +99,7 @@ export function validateSubdomain(subdomain: string): { valid: boolean; error?: 
  */
 export function extractSubdomain(hostname: string): string | null {
   const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
-  const host = hostname.split(':')[0];
+  const host = hostname.split(':')[0]; // Remove port if present
 
   if (appDomain === 'localhost') {
     if (host === 'localhost' || host === 'www.localhost' || host === '127.0.0.1') return null;

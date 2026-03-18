@@ -3101,7 +3101,7 @@ export default function SettingsPage() {
                     </svg>
                   </div>
                   <div>
-                    <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Settings & Configuration</h1>
+                    <h1 className={`settings-header text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Settings & Configuration</h1>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
                       {loading ? 'Loading configuration...' : canManageSettings ? 'Manage your school ERP system settings' : 'View school ERP system settings (Read-only)'}
                       {activeAY && <span className="ml-2 px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded-full text-xs font-medium">AY: {activeAY.name}</span>}

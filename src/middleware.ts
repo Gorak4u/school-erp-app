@@ -74,6 +74,13 @@ export async function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-school-subdomain', schoolSubdomain);
 
+    // On a subdomain, if user is accessing root path, redirect to school login
+    if (pathname === '/' || pathname === '') {
+      const loginUrl = new URL('/school-login', request.url);
+      loginUrl.searchParams.set('subdomain', schoolSubdomain);
+      return NextResponse.redirect(loginUrl);
+    }
+
     // On a subdomain, only allow: school-login page, forgot/reset-password, and API routes
     const subdomainPublic = ['/school-login', '/forgot-password', '/reset-password', '/api/'];
     const isPublicOnSubdomain = subdomainPublic.some(r => pathname === r || pathname.startsWith(r));
