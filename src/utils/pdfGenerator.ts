@@ -10,38 +10,68 @@ export interface ReceiptData {
 }
 
 export class PDFGenerator {
+  private static showToast(payload: { type: string; title: string; message: string; duration: number }) {
+    if ((window as any).toast) {
+      (window as any).toast(payload);
+    }
+  }
+
+  private static getElement(elementId: string): HTMLElement {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      throw new Error('Element not found');
+    }
+    return element;
+  }
+
+  private static async captureElementCanvas(elementId: string): Promise<HTMLCanvasElement> {
+    const element = this.getElement(elementId);
+    return html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: element.scrollWidth,
+      height: element.scrollHeight
+    });
+  }
+
+  private static async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/png');
+    });
+    if (!blob) {
+      throw new Error('Failed to create image blob');
+    }
+    return blob;
+  }
+
+  private static downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   /**
    * Generate PDF from HTML element
    */
   static async generateFromElement(elementId: string, filename: string): Promise<void> {
     try {
-      const element = document.getElementById(elementId);
-      if (!element) {
-        throw new Error('Element not found');
-      }
-
-      // Show loading state
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'info',
-          title: 'Generating PDF...',
-          message: 'Please wait while we create your receipt',
-          duration: 2000
-        });
-      }
-
-      // Create canvas from HTML element
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: element.scrollWidth,
-        height: element.scrollHeight
+      this.showToast({
+        type: 'info',
+        title: 'Generating PDF...',
+        message: 'Please wait while we create your receipt',
+        duration: 2000
       });
 
-      // Create PDF
+      const canvas = await this.captureElementCanvas(elementId);
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -49,18 +79,15 @@ export class PDFGenerator {
         format: 'a4'
       });
 
-      // Calculate dimensions to fit A4 page
       const imgWidth = 210; // A4 width in mm
       const pageHeight = 297; // A4 height in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;
 
-      // Add image to PDF
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // Add new pages if content is longer than one page
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
@@ -68,31 +95,94 @@ export class PDFGenerator {
         heightLeft -= pageHeight;
       }
 
-      // Save PDF
       pdf.save(filename);
 
-      // Show success message
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'success',
-          title: 'PDF Downloaded Successfully',
-          message: `Receipt saved as ${filename}`,
-          duration: 3000
-        });
-      }
+      this.showToast({
+        type: 'success',
+        title: 'PDF Downloaded Successfully',
+        message: `Receipt saved as ${filename}`,
+        duration: 3000
+      });
 
     } catch (error) {
       console.error('PDF generation failed:', error);
-      
-      // Show error message
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'error',
-          title: 'PDF Generation Failed',
-          message: 'Unable to generate PDF. Please try again.',
-          duration: 5000
+      this.showToast({
+        type: 'error',
+        title: 'PDF Generation Failed',
+        message: 'Unable to generate PDF. Please try again.',
+        duration: 5000
+      });
+    }
+  }
+
+  static async downloadElementAsImage(elementId: string, filename: string): Promise<void> {
+    try {
+      this.showToast({
+        type: 'info',
+        title: 'Generating Image...',
+        message: 'Please wait while we create your receipt image',
+        duration: 2000
+      });
+      const canvas = await this.captureElementCanvas(elementId);
+      const blob = await this.canvasToBlob(canvas);
+      this.downloadBlob(blob, filename);
+      this.showToast({
+        type: 'success',
+        title: 'Image Downloaded Successfully',
+        message: `Receipt saved as ${filename}`,
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Image generation failed:', error);
+      this.showToast({
+        type: 'error',
+        title: 'Image Generation Failed',
+        message: 'Unable to generate image. Please try again.',
+        duration: 5000
+      });
+    }
+  }
+
+  static async shareElementAsImage(elementId: string, options: { fileName: string; title: string; text: string }): Promise<void> {
+    try {
+      const canvas = await this.captureElementCanvas(elementId);
+      const blob = await this.canvasToBlob(canvas);
+
+      if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+        this.downloadBlob(blob, options.fileName);
+        this.showToast({
+          type: 'info',
+          title: 'Share Not Supported',
+          message: 'Saved the receipt image instead because sharing is not supported on this device.',
+          duration: 4000
         });
+        return;
       }
+
+      const file = new File([blob], options.fileName, { type: 'image/png' });
+      const shareNavigator = navigator as Navigator & { canShare?: (data: any) => boolean };
+      const shareDataWithFile = { title: options.title, text: options.text, files: [file] };
+      const shareData = shareNavigator.canShare?.(shareDataWithFile)
+        ? shareDataWithFile
+        : { title: options.title, text: options.text };
+
+      await navigator.share(shareData as any);
+
+      this.showToast({
+        type: 'success',
+        title: 'Receipt Shared',
+        message: 'Receipt shared successfully.',
+        duration: 3000
+      });
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return;
+      console.error('Receipt share failed:', error);
+      this.showToast({
+        type: 'error',
+        title: 'Share Failed',
+        message: 'Unable to share receipt. Please try again.',
+        duration: 5000
+      });
     }
   }
 

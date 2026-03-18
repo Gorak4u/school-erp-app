@@ -1049,17 +1049,13 @@ model DiscountRequest {
   approvedByEmail  String?
   approvedByName   String?
   approvedAt       DateTime?
-  approvalNote     String?
-  rejectedBy       String?
-  rejectedByEmail  String?
-  rejectedAt       DateTime?
   rejectionReason  String?
-  appliedBy        String?
-  appliedByEmail   String?
-  appliedAt        DateTime?
-  appliedCount     Int?
   validFrom        String
   validTo          String
+  bulkDiscountType String?                   // 'all', 'class_only', 'transport_only'
+  bulkTargetType   String?                   // 'all_students', 'specific_classes'
+  mediumIds        String                    @default("[]")
+  transportRouteIds String                   @default("[]")
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
   applications     DiscountApplication[]

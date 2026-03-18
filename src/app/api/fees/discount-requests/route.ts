@@ -26,6 +26,10 @@ async function validateDiscountApplication(
     classIds: string[];
     sectionIds: string[];
     academicYear: string;
+    bulkDiscountType?: string; // 'all', 'class_only', 'transport_only'
+    bulkTargetType?: string; // 'all_students', 'specific_classes'
+    mediumIds?: string[];
+    transportRouteIds?: string[];
   },
   ctx: SessionContext
 ) {
@@ -60,11 +64,86 @@ async function validateDiscountApplication(
     };
 
     // Build query based on scope
-    if ((discountData.scope === 'student' || discountData.scope === 'bulk') && discountData.studentIds.length > 0) {
+    if (discountData.scope === 'student' && discountData.studentIds.length > 0) {
       baseWhere.studentId = { in: discountData.studentIds };
       arrearsWhere.studentId = { in: discountData.studentIds };
+    } else if (discountData.scope === 'bulk') {
+      // Handle new bulk discount logic
+      if (discountData.bulkTargetType === 'specific_classes') {
+        // Build query for specific classes with medium filtering
+        let classFilter: any = {};
+        
+        if (discountData.mediumIds && discountData.mediumIds.length > 0) {
+          classFilter.mediumId = { in: discountData.mediumIds };
+        }
+        
+        if (discountData.classIds && discountData.classIds.length > 0) {
+          classFilter.id = { in: discountData.classIds };
+        }
+        
+        if (Object.keys(classFilter).length > 0) {
+          // Find students in the specified classes/mediums
+          const studentsInClasses = await (schoolPrisma as any).Student.findMany({
+            where: {
+              class: {
+                ...classFilter
+              },
+              ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {})
+            },
+            select: { id: true }
+          });
+          
+          const studentIds = studentsInClasses.map((s: any) => s.id);
+          
+          if (studentIds.length > 0) {
+            baseWhere.studentId = { in: studentIds };
+            arrearsWhere.studentId = { in: studentIds };
+          } else {
+            // If no students found, make query fail safely
+            baseWhere.studentId = 'impossible-no-students-found';
+            arrearsWhere.studentId = 'impossible-no-students-found';
+          }
+        } else {
+          // No class/medium filter specified - apply to all students
+          // No additional filtering needed
+        }
+      }
+      // For bulkTargetType === 'all_students', no additional filtering needed
+      
+      // Handle transport route filtering for transport-only discounts
+      if (discountData.bulkDiscountType === 'transport_only' && 
+          discountData.transportRouteIds && 
+          discountData.transportRouteIds.length > 0) {
+        // Find students assigned to selected transport routes
+        const transportStudents = await (schoolPrisma as any).transportStudent.findMany({
+          where: {
+            routeId: { in: discountData.transportRouteIds },
+            ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {})
+          },
+          select: { studentId: true }
+        });
+        
+        const transportStudentIds = transportStudents.map((s: any) => s.studentId);
+        
+        if (transportStudentIds.length > 0) {
+          // Intersect with existing student filter if present
+          if (baseWhere.studentId && baseWhere.studentId.in) {
+            const existingStudentIds = baseWhere.studentId.in as string[];
+            const intersectedIds = existingStudentIds.filter(id => transportStudentIds.includes(id));
+            baseWhere.studentId = { in: intersectedIds };
+            arrearsWhere.studentId = { in: intersectedIds };
+          } else {
+            baseWhere.studentId = { in: transportStudentIds };
+            arrearsWhere.studentId = { in: transportStudentIds };
+          }
+        } else {
+          // No students found on selected routes
+          baseWhere.studentId = 'impossible-no-transport-students-found';
+          arrearsWhere.studentId = 'impossible-no-transport-students-found';
+        }
+      }
     } else if (discountData.scope === 'class') {
-      // Resolve class to student IDs (simplified version)
+      // Legacy class scope support - keep for backward compatibility
       if (discountData.classIds.length > 0) {
         const classRecords = await (schoolPrisma as any).Class.findMany({
           where: {
@@ -377,7 +456,8 @@ export async function POST(request: NextRequest) {
     const {
       name, description, discountType, discountValue, maxCapAmount,
       scope, targetType, feeStructureIds, studentIds, classIds, sectionIds,
-      academicYear, reason, supportingDoc, validFrom, validTo
+      academicYear, reason, supportingDoc, validFrom, validTo,
+      bulkDiscountType, bulkTargetType, mediumIds, transportRouteIds
     } = body;
 
     // Validate
@@ -397,7 +477,11 @@ export async function POST(request: NextRequest) {
         studentIds: studentIds || [],
         classIds: classIds || [],
         sectionIds: sectionIds || [],
-        academicYear
+        academicYear,
+        bulkDiscountType,
+        bulkTargetType,
+        mediumIds: mediumIds || [],
+        transportRouteIds: transportRouteIds || []
       },
       ctx
     );
@@ -441,7 +525,12 @@ export async function POST(request: NextRequest) {
           requestedByEmail: ctx.email,
           requestedByName: requesterName,
           validFrom,
-          validTo: validTo || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+          validTo: validTo || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+          // Store new bulk discount fields
+          bulkDiscountType: bulkDiscountType || null,
+          bulkTargetType: bulkTargetType || null,
+          mediumIds: JSON.stringify(mediumIds || []),
+          transportRouteIds: JSON.stringify(transportRouteIds || [])
         }
       });
 

@@ -7,7 +7,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
 import PaymentReceipt from './PaymentReceipt';
 import FeeReportsTab from './FeeReportsTab';
-import { paymentsApi } from '@/lib/apiClient';
+import { paymentsApi, feeRecordsApi } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
@@ -33,8 +33,12 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
 
   const openLatestReceipt = async (student: any) => {
     try {
-      const result = await paymentsApi.list({ studentId: student.studentId, page: 1, pageSize: 1 });
+      const [result, recordsResult] = await Promise.all([
+        paymentsApi.list({ studentId: student.studentId, page: 1, pageSize: 1 }),
+        feeRecordsApi.list({ studentId: student.studentId, page: 1, pageSize: 1000 })
+      ]);
       const payment = result?.payments?.[0];
+      const statementRecords = recordsResult?.records || [];
 
       if (!payment) {
         alert('No payment receipt is available for this student yet.');
@@ -73,6 +77,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
             remarks: payment.remarks || feeRecord.remarks || '',
             paymentDate: payment.paymentDate || payment.createdAt || new Date().toISOString(),
           }],
+          statementRecords,
           includedReceiptNumbers: [payment.receiptNumber].filter(Boolean),
         },
         receiptNumber: payment.receiptNumber || 'Receipt',

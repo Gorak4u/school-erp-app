@@ -319,6 +319,29 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       .filter(Boolean);
 
     const firstProcessed = processedPayments[0];
+    const statementRecords = (studentData?.feeRecords || []).map((record: any) => {
+      const processedMatch = processedPayments.find(({ fee }) => fee.id === record.id);
+      if (!processedMatch) return record;
+
+      const updatedPaidAmount = Number(processedMatch.paymentResult?.feeRecord?.paidAmount ?? record.paidAmount ?? 0);
+      const updatedDiscount = Number(processedMatch.paymentResult?.feeRecord?.discount ?? record.discount ?? processedMatch.fee.discount ?? 0);
+      const updatedPendingAmount = Number(
+        processedMatch.paymentResult?.feeRecord?.pendingAmount
+        ?? Math.max(0, Number(record.amount ?? processedMatch.fee.amount ?? 0) - updatedPaidAmount - updatedDiscount)
+      );
+
+      return {
+        ...record,
+        amount: Number(record.amount ?? processedMatch.fee.amount ?? 0),
+        paidAmount: updatedPaidAmount,
+        pendingAmount: updatedPendingAmount,
+        discount: updatedDiscount,
+        status: processedMatch.paymentResult?.feeRecord?.status || record.status,
+        academicYear: record.academicYear || processedMatch.fee.academicYear,
+        feeStructure: record.feeStructure || { name: processedMatch.fee.name, category: processedMatch.fee.category },
+        receiptNumber: processedMatch.paymentResult?.receiptNumber || processedMatch.paymentResult?.payment?.receiptNumber || record.receiptNumber,
+      };
+    });
 
     return {
       studentData: buildReceiptStudentData(firstProcessed?.paymentResult?.payment?.collectedBy),
@@ -340,6 +363,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
           remarks: paymentResult?.payment?.remarks || '',
           paymentDate: paymentResult?.payment?.paymentDate || paymentResult?.feeRecord?.paidDate || new Date().toISOString(),
         })),
+        statementRecords,
         includedReceiptNumbers,
       },
       receiptNumber: includedReceiptNumbers[0] || `RCPT-${Date.now()}`,
@@ -1381,6 +1405,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                         paymentDate: selectedHistoryEntry.paymentDate,
                       };
                     })()],
+                    statementRecords: studentData?.feeRecords || [],
                     includedReceiptNumbers: [selectedHistoryEntry.receiptNumber].filter(Boolean)
                   }}
                   receiptNumber={selectedHistoryEntry.receiptNumber}

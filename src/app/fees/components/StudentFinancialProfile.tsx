@@ -198,6 +198,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
       receiptNumber: entry.receiptNumber,
       paymentDate: entry.paymentDate,
       paymentMethod: entry.paymentMethod,
+      statementRecords: feeRecords,
       lineItems: [{
         id: entry.id,
         feeRecordId: entry.feeRecordId,
@@ -894,6 +895,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               studentData={currentStudentData}
               paymentData={{
                 currentYearFees: selectedPayment?.lineItems || [],
+                statementRecords: selectedPayment?.statementRecords || feeRecords,
                 includedReceiptNumbers: [selectedPayment?.receiptNumber].filter(Boolean)
               }}
               receiptNumber={selectedPayment?.receiptNumber || 'Receipt'}
