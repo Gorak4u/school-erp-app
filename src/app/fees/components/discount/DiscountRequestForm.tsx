@@ -237,14 +237,21 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   // Map classes with their fee structures
   const classesWithFees = useMemo(() => {
     console.log('Computing classesWithFees - classes:', classes.length, 'feeStructures:', feeStructures.length);
+    console.log('Sample class data:', classes[0]);
+    console.log('Sample fee structure data:', feeStructures[0]);
+    
     return classes.map((cls: any) => {
-      // Find fee structures for this class - match classId directly based on schema
-      const classFeeStructures = feeStructures.filter((fs: any) => 
-        fs.classId === cls.id
-      );
+      // Find fee structures for this class - match both direct classId and relation class.id
+      const classFeeStructures = feeStructures.filter((fs: any) => {
+        const directMatch = fs.classId === cls.id;
+        const relationMatch = fs.class?.id === cls.id;
+        return directMatch || relationMatch;
+      });
       
       console.log(`Class ${cls.name} (${cls.id}):`, classFeeStructures.length, 'fee structures found');
-      console.log('Sample fee structure for this class:', classFeeStructures[0]);
+      if (classFeeStructures.length > 0) {
+        console.log('Sample fee structure for this class:', classFeeStructures[0]);
+      }
       
       // Calculate total fees from all structures for this class
       const monthlyFees = classFeeStructures
@@ -270,7 +277,12 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         hasFeeData: classFeeStructures.length > 0
       };
       
-      console.log(`Class ${cls.name} result:`, { monthlyFee: result.monthlyFee, yearlyFee: result.yearlyFee, hasFeeData: result.hasFeeData });
+      console.log(`Class ${cls.name} result:`, { 
+        monthlyFee: result.monthlyFee, 
+        yearlyFee: result.yearlyFee, 
+        hasFeeData: result.hasFeeData,
+        foundStructures: classFeeStructures.length
+      });
       
       return result;
     });

@@ -2055,32 +2055,32 @@ export default function StudentForm({
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
               <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-                <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
-                  <h3 className="text-lg font-bold mb-4">Admission Summary</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                <div className={`rounded-xl border p-3 ${theme === 'dark' ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
+                  <h3 className="text-base font-bold mb-3">Admission Summary</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                       <p className={helperTextCls}>Student Name</p>
-                      <p className="font-semibold mt-1">{createdStudent?.name || formData.name}</p>
+                      <p className="font-semibold mt-0.5 text-sm">{createdStudent?.name || formData.name}</p>
                     </div>
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                      <p className={helperTextCls}>Admission Number</p>
-                      <p className="font-semibold mt-1">{createdStudent?.admissionNo || formData.admissionNo}</p>
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <p className={helperTextCls}>Admission No</p>
+                      <p className="font-semibold mt-0.5 text-sm">{createdStudent?.admissionNo || formData.admissionNo}</p>
                     </div>
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                       <p className={helperTextCls}>Class</p>
-                      <p className="font-semibold mt-1">{createdStudent?.class || formData.class || '—'}</p>
+                      <p className="font-semibold mt-0.5 text-sm">{createdStudent?.class || formData.class || '—'}</p>
                     </div>
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                       <p className={helperTextCls}>Section</p>
-                      <p className="font-semibold mt-1">{createdStudent?.section || formData.section || '—'}</p>
+                      <p className="font-semibold mt-0.5 text-sm">{createdStudent?.section || formData.section || '—'}</p>
                     </div>
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                       <p className={helperTextCls}>Grand Total</p>
-                      <p className="font-semibold mt-1">{previewPayload ? fmtCurrency(previewPayload.summary.grandTotal) : fmtCurrency(combinedAnnual)}</p>
+                      <p className="font-semibold mt-0.5 text-sm">{previewPayload ? fmtCurrency(previewPayload.summary.grandTotal) : fmtCurrency(combinedAnnual)}</p>
                     </div>
-                    <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                    <div className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                       <p className={helperTextCls}>Welcome Emails</p>
-                      <p className="font-semibold mt-1">Queued for provided student/parent emails</p>
+                      <p className="font-semibold mt-0.5 text-xs">Queued</p>
                     </div>
                   </div>
                 </div>
