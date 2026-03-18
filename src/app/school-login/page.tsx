@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { motion } from 'framer-motion';
+import { getSchoolTheme, type SchoolTheme } from '@/lib/school-theme';
 
 interface SchoolInfo {
   id: string;
@@ -15,18 +16,6 @@ interface SchoolInfo {
   city: string | null;
   state: string | null;
   isActive: boolean;
-}
-
-interface SchoolTheme {
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-  backgroundColor: string;
-  textColor: string;
-  gradient: string;
-  inputBackgroundColor: string;
-  inputBorderColor: string;
-  inputFocusColor: string;
 }
 
 // Generate unique theme colors based on school name
@@ -74,7 +63,8 @@ function generateSchoolTheme(schoolName: string): SchoolTheme {
     gradient,
     inputBackgroundColor,
     inputBorderColor,
-    inputFocusColor
+    inputFocusColor,
+    themeType: 'auto'
   };
 }
 
@@ -115,20 +105,34 @@ function SchoolLoginInner() {
     }
   }, [searchParams]);
 
-  // Fetch school info when subdomain is resolved
+  // Fetch school info and theme when subdomain is resolved
   useEffect(() => {
     if (!subdomain) return;
     setLoadingSchool(true);
+    
+    // First fetch school info
     fetch(`/api/school/by-subdomain?subdomain=${encodeURIComponent(subdomain)}`)
       .then(r => r.json())
-      .then(data => {
-        if (data.school) {
-          setSchool(data.school);
-          // Generate unique theme for this school
-          const schoolTheme = generateSchoolTheme(data.school.name);
-          setTheme(schoolTheme);
+      .then(schoolData => {
+        if (schoolData.school) {
+          setSchool(schoolData.school);
+          // Generate theme from school name (reliable fallback)
+          const fallbackTheme = generateSchoolTheme(schoolData.school.name);
+          setTheme(fallbackTheme);
+          
+          // Try to load custom theme in background (non-blocking)
+          getSchoolTheme(subdomain)
+            .then(customTheme => {
+              if (customTheme.themeType !== 'auto') {
+                setTheme(customTheme);
+              }
+            })
+            .catch(() => {
+              // Silently fail, keep using fallback theme
+              console.log('Using auto-generated theme for school');
+            });
         } else {
-          setSchoolError(data.error || 'School not found');
+          setSchoolError(schoolData.error || 'School not found');
         }
       })
       .catch(() => setSchoolError('Failed to load school information'))
