@@ -86,7 +86,7 @@ export default function StudentProfileTabs({
   const totalDays = (att.present || 0) + (att.absent || 0) + (att.late || 0);
 
   return (
-    <>
+    <div className="max-h-[60vh] overflow-y-auto space-y-6">
       {/* ─── FEES TAB ─────────────────────────────────────────────────── */}
       {activeTab === 'fees' && (
         <div className="space-y-5">
@@ -147,9 +147,9 @@ export default function StudentProfileTabs({
                       return (
                         <tr key={rec.id} className={theme === 'dark' ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}>
                           <td className={`py-3 px-4 font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {rec.feeStructureName || 'Fee'}
-                            {rec.feeCategory && rec.feeCategory !== rec.feeStructureName && (
-                              <span className={`ml-1 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>({rec.feeCategory})</span>
+                            {rec.feeStructure?.name || 'Fee'}
+                            {rec.feeStructure?.category && rec.feeStructure.category !== rec.feeStructure?.name && (
+                              <span className={`ml-1 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>({rec.feeStructure.category})</span>
                             )}
                           </td>
                           <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{rec.academicYear || '—'}</td>
@@ -383,6 +383,6 @@ export default function StudentProfileTabs({
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }

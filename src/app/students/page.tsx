@@ -368,6 +368,7 @@ export default function StudentsPage() {
         setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter}
         setEditingStudent={setEditingStudent} setFeeManagement={setFeeManagement} setParentPortal={setParentPortal}
         setSelectedStudent={setSelectedStudent} theme={theme} students={students}
+        feeManagement={feeManagement} attendanceTracking={attendanceTracking} communicationCenter={communicationCenter} parentPortal={parentPortal}
         canEditStudents={canEditStudents}
         canPromoteStudents={canPromoteStudents}
         onPromoteSingle={(studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }}

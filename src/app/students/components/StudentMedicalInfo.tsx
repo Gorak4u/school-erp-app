@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
 
@@ -10,9 +10,10 @@ interface MedicalRecord {
   date: string;
   type: 'checkup' | 'vaccination' | 'incident' | 'prescription';
   title: string;
-  description: string;
-  doctor: string;
+  description?: string;
+  doctor?: string;
   status: 'completed' | 'scheduled' | 'pending';
+  notes?: string;
 }
 
 interface StudentMedicalInfoProps {
@@ -24,6 +25,9 @@ interface StudentMedicalInfoProps {
 export default function StudentMedicalInfo({ theme, student, onClose }: StudentMedicalInfoProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'vaccinations' | 'allergies'>('overview');
   const [showAddRecord, setShowAddRecord] = useState(false);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -31,25 +35,40 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
   const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
   const inputCls = isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900';
 
-  const mockRecords: MedicalRecord[] = [
-    { id: '1', date: '2026-03-10', type: 'checkup', title: 'Annual Health Checkup', description: 'Routine annual health screening', doctor: 'Dr. Sharma', status: 'completed' },
-    { id: '2', date: '2026-02-15', type: 'vaccination', title: 'COVID-19 Booster', description: 'COVID-19 booster dose administered', doctor: 'Dr. Patel', status: 'completed' },
-    { id: '3', date: '2026-04-01', type: 'checkup', title: 'Dental Checkup', description: 'Scheduled dental examination', doctor: 'Dr. Gupta', status: 'scheduled' },
-    { id: '4', date: '2026-01-20', type: 'incident', title: 'Sports Injury', description: 'Minor sprain during PE class', doctor: 'Dr. Kumar', status: 'completed' },
-    { id: '5', date: '2025-12-05', type: 'prescription', title: 'Eye Checkup', description: 'Prescribed corrective lenses', doctor: 'Dr. Reddy', status: 'completed' },
-  ];
+  // Fetch medical records from API
+  useEffect(() => {
+    if (student?.id && activeTab === 'records') {
+      fetchMedicalRecords();
+    }
+  }, [student?.id, activeTab]);
 
-  const vaccinations = [
-    { name: 'BCG', date: '2014-03-15', status: 'completed', nextDue: '-' },
-    { name: 'Hepatitis B (3 doses)', date: '2014-06-20', status: 'completed', nextDue: '-' },
-    { name: 'DPT (5 doses)', date: '2019-04-10', status: 'completed', nextDue: '-' },
-    { name: 'Polio (5 doses)', date: '2019-04-10', status: 'completed', nextDue: '-' },
-    { name: 'MMR (2 doses)', date: '2016-08-25', status: 'completed', nextDue: '-' },
-    { name: 'Typhoid', date: '2023-07-12', status: 'completed', nextDue: '2026-07-12' },
-    { name: 'COVID-19', date: '2026-02-15', status: 'completed', nextDue: '2027-02-15' },
-    { name: 'Influenza', date: '2025-10-01', status: 'completed', nextDue: '2026-10-01' },
-    { name: 'HPV', date: '-', status: 'pending', nextDue: '2026-06-01' },
-  ];
+  const fetchMedicalRecords = async () => {
+    if (!student?.id) return;
+    
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/students/${student.id}/medical-records`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setMedicalRecords(data.records || []);
+      } else {
+        setError('Failed to load medical records');
+      }
+    } catch (err) {
+      setError('Failed to load medical records');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter vaccination records from medical records
+  const vaccinationRecords = medicalRecords.filter(record => record.type === 'vaccination');
+  
+  // Get allergies and conditions from student data
+  const allergies = student?.allergies ? student.allergies.split(',').map(a => a.trim()).filter(a => a) : [];
+  const conditions = student?.medicalConditions ? student.medicalConditions.split(',').map(c => c.trim()).filter(c => c) : [];
 
   const getTypeStyles = (type: MedicalRecord['type']) => {
     const map = {
@@ -69,8 +88,8 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+      <div className="flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 z-10 pb-4">
         <div>
           <h2 className={`text-xl font-bold ${textPrimary}`}>Medical Information</h2>
           {student && <p className={`text-sm ${textSecondary}`}>{student.name} - {student.class}</p>}
@@ -86,7 +105,7 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 sticky top-16 bg-white dark:bg-gray-900 z-10 pb-2">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -155,17 +174,20 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
 
               <h3 className={`text-lg font-semibold mb-4 mt-6 ${textPrimary}`}>Upcoming Appointments</h3>
               <div className="space-y-3">
-                {mockRecords.filter(r => r.status === 'scheduled').map(record => (
+                {medicalRecords.filter(r => r.status === 'scheduled').map(record => (
                   <div key={record.id} className={`p-3 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                     <div className="flex items-center justify-between">
                       <p className={`font-medium ${textPrimary}`}>{record.title}</p>
                       <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`}>
-                        {record.date}
+                        {new Date(record.date).toLocaleDateString()}
                       </span>
                     </div>
                     <p className={`text-sm ${textSecondary}`}>{record.doctor}</p>
                   </div>
                 ))}
+                {medicalRecords.filter(r => r.status === 'scheduled').length === 0 && (
+                  <p className={`text-center ${textSecondary}`}>No upcoming appointments</p>
+                )}
               </div>
             </div>
           </div>
@@ -175,42 +197,64 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
       {/* Medical Records Tab */}
       {activeTab === 'records' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
-            <table className="w-full">
-              <thead>
-                <tr className={`${isDark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'} border-b`}>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Date</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Type</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Title</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Doctor</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockRecords.map(record => {
-                  const typeStyle = getTypeStyles(record.type);
-                  return (
-                    <tr key={record.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                      <td className={`py-3 px-4 text-sm ${textPrimary}`}>{record.date}</td>
-                      <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${typeStyle.bg}`}>{typeStyle.label}</span></td>
-                      <td className={`py-3 px-4 text-sm ${textPrimary}`}>{record.title}</td>
-                      <td className={`py-3 px-4 text-sm ${textSecondary}`}>{record.doctor}</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          record.status === 'completed' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-                          : isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-                        }`}>{record.status}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <button className={`text-sm ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>View</button>
+          {loading && (
+            <div className={`text-center py-8 ${textSecondary}`}>
+              <p>Loading medical records...</p>
+            </div>
+          )}
+          {error && (
+            <div className={`text-center py-8 text-red-500`}>
+              <p>{error}</p>
+              <button onClick={fetchMedicalRecords} className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg">
+                Retry
+              </button>
+            </div>
+          )}
+          {!loading && !error && (
+            <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
+              <table className="w-full">
+                <thead>
+                  <tr className={`${isDark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'} border-b`}>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Date</th>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Type</th>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Title</th>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Doctor</th>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
+                    <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {medicalRecords.map(record => {
+                    const typeStyle = getTypeStyles(record.type);
+                    return (
+                      <tr key={record.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
+                        <td className={`py-3 px-4 text-sm ${textPrimary}`}>{new Date(record.date).toLocaleDateString()}</td>
+                        <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${typeStyle.bg}`}>{typeStyle.label}</span></td>
+                        <td className={`py-3 px-4 text-sm ${textPrimary}`}>{record.title}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{record.doctor || '—'}</td>
+                        <td className="py-3 px-4">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            record.status === 'completed' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
+                            : isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
+                          }`}>{record.status}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <button className={`text-sm ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>View</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {medicalRecords.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className={`text-center py-8 ${textSecondary}`}>
+                        No medical records found
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -224,23 +268,30 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
                   <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Vaccine</th>
                   <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Date Administered</th>
                   <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
-                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Next Due</th>
+                  <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Notes</th>
                 </tr>
               </thead>
               <tbody>
-                {vaccinations.map((vac, i) => (
-                  <tr key={i} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{vac.name}</td>
-                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>{vac.date}</td>
+                {vaccinationRecords.map((record) => (
+                  <tr key={record.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
+                    <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{record.title}</td>
+                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>{new Date(record.date).toLocaleDateString()}</td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        vac.status === 'completed' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
+                        record.status === 'completed' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
                         : isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-                      }`}>{vac.status}</span>
+                      }`}>{record.status}</span>
                     </td>
-                    <td className={`py-3 px-4 text-sm ${vac.nextDue === '-' ? textSecondary : 'text-orange-400'}`}>{vac.nextDue}</td>
+                    <td className={`py-3 px-4 text-sm ${textSecondary}`}>{record.description || '—'}</td>
                   </tr>
                 ))}
+                {vaccinationRecords.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className={`text-center py-8 ${textSecondary}`}>
+                      No vaccination records found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -254,15 +305,19 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
             <div className={`p-6 rounded-xl border ${cardCls}`}>
               <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Allergies</h3>
               <div className="space-y-3">
-                {(student?.allergies || 'None reported').split(',').map((allergy, i) => (
+                {allergies.length > 0 ? allergies.map((allergy, i) => (
                   <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
                     <div className="flex items-center space-x-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>!</div>
-                      <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>{allergy.trim()}</span>
+                      <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>{allergy}</span>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'}`}>Active</span>
                   </div>
-                ))}
+                )) : (
+                  <div className={`text-center py-6 ${textSecondary}`}>
+                    <p className="text-sm">No allergies reported</p>
+                  </div>
+                )}
               </div>
               <button className={`mt-4 w-full px-4 py-2 rounded-lg text-sm border-2 border-dashed transition-colors ${isDark ? 'border-gray-600 text-gray-400 hover:border-gray-500' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}>
                 + Add Allergy
@@ -272,15 +327,19 @@ export default function StudentMedicalInfo({ theme, student, onClose }: StudentM
             <div className={`p-6 rounded-xl border ${cardCls}`}>
               <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Medical Conditions</h3>
               <div className="space-y-3">
-                {(student?.medicalConditions || 'None reported').split(',').map((condition, i) => (
+                {conditions.length > 0 ? conditions.map((condition, i) => (
                   <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-yellow-900/20 border border-yellow-800' : 'bg-yellow-50 border border-yellow-200'}`}>
                     <div className="flex items-center space-x-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`}>!</div>
-                      <span className={`font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>{condition.trim()}</span>
+                      <span className={`font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>{condition}</span>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`}>Monitored</span>
                   </div>
-                ))}
+                )) : (
+                  <div className={`text-center py-6 ${textSecondary}`}>
+                    <p className="text-sm">No medical conditions reported</p>
+                  </div>
+                )}
               </div>
               <button className={`mt-4 w-full px-4 py-2 rounded-lg text-sm border-2 border-dashed transition-colors ${isDark ? 'border-gray-600 text-gray-400 hover:border-gray-500' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}>
                 + Add Condition

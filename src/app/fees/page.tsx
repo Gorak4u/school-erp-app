@@ -46,6 +46,14 @@ export default function FeesPage() {
   const state = useFeeState();
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
   
+  // Fee Collection Modal State
+  const [feeCollectionModal, setFeeCollectionModal] = useState({
+    show: false,
+    selectedStudent: null,
+    feeData: null,
+    loading: false
+  });
+  
   // Permission-based access control
   const { 
     hasPermission, 
@@ -55,6 +63,37 @@ export default function FeesPage() {
   } = usePermissions();
 
   const canManageFees = isAdmin || hasPermission('manage_fees');
+
+  // Fee Collection Modal Handler
+  const handleOpenFeeCollection = async (studentId: string) => {
+    setFeeCollectionModal(prev => ({ ...prev, show: true, selectedStudent: { studentId }, loading: true }));
+    
+    try {
+      const response = await fetch('/api/fees/students');
+      const data = await response.json();
+      if (data.success && data.data?.students) {
+        const studentFeeData = data.data.students.find(s => s.studentId === studentId);
+        setFeeCollectionModal(prev => ({ 
+          ...prev, 
+          feeData: studentFeeData,
+          selectedStudent: studentFeeData,
+          loading: false 
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch fee data:', error);
+      setFeeCollectionModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleCloseFeeCollection = () => {
+    setFeeCollectionModal({
+      show: false,
+      selectedStudent: null,
+      feeData: null,
+      loading: false
+    });
+  };
 
   // Teachers see only All Students view; manage_fees unlocks everything else
   const availableTabs = [
@@ -156,7 +195,10 @@ export default function FeesPage() {
         ) : activeTab === 'discounts' ? (
           <DiscountManagement theme={theme} />
         ) : (
-          <FeeTabContent ctx={ctx} />
+          <FeeTabContent 
+            ctx={ctx} 
+            onOpenFeeCollection={handleOpenFeeCollection}
+          />
         )}
       </div>
 
@@ -231,6 +273,61 @@ export default function FeesPage() {
       )}
       
       
+      {/* Fee Collection Modal */}
+      {feeCollectionModal.show && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000]">
+          <div className={`relative w-full max-w-6xl mx-4 overflow-hidden rounded-2xl border shadow-lg ${
+            theme === 'dark' ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+          }`}>
+            <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    Fee Collection - {feeCollectionModal.selectedStudent?.studentName || feeCollectionModal.selectedStudent?.name}
+                  </h3>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {feeCollectionModal.selectedStudent?.studentClass || feeCollectionModal.selectedStudent?.class}
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseFeeCollection}
+                  className={`p-2 rounded-lg transition-colors ${
+                    theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  ✖️ Close
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {feeCollectionModal.loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Loading fee data...
+                    </p>
+                  </div>
+                </div>
+              ) : feeCollectionModal.feeData ? (
+                <EnhancedFeeCollection
+                  theme={theme}
+                  studentId={feeCollectionModal.selectedStudent.studentId}
+                  studentData={feeCollectionModal.feeData}
+                  onClose={handleCloseFeeCollection}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Failed to load fee data. Please try again.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search Performance Monitor */}
       <SearchPerformanceMonitor 
         theme={theme} 

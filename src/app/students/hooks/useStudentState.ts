@@ -78,7 +78,7 @@ export function useStudentState() {
   }, [mouseX, mouseY]);
 
   // Dashboard State
-  const [showDashboard, setShowDashboard] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({
     totalStudents: 0,
     activeStudents: 0,

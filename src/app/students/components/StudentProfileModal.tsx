@@ -7,26 +7,71 @@ import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
+import EnhancedFeeCollection from '../../fees/components/EnhancedFeeCollection';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 interface StudentProfileModalProps {
-  activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
+  activeTab: any;
+  printStudentProfile: any;
+  selectedStudent: any;
+  sendStudentSMS: any;
+  setAcademicPerformance: any;
+  setActiveTab: any;
+  setAttendanceTracking: any;
+  setCommunicationCenter: any;
+  setEditingStudent: any;
+  setFeeManagement: any;
+  setParentPortal: any;
+  setSelectedStudent: any;
+  theme: any;
+  students?: Student[];
+  feeManagement?: any;
+  attendanceTracking?: any;
+  communicationCenter?: any;
+  parentPortal?: any;
   canEditStudents?: boolean;
   canPromoteStudents?: boolean;
   onPromoteSingle?: (studentId: string) => void;
-  onMarkExit?: (studentId: string) => void;
+  onMarkExit?: (studentIds: string[]) => void;
   isAdmin?: boolean;
 }
 
-export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
+export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], feeManagement, attendanceTracking, communicationCenter, parentPortal, canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
+  const [feeData, setFeeData] = useState(null);
+  const [loadingFeeData, setLoadingFeeData] = useState(false);
   const { getSetting } = useSchoolConfig();
   const idCardRef = useRef<HTMLDivElement>(null);
   const idCardContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Fetch fee data when modal opens
+  useEffect(() => {
+    if (feeManagement?.showFeeModal && feeManagement?.selectedStudent?.id) {
+      fetchStudentFeeData();
+    }
+  }, [feeManagement?.showFeeModal, feeManagement?.selectedStudent?.id]);
+
+  const fetchStudentFeeData = async () => {
+    if (!feeManagement?.selectedStudent?.id) return;
+    
+    setLoadingFeeData(true);
+    try {
+      const response = await fetch('/api/fees/students');
+      const data = await response.json();
+      if (data.success && data.data?.students) {
+        const studentFeeData = data.data.students.find(s => s.studentId === feeManagement.selectedStudent.id);
+        setFeeData(studentFeeData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch fee data:', error);
+    } finally {
+      setLoadingFeeData(false);
+    }
+  };
   
   const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
   const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
@@ -334,7 +379,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       <p className={`text-sm ${
                         theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        ADM{String(selectedStudent.id).padStart(4, '0')} • Class {selectedStudent.class} • Roll No: {selectedStudent.rollNo}
+                        {selectedStudent.admissionNo || 'N/A'} • Class {selectedStudent.class} • Roll No: {selectedStudent.rollNo || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -473,11 +518,11 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
               </div>
 
               {/* Profile Content */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto" style={{ maxHeight: '70vh' }}>
                 <div className="p-4 space-y-4">
                   {/* Overview Tab */}
                   {activeTab === 'overview' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                       {/* Basic Information */}
                       <div className={`rounded-lg border p-4 ${
                         theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
@@ -659,8 +704,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
                   {/* Academics Tab */}
                   {activeTab === 'academics' && (
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                      <div className="flex justify-between items-center sticky top-0 bg-white dark:bg-gray-900 pb-2">
                         <h3 className={`text-xl font-semibold ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
                         }`}>Academic Performance</h3>
@@ -952,6 +997,205 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     ✖️ Close
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fee Management Modal */}
+      <AnimatePresence>
+        {feeManagement?.showFeeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000]"
+            onClick={() => setFeeManagement({ ...feeManagement, showFeeModal: false })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className={`relative w-full max-w-6xl mx-4 overflow-hidden rounded-2xl border shadow-lg ${
+                theme === 'dark' ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Fee Management - {feeManagement.selectedStudent?.name}
+                    </h3>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {feeManagement.selectedStudent?.class}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setFeeManagement({ ...feeManagement, showFeeModal: false })}
+                    className={`p-2 rounded-lg transition-colors ${
+                      theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    ✖️ Close
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto">
+                {loadingFeeData ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Loading fee data...
+                      </p>
+                    </div>
+                  </div>
+                ) : feeData ? (
+                  <EnhancedFeeCollection
+                    theme={theme}
+                    studentId={feeManagement.selectedStudent.id}
+                    studentData={feeData}
+                    onClose={() => setFeeManagement({ ...feeManagement, showFeeModal: false })}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center py-12">
+                    <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Failed to load fee data. Please try again.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Attendance Tracking Modal */}
+      <AnimatePresence>
+        {attendanceTracking?.showAttendanceModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
+            onClick={() => setAttendanceTracking({ ...attendanceTracking, showAttendanceModal: false })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className={`relative w-full max-w-4xl mx-4 overflow-hidden rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+                <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Attendance Tracking - {attendanceTracking.selectedStudent?.name}
+                </h3>
+                <button
+                  onClick={() => setAttendanceTracking({ ...attendanceTracking, showAttendanceModal: false })}
+                  className={`absolute top-6 right-6 p-2 rounded-lg transition-colors ${
+                    theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  ✖️ Close
+                </button>
+              </div>
+              <div className="p-6">
+                <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Attendance tracking functionality would be implemented here. This modal is triggered from the profile view.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Communication Center Modal */}
+      <AnimatePresence>
+        {communicationCenter?.showCommunicationModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
+            onClick={() => setCommunicationCenter({ ...communicationCenter, showCommunicationModal: false })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className={`relative w-full max-w-4xl mx-4 overflow-hidden rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+                <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Communication Center - {communicationCenter.selectedStudent?.name}
+                </h3>
+                <button
+                  onClick={() => setCommunicationCenter({ ...communicationCenter, showCommunicationModal: false })}
+                  className={`absolute top-6 right-6 p-2 rounded-lg transition-colors ${
+                    theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  ✖️ Close
+                </button>
+              </div>
+              <div className="p-6">
+                <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Communication center functionality would be implemented here. This modal is triggered from the profile view.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Parent Portal Modal */}
+      <AnimatePresence>
+        {parentPortal?.showParentPortalModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
+            onClick={() => setParentPortal({ ...parentPortal, showParentPortalModal: false })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className={`relative w-full max-w-4xl mx-4 overflow-hidden rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+                <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Parent Portal - {parentPortal.selectedStudent?.name}
+                </h3>
+                <button
+                  onClick={() => setParentPortal({ ...parentPortal, showParentPortalModal: false })}
+                  className={`absolute top-6 right-6 p-2 rounded-lg transition-colors ${
+                    theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  ✖️ Close
+                </button>
+              </div>
+              <div className="p-6">
+                <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Parent portal functionality would be implemented here. This modal is triggered from the profile view.
+                </p>
               </div>
             </motion.div>
           </motion.div>

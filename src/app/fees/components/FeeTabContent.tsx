@@ -11,7 +11,7 @@ import { paymentsApi, feeRecordsApi } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
-export default function FeeTabContent({ ctx }: { ctx: any }) {
+export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; onOpenFeeCollection?: (studentId: string) => void }) {
   const { dropdowns } = useSchoolConfig();
   const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
 
@@ -347,7 +347,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
             <div className="flex gap-2 justify-center">
               {canManageFees && (
                 <button
-                  onClick={() => window.location.href = `/fee-collection?studentId=${student.studentId}`}
+                  onClick={() => onOpenFeeCollection?.(student.studentId)}
                   className={`text-blue-600 hover:text-blue-800 text-lg ${
                     theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : ''
                   }`}

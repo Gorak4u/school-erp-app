@@ -284,7 +284,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-h-[60vh] overflow-y-auto">
       {/* Header */}
       <div className="flex items-center">
         <h2 className={`text-xl font-bold ${textPrimary}`}>Student Analytics</h2>

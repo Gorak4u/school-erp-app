@@ -399,7 +399,7 @@ export function createActionsHandlers(ctx: any) {
           </div>
           
           <div class="report-meta">
-            <div class="report-id">Student ID: ADM${String(student.id).padStart(4, '0')}</div>
+            <div class="report-id">Student ID: ${student.admissionNo || 'N/A'}</div>
             <div class="report-date">Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
           </div>
           
@@ -418,7 +418,7 @@ export function createActionsHandlers(ctx: any) {
                   </div>
                   <div class="info-item">
                     <span class="info-label">Admission Number</span>
-                    <span class="info-value">ADM${String(student.id).padStart(4, '0')}</span>
+                    <span class="info-value">${student.admissionNo || 'N/A'}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">Class & Section</span>
@@ -519,24 +519,24 @@ export function createActionsHandlers(ctx: any) {
               <div class="section-content">
                 <div class="stats-grid">
                   <div class="stat-card">
-                    <div class="stat-value">${student.academics.gpa}</div>
+                    <div class="stat-value">${student.academics?.gpa || 'N/A'}</div>
                     <div class="stat-label">Current GPA</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.academics.rank}</div>
+                    <div class="stat-value">${student.academics?.rank || 'N/A'}</div>
                     <div class="stat-label">Class Rank</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.academics.totalSubjects}</div>
+                    <div class="stat-value">${student.academics?.totalSubjects || 'N/A'}</div>
                     <div class="stat-label">Total Subjects</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.academics.passedSubjects}</div>
+                    <div class="stat-value">${student.academics?.passedSubjects || 'N/A'}</div>
                     <div class="stat-label">Passed Subjects</div>
                   </div>
                 </div>
                 <div class="highlight-box">
-                  <strong>Academic Status:</strong> ${student.academics.gpa >= 3.5 ? 'Excellent Performance' : student.academics.gpa >= 3.0 ? 'Good Performance' : 'Needs Improvement'}
+                  <strong>Academic Status:</strong> ${student.academics?.gpa ? (student.academics.gpa >= 3.5 ? 'Excellent Performance' : student.academics.gpa >= 3.0 ? 'Good Performance' : 'Needs Improvement') : 'Not Available'}
                 </div>
               </div>
             </div>
@@ -548,24 +548,24 @@ export function createActionsHandlers(ctx: any) {
               <div class="section-content">
                 <div class="stats-grid">
                   <div class="stat-card">
-                    <div class="stat-value">${student.attendance.present}</div>
+                    <div class="stat-value">${student.attendance?.present || 0}</div>
                     <div class="stat-label">Present Days</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.attendance.absent}</div>
+                    <div class="stat-value">${student.attendance?.absent || 0}</div>
                     <div class="stat-label">Absent Days</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.attendance.late}</div>
+                    <div class="stat-value">${student.attendance?.late || 0}</div>
                     <div class="stat-label">Late Arrivals</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${student.attendance.percentage}%</div>
+                    <div class="stat-value">${student.attendance?.percentage || 0}%</div>
                     <div class="stat-label">Attendance Rate</div>
                   </div>
                 </div>
                 <div class="highlight-box">
-                  <strong>Attendance Status:</strong> ${student.attendance.percentage >= 95 ? 'Excellent' : student.attendance.percentage >= 85 ? 'Good' : student.attendance.percentage >= 75 ? 'Satisfactory' : 'Needs Attention'}
+                  <strong>Attendance Status:</strong> ${student.attendance?.percentage ? (student.attendance.percentage >= 95 ? 'Excellent' : student.attendance.percentage >= 85 ? 'Good' : student.attendance.percentage >= 75 ? 'Satisfactory' : 'Needs Attention') : 'Not Available'}
                 </div>
               </div>
             </div>
@@ -577,24 +577,24 @@ export function createActionsHandlers(ctx: any) {
               <div class="section-content">
                 <div class="stats-grid">
                   <div class="stat-card">
-                    <div class="stat-value">₹${student.fees.total.toLocaleString()}</div>
+                    <div class="stat-value">₹${(student.fees?.total || 0).toLocaleString()}</div>
                     <div class="stat-label">Total Fees</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">₹${student.fees.paid.toLocaleString()}</div>
+                    <div class="stat-value">₹${(student.fees?.paid || 0).toLocaleString()}</div>
                     <div class="stat-label">Paid Amount</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">₹${student.fees.pending.toLocaleString()}</div>
+                    <div class="stat-value">₹${(student.fees?.pending || 0).toLocaleString()}</div>
                     <div class="stat-label">Pending Amount</div>
                   </div>
                   <div class="stat-card">
-                    <div class="stat-value">${Math.round((student.fees.paid / student.fees.total) * 100)}%</div>
+                    <div class="stat-value">${Math.round(((student.fees?.paid || 0) / (student.fees?.total || 1)) * 100)}%</div>
                     <div class="stat-label">Payment Progress</div>
                   </div>
                 </div>
                 <div class="highlight-box">
-                  <strong>Last Payment:</strong> ${student.fees.lastPaymentDate || 'No payments recorded'}
+                  <strong>Last Payment:</strong> ${student.fees?.lastPaymentDate || 'No payments recorded'}
                 </div>
               </div>
             </div>

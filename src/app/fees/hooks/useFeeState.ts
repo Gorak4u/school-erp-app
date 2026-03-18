@@ -374,7 +374,7 @@ export function useFeeState() {
 
   // Dashboard widgets state
   const [dashboardCollapsed, setDashboardCollapsed] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [recentActivities, setRecentActivities] = useState<{ id: number; type: string; message: string; time: string; icon: string }[]>([]);
 
   // Responsive detection
