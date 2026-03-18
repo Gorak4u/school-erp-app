@@ -446,7 +446,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
                 <div>
                   <label className={label}>Application Scope</label>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {[
                       { value: 'student', label: 'Individual Students', icon: Users },
                       { value: 'class', label: 'By Class', icon: GraduationCap },
@@ -455,7 +455,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       <motion.button
                         key={scope.value}
                         onClick={() => setFormData({...formData, scope: scope.value as 'student' | 'class' | 'transport'})}
-                        className={`p-4 rounded-xl border text-center transition-all hover:scale-105 ${
+                        className={`p-3 rounded-lg border text-center transition-all hover:scale-105 ${
                           formData.scope === scope.value
                             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 shadow-lg'
                             : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
@@ -463,8 +463,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <scope.icon className="w-6 h-6 mx-auto mb-2" />
-                        <div className="text-sm font-medium">{scope.label}</div>
+                        <scope.icon className="w-5 h-5 mx-auto mb-1" />
+                        <div className="text-xs font-medium">{scope.label}</div>
                       </motion.button>
                     ))}
                   </div>
@@ -633,42 +633,24 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       <label className={label}>
                         Select Medium <span className="text-xs text-gray-500">(Optional - will filter classes)</span>
                       </label>
-                      <div className={`max-h-32 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        <div className="space-y-2">
-                          <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.mediumIds.length === 0}
-                              onChange={(e) => {
-                                setFormData({...formData, mediumIds: [], classIds: []});
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium">All Mediums</span>
-                          </label>
-                          {mediums.map((medium: any) => (
-                            <label key={medium.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={formData.mediumIds.includes(medium.id)}
-                                onChange={(e) => {
-                                  const newIds = e.target.checked
-                                    ? [...formData.mediumIds, medium.id]
-                                    : formData.mediumIds.filter(id => id !== medium.id);
-                                  setFormData({...formData, mediumIds: newIds, classIds: []});
-                                }}
-                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <span className="text-sm font-medium">{medium.name}</span>
-                                <div className="text-xs text-gray-400">
-                                  {medium.code && `Code: ${medium.code}`}
-                                </div>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                      <select
+                        className={input}
+                        value={formData.mediumIds.length === 0 ? '' : formData.mediumIds[0]}
+                        onChange={(e) => {
+                          if (e.target.value === '') {
+                            setFormData({...formData, mediumIds: [], classIds: []});
+                          } else {
+                            setFormData({...formData, mediumIds: [e.target.value], classIds: []});
+                          }
+                        }}
+                      >
+                        <option value="">All Mediums</option>
+                        {mediums.map((medium: any) => (
+                          <option key={medium.id} value={medium.id}>
+                            {medium.name} {medium.code && `(${medium.code})`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>
