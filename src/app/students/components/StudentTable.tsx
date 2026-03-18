@@ -127,8 +127,41 @@ export default function StudentTable({
       case 'photo':
         return (
           <td className="px-4 py-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-              {student.name.charAt(0)}
+            <div className="relative group">
+              {student.photo ? (
+                <img 
+                  src={student.photo} 
+                  alt={student.name}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 cursor-pointer transition-transform hover:scale-110"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs ${student.photo ? 'hidden' : ''}`}>
+                {student.name.charAt(0)}
+              </div>
+              
+              {/* Hover popup with larger photo */}
+              {student.photo && (
+                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none">
+                  <div className="relative">
+                    <img 
+                      src={student.photo} 
+                      alt={student.name}
+                      className="w-48 h-64 rounded-xl object-cover border-2 border-gray-300 dark:border-gray-600 shadow-2xl"
+                    />
+                    <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
+                      {student.name}
+                    </div>
+                    <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
+                      {student.admissionNo}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </td>
         );
@@ -267,7 +300,10 @@ export default function StudentTable({
         return (
           <td className="px-4 py-3">
             <span className={`px-2 py-1 rounded-lg text-xs font-medium ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-              {student.class || 'N/A'}
+              {student.class && student.section 
+                ? `${student.class} - ${student.section}` 
+                : student.class || student.section || 'N/A'
+              }
             </span>
           </td>
         );
@@ -275,7 +311,7 @@ export default function StudentTable({
       case 'medium':
         return (
           <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.medium || 'N/A'}
+            {student.languageMedium || 'N/A'}
           </td>
         );
       
@@ -560,12 +596,47 @@ export default function StudentTable({
                 onClick={() => setSelectedStudent(student)}
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                    {student.name.charAt(0)}
+                  <div className="relative group">
+                    {student.photo ? (
+                      <img 
+                        src={student.photo} 
+                        alt={student.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 cursor-pointer transition-transform hover:scale-110"
+                        onError={(e) => {
+                          // Fallback to initials if image fails to load
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm ${student.photo ? 'hidden' : ''}`}>
+                      {student.name.charAt(0)}
+                    </div>
+                    
+                    {/* Hover popup with larger photo */}
+                    {student.photo && (
+                      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none">
+                        <div className="relative">
+                          <img 
+                            src={student.photo} 
+                            alt={student.name}
+                            className="w-48 h-64 rounded-xl object-cover border-2 border-gray-300 dark:border-gray-600 shadow-2xl"
+                          />
+                          <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
+                            {student.name}
+                          </div>
+                          <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
+                            {student.admissionNo}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h4 className={`font-semibold text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{student.name}</h4>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{student.admissionNo} | Class {student.class}</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {student.admissionNo} | {student.class && student.section ? `${student.class} - ${student.section}` : student.class || student.section || 'N/A'} | {student.languageMedium || 'N/A'}
+                  </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">

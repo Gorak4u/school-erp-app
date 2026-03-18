@@ -232,6 +232,125 @@ export default function StudentForm({
 
   const set = (key: string, val: any) => setFormData(prev => ({ ...prev, [key]: val }));
 
+  const isEditMode = !!student;
+  const isFeeImpactingFieldDisabled = isEditMode;
+
+  // Filter tabs for edit mode - exclude fee-related tabs
+  const VISIBLE_TABS = isEditMode 
+    ? TABS.filter(tab => tab.id !== 'fees') 
+    : TABS;
+
+  // Comprehensive form data mapping for edit student
+  useEffect(() => {
+    if (!student) return;
+    
+    // Map all student fields to form data with proper field name handling
+    const mappedData = {
+      photo: student.photo || '',
+      name: student.name || '',
+      dateOfBirth: student.dateOfBirth || '',
+      gender: student.gender || 'Male',
+      bloodGroup: student.bloodGroup || '',
+      nationality: student.nationality || 'Indian',
+      religion: student.religion || '',
+      category: student.category || '',
+      motherTongue: student.motherTongue || '',
+      aadharNumber: student.aadharNumber || '',
+      stsId: student.stsId || '',
+      phone: student.phone || '',
+      email: student.email || '',
+      address: student.address || '',
+      city: student.city || '',
+      state: student.state || '',
+      pinCode: student.pinCode || '',
+      admissionNo: student.admissionNo || '',
+      admissionDate: student.admissionDate || '',
+      mediumId: student._mediumId || student.mediumId || '',
+      classId: student._classId || student.classId || '',
+      sectionId: student._sectionId || student.sectionId || '',
+      class: student.class || '',
+      section: student.section || '',
+      languageMedium: student.languageMedium || '',
+      rollNo: student.rollNo || '',
+      board: student.board || '',
+      boardId: student._boardId || student.boardId || '',
+      previousSchool: student.previousSchool || '',
+      previousClass: student.previousClass || '',
+      fatherName: student.fatherName || '',
+      fatherOccupation: student.fatherOccupation || '',
+      fatherPhone: student.fatherPhone || '',
+      fatherEmail: student.fatherEmail || '',
+      motherName: student.motherName || '',
+      motherOccupation: student.motherOccupation || '',
+      motherPhone: student.motherPhone || '',
+      motherEmail: student.motherEmail || '',
+      emergencyContact: student.emergencyContact || '',
+      emergencyRelation: student.emergencyRelation || '',
+      bankName: student.bankName || '',
+      bankAccountNumber: student.bankAccountNumber || '',
+      bankIfsc: student.bankIfsc || '',
+      medicalConditions: student.medicalConditions || '',
+      allergies: student.allergies || '',
+      transport: student.transport || 'No',
+      hostel: student.hostel || 'No',
+      remarks: student.remarks || '',
+      documents: {
+        birthCertificate: student.documents?.birthCertificate || false,
+        aadharCard: student.documents?.aadharCard || false,
+        transferCertificate: student.documents?.transferCertificate || false,
+        medicalCertificate: student.documents?.medicalCertificate || false,
+        passportPhoto: student.documents?.passportPhoto || false,
+        marksheet: student.documents?.marksheet || false,
+        casteCertificate: student.documents?.casteCertificate || false,
+        incomeCertificate: student.documents?.incomeCertificate || false,
+      },
+      gpa: student.gpa || 0,
+      status: student.status || 'active',
+    };
+    
+    // Update form data with mapped values
+    setFormData(prev => ({ ...prev, ...mappedData }));
+    
+  }, [student]);
+
+  // Handle dropdown field mappings when dropdowns are loaded
+  useEffect(() => {
+    if (!student) return;
+    
+    // Map board name to ID if not already set
+    if (!formData.boardId && formData.board && dropdowns.boards.length > 0) {
+      const match = dropdowns.boards.find(b => b.label === formData.board || b.value === formData.board);
+      if (match?.value) {
+        setFormData(prev => ({ ...prev, boardId: match.value }));
+      }
+    }
+    
+    // Map class name to ID if not already set
+    if (!formData.classId && formData.class && classes.length > 0) {
+      const match = classes.find(c => c.name === formData.class);
+      if (match?.id) {
+        setFormData(prev => ({ ...prev, classId: match.id }));
+      }
+    }
+    
+    // Map section name to ID if not already set
+    if (!formData.sectionId && formData.section && sections.length > 0) {
+      const match = sections.find(s => s.name === formData.section);
+      if (match?.id) {
+        setFormData(prev => ({ ...prev, sectionId: match.id }));
+      }
+    }
+    
+    // Map medium name to ID if not already set
+    if (!formData.mediumId && formData.languageMedium && mediums.length > 0) {
+      const match = mediums.find(m => m.name === formData.languageMedium);
+      if (match?.id) {
+        setFormData(prev => ({ ...prev, mediumId: match.id }));
+      }
+    }
+    
+  }, [student, formData.board, formData.class, formData.section, formData.languageMedium, dropdowns.boards, classes, sections, mediums]);
+
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [feesLoading, setFeesLoading] = useState(false);
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
@@ -261,8 +380,8 @@ export default function StudentForm({
   };
   const [transportDiscount, setTransportDiscount] = useState(transportDiscountInitial);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const currentTabIndex = TABS.findIndex(t => t.id === activeTab);
-  const progressPercent = Math.round(((currentTabIndex + 1) / TABS.length) * 100);
+  const currentTabIndex = VISIBLE_TABS.findIndex(t => t.id === activeTab);
+  const progressPercent = Math.round(((currentTabIndex + 1) / VISIBLE_TABS.length) * 100);
   const studentsUsed = subscriptionSummary.studentsUsed ?? 0;
   const maxStudents = subscriptionSummary.maxStudents ?? 0;
   const usagePercent = maxStudents > 0 ? Math.min(Math.round((studentsUsed / maxStudents) * 100), 100) : 0;
@@ -867,7 +986,7 @@ export default function StudentForm({
         : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
     }`;
 
-  const isLastTab = activeTab === TABS[TABS.length - 1].id;
+  const isLastTab = activeTab === VISIBLE_TABS[VISIBLE_TABS.length - 1].id;
 
   return (
     <div className="flex flex-col h-full">
@@ -909,7 +1028,7 @@ export default function StudentForm({
       </div>
       {/* Tab Bar */}
       <div className={`flex gap-1 pb-2 border-b flex-shrink-0 overflow-x-auto ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-        {TABS.map(t => (
+        {VISIBLE_TABS.map(t => (
           <button key={t.id} type="button" onClick={() => setActiveTab(t.id)} className={`${tabBtnCls(t.id)} flex-shrink-0`}>
             {t.label}
           </button>
@@ -968,12 +1087,13 @@ export default function StudentForm({
                       <label className={labelCls}>Medium *</label>
                       <select
                         value={formData.mediumId}
+                        disabled={isFeeImpactingFieldDisabled}
                         onChange={e => {
                           const mid = e.target.value;
                           const med = mediums.find(m => m.id === mid);
                           setFormData(prev => ({ ...prev, mediumId: mid, languageMedium: med?.name || '', classId: '', class: '', sectionId: '', section: '' }));
                         }}
-                        className={inputCls}
+                        className={`${inputCls} ${isFeeImpactingFieldDisabled ? 'disabled:opacity-50 bg-gray-100 cursor-not-allowed' : ''}`}
                       >
                         {/* Don't show "Select Medium" when only one medium exists */}
                         {mediums.length > 1 && <option value="">Select Medium</option>}
@@ -986,13 +1106,13 @@ export default function StudentForm({
                       <label className={labelCls}>Class *</label>
                       <select
                         value={formData.classId}
-                        disabled={!formData.mediumId}
+                        disabled={!formData.mediumId || isFeeImpactingFieldDisabled}
                         onChange={e => {
                           const cid = e.target.value;
                           const cls = classes.find(c => c.id === cid);
                           setFormData(prev => ({ ...prev, classId: cid, class: cls?.name || '', sectionId: '', section: '' }));
                         }}
-                        className={`${inputCls} disabled:opacity-50`}
+                        className={`${inputCls} disabled:opacity-50 ${isFeeImpactingFieldDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       >
                         <option value="">{formData.mediumId ? 'Select Class' : 'Select Medium first'}</option>
                         {filteredClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1006,13 +1126,13 @@ export default function StudentForm({
                       <label className={labelCls}>Section</label>
                       <select
                         value={formData.sectionId}
-                        disabled={!formData.classId}
+                        disabled={!formData.classId || isFeeImpactingFieldDisabled}
                         onChange={e => {
                           const sid = e.target.value;
                           const sec = sections.find(s => s.id === sid);
                           setFormData(prev => ({ ...prev, sectionId: sid, section: sec?.name || '' }));
                         }}
-                        className={`${inputCls} disabled:opacity-50`}
+                        className={`${inputCls} disabled:opacity-50 ${isFeeImpactingFieldDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       >
                         <option value="">{formData.classId ? 'Select Section (optional)' : 'Select Class first'}</option>
                         {filteredSections.map(s => <option key={s.id} value={s.id}>Section {s.name}</option>)}
@@ -1032,12 +1152,13 @@ export default function StudentForm({
                     <label className={labelCls}>Board</label>
                     <select
                       value={formData.boardId}
+                      disabled={isFeeImpactingFieldDisabled}
                       onChange={e => {
                         const option = dropdowns.boards.find(b => b.value === e.target.value);
                         set('boardId', e.target.value);
                         set('board', option?.label || '');
                       }}
-                      className={inputCls}
+                      className={`${inputCls} ${isFeeImpactingFieldDisabled ? 'disabled:opacity-50 bg-gray-100 cursor-not-allowed' : ''}`}
                     >
                       {dropdowns.boards.length > 1 && <option value="">Select Board</option>}
                       {dropdowns.boards.map(b => (
@@ -1780,6 +1901,7 @@ export default function StudentForm({
                     <label className={labelCls}>Transport</label>
                     <select
                       value={formData.transport}
+                      disabled={isFeeImpactingFieldDisabled}
                       onChange={e => {
                         const value = e.target.value;
                         set('transport', value);
@@ -1788,7 +1910,7 @@ export default function StudentForm({
                           set('transportRoute', '');
                         }
                       }}
-                      className={inputCls}
+                      className={`${inputCls} ${isFeeImpactingFieldDisabled ? 'disabled:opacity-50 bg-gray-100 cursor-not-allowed' : ''}`}
                     >
                       <option>No</option><option>Yes</option>
                     </select>
@@ -1890,14 +2012,14 @@ export default function StudentForm({
             </button>
           </div>
           <div className="flex gap-2">
-            {TABS.findIndex(t => t.id === activeTab) > 0 && (
-              <button type="button" onClick={() => setActiveTab(TABS[TABS.findIndex(t => t.id === activeTab) - 1].id)}
+            {VISIBLE_TABS.findIndex(t => t.id === activeTab) > 0 && (
+              <button type="button" onClick={() => setActiveTab(VISIBLE_TABS[VISIBLE_TABS.findIndex(t => t.id === activeTab) - 1].id)}
                 className={`px-4 py-2 text-sm rounded-lg border font-medium ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
                 ← Back
               </button>
             )}
             {!isLastTab && (
-              <button type="button" onClick={() => setActiveTab(TABS[TABS.findIndex(t => t.id === activeTab) + 1].id)}
+              <button type="button" onClick={() => setActiveTab(VISIBLE_TABS[VISIBLE_TABS.findIndex(t => t.id === activeTab) + 1].id)}
                 className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">
                 Next →
               </button>
