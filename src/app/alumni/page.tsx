@@ -36,6 +36,7 @@ const STATUS_COLORS: Record<string, string> = {
   graduated: 'bg-green-500/10 text-green-500',
   transferred: 'bg-blue-500/10 text-blue-500',
   exit: 'bg-gray-500/10 text-gray-400',
+  exited: 'bg-gray-500/10 text-gray-400',
   suspended: 'bg-amber-500/10 text-amber-500',
 };
 
@@ -43,6 +44,7 @@ const STATUS_LABELS: Record<string, string> = {
   graduated: '🎓 Graduated',
   transferred: '🔄 Transferred',
   exit: '🚪 Exited',
+  exited: '🚪 Exited',
   suspended: '⚠️ Suspended',
 };
 

@@ -91,7 +91,7 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
         
         setInvoices(records.map((r: any) => ({
           id: r.id,
-          invoiceNo: r.receiptNumber || `INV-${r.id.slice(-6)}`,
+          invoiceNo: r.invoiceNumber || `INV-${String(r.id || '').slice(-6).toUpperCase()}`,
           studentName: r.student?.name || 'Unknown',
           class: r.student?.class || 'Unknown',
           feeType: r.feeStructure?.name || 'General Fee',

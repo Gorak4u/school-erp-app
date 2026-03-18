@@ -7,7 +7,7 @@ import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 interface Invoice {
   id: string;
-  receiptNumber: string;
+  invoiceNumber: string;
   amount: number;
   paidAmount: number;
   pendingAmount: number;
@@ -19,6 +19,7 @@ interface Invoice {
     class: string;
     section: string;
     rollNo: string;
+    status?: string;
   };
   feeStructure: {
     name: string;
@@ -107,9 +108,9 @@ export default function FeeInvoiceManagerOptimized({ theme, activeTab }: { theme
         const recs = (result.data?.records || result.records || []).map((r: any) => ({
           ...r,
           pendingAmount: Math.max(0, (r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0)),
-          student: r.student || { name: r.studentName || '-', class: r.class || '-', section: r.section || '', rollNo: r.rollNo || '' },
+          student: r.student || { name: r.studentName || '-', class: r.class || '-', section: r.section || '', rollNo: r.rollNo || '', status: r.studentStatus || 'active' },
           feeStructure: r.feeStructure || { name: r.feeStructureName || '-', category: r.feeCategory || '-' },
-          receiptNumber: r.receiptNumber || `FEE-${r.id?.slice(0, 8).toUpperCase()}`,
+          invoiceNumber: r.invoiceNumber || `INV-${String(r.id || '').slice(-6).toUpperCase()}`,
         }));
         setInvoices(recs);
         setSummary(result.data?.summary || null);
@@ -421,12 +422,12 @@ export default function FeeInvoiceManagerOptimized({ theme, activeTab }: { theme
                       />
                     </td>
                     <td className={`p-4 text-sm font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                      {invoice.receiptNumber}
+                      {invoice.invoiceNumber}
                     </td>
                     <td className={`p-4 text-sm ${textPrimary}`}>
                       <div>
                         <div className="font-medium">{invoice.student.name}</div>
-                        <div className={`text-xs ${textSecondary}`}>Roll: {invoice.student.rollNo}</div>
+                        <div className={`text-xs ${textSecondary}`}>Roll: {invoice.student.rollNo} • Status: {invoice.student.status || 'active'}</div>
                       </div>
                     </td>
                     <td className={`p-4 text-sm ${textPrimary}`}>

@@ -63,7 +63,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
             <div>
               <div className="font-medium">{student.studentName}</div>
               <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                {student.rollNo} • {student.studentClass}
+                {student.rollNo} • {student.studentClass}{student.studentStatus ? ` • ${student.studentStatus}` : ''}
               </div>
             </div>
           </td>

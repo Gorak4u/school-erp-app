@@ -55,6 +55,7 @@ const STATUS_LABELS: Record<string, string> = {
   graduated: '🎓 Graduated',
   transferred: '🔄 Transferred',
   exit: '🚪 Exited',
+  exited: '🚪 Exited',
   suspended: '⚠️ Suspended',
 };
 

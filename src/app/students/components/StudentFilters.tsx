@@ -328,7 +328,7 @@ export default function StudentFilters({
             <option value="graduated">Graduated</option>
             <option value="transferred">Transferred</option>
             <option value="suspended">Suspended</option>
-            <option value="exit">Exited</option>
+            <option value="exited">Exited</option>
             <option value="locked">Locked</option>
           </select>
 

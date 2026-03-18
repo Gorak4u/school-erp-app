@@ -39,6 +39,7 @@ export interface StudentFeeSummary {
   studentId: string;
   studentName: string;
   studentClass: string;
+  studentStatus?: string;
   rollNo: string;
   totalFees: number;
   totalPaid: number;

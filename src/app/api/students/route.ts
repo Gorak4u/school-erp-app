@@ -67,7 +67,13 @@ export async function GET(request: NextRequest) {
       ];
     }
     if (cls) where.class = cls;
-    if (status) where.status = status;
+    if (status) {
+      if (status === 'exited' || status === 'exit') {
+        where.status = { in: ['exit', 'exited'] };
+      } else {
+        where.status = status;
+      }
+    }
     if (gender) where.gender = gender;
     // Filter for students who need promotion: have academicYearId set but it differs from active AY
     if (needsPromotion === 'true') {
@@ -159,6 +165,7 @@ export async function GET(request: NextRequest) {
 
     // 4. Shape the final response
     const shaped = students.map(s => {
+      const normalizedStatus = s.status === 'exit' ? 'exited' : s.status;
       const fees = feeMap.get(s.id) || { amount: 0, paidAmount: 0 };
       const present = attMap.get(s.id)?.present || 0;
       const absent = attMap.get(s.id)?.absent || 0;
@@ -173,6 +180,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...s,
+        status: normalizedStatus,
         needsPromotion,
         documents: s.documents && s.documents !== "NULL" ? JSON.parse(s.documents) : {},
         fees: {

@@ -32,6 +32,7 @@ interface StudentTableProps {
   onExitSingle?: (studentId: string) => void;
   canEditStudents?: boolean;
   canPromoteStudents?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function StudentTable({
@@ -39,7 +40,7 @@ export default function StudentTable({
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns, columnSettings,
-  onPromoteSingle, onPromoteClass, onExitSingle, canEditStudents = true, canPromoteStudents = true
+  onPromoteSingle, onPromoteClass, onExitSingle, canEditStudents = true, canPromoteStudents = true, isAdmin = false
 }: StudentTableProps) {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState('');
@@ -89,6 +90,7 @@ export default function StudentTable({
       case 'inactive': return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
       case 'graduated': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       case 'transferred': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'exited': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
       case 'suspended': return 'bg-red-500/10 text-red-500 border-red-500/20';
       case 'locked': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
       default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
@@ -101,8 +103,14 @@ export default function StudentTable({
     return 'text-red-500';
   };
 
+  const normalizeStudentStatus = (status?: string) => status === 'exit' ? 'exited' : (status || 'active');
+
   // Helper function to render table cell content based on column key
   const renderTableCell = (student: Student, columnKey: string) => {
+    const normalizedStatus = normalizeStudentStatus(student.status);
+    const canRunLifecycleActions = normalizedStatus === 'active' || normalizedStatus === 'locked';
+    const canEditStudentRecord = canEditStudents && !(student.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
+
     switch (columnKey) {
       case 'select':
         return (
@@ -413,8 +421,8 @@ export default function StudentTable({
       case 'status':
         return (
           <td className="px-4 py-3">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status || 'active')}`}>
-              {student.status?.replace('_', ' ').toUpperCase() || 'ACTIVE'}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(normalizedStatus)}`}>
+              {normalizedStatus.replace('_', ' ').toUpperCase()}
             </span>
           </td>
         );
@@ -432,7 +440,7 @@ export default function StudentTable({
               >
                 👁️
               </button>
-              {canEditStudents && (
+              {canEditStudentRecord && (
                 <button
                   onClick={() => setEditingStudent(student)}
                   className={`text-green-600 hover:text-green-800 text-lg ${
@@ -443,7 +451,7 @@ export default function StudentTable({
                   ✏️
                 </button>
               )}
-              {canPromoteStudents && onPromoteSingle && (
+              {canPromoteStudents && onPromoteSingle && canRunLifecycleActions && (
                 <button
                   onClick={() => onPromoteSingle(student.id.toString())}
                   className={`text-purple-600 hover:text-purple-800 text-lg ${
@@ -454,7 +462,7 @@ export default function StudentTable({
                   🎓
                 </button>
               )}
-              {canPromoteStudents && onExitSingle && (
+              {canPromoteStudents && onExitSingle && canRunLifecycleActions && (
                 <button
                   onClick={() => onExitSingle(student.id.toString())}
                   className={`text-red-600 hover:text-red-800 text-lg ${
@@ -462,13 +470,13 @@ export default function StudentTable({
                   }`}
                   title="Exit Student"
                 >
-                  �
+                  🚪
                 </button>
               )}
             </div>
           </td>
         );
-      
+
       default:
         return (
           <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -561,7 +569,7 @@ export default function StudentTable({
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(student.status)}`}>{student.status}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(normalizeStudentStatus(student.status))}`}>{normalizeStudentStatus(student.status)}</span>
                   <span className={`text-xs font-medium ${getAttendanceColor(student.attendance?.percentage || 0)}`}>{student.attendance?.percentage || 0}%</span>
                 </div>
                 <div className="flex gap-2 mt-3">

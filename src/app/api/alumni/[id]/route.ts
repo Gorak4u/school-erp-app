@@ -4,6 +4,15 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { canManageAlumniAccess, canViewAlumniAccess, canViewAlumniDuesAccess } from '@/lib/permissions';
 
+const parseJson = <T>(value: string | null | undefined, fallback: T): T => {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+};
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getSessionContext();
@@ -19,11 +28,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       where: { id, ...tenantWhere(ctx) },
       include: {
         feeRecords: canViewDues ? {
-          select: { id: true, amount: true, paidAmount: true, discount: true, status: true, dueDate: true, paidDate: true },
+          select: {
+            id: true,
+            amount: true,
+            paidAmount: true,
+            discount: true,
+            status: true,
+            dueDate: true,
+            paidDate: true,
+            academicYear: true,
+            feeStructure: { select: { name: true, category: true } }
+          },
           orderBy: { createdAt: 'desc' },
         } : false,
         arrears: canViewDues ? {
-          select: { id: true, amount: true, paidAmount: true, fromAcademicYear: true, dueDate: true, status: true, description: true },
+          select: {
+            id: true,
+            amount: true,
+            paidAmount: true,
+            fromAcademicYear: true,
+            toAcademicYear: true,
+            dueDate: true,
+            status: true,
+            remarks: true
+          },
           orderBy: { createdAt: 'desc' },
         } : false,
         promotions: {
@@ -35,8 +63,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!alumni) return NextResponse.json({ error: 'Alumni not found' }, { status: 404 });
 
-    const feeRecords = Array.isArray((alumni as any).feeRecords) ? (alumni as any).feeRecords : [];
-    const arrears = Array.isArray((alumni as any).arrears) ? (alumni as any).arrears : [];
+    const feeRecords = Array.isArray((alumni as any).feeRecords)
+      ? (alumni as any).feeRecords.map((fee: any) => ({
+          ...fee,
+          description: fee.feeStructure?.name || fee.feeStructure?.category || 'Fee Record'
+        }))
+      : [];
+    const arrears = Array.isArray((alumni as any).arrears)
+      ? (alumni as any).arrears.map((arrear: any) => ({
+          ...arrear,
+          description: arrear.remarks || `Arrear from ${arrear.fromAcademicYear || arrear.toAcademicYear || 'previous academic year'}`
+        }))
+      : [];
     const feeTotal = feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
     const feePaid = feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
     const arrearsTotal = arrears.reduce((sum, a) => sum + (a.amount || 0) - (a.paidAmount || 0), 0);
@@ -46,11 +84,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       success: true,
       data: {
         ...alumni,
-        documents: alumni.documents ? JSON.parse(alumni.documents) : {},
-        higherEducation: alumni.higherEducation ? JSON.parse(alumni.higherEducation) : null,
-        employment: alumni.employment ? JSON.parse(alumni.employment) : null,
-        socialLinks: alumni.socialLinks ? JSON.parse(alumni.socialLinks) : {},
-        mentorshipAreas: alumni.mentorshipAreas ? JSON.parse(alumni.mentorshipAreas) : [],
+        status: alumni.status === 'exit' ? 'exited' : alumni.status,
+        feeRecords,
+        arrears,
+        documents: parseJson(alumni.documents, {}),
+        higherEducation: parseJson(alumni.higherEducation, null),
+        employment: parseJson(alumni.employment, null),
+        socialLinks: parseJson(alumni.socialLinks, {}),
+        mentorshipAreas: parseJson(alumni.mentorshipAreas, []),
         pendingDues,
       },
     });

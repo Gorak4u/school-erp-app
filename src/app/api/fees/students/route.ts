@@ -142,6 +142,7 @@ export async function GET(request: NextRequest) {
         studentId: student.id,
         studentName: student.name,
         studentClass: student.class,
+        studentStatus: student.status === 'exit' ? 'exited' : (student.status || 'active'),
         section: student.section || '',
         rollNo: student.rollNo || '',
         admissionNo: student.admissionNo || '',

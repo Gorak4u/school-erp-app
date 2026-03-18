@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 interface DiscountRequestFormProps {
   theme: 'dark' | 'light';
@@ -19,6 +19,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [sections, setSections] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>({});
 
   // Fetch Data
   useEffect(() => {
@@ -89,7 +90,15 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           
           if (res.ok) {
             const result = await res.json();
-            setStudents(result.students || []);
+            const fetchedStudents = result.students || [];
+            setStudents(fetchedStudents);
+            setSelectedStudentLookup(prev => {
+              const next = { ...prev };
+              fetchedStudents.forEach((student: any) => {
+                next[student.id] = student;
+              });
+              return next;
+            });
           } else {
             const errorData = await res.json();
             throw new Error(errorData.error || 'Failed to search students');
@@ -141,6 +150,73 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' 
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   }`;
+
+  const classIdToName = useMemo(() => {
+    const map = new Map<string, string>();
+    classes.forEach((cls: any) => {
+      if (cls?.id) map.set(cls.id, cls.name);
+      if (cls?.name) map.set(cls.name, cls.name);
+      if (cls?.code) map.set(cls.code, cls.name);
+    });
+    return map;
+  }, [classes]);
+
+  const selectedStudentClassNames = useMemo(() => {
+    if (formData.scope !== 'student' || formData.studentIds.length === 0) return [] as string[];
+
+    return Array.from(new Set(
+      formData.studentIds
+        .map((studentId: string) => selectedStudentLookup[studentId])
+        .filter(Boolean)
+        .map((student: any) => student.class?.name || student.class)
+        .filter(Boolean)
+    ));
+  }, [formData.scope, formData.studentIds, selectedStudentLookup]);
+
+  const selectedClassNames = useMemo(() => {
+    if (formData.scope !== 'class' || formData.classIds.length === 0) return [] as string[];
+    return Array.from(new Set(formData.classIds.map((id: string) => classIdToName.get(id) || id).filter(Boolean)));
+  }, [classIdToName, formData.classIds, formData.scope]);
+
+  const visibleFeeStructures = useMemo(() => {
+    return feeStructures.filter((structure: any) => {
+      const structureAcademicYear = structure.academicYear?.year || structure.academicYear?.name || structure.academicYear || '';
+      if (formData.academicYear && structureAcademicYear && structureAcademicYear !== formData.academicYear) {
+        return false;
+      }
+
+      if (formData.scope === 'bulk') {
+        return true;
+      }
+
+      const structureClassName = structure.class?.name || structure.className || '';
+      const structureClassId = structure.class?.id || structure.classId || '';
+
+      if (formData.scope === 'student') {
+        if (selectedStudentClassNames.length === 0) return false;
+        return selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
+      }
+
+      if (formData.scope === 'class') {
+        if (selectedClassNames.length === 0 && formData.classIds.length === 0) return false;
+        return formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
+      }
+
+      return true;
+    });
+  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames]);
+
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      feeStructureIds: prev.feeStructureIds.filter(id => visibleFeeStructures.some((fs: any) => fs.id === id))
+    }));
+  }, [visibleFeeStructures]);
+
+  const formatStudentStatus = (status?: string) => {
+    if (!status) return 'Unknown';
+    return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   const handleSubmit = async () => {
     try {
@@ -276,17 +352,30 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             : (isDark ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-100')
                         }`}
                         onClick={() => {
+                          setSelectedStudentLookup(prev => ({
+                            ...prev,
+                            [student.id]: student,
+                          }));
+
                           if (formData.studentIds.includes(student.id)) {
-                            setFormData({...formData, studentIds: formData.studentIds.filter(id => id !== student.id)});
+                            setFormData({
+                              ...formData,
+                              studentIds: formData.studentIds.filter(id => id !== student.id),
+                              feeStructureIds: []
+                            });
                           } else {
-                            setFormData({...formData, studentIds: [...formData.studentIds, student.id]});
+                            setFormData({
+                              ...formData,
+                              studentIds: [...formData.studentIds, student.id],
+                              feeStructureIds: []
+                            });
                           }
                         }}
                       >
                         <div>
                           <div className="font-medium text-sm">{student.name}</div>
                           <div className="text-xs text-gray-500">
-                            Class: {student.class?.name || student.class} | Adm No: {student.admissionNo}
+                            Class: {student.class?.name || student.class} | Adm No: {student.admissionNo} | Status: {formatStudentStatus(student.status)}
                           </div>
                         </div>
                         {formData.studentIds.includes(student.id) && (
@@ -319,7 +408,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             const newIds = e.target.checked
                               ? [...formData.classIds, cls.id]
                               : formData.classIds.filter(id => id !== cls.id);
-                            setFormData({...formData, classIds: newIds});
+                            setFormData({...formData, classIds: newIds, feeStructureIds: []});
                           }}
                           className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
@@ -410,7 +499,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             <div key={student.id} className="p-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                               <div className="font-medium text-sm">{student.name}</div>
                               <div className="text-xs text-gray-500">
-                                Class: {student.class?.name || student.class} | Adm No: {student.admissionNo}
+                                Class: {student.class?.name || student.class} | Adm No: {student.admissionNo} | Status: {formatStudentStatus(student.status)}
                               </div>
                             </div>
                           ))}
@@ -469,7 +558,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                 <div className="mt-4">
                   <label className="block text-sm font-medium mb-1">Select Fee Structures <span className="text-red-500">*</span></label>
                   <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                    {feeStructures.length > 0 ? feeStructures.map((fs: any) => (
+                    {visibleFeeStructures.length > 0 ? visibleFeeStructures.map((fs: any) => (
                       <label key={fs.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                         <input
                           type="checkbox"
@@ -483,11 +572,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                           className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
                         <span className="text-sm font-medium">
-                          {fs.name} <span className="text-gray-500 text-xs">({fs.category}) - ₹{fs.amount}</span>
+                          {fs.name} <span className="text-gray-500 text-xs">({fs.category}) - ₹{fs.amount}{fs.class?.name ? ` • ${fs.class.name}` : ''}</span>
                         </span>
                       </label>
                     )) : (
-                      <div className="text-center p-4 text-gray-500 text-sm">No fee structures available</div>
+                      <div className="text-center p-4 text-gray-500 text-sm">No fee structures available for the selected student/class and academic year</div>
                     )}
                   </div>
                 </div>

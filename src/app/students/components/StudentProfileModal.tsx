@@ -14,9 +14,14 @@ interface StudentProfileModalProps {
   canPromoteStudents?: boolean;
   onPromoteSingle?: (studentId: string) => void;
   onMarkExit?: (studentId: string) => void;
+  isAdmin?: boolean;
 }
 
-export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit }: StudentProfileModalProps) {
+export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
+  const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
+  const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
+  const canRunLifecycleActions = normalizedStatus === 'active' || normalizedStatus === 'locked';
+
   return (
     <>
       {/* Student Profile Modal */}
@@ -92,7 +97,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     >
                       🖨️ Print
                     </button>
-                    {canEditStudents && (
+                    {canEditStudentRecord && (
                       <button
                         onClick={() => setEditingStudent(selectedStudent)}
                         className={`px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
@@ -135,7 +140,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {canPromoteStudents && onPromoteSingle && (
+                      {canPromoteStudents && onPromoteSingle && canRunLifecycleActions && (
                         <button
                           onClick={() => { setSelectedStudent(null); onPromoteSingle(selectedStudent.id); }}
                           className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors"
@@ -143,7 +148,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                           🎓 Promote Now
                         </button>
                       )}
-                      {canPromoteStudents && onMarkExit && (
+                      {canPromoteStudents && onMarkExit && canRunLifecycleActions && (
                         <button
                           onClick={() => { onMarkExit(selectedStudent.id); setSelectedStudent(null); }}
                           className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-500 hover:bg-gray-600 text-white transition-colors"

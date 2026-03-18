@@ -4,7 +4,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { canViewAlumniAccess, canViewAlumniDuesAccess } from '@/lib/permissions';
 
-const ALUMNI_STATUSES = ['graduated', 'transferred', 'exit', 'suspended'];
+const ALUMNI_STATUSES = ['graduated', 'transferred', 'exit', 'exited', 'suspended'];
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...a,
+        status: a.status === 'exit' ? 'exited' : a.status,
         pendingDues,
         higherEducation: a.higherEducation ? JSON.parse(a.higherEducation) : null,
         employment: a.employment ? JSON.parse(a.employment) : null,

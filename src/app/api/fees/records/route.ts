@@ -95,10 +95,12 @@ export async function GET(request: NextRequest) {
           fr."dueDate",
           fr."createdAt",
           fr."academicYear",
+          fr."receiptNumber",
           s.name as "studentName",
           s.class,
           s.section,
           s."rollNo",
+          COALESCE(s.status, 'active') as "studentStatus",
           fs.name as "feeStructureName",
           fs.category as "feeCategory",
           CASE 
@@ -114,7 +116,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN "school"."FeeStructure" fs ON fr."feeStructureId" = fs.id
         LEFT JOIN "school"."Payment" p ON fr.id = p."feeRecordId"
         WHERE ${whereClause}
-        GROUP BY fr.id, s.name, s.class, s.section, s."rollNo", fs.name, fs.category
+        GROUP BY fr.id, fr."receiptNumber", s.name, s.class, s.section, s."rollNo", s.status, fs.name, fs.category
         
         UNION ALL
         
@@ -128,10 +130,12 @@ export async function GET(request: NextRequest) {
           fa."dueDate",
           fa."createdAt",
           fa."toAcademicYear" as "academicYear",
+          NULL as "receiptNumber",
           s.name as "studentName",
           s.class,
           s.section,
           s."rollNo",
+          COALESCE(s.status, 'active') as "studentStatus",
           'Arrears' as "feeStructureName",
           'Arrears' as "feeCategory",
           CASE 
@@ -219,10 +223,13 @@ export async function GET(request: NextRequest) {
       const paidAmount = safeParseFloat(record.paidAmount);
       const discount = safeParseFloat(record.discount);
       const pendingAmount = Math.max(0, amount - paidAmount - discount);
+      const normalizedStudentStatus = record.studentStatus === 'exit' ? 'exited' : (record.studentStatus || 'active');
+      const invoicePrefix = record.record_type === 'arrears' ? 'ARR' : 'INV';
       
       return {
         id: record.id,
-        receiptNumber: record.receiptNumber || `INV-${record.id?.slice(-6)}`,
+        invoiceNumber: `${invoicePrefix}-${String(record.id || '').slice(-6).toUpperCase()}`,
+        receiptNumber: record.receiptNumber || null,
         amount,
         paidAmount,
         pendingAmount,
@@ -234,7 +241,8 @@ export async function GET(request: NextRequest) {
           name: record.studentName,
           class: record.class,
           section: record.section,
-          rollNo: record.rollNo
+          rollNo: record.rollNo,
+          status: normalizedStudentStatus
         },
         feeStructure: {
           name: record.feeStructureName,
