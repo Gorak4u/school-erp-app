@@ -85,19 +85,29 @@ export async function POST(
     const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
     const feeStructureIds = JSON.parse(discountReq.feeStructureIds);
 
+    if (discountReq.scope === 'student' && studentIds.length === 0) {
+      return NextResponse.json({ error: 'Discount request has no targeted students' }, { status: 400 });
+    }
+
+    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length === 0) {
+      return NextResponse.json({ error: 'Discount request has no targeted fee structures' }, { status: 400 });
+    }
+
     if ((discountReq.scope === 'student' || discountReq.scope === 'bulk') && studentIds.length > 0) {
       feeRecordsQuery.where.studentId = { in: studentIds };
       arrearsQuery.where.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
       const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
-      if (resolvedStudentIds.length) {
-        feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
-        arrearsQuery.where.studentId = { in: resolvedStudentIds };
+      if (!resolvedStudentIds.length) {
+        return NextResponse.json({ error: 'No matching students found for this class request' }, { status: 404 });
       }
+
+      feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
+      arrearsQuery.where.studentId = { in: resolvedStudentIds };
     }
 
     // Filter by fee structures (only for FeeRecord, not FeeArrears)
-    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length > 0) {
+    if (discountReq.targetType === 'fee_structure') {
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
 

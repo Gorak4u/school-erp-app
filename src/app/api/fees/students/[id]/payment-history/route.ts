@@ -92,12 +92,16 @@ export async function GET(
         p.remarks,
         p."createdAt",
         fr.amount as "feeAmount",
+        fr.discount as "feeDiscount",
+        fr."pendingAmount" as "feePendingAmount",
+        fr.status as "feeStatus",
         fr."academicYear",
         fs.name as "feeName",
         fs.category as "feeCategory",
         s.name as "studentName",
         s.class as "studentClass",
-        s."rollNo" as "studentRollNo"
+        s."rollNo" as "studentRollNo",
+        s."admissionNo" as "studentAdmissionNo"
       FROM "school"."Payment" p
       INNER JOIN "school"."FeeRecord" fr ON p."feeRecordId" = fr.id
       LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
@@ -175,12 +179,16 @@ export async function GET(
       remarks: p.remarks,
       createdAt: p.createdAt,
       feeAmount: parseFloat(p.feeAmount || 0),
+      feeDiscount: parseFloat(p.feeDiscount || 0),
+      feePendingAmount: parseFloat(p.feePendingAmount || 0),
+      feeStatus: p.feeStatus,
       academicYear: p.academicYear,
       feeName: p.feeName,
       feeCategory: p.feeCategory,
       studentName: p.studentName,
       studentClass: p.studentClass,
       studentRollNo: p.studentRollNo,
+      studentAdmissionNo: p.studentAdmissionNo,
     }));
 
     return NextResponse.json({

@@ -49,8 +49,8 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
     console.log(`🔄 Auto-applying discount for request: ${discountRequestId}`);
     
     // Fetch the discount request
-    const discountReq = await (schoolPrisma as any).DiscountRequest.findUnique({
-      where: { id: discountRequestId }
+    const discountReq = await (schoolPrisma as any).DiscountRequest.findFirst({
+      where: { id: discountRequestId, ...tenantWhere(ctx) }
     });
 
     if (!discountReq || discountReq.status !== 'approved') {
@@ -64,9 +64,22 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
     const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
     const feeStructureIds = JSON.parse(discountReq.feeStructureIds || '[]');
 
+    if (!discountReq.academicYear) {
+      return { success: false, error: 'Discount request is missing academic year scope' };
+    }
+
+    if (discountReq.scope === 'student' && studentIds.length === 0) {
+      return { success: false, error: 'Discount request has no targeted students' };
+    }
+
+    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length === 0) {
+      return { success: false, error: 'Discount request has no targeted fee structures' };
+    }
+
     // Build query for target fee records
     const baseWhere: any = {
       status: { in: ['pending', 'partial'] },
+      academicYear: discountReq.academicYear,
     };
 
     let feeRecordsQuery: any = { where: baseWhere };
@@ -76,13 +89,15 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
       feeRecordsQuery.where.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
       const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
-      if (resolvedStudentIds.length) {
-        feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
+      if (!resolvedStudentIds.length) {
+        return { success: true, appliedCount: 0, skippedCount: 0, message: 'No matching students found for this class request' };
       }
+
+      feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
     }
 
     // Filter by fee structures
-    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length > 0) {
+    if (discountReq.targetType === 'fee_structure') {
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
 

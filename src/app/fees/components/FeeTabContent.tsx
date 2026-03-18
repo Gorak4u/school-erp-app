@@ -7,6 +7,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import FeeRecordsTabs from './FeeRecordsTabs';
 import PaymentReceipt from './PaymentReceipt';
 import FeeReportsTab from './FeeReportsTab';
+import { paymentsApi } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
@@ -29,6 +30,61 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
     setFromDate(startOfWeek.toISOString().split('T')[0]);
     setToDate(today.toISOString().split('T')[0]);
   }, []);
+
+  const openLatestReceipt = async (student: any) => {
+    try {
+      const result = await paymentsApi.list({ studentId: student.studentId, page: 1, pageSize: 1 });
+      const payment = result?.payments?.[0];
+
+      if (!payment) {
+        alert('No payment receipt is available for this student yet.');
+        return;
+      }
+
+      const feeRecord = payment.feeRecord || {};
+      const feeStructure = feeRecord.feeStructure || {};
+      const feeCategory = feeStructure.category || payment.feeCategory || 'General';
+
+      setSelectedFeeRecord({
+        studentData: {
+          studentName: feeRecord.student?.name || payment.studentName || student.studentName || 'N/A',
+          studentClass: feeRecord.student?.class || payment.studentClass || student.studentClass || 'N/A',
+          admissionNo: feeRecord.student?.admissionNo || student.admissionNo || 'N/A',
+          rollNo: feeRecord.student?.rollNo || payment.studentRollNo || student.rollNo || student.admissionNo || 'N/A',
+          fatherName: student.fatherName || 'Parent',
+          parentName: student.parentName || student.fatherName || 'Parent',
+          collectedBy: payment.collectedBy || 'Accounts Department',
+        },
+        paymentData: {
+          currentYearFees: [{
+            id: payment.id,
+            feeRecordId: payment.feeRecordId,
+            name: feeStructure.name || payment.feeName || 'Fee',
+            category: feeCategory,
+            academicYear: feeRecord.academicYear || payment.academicYear || '—',
+            totalAmount: Number(feeRecord.amount || payment.feeAmount || payment.amount || 0),
+            amountPaid: Number(payment.amount || 0),
+            paidAmount: Number(payment.amount || 0),
+            discount: Number(feeRecord.discount || 0),
+            balance: Number(feeRecord.pendingAmount || 0),
+            status: feeRecord.status || (Number(feeRecord.pendingAmount || 0) <= 0 ? 'paid' : 'partial'),
+            receiptNumber: payment.receiptNumber || '',
+            transactionId: payment.transactionId || '',
+            remarks: payment.remarks || feeRecord.remarks || '',
+            paymentDate: payment.paymentDate || payment.createdAt || new Date().toISOString(),
+          }],
+          includedReceiptNumbers: [payment.receiptNumber].filter(Boolean),
+        },
+        receiptNumber: payment.receiptNumber || 'Receipt',
+        paymentDate: payment.paymentDate || payment.createdAt || new Date().toISOString(),
+        paymentMethod: payment.paymentMethod || 'cash',
+      });
+      setShowReceiptModal(true);
+    } catch (error) {
+      console.error('Failed to load latest receipt', error);
+      alert('Failed to load the latest payment receipt.');
+    }
+  };
 
   // Helper function to render table cell content based on column key
   const renderTableCell = (student: any, columnKey: string) => {
@@ -296,7 +352,7 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
                 </button>
               )}
               <button
-                onClick={() => setShowReceiptModal(true)}
+                onClick={() => openLatestReceipt(student)}
                 className={`text-green-600 hover:text-green-800 text-lg ${
                   theme === 'dark' ? 'text-green-400 hover:text-green-300' : ''
                 }`}
@@ -1704,26 +1760,10 @@ export default function FeeTabContent({ ctx }: { ctx: any }) {
               </div>
               <PaymentReceipt
                 theme={theme}
-                studentData={{
-                  studentName: selectedFeeRecord.student?.name || 'N/A',
-                  studentClass: selectedFeeRecord.student?.class || 'N/A',
-                  admissionNo: selectedFeeRecord.student?.admissionNo || 'N/A',
-                  rollNo: selectedFeeRecord.student?.rollNo || selectedFeeRecord.student?.admissionNo || 'N/A',
-                  fatherName: selectedFeeRecord.student?.fatherName || 'Parent',
-                  parentName: selectedFeeRecord.student?.parentName || selectedFeeRecord.student?.fatherName || 'Parent',
-                  collectedBy: selectedFeeRecord.collectedBy || selectedFeeRecord.payments?.[0]?.collectedBy || 'Accounts Department',
-                }}
-                paymentData={{
-                  currentYearFees: [{
-                    ...selectedFeeRecord,
-                    totalAmount: selectedFeeRecord.amount || 0,
-                    name: selectedFeeRecord.feeStructure?.name || 'Fee',
-                    category: selectedFeeRecord.feeStructure?.category || 'General',
-                    academicYear: new Date().getFullYear().toString(),
-                  }]
-                }}
-                receiptNumber={selectedFeeRecord.receiptNumber || `FEE-${Date.now()}`}
-                paymentDate={selectedFeeRecord.paidDate || new Date().toISOString().split('T')[0]}
+                studentData={selectedFeeRecord.studentData || {}}
+                paymentData={selectedFeeRecord.paymentData || { currentYearFees: [] }}
+                receiptNumber={selectedFeeRecord.receiptNumber || 'Receipt'}
+                paymentDate={selectedFeeRecord.paymentDate || new Date().toISOString().split('T')[0]}
                 paymentMethod={selectedFeeRecord.paymentMethod || 'cash'}
               />
             </div>

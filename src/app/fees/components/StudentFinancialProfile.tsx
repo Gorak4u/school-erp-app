@@ -189,8 +189,10 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
       .filter((payment: any) => new Date(payment.paymentDate || payment.createdAt || Date.now()).getTime() <= paymentTimestamp)
       .reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
     const totalAmount = Number(entry.feeAmount || matchedRecord?.amount || entry.amount || 0);
-    const discount = Number(matchedRecord?.discount || 0);
-    const balance = Math.max(0, totalAmount - cumulativePaid - discount);
+    const discount = Number(entry.feeDiscount ?? matchedRecord?.discount ?? 0);
+    const balance = entry.feePendingAmount !== undefined && entry.feePendingAmount !== null
+      ? Number(entry.feePendingAmount || 0)
+      : Math.max(0, totalAmount - cumulativePaid - discount);
 
     setSelectedPayment({
       receiptNumber: entry.receiptNumber,
@@ -207,7 +209,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
         paidAmount: Number(entry.amount || 0),
         discount,
         balance,
-        status: balance <= 0 ? 'paid' : 'partial',
+        status: entry.feeStatus || (balance <= 0 ? 'paid' : 'partial'),
         receiptNumber: entry.receiptNumber,
         transactionId: entry.transactionId,
         remarks: entry.remarks,

@@ -117,6 +117,14 @@ async function processDiscountApplication(
     const classIds = JSON.parse(discountReq.classIds || '[]');
     const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
 
+    if (discountReq.scope === 'student' && studentIds.length === 0) {
+      throw new Error('Discount request has no targeted students');
+    }
+
+    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length === 0) {
+      throw new Error('Discount request has no targeted fee structures');
+    }
+
     // Build query to find target records - both FeeRecord and FeeArrears
     const feeRecordsQuery: any = {
       academicYear: discountReq.academicYear,
@@ -133,13 +141,15 @@ async function processDiscountApplication(
       arrearsQuery.studentId = { in: studentIds };
     } else if (discountReq.scope === 'class') {
       const resolvedStudentIds = await resolveClassTargetStudentIds(classIds, sectionIds, ctx);
-      if (resolvedStudentIds.length) {
-        feeRecordsQuery.studentId = { in: resolvedStudentIds };
-        arrearsQuery.studentId = { in: resolvedStudentIds };
+      if (!resolvedStudentIds.length) {
+        throw new Error('No matching students found for this class request');
       }
+
+      feeRecordsQuery.studentId = { in: resolvedStudentIds };
+      arrearsQuery.studentId = { in: resolvedStudentIds };
     }
 
-    if (discountReq.targetType === 'fee_structure' && feeStructureIds.length > 0) {
+    if (discountReq.targetType === 'fee_structure') {
       feeRecordsQuery.feeStructureId = { in: feeStructureIds };
     }
 

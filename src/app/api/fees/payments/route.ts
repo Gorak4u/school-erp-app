@@ -85,7 +85,12 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     if (feeRecordId) where.feeRecordId = feeRecordId;
-    if (studentId) where.feeRecord = { studentId };
+    if (studentId) {
+      where.feeRecord = {
+        ...(where.feeRecord || {}),
+        studentId,
+      };
+    }
     
     // Add date range filtering
     if (fromDate || toDate) {
@@ -100,7 +105,10 @@ export async function GET(request: NextRequest) {
     
     // Tenant isolation via feeRecord → student
     if (!ctx.isSuperAdmin && ctx.schoolId) {
-      where.feeRecord = { student: { schoolId: ctx.schoolId } };
+      where.feeRecord = {
+        ...(where.feeRecord || {}),
+        student: { schoolId: ctx.schoolId },
+      };
     }
 
     const [payments, total] = await Promise.all([

@@ -1066,9 +1066,14 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                 id: payment.id,
                 feeRecordId: payment.feeRecordId,
                 feeName: payment.feeName || 'Fee',
+                feeCategory: payment.feeCategory || 'General',
                 academicYear: payment.academicYear || '',
                 amount: payment.amount || 0,
                 totalAmount: payment.feeAmount || 0,
+                feeAmount: payment.feeAmount || 0,
+                feeDiscount: payment.feeDiscount || 0,
+                feePendingAmount: payment.feePendingAmount,
+                feeStatus: payment.feeStatus,
                 cumulativePaid: payment.amount || 0, // Will be calculated when receipt is clicked
                 paymentMethod: payment.paymentMethod || 'cash',
                 paymentDate: payment.paymentDate || payment.createdAt || '',
@@ -1353,9 +1358,11 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                   paymentData={{
                     currentYearFees: [(() => {
                       const matchedRecord = (studentData?.feeRecords || []).find((record: any) => record.id === selectedHistoryEntry.feeRecordId);
-                      const recordDiscount = Number(matchedRecord?.discount || 0);
+                      const recordDiscount = Number(selectedHistoryEntry.feeDiscount ?? matchedRecord?.discount ?? 0);
                       const totalAmount = Number(selectedHistoryEntry.feeAmount || matchedRecord?.amount || selectedHistoryEntry.amount || 0);
-                      const balance = Math.max(0, totalAmount - Number(selectedHistoryEntry.cumulativePaid || selectedHistoryEntry.amount || 0) - recordDiscount);
+                      const balance = selectedHistoryEntry.feePendingAmount !== undefined && selectedHistoryEntry.feePendingAmount !== null
+                        ? Number(selectedHistoryEntry.feePendingAmount || 0)
+                        : Math.max(0, totalAmount - Number(selectedHistoryEntry.cumulativePaid || selectedHistoryEntry.amount || 0) - recordDiscount);
 
                       return {
                         id: selectedHistoryEntry.id,
@@ -1367,7 +1374,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
                         paidAmount: Number(selectedHistoryEntry.amount || 0),
                         discount: recordDiscount,
                         balance,
-                        status: balance <= 0 ? 'paid' : 'partial',
+                        status: selectedHistoryEntry.feeStatus || (balance <= 0 ? 'paid' : 'partial'),
                         receiptNumber: selectedHistoryEntry.receiptNumber,
                         transactionId: selectedHistoryEntry.transactionId,
                         remarks: selectedHistoryEntry.remarks,
