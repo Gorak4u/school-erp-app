@@ -238,12 +238,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const classesWithFees = useMemo(() => {
     console.log('Computing classesWithFees - classes:', classes.length, 'feeStructures:', feeStructures.length);
     return classes.map((cls: any) => {
-      // Find fee structures for this class
+      // Find fee structures for this class - match classId directly based on schema
       const classFeeStructures = feeStructures.filter((fs: any) => 
-        fs.class?.id === cls.id || fs.classId === cls.id
+        fs.classId === cls.id
       );
       
       console.log(`Class ${cls.name} (${cls.id}):`, classFeeStructures.length, 'fee structures found');
+      console.log('Sample fee structure for this class:', classFeeStructures[0]);
       
       // Calculate total fees from all structures for this class
       const monthlyFees = classFeeStructures
@@ -903,25 +904,28 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                               onClick={() => {
                                 const visibleRouteIds = transportRoutes
                                   .filter((route: any) => !searchTerm || 
+                                    route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                    route.description?.toLowerCase().includes(searchTerm.toLowerCase())
                                   )
                                   .map((route: any) => route.id);
                                 const newRouteIds = [...new Set([...formData.transportRouteIds, ...visibleRouteIds])];
                                 setFormData({...formData, transportRouteIds: newRouteIds, feeStructureIds: []});
                               }}
                               disabled={transportRoutes.filter((route: any) => !searchTerm || 
+                                route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                route.description?.toLowerCase().includes(searchTerm.toLowerCase())
                               ).length === 0}
                               className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                               + Add All ({transportRoutes.filter((route: any) => !searchTerm || 
+                                route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                route.description?.toLowerCase().includes(searchTerm.toLowerCase())
                               ).length})
                             </button>
                             <button
@@ -938,9 +942,10 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             <div className="space-y-1">
                               {transportRoutes
                                 .filter((route: any) => !searchTerm || 
+                                  route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                  route.description?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                                 .map((route: any) => (
                                 <label key={route.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
@@ -956,10 +961,10 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-xs truncate">{route.name}</div>
+                                    <div className="font-medium text-xs truncate">{route.routeName || route.name || `Route ${route.routeNumber}`}</div>
                                     <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
-                                      {route.routeNumber && <span>R{route.routeNumber}</span>}
-                                      {route.area && <span>{route.area}</span>}
+                                      {route.routeNumber && <span>No: {route.routeNumber}</span>}
+                                      {route.description && <span>{route.description}</span>}
                                       <span>{route.students?.length || 0}st</span>
                                     </div>
                                     <div className="flex gap-2 truncate">
@@ -1007,7 +1012,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                   const route = transportRoutes.find((r: any) => r.id === routeId);
                                   return route ? (
                                     <span key={routeId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
-                                      {route.name}
+                                      {route.routeName || route.name || `Route ${route.routeNumber}`}
                                       {route.monthlyFee && (
                                         <span className="ml-1 text-orange-800 dark:text-orange-200">
                                           ₹{route.monthlyFee.toLocaleString()}/mo

@@ -16,14 +16,14 @@ export interface StudentIdCardData {
 const createCardContent = (data: StudentIdCardData) => {
   const issueDate = data.issueDate || new Date().toISOString().split('T')[0];
   const dobLine = data.dateOfBirth
-    ? `<p style="margin: 0; font-size: 11px; color: #94a3b8;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
+    ? `<p style="margin: 4px 0 0 0; font-size: 8px; color: #94a3b8; text-align: center;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
     : '';
   const logoBlock = data.schoolLogo
     ? `<img src="${data.schoolLogo}" alt="${data.schoolName}" style="width: 48px; height: 48px; object-fit: contain; border-radius: 12px; background: rgba(255,255,255,0.16); padding: 4px;" />`
     : '';
   const photoBlock = data.photo
-    ? `<img src="${data.photo}" alt="Student" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"/>`
-    : `<div style="width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>`;
+    ? `<img src="${data.photo}" alt="Student" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"/>${dobLine}`
+    : `<div style="width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>${dobLine}`;
 
   return `
     <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
@@ -33,7 +33,7 @@ const createCardContent = (data: StudentIdCardData) => {
           ${logoBlock}
           <div>
             <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
-            <h1 style="margin: 2px 0 0; font-size: 14px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
+            <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
           </div>
         </div>
         <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Issued: ${issueDate}</p>
@@ -49,28 +49,27 @@ const createCardContent = (data: StudentIdCardData) => {
         <!-- Right Section - Student Information -->
         <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
           <!-- Basic Info -->
-          <div style="margin-bottom: 1px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
+          <div style="margin-bottom: 0px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
               <strong style="color: #f8fafc;">Name</strong>
               <span>${data.name}</span>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
               <strong style="color: #f8fafc;">Admission No</strong>
               <span>${data.admissionNo}</span>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
               <strong style="color: #f8fafc;">Class</strong>
-              <span>${data.className}</span>
+              <span style="color: #ef4444; font-weight: 600;">${data.className}</span>
             </div>
-            ${dobLine}
           </div>
           
           <!-- Additional Info -->
           <div style="font-size: 9px;">
-            ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Blood Group</strong><span>${data.bloodGroup}</span></div>` : ''}
-            ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
-            ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
-            ${data.address ? `<div style="margin-top:4px;font-size:8px;color:#94a3b8;line-height:1.2;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
+            ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Blood Group</strong><span style="color: #f59e0b; font-weight: 500;">${data.bloodGroup}</span></div>` : ''}
+            ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
+            ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
+            ${data.address ? `<div style="margin-top:2px;font-size:8px;color:#94a3b8;line-height:1.1;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
           </div>
         </div>
       </div>
