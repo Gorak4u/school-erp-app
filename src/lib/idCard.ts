@@ -11,9 +11,12 @@ export interface StudentIdCardData {
   address?: string;
   academicYear?: string;
   bloodGroup?: string;
+  fatherName?: string;
+  motherName?: string;
+  transportRoute?: string;
 }
 
-const createCardContent = (data: StudentIdCardData) => {
+const createCardContent = (data: StudentIdCardData, showBack: boolean = false) => {
   const issueDate = data.issueDate || new Date().toISOString().split('T')[0];
   const dobLine = data.dateOfBirth
     ? `<p style="margin: 4px 0 0 0; font-size: 8px; color: #94a3b8; text-align: center;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
@@ -25,64 +28,137 @@ const createCardContent = (data: StudentIdCardData) => {
     ? `<img src="${data.photo}" alt="Student" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"/>${dobLine}`
     : `<div style="width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>${dobLine}`;
 
-  return `
-    <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
-      <!-- Header Section -->
-      <div style="padding: 12px 16px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          ${logoBlock}
-          <div>
-            <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
-            <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
+  // QR Code placeholder (would need QR library for real implementation)
+  const qrCode = `<div style="width: 60px; height: 60px; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: black; text-align: center; border: 1px solid #ccc;">QR Code<br/>Student ID</div>`;
+
+  if (showBack) {
+    // Back side design
+    return `
+      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
+        <!-- Header Section -->
+        <div style="padding: 12px 16px; background: linear-gradient(135deg, #10b981, #059669); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${logoBlock}
+            <div>
+              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(16,185,129,0.2); color: #6ee7b7; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
+              <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">EMERGENCY INFO</h1>
+            </div>
           </div>
+          <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Valid: ${issueDate}</p>
         </div>
-        <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Issued: ${issueDate}</p>
-      </div>
-      <div style="height: 2px; background: rgba(255,255,255,0.6);"></div>
-      <!-- Main Content - Horizontal Layout -->
-      <div style="padding: 16px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; display: flex; gap: 16px;">
-        <!-- Left Section - Photo -->
-        <div style="flex-shrink: 0;">
-          ${photoBlock}
-        </div>
+        <div style="height: 2px; background: rgba(255,255,255,0.6);"></div>
         
-        <!-- Right Section - Student Information -->
-        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-          <!-- Basic Info -->
-          <div style="margin-bottom: 0px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
-              <strong style="color: #f8fafc;">Name</strong>
-              <span>${data.name}</span>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
-              <strong style="color: #f8fafc;">Admission No</strong>
-              <span>${data.admissionNo}</span>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
-              <strong style="color: #f8fafc;">Class</strong>
-              <span style="color: #ef4444; font-weight: 600;">${data.className}</span>
-            </div>
+        <!-- Back Content -->
+        <div style="padding: 16px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; display: flex; gap: 12px;">
+          <!-- Left Section - QR Code -->
+          <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            ${qrCode}
+            <p style="font-size: 7px; color: #94a3b8; text-align: center;">Scan for<br/>Student Profile</p>
           </div>
           
-          <!-- Additional Info -->
-          <div style="font-size: 9px;">
-            ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Blood Group</strong><span style="color: #f59e0b; font-weight: 500;">${data.bloodGroup}</span></div>` : ''}
-            ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
-            ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
-            ${data.address ? `<div style="margin-top:2px;font-size:8px;color:#94a3b8;line-height:1.1;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
+          <!-- Right Section - Emergency Info -->
+          <div style="flex: 1; font-size: 9px;">
+            <!-- Medical Info -->
+            <div style="margin-bottom: 8px;">
+              <p style="font-weight: 600; color: #f8fafc; margin-bottom: 4px; font-size: 10px;">🏥 MEDICAL INFO</p>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span style="color: #94a3b8;">Blood Group:</span>
+                <span style="color: #f59e0b; font-weight: 500;">${data.bloodGroup || 'N/A'}</span>
+              </div>
+              <div style="color: #94a3b8; font-size: 8px; margin-top: 2px;">
+                <strong>Allergies:</strong> None on record
+              </div>
+            </div>
+            
+            <!-- Emergency Contacts -->
+            <div style="margin-bottom: 8px;">
+              <p style="font-weight: 600; color: #f8fafc; margin-bottom: 4px; font-size: 10px;">📞 EMERGENCY CONTACTS</p>
+              <div style="margin-bottom: 2px;">
+                <span style="color: #94a3b8;">Father:</span> ${data.fatherName || 'N/A'}
+              </div>
+              <div style="margin-bottom: 2px;">
+                <span style="color: #94a3b8;">Mother:</span> ${data.motherName || 'N/A'}
+              </div>
+              <div>
+                <span style="color: #94a3b8;">Emergency:</span> ${data.phone || 'N/A'}
+              </div>
+            </div>
+            
+            <!-- Status Badges -->
+            <div>
+              <p style="font-weight: 600; color: #f8fafc; margin-bottom: 4px; font-size: 10px;">🎯 STATUS</p>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <span style="padding: 2px 6px; background: rgba(34,197,94,0.2); color: #86efac; border-radius: 999px; font-size: 7px; font-weight: 500;">Active</span>
+                <span style="padding: 2px 6px; background: rgba(59,130,246,0.2); color: #93c5fd; border-radius: 999px; font-size: 7px; font-weight: 500;">${data.academicYear || '2024-25'}</span>
+                ${data.transportRoute ? `<span style="padding: 2px 6px; background: rgba(251,146,60,0.2); color: #fbbf24; border-radius: 999px; font-size: 7px; font-weight: 500;">Bus User</span>` : ''}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  `.trim();
+    `.trim();
+  } else {
+    // Front side design (existing)
+    return `
+      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
+        <!-- Header Section -->
+        <div style="padding: 12px 16px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${logoBlock}
+            <div>
+              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
+              <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
+            </div>
+          </div>
+          <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Issued: ${issueDate}</p>
+        </div>
+        <div style="height: 2px; background: rgba(255,255,255,0.6);"></div>
+        
+        <!-- Main Content - Horizontal Layout -->
+        <div style="padding: 16px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; display: flex; gap: 16px;">
+          <!-- Left Section - Photo -->
+          <div style="flex-shrink: 0;">
+            ${photoBlock}
+          </div>
+          
+          <!-- Right Section - Student Information -->
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <!-- Basic Info -->
+            <div style="margin-bottom: 0px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
+                <strong style="color: #f8fafc;">Name</strong>
+                <span>${data.name}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
+                <strong style="color: #f8fafc;">Admission No</strong>
+                <span>${data.admissionNo}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px; font-size: 11px;">
+                <strong style="color: #f8fafc;">Class</strong>
+                <span style="color: #ef4444; font-weight: 600;">${data.className}</span>
+              </div>
+            </div>
+            
+            <!-- Additional Info -->
+            <div style="font-size: 9px;">
+              ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Blood Group</strong><span style="color: #f59e0b; font-weight: 500;">${data.bloodGroup}</span></div>` : ''}
+              ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
+              ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
+              ${data.address ? `<div style="margin-top:2px;font-size:8px;color:#94a3b8;line-height:1.1;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `.trim();
+  }
 };
 
-export function buildStudentIdCardSnippet(data: StudentIdCardData) {
-  return createCardContent(data);
+export function buildStudentIdCardSnippet(data: StudentIdCardData, showBack: boolean = false) {
+  return createCardContent(data, showBack);
 }
 
-export function buildStudentIdCardDocument(data: StudentIdCardData) {
-  const content = createCardContent(data);
+export function buildStudentIdCardDocument(data: StudentIdCardData, showBack: boolean = false) {
+  const content = createCardContent(data, showBack);
   return `<!doctype html>
     <html>
       <head>

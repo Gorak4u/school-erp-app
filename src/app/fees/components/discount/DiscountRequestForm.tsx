@@ -112,6 +112,16 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           const classData = await classRes.json();
           setClasses(classData.classes || []);
         }
+        if (sectionRes.ok) {
+          const sectionData = await sectionRes.json();
+          console.log('Sections data:', sectionData);
+          setSections(sectionData.sections || []);
+        }
+        if (mediumRes.ok) {
+          const mediumData = await mediumRes.json();
+          console.log('Mediums data:', mediumData);
+          setMediums(mediumData.mediums || []);
+        }
         if (transportRes.ok) {
           const transportData = await transportRes.json();
           setTransportRoutes(transportData.routes || []);

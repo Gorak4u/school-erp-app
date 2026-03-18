@@ -105,6 +105,7 @@ export default function StudentForm({
   const [previewPayload, setPreviewPayload] = useState<any>(null);
   const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
   const [showIdCard, setShowIdCard] = useState(false);
+  const [showCardBack, setShowCardBack] = useState(false);
   const [idCardHtml, setIdCardHtml] = useState('');
   const [idCardData, setIdCardData] = useState<StudentIdCardData | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -594,6 +595,9 @@ export default function StudentForm({
       address: effectiveStudent.address,
       academicYear: activeAcademicYear?.name || activeAcademicYear?.year,
       bloodGroup: effectiveStudent.bloodGroup,
+      fatherName: effectiveStudent.fatherName,
+      motherName: effectiveStudent.motherName,
+      transportRoute: transportSelected ? transportInfo.routeName || `Route ${transportInfo.routeNumber}` : undefined,
     };
     const payload = {
       student: {
@@ -2086,8 +2090,32 @@ export default function StudentForm({
                 </div>
 
                 <div className="space-y-2 md:space-y-4">
+                  <div className="flex justify-center items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCardBack(false)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        !showCardBack
+                          ? 'bg-blue-600 text-white'
+                          : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      Front Side
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCardBack(true)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        showCardBack
+                          ? 'bg-green-600 text-white'
+                          : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      Back Side
+                    </button>
+                  </div>
                   <div id="student-id-card-print" className="flex justify-center">
-                    <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData) }} />
+                    <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData, showCardBack) }} />
                   </div>
                   <div className="grid grid-cols-4 gap-1">
                     <button type="button" onClick={handlePrintIdCard} className="px-2 py-1.5 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
