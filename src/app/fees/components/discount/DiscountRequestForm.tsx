@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, GraduationCap, Building2, DollarSign, Calendar, FileText, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, Users, GraduationCap, Building2, DollarSign, Calendar, FileText, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Bus } from 'lucide-react';
 
 interface DiscountRequestFormProps {
   theme: 'dark' | 'light';
@@ -15,12 +15,14 @@ interface FormData {
   discountType: 'percentage' | 'fixed' | 'full_waiver';
   discountValue: string;
   maxCapAmount: string;
-  scope: 'student' | 'class' | 'bulk';
+  scope: 'student' | 'class' | 'transport';
   targetType: 'total' | 'fee_structure';
   feeStructureIds: string[];
   studentIds: string[];
   classIds: string[];
   sectionIds: string[];
+  mediumIds: string[];
+  transportRouteIds: string[];
   academicYear: string;
   reason: string;
   validFrom: string;
@@ -49,6 +51,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
+  const [mediums, setMediums] = useState<any[]>([]);
+  const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>({});
@@ -78,6 +82,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     studentIds: [],
     classIds: [],
     sectionIds: [],
+    mediumIds: [],
+    transportRouteIds: [],
     academicYear: '',
     reason: '',
     validFrom: new Date().toISOString().split('T')[0],
@@ -89,10 +95,12 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [feeRes, classRes, sectionRes, yearRes] = await Promise.all([
+        const [feeRes, classRes, sectionRes, mediumRes, transportRes, yearRes] = await Promise.all([
           fetch('/api/fees/structures'),
           fetch('/api/school-structure/classes'),
           fetch('/api/school-structure/sections'),
+          fetch('/api/school-structure/mediums'),
+          fetch('/api/transport/routes'),
           fetch('/api/school-structure/academic-years')
         ]);
 
@@ -107,6 +115,14 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         if (sectionRes.ok) {
           const sectionData = await sectionRes.json();
           setSections(sectionData.sections || []);
+        }
+        if (mediumRes.ok) {
+          const mediumData = await mediumRes.json();
+          setMediums(mediumData.mediums || []);
+        }
+        if (transportRes.ok) {
+          const transportData = await transportRes.json();
+          setTransportRoutes(transportData.routes || []);
         }
         if (yearRes.ok) {
           const yearData = await yearRes.json();
@@ -201,7 +217,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         return false;
       }
 
-      if (formData.scope === 'bulk') {
+      if (formData.scope === 'transport') {
         return true;
       }
 
@@ -244,6 +260,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       if (!formData.scope) errors.push('Scope selection is required');
       if (formData.scope === 'student' && formData.studentIds.length === 0) errors.push('Please select at least one student');
       if (formData.scope === 'class' && formData.classIds.length === 0) errors.push('Please select at least one class');
+      if (formData.scope === 'transport' && formData.transportRouteIds.length === 0) errors.push('Please select at least one transport route');
     }
 
     if (step === 2) {
@@ -278,6 +295,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           ...formData,
           discountValue: Number(formData.discountValue),
           maxCapAmount: formData.maxCapAmount ? Number(formData.maxCapAmount) : null,
+          transportRouteIds: formData.transportRouteIds,
         }),
       });
 
@@ -432,11 +450,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     {[
                       { value: 'student', label: 'Individual Students', icon: Users },
                       { value: 'class', label: 'By Class', icon: GraduationCap },
-                      { value: 'bulk', label: 'All Students', icon: Building2 }
+                      { value: 'transport', label: 'By Transport Route', icon: Bus }
                     ].map((scope) => (
                       <motion.button
                         key={scope.value}
-                        onClick={() => setFormData({...formData, scope: scope.value as 'student' | 'class' | 'bulk'})}
+                        onClick={() => setFormData({...formData, scope: scope.value as 'student' | 'class' | 'transport'})}
                         className={`p-4 rounded-xl border text-center transition-all hover:scale-105 ${
                           formData.scope === scope.value
                             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 shadow-lg'
@@ -533,10 +551,52 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   <div className="space-y-4">
                     <div>
                       <label className={label}>
+                        Select Medium <span className="text-xs text-gray-500">(Optional - will filter classes)</span>
+                      </label>
+                      <div className={`max-h-32 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                        <label className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.mediumIds.length === 0}
+                            onChange={(e) => {
+                              setFormData({...formData, mediumIds: []});
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium">All Mediums</span>
+                        </label>
+                        {mediums.map((medium: any) => (
+                          <label key={medium.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.mediumIds.includes(medium.id)}
+                              onChange={(e) => {
+                                const newIds = e.target.checked
+                                  ? [...formData.mediumIds, medium.id]
+                                  : formData.mediumIds.filter(id => id !== medium.id);
+                                setFormData({...formData, mediumIds: newIds, classIds: []});
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <span className="text-sm font-medium">{medium.name}</span>
+                              <div className="text-xs text-gray-400">
+                                {medium.code && `Code: ${medium.code}`}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={label}>
                         Select Classes <span className="text-red-500">*</span>
                       </label>
                       <div className={`max-h-64 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        {classes.map((cls: any) => (
+                        {classes
+                          .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
+                          .map((cls: any) => (
                           <label key={cls.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
@@ -608,60 +668,98 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   </div>
                 )}
                 
-                {/* Bulk Application */}
-                {formData.scope === 'bulk' && (
+                {/* Transport Route Selection */}
+                {formData.scope === 'transport' && (
                   <div className="space-y-4">
                     <div className={`p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-50/50'}`}>
                       <div className="flex items-center gap-3 mb-4">
-                        <Building2 className="w-8 h-8 text-blue-600" />
+                        <Bus className="w-8 h-8 text-blue-600" />
                         <div>
-                          <h4 className="font-semibold">Bulk Application</h4>
+                          <h4 className="font-semibold">Transport Route Application</h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            This discount will apply to all students in the school
+                            This discount will apply to all students in the selected transport routes
                           </p>
                         </div>
                       </div>
                       
                       <div className="space-y-3">
-                        <label className={label}>Search Students (Preview)</label>
+                        <label className={label}>
+                          Select Transport Routes <span className="text-red-500">*</span>
+                        </label>
                         <div className="relative">
                           <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                           <input
                             type="text"
-                            placeholder="Search by name, admission no, email..."
+                            placeholder="Search transport routes by name, number, or area..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className={`${input} pl-10`}
                           />
                         </div>
                         
-                        {searchTerm.length >= 2 && (
-                          <div className={`max-h-48 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                            <p className="text-xs text-gray-500 mb-2">
-                              Showing {students.length} students (this is a preview - bulk discount will apply to ALL students)
-                            </p>
-                            {students.length > 0 ? (
-                              <>
-                                {students.slice(0, 10).map((student) => (
-                                  <div key={student.id} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                                    <div className="font-medium text-sm">{student.name}</div>
-                                    <div className="text-xs text-gray-500">
-                                      Class: {student.class?.name || student.class} | Adm No: {student.admissionNo} | Status: {formatStudentStatus(student.status)}
-                                    </div>
-                                  </div>
-                                ))}
-                                {students.length > 10 && (
-                                  <p className="text-xs text-gray-500 p-3 text-center">
-                                    ... and {students.length - 10} more students
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-gray-500 p-3 text-center">
-                                No students found matching "{searchTerm}"
-                              </p>
-                            )}
-                          </div>
+                        <div className={`max-h-64 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                          {transportRoutes
+                            .filter((route: any) => !searchTerm || 
+                              route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                            .map((route: any) => (
+                            <label key={route.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={formData.transportRouteIds.includes(route.id)}
+                                onChange={(e) => {
+                                  const newIds = e.target.checked
+                                    ? [...formData.transportRouteIds, route.id]
+                                    : formData.transportRouteIds.filter(id => id !== route.id);
+                                  setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
+                                }}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">
+                                  {route.name} {route.routeNumber && `(${route.routeNumber})`}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {route.area && `Area: ${route.area}`}
+                                  {route.vehicle?.registrationNumber && ` • Vehicle: ${route.vehicle.registrationNumber}`}
+                                  {route.driver?.name && ` • Driver: ${route.driver.name}`}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {route.students?.length || 0} student(s) assigned
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                          
+                          {transportRoutes.length === 0 && (
+                            <div className="text-center p-6 text-gray-500 text-sm">
+                              No transport routes found
+                            </div>
+                          )}
+                          
+                          {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
+                            searchTerm && (
+                              route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                          ).length === 0 && (
+                            <div className="text-center p-6 text-gray-500 text-sm">
+                              No transport routes found matching "{searchTerm}"
+                            </div>
+                          )}
+                        </div>
+                        
+                        {formData.transportRouteIds.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-sm text-green-600 dark:text-green-400 font-medium"
+                          >
+                            {formData.transportRouteIds.length} transport route(s) selected
+                          </motion.div>
                         )}
                       </div>
                     </div>
@@ -884,7 +982,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     </div>
                   </div>
                   
-                  {(formData.studentIds.length > 0 || formData.classIds.length > 0) && (
+                  {(formData.studentIds.length > 0 || formData.classIds.length > 0 || formData.transportRouteIds.length > 0) && (
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       <span className="opacity-70 text-sm">Affected:</span>
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -901,6 +999,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         {formData.sectionIds.length > 0 && (
                           <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
                             {formData.sectionIds.length} Section(s)
+                          </span>
+                        )}
+                        {formData.transportRouteIds.length > 0 && (
+                          <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
+                            {formData.transportRouteIds.length} Transport Route(s)
                           </span>
                         )}
                       </div>
