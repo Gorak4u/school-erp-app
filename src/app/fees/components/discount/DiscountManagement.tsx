@@ -114,4 +114,3 @@ export default function DiscountManagement({ theme }: DiscountManagementProps) {
     </div>
   );
 }
-}
