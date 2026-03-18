@@ -309,7 +309,7 @@ export default function StudentsPage() {
             }}
           >
             <motion.div
-              className={`w-[90vw] h-[90vh] max-w-5xl mx-4 rounded-2xl p-6 flex flex-col ${
+              className={`w-[95vw] h-[95vh] max-w-6xl mx-4 rounded-2xl p-4 flex flex-col ${
                 theme === 'dark' ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'
               }`}
               initial={{ scale: 0.9, opacity: 0 }}
@@ -317,18 +317,18 @@ export default function StudentsPage() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                <h2 className={`text-3xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent ${
+              <div className="flex justify-between items-center mb-2 flex-shrink-0">
+                <h2 className={`text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {editingStudent ? '📝 Edit Student' : '➕ Add New Student'}
+                  {editingStudent ? '📝 Edit Student' : '➕ Add Student'}
                 </h2>
                 <button
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingStudent(null);
                   }}
-                  className={`p-3 rounded-full transition-all duration-300 ${
+                  className={`p-2 rounded-full transition-all duration-300 ${
                     theme === 'dark'
                       ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white'
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'

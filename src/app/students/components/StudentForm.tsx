@@ -113,7 +113,7 @@ export default function StudentForm({
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
   const initialLanguageMedium = !student && mediums.length === 1 ? mediums[0].name : (student?.languageMedium || '');
 
-  const inputCls = `w-full px-4 py-3 md:px-3 md:py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+  const inputCls = `w-full px-3 py-2 md:px-2 md:py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
     theme === 'dark'
       ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500 focus:border-blue-500'
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
@@ -121,10 +121,10 @@ export default function StudentForm({
   const labelCls = `block text-xs font-semibold uppercase tracking-wide mb-1 ${
     theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
   }`;
-  const sectionCls = `rounded-xl border p-3 md:p-4 mb-3 md:mb-4 ${
+  const sectionCls = `rounded-xl border p-2 md:p-3 mb-2 md:mb-3 ${
     theme === 'dark' ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'
   }`;
-  const sectionTitleCls = `text-sm font-bold mb-3 flex items-center gap-2 ${
+  const sectionTitleCls = `text-xs font-bold mb-2 flex items-center gap-2 ${
     theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
   }`;
   const helperTextCls = `text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`;
@@ -844,7 +844,7 @@ export default function StudentForm({
   };
 
   const tabBtnCls = (id: string) =>
-    `px-3 py-2.5 md:px-4 md:py-2 text-sm font-semibold rounded-lg transition-all ${
+    `px-2 py-1.5 md:px-3 md:py-1 text-xs font-semibold rounded-lg transition-all ${
       activeTab === id
         ? 'bg-blue-600 text-white shadow'
         : theme === 'dark'
@@ -856,40 +856,36 @@ export default function StudentForm({
 
   return (
     <div className="flex flex-col h-full">
-      <div className={`mb-4 rounded-2xl border p-4 ${
+      <div className={`mb-2 rounded-xl border p-2 ${
         theme === 'dark' ? 'border-blue-900/50 bg-blue-900/10 text-blue-100' : 'border-blue-200 bg-blue-50 text-blue-900'
       }`}>
-        <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide opacity-80">Active Academic Year</p>
-            <p className="text-lg font-semibold">{ayLabel}</p>
+            <p className="text-xs uppercase tracking-wide opacity-70">Active Academic Year</p>
+            <p className="text-sm font-semibold">{ayLabel}</p>
           </div>
           <div>
             {subscriptionSummary.status === 'ready' && maxStudents > 0 ? (
-              <p className="text-sm font-medium">
-                {studentsUsed}/{maxStudents} student seats used {seatsRemaining !== null && seatsRemaining >= 0 && `• ${seatsRemaining} remaining`}
+              <p className="text-xs font-medium">
+                {studentsUsed}/{maxStudents} seats {seatsRemaining !== null && seatsRemaining >= 0 && `• ${seatsRemaining} left`}
               </p>
             ) : subscriptionSummary.status === 'error' ? (
-              <p className={errorTextCls}>{planError || 'Unable to load plan limits'}</p>
+              <p className={`text-xs ${errorTextCls}`}>{planError || 'Unable to load plan limits'}</p>
             ) : (
-              <p className={helperTextCls}>Checking subscription limits…</p>
+              <p className={`text-xs ${helperTextCls}`}>Checking subscription…</p>
             )}
           </div>
           {limitReached && (
-            <div className="flex items-center gap-2 text-sm font-semibold text-red-500">
-              ⚠️ Student limit reached. Please upgrade your plan to admit new students.
+            <div className="flex items-center gap-1 text-xs font-semibold text-red-500">
+              ⚠️ Limit reached • Upgrade plan
             </div>
           )}
         </div>
         {subscriptionSummary.status === 'ready' && maxStudents > 0 && (
-          <div className="mt-3">
-            <div className="flex justify-between text-xs opacity-80">
-              <span>{usagePercent}% used</span>
-              {!limitReached && seatsRemaining !== null && <span>{seatsRemaining} seats left</span>}
-            </div>
-            <div className={`h-2 rounded-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="mt-2">
+            <div className={`h-1 rounded-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
               <div
-                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                className="h-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
                 style={{ width: `${usagePercent}%` }}
               />
             </div>
@@ -897,7 +893,7 @@ export default function StudentForm({
         )}
       </div>
       {/* Tab Bar */}
-      <div className={`flex gap-1 pb-3 border-b flex-shrink-0 overflow-x-auto ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`flex gap-1 pb-2 border-b flex-shrink-0 overflow-x-auto ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
         {TABS.map(t => (
           <button key={t.id} type="button" onClick={() => setActiveTab(t.id)} className={`${tabBtnCls(t.id)} flex-shrink-0`}>
             {t.label}
@@ -918,7 +914,7 @@ export default function StudentForm({
           </button>
         </div>
       </div>
-      <div className={`h-1 rounded-full mb-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
+      <div className={`h-1 rounded-full mb-2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
         <div
           className="h-1 rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500 transition-all"
           style={{ width: `${progressPercent}%` }}
@@ -927,11 +923,11 @@ export default function StudentForm({
 
       {/* Tab Content */}
       <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 overflow-y-auto py-4 pr-1">
+        <div className="flex-1 overflow-y-auto py-2 pr-1">
 
           {/* ── TAB: ADMISSION ─────────────────────────────── */}
           {activeTab === 'admission' && (
-            <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>📚 Admission Details</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1053,7 +1049,7 @@ export default function StudentForm({
 
           {/* ── TAB: FEE INFORMATION ─────────────────────── */}
           {activeTab === 'fees' && (
-            <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
               {/* Fee Structure List */}
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>💰 Fee Structure{formData.class ? ` — ${formData.class}` : ''}</p>
@@ -1122,7 +1118,7 @@ export default function StudentForm({
               {discountData.hasDiscount && (
                 <div className={sectionCls}>
                   <p className={sectionTitleCls}>🎫 Discount Details</p>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {/* Type */}
                     <div>
                       <label className={labelCls}>Discount Type</label>
@@ -1168,7 +1164,7 @@ export default function StudentForm({
                     {discountData.discountCategory && (
                       <div>
                         <label className={labelCls}>Fee Types for {discountData.discountCategory}</label>
-                        <div className={`space-y-2 max-h-32 overflow-y-auto p-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className={`space-y-1 max-h-32 overflow-y-auto p-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
                           {applicableFeeStructures
                             .filter(fee => {
                               const feeCategory = fee.category || fee.feeCategory || 'General';
@@ -1373,7 +1369,7 @@ export default function StudentForm({
               {applicableFeeStructures.length > 0 && (
                 <div className={`${sectionCls} ${discountData.hasDiscount && feeCalcs.discountAmount > 0 ? theme === 'dark' ? 'border-green-700' : 'border-green-300' : ''}`}>
                   <p className={sectionTitleCls}>📊 Fee Summary</p>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {applicableFeeStructures.map((fee: any) => {
                       const feeCategory = fee.category || fee.feeCategory || 'General';
                       const isSelectedForDiscount = selectedDiscountFeeIds.includes(fee.id);
@@ -1461,7 +1457,7 @@ export default function StudentForm({
 
           {/* ── TAB: PERSONAL ─────────────────────────────── */}
           {activeTab === 'personal' && (
-            <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
               {/* Photo */}
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>📷 Student Photo</p>
@@ -1598,7 +1594,7 @@ export default function StudentForm({
 
           {/* ── TAB: PARENTS ─────────────────────────────── */}
           {activeTab === 'parents' && (
-            <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>👨 Father's Details</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1674,7 +1670,7 @@ export default function StudentForm({
 
           {/* ── TAB: ADDITIONAL ─────────────────────────────── */}
           {activeTab === 'additional' && (
-            <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🏦 Bank Details</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1801,7 +1797,13 @@ export default function StudentForm({
         </div>
 
         {/* Footer Actions */}
-        <div className={`flex items-center justify-between pt-3 mt-2 border-t flex-shrink-0 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`flex items-center justify-between pt-2 mt-1 border-t flex-shrink-0 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="flex gap-2">
+            <button type="button" onClick={onCancel}
+              className={`px-4 py-2.5 md:px-4 md:py-2 text-sm rounded-lg border font-medium ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
+              Cancel
+            </button>
+          </div>
           <div className="flex gap-2">
             {TABS.findIndex(t => t.id === activeTab) > 0 && (
               <button type="button" onClick={() => setActiveTab(TABS[TABS.findIndex(t => t.id === activeTab) - 1].id)}
@@ -1815,12 +1817,6 @@ export default function StudentForm({
                 Next →
               </button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={onCancel}
-              className={`px-4 py-2.5 md:px-4 md:py-2 text-sm rounded-lg border font-medium ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
-              Cancel
-            </button>
             {isLastTab && (
               <button type="submit"
                 disabled={isSubmitting}
@@ -1833,7 +1829,7 @@ export default function StudentForm({
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                     </svg>
                     {student ? 'Updating...' : 'Preparing...'}
                   </span>

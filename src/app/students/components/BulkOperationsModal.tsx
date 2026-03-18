@@ -240,23 +240,23 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                 )}
 
                 {bulkOperationProgress.status !== 'idle' && (
-                  <div className={`p-4 rounded-lg border ${
+                  <div className={`p-2 rounded-lg border ${
                     theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'
                   }`}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`text-xs font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {bulkOperationProgress.status === 'processing' ? 'Processing...' : 
-                         bulkOperationProgress.status === 'completed' ? 'Completed!' : 'Error'}
+                         bulkOperationProgress.status === 'completed' ? 'Done!' : 'Error'}
                       </span>
-                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {bulkOperationProgress.current} / {bulkOperationProgress.total}
+                      <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {bulkOperationProgress.current}/{bulkOperationProgress.total}
                       </span>
                     </div>
-                    <div className={`w-full h-2 rounded-full ${
+                    <div className={`w-full h-1 rounded-full ${
                       theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'
                     }`}>
                       <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
+                        className={`h-1 rounded-full transition-all duration-300 ${
                           bulkOperationProgress.status === 'completed' ? 'bg-green-500' :
                           bulkOperationProgress.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
                         }`}
@@ -264,8 +264,9 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                       />
                     </div>
                     {bulkOperationProgress.errors.length > 0 && (
-                      <div className="mt-2 text-sm text-red-500">
-                        {bulkOperationProgress.errors.join(', ')}
+                      <div className="mt-1 text-xs text-red-500 truncate">
+                        {bulkOperationProgress.errors[0]}
+                        {bulkOperationProgress.errors.length > 1 && ` +${bulkOperationProgress.errors.length - 1}`}
                       </div>
                     )}
                   </div>

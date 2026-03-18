@@ -333,9 +333,9 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-3">
         {steps.map((stepInfo, index) => {
           const Icon = stepInfo.icon;
           const isActive = currentStep === stepInfo.id;
@@ -345,24 +345,24 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
             <React.Fragment key={stepInfo.id}>
               <div className="flex flex-col items-center">
                 <motion.div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all ${
                     isCompleted 
-                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg transform scale-110' 
+                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg transform scale-105' 
                       : isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-110'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
                       : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isCompleted ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+                  {isCompleted ? <CheckCircle className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                 </motion.div>
-                <span className={`text-xs mt-2 font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <span className={`text-xs mt-1 font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {stepInfo.title}
                 </span>
               </div>
               {index < steps.length - 1 && (
-                <div className={`flex-1 h-1 mx-4 rounded ${
+                <div className={`flex-1 h-0.5 mx-2 rounded ${
                   isCompleted ? 'bg-gradient-to-r from-green-600 to-green-700' : isDark ? 'bg-gray-700' : 'bg-gray-200'
                 }`} />
               )}
@@ -403,16 +403,16 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-          className="space-y-6"
+          className="space-y-4"
         >
           {currentStep === 1 && (
             <div>
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Users className="w-6 h-6 text-blue-600" />
                 Scope & Targeting
               </h3>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <label className={label}>
                     Discount Name <span className="text-red-500">*</span>
@@ -688,8 +688,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                               {formData.classIds.slice(0, 5).map((classId) => {
                                 const cls = classes.find((c: any) => c.id === classId);
                                 return cls ? (
-                                  <span key={classId} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs">
+                                  <span key={classId} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                                     {cls.name}
+                                    {cls.monthlyFee && (
+                                      <span className="ml-1 text-green-800 dark:text-green-200">
+                                        ₹{cls.monthlyFee.toLocaleString()}/mo
+                                      </span>
+                                    )}
+                                    {cls.yearlyFee && !cls.monthlyFee && (
+                                      <span className="ml-1 text-blue-800 dark:text-blue-200">
+                                        ₹{cls.yearlyFee.toLocaleString()}/yr
+                                      </span>
+                                    )}
                                     <button
                                       onClick={() => {
                                         setFormData({
@@ -698,7 +708,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                           feeStructureIds: []
                                         });
                                       }}
-                                      className="hover:text-red-500 transition-colors"
+                                      className="hover:text-red-500 transition-colors ml-1"
                                     >
                                       ×
                                     </button>
@@ -732,12 +742,27 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                   className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                 />
                                 <div className="flex-1">
-                                  <span className="text-sm font-medium">{cls.name}</span>
-                                  <span className="text-xs text-gray-500 ml-2">
-                                    ({cls.medium?.name || 'No Medium'})
-                                  </span>
-                                  <div className="text-xs text-gray-400">
-                                    Code: {cls.code} | Level: {cls.level}
+                                  <div className="font-medium text-sm">{cls.name}</div>
+                                  <div className="text-xs text-gray-500 flex items-center gap-3">
+                                    <span>Medium: {cls.medium?.name || 'No Medium'}</span>
+                                    <span>Level: {cls.level}</span>
+                                    {cls.sectionCount && <span>{cls.sectionCount} sections</span>}
+                                  </div>
+                                  <div className="text-xs text-gray-400 flex items-center gap-3">
+                                    {cls.studentCount && <span>{cls.studentCount} students</span>}
+                                    <span>Code: {cls.code}</span>
+                                  </div>
+                                  <div className="flex gap-3 mt-1">
+                                    {cls.monthlyFee && (
+                                      <div className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                                        Monthly: ₹{cls.monthlyFee.toLocaleString()}
+                                      </div>
+                                    )}
+                                    {cls.yearlyFee && (
+                                      <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                                        Yearly: ₹{cls.yearlyFee.toLocaleString()}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </label>
@@ -878,8 +903,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                 {formData.transportRouteIds.slice(0, 5).map((routeId) => {
                                   const route = transportRoutes.find((r: any) => r.id === routeId);
                                   return route ? (
-                                    <span key={routeId} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs">
-                                      {route.name} {route.routeNumber && `(${route.routeNumber})`}
+                                    <span key={routeId} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
+                                      {route.name}
+                                      {route.monthlyFee && (
+                                        <span className="ml-1 text-orange-800 dark:text-orange-200">
+                                          ₹{route.monthlyFee.toLocaleString()}/mo
+                                        </span>
+                                      )}
+                                      {route.yearlyFee && !route.monthlyFee && (
+                                        <span className="ml-1 text-blue-800 dark:text-blue-200">
+                                          ₹{route.yearlyFee.toLocaleString()}/yr
+                                        </span>
+                                      )}
                                       <button
                                         onClick={() => {
                                           setFormData({
@@ -888,7 +923,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                             feeStructureIds: []
                                           });
                                         }}
-                                        className="hover:text-red-500 transition-colors"
+                                        className="hover:text-red-500 transition-colors ml-1"
                                       >
                                         ×
                                       </button>
@@ -928,13 +963,39 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                   />
                                   <div className="flex-1">
                                     <div className="font-medium text-sm">
-                                      {route.name} {route.routeNumber && `(${route.routeNumber})`}
+                                      {route.name}
                                     </div>
                                     <div className="text-xs text-gray-500 flex items-center gap-3">
+                                      {route.routeNumber && <span>Route No: {route.routeNumber}</span>}
                                       {route.area && <span>Area: {route.area}</span>}
+                                      {route.distance && <span>Distance: {route.distance} km</span>}
+                                    </div>
+                                    <div className="text-xs text-gray-400 flex items-center gap-3">
                                       {route.vehicle?.registrationNumber && <span>Vehicle: {route.vehicle.registrationNumber}</span>}
                                       {route.driver?.name && <span>Driver: {route.driver.name}</span>}
                                       <span>{route.students?.length || 0} students</span>
+                                    </div>
+                                    <div className="flex gap-3 mt-1">
+                                      {route.monthlyFee && (
+                                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">
+                                          Monthly: ₹{route.monthlyFee.toLocaleString()}
+                                        </div>
+                                      )}
+                                      {route.yearlyFee && (
+                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                          Yearly: ₹{route.yearlyFee.toLocaleString()}
+                                        </div>
+                                      )}
+                                      {route.pickupTime && (
+                                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                                          Pickup: {route.pickupTime}
+                                        </div>
+                                      )}
+                                      {route.dropTime && (
+                                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                                          Drop: {route.dropTime}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </label>
