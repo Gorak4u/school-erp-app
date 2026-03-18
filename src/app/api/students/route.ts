@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     // 2. Batch aggregate fee and attendance data for the page's students only
     const studentIds = students.map(s => s.id);
 
-    const [feeAgg, feeLastPayment, attendanceAgg] = await Promise.all([
+    const [feeAgg, feeLastPayment, attendanceAgg, transportStudents] = await Promise.all([
       // Sum fees per student
       schoolPrisma.feeRecord.groupBy({
         by: ['studentId'],
@@ -149,6 +149,16 @@ export async function GET(request: NextRequest) {
         where: { studentId: { in: studentIds } },
         _count: true,
       }),
+      // Transport students data - just routeId
+      (schoolPrisma as any).studentTransport.findMany({
+        where: { studentId: { in: studentIds }, isActive: true },
+        select: {
+          id: true,
+          studentId: true,
+          routeId: true,
+          isActive: true
+        }
+      })
     ]);
 
     // 3. Build lookup maps
@@ -163,6 +173,16 @@ export async function GET(request: NextRequest) {
       attMap.set(att.studentId, studentAtt);
     });
 
+    // Build transport lookup maps
+    const transportMap = new Map();
+    transportStudents.forEach(ts => {
+      transportMap.set(ts.studentId, {
+        id: ts.id,
+        routeId: ts.routeId,
+        isActive: ts.isActive
+      });
+    });
+
     // 4. Shape the final response
     const shaped = students.map(s => {
       const normalizedStatus = s.status === 'exit' ? 'exited' : s.status;
@@ -171,6 +191,7 @@ export async function GET(request: NextRequest) {
       const absent = attMap.get(s.id)?.absent || 0;
       const late = attMap.get(s.id)?.late || 0;
       const totalAtt = present + absent + late;
+      const transportInfo = transportMap.get(s.id);
 
       // A student needs promotion if:
       // - academicYearId is set (admitted after this feature) AND
@@ -196,6 +217,11 @@ export async function GET(request: NextRequest) {
           late,
           percentage: totalAtt > 0 ? Math.round((present / totalAtt) * 100) : 0,
         },
+        transport: transportInfo ? {
+          id: transportInfo.id,
+          routeId: transportInfo.routeId,
+          isActive: transportInfo.isActive,
+        } : null,
       };
     });
 

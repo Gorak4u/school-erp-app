@@ -104,6 +104,18 @@ async function processDiscountApplication(
   const job = jobStatus.get(jobId)!;
   
   try {
+    // DEBUG: Log the discount request details
+    console.log('DEBUG - Discount Request Details:', {
+      id: discountReq.id,
+      name: discountReq.name,
+      targetType: discountReq.targetType,
+      scope: discountReq.scope,
+      feeStructureIds: discountReq.feeStructureIds,
+      parsedFeeStructureIds: JSON.parse(discountReq.feeStructureIds || '[]'),
+      discountType: discountReq.discountType,
+      discountValue: discountReq.discountValue
+    });
+    
     // Update job status to running
     jobStatus.set(jobId, {
       ...job,
@@ -149,14 +161,30 @@ async function processDiscountApplication(
       arrearsQuery.studentId = { in: resolvedStudentIds };
     }
 
+    // DEBUG: Log the query building
+    console.log('DEBUG - Before fee structure filter:', {
+      targetType: discountReq.targetType,
+      feeStructureIds: feeStructureIds,
+      feeRecordsQuery: { ...feeRecordsQuery }
+    });
+
     if (discountReq.targetType === 'fee_structure') {
       feeRecordsQuery.feeStructureId = { in: feeStructureIds };
+      console.log('DEBUG - Applied fee structure filter:', feeStructureIds);
+    } else {
+      console.log('DEBUG - targetType is not fee_structure, skipping fee structure filter');
     }
 
     if (ctx.schoolId) {
       feeRecordsQuery.student = { schoolId: ctx.schoolId };
       arrearsQuery.student = { schoolId: ctx.schoolId };
     }
+
+    // DEBUG: Log final queries
+    console.log('DEBUG - Final queries:', {
+      feeRecordsQuery,
+      arrearsQuery
+    });
 
     // Get total count from both tables
     const [feeRecordCount, arrearsCount] = await Promise.all([
@@ -165,6 +193,39 @@ async function processDiscountApplication(
     ]);
 
     const totalCount = feeRecordCount + arrearsCount;
+    
+    // DEBUG: Log the counts and sample records
+    console.log('DEBUG - Fee Records Count:', feeRecordCount);
+    console.log('DEBUG - Arrears Count:', arrearsCount);
+    console.log('DEBUG - Total Count:', totalCount);
+    
+    // Get sample records for debugging
+    if (feeRecordCount > 0) {
+      const sampleRecords = await (schoolPrisma as any).FeeRecord.findMany({
+        where: feeRecordsQuery,
+        take: 5,
+        select: {
+          id: true,
+          academicYear: true,
+          studentId: true,
+          student: { select: { name: true } },
+          feeStructureId: true,
+          feeStructure: { select: { name: true } },
+          amount: true
+        }
+      });
+      
+      console.log('DEBUG - Fee Records Results:', {
+        recordsCount: feeRecordCount,
+        sampleRecords: sampleRecords.map((r: any) => ({
+          id: r.id,
+          academicYear: r.academicYear,
+          studentName: r.student?.name,
+          feeStructureName: r.feeStructure?.name,
+          amount: r.amount
+        }))
+      });
+    }
 
     if (totalCount === 0) {
       jobStatus.set(jobId, {

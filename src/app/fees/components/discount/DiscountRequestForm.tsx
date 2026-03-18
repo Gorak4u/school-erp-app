@@ -106,7 +106,17 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
         if (feeRes.ok) {
           const feeData = await feeRes.json();
-          setFeeStructures(feeData.feeStructures || feeData.structures || []);
+          const allFeeStructures = feeData.feeStructures || feeData.structures || [];
+          console.log('DEBUG - All fee structures loaded from API:', allFeeStructures.length, allFeeStructures.map((fs: any) => ({
+            id: fs.id,
+            name: fs.name,
+            category: fs.category,
+            className: fs.class?.name || fs.className,
+            classId: fs.class?.id || fs.classId,
+            academicYear: fs.academicYear?.year || fs.academicYear?.name || fs.academicYear,
+            amount: fs.amount
+          })));
+          setFeeStructures(allFeeStructures);
         }
         if (classRes.ok) {
           const classData = await classRes.json();
@@ -211,32 +221,94 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   }, [classIdToName, formData.classIds, formData.scope]);
 
   const visibleFeeStructures = useMemo(() => {
-    return feeStructures.filter((structure: any) => {
+    console.log('DEBUG - Filtering fee structures:', {
+      totalFeeStructures: feeStructures.length,
+      formData: {
+        scope: formData.scope,
+        academicYear: formData.academicYear,
+        classIds: formData.classIds
+      },
+      selectedStudentClassNames,
+      selectedClassNames,
+      selectedStudentsHaveTransport: Object.values(selectedStudentLookup).some(student => student.transport?.isActive)
+    });
+    
+    const filtered = feeStructures.filter((structure: any) => {
       const structureAcademicYear = structure.academicYear?.year || structure.academicYear?.name || structure.academicYear || '';
       if (formData.academicYear && structureAcademicYear && structureAcademicYear !== formData.academicYear) {
+        console.log('DEBUG - Filtering out by academic year:', structure.name, structureAcademicYear);
         return false;
       }
 
       if (formData.scope === 'transport') {
+        console.log('DEBUG - Transport scope - showing all structures');
         return true;
+      }
+
+      // Check if this is a transport fee structure using multiple detection methods
+      const isTransportFee = (structure.name || '').toLowerCase().includes('transport') || 
+                           (structure.category || '').toLowerCase().includes('transport') ||
+                           (structure.description || '').toLowerCase().includes('transport') ||
+                           (structure.name || '').toLowerCase().includes('bus') ||
+                           (structure.name || '').toLowerCase().includes('van') ||
+                           (structure.name || '').toLowerCase().includes('vehicle');
+
+      // Transport fees should be visible to all students who have transport assigned
+      if (formData.scope === 'student' && isTransportFee) {
+        const studentsWithTransport = Object.values(selectedStudentLookup).filter(student => student.transport?.isActive);
+        if (studentsWithTransport.length > 0) {
+          console.log('DEBUG - Transport fee - showing to students with transport:', structure.name);
+          return true;
+        } else {
+          console.log('DEBUG - Transport fee - no selected students have transport, filtering out:', structure.name);
+          return false;
+        }
       }
 
       const structureClassName = structure.class?.name || structure.className || '';
       const structureClassId = structure.class?.id || structure.classId || '';
 
+      console.log('DEBUG - Checking structure:', structure.name, {
+        structureClassName,
+        structureClassId,
+        selectedStudentClassNames,
+        formDataClassIds: formData.classIds,
+        isTransportFee
+      });
+
       if (formData.scope === 'student') {
-        if (selectedStudentClassNames.length === 0) return false;
-        return selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
+        if (selectedStudentClassNames.length === 0) {
+          console.log('DEBUG - No selected student class names, filtering out:', structure.name);
+          return false;
+        }
+        const matches = selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
+        console.log('DEBUG - Student scope match for', structure.name, ':', matches);
+        return matches;
       }
 
       if (formData.scope === 'class') {
-        if (selectedClassNames.length === 0 && formData.classIds.length === 0) return false;
-        return formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
+        if (selectedClassNames.length === 0 && formData.classIds.length === 0) {
+          console.log('DEBUG - No selected class names/ids, filtering out:', structure.name);
+          return false;
+        }
+        const matches = formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
+        console.log('DEBUG - Class scope match for', structure.name, ':', matches);
+        return matches;
       }
 
       return true;
     });
-  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames]);
+    
+    console.log('DEBUG - Filtered fee structures:', filtered.length, filtered.map(fs => ({
+      name: fs.name,
+      className: fs.class?.name || fs.className,
+      classId: fs.class?.id || fs.classId,
+      category: fs.category,
+      academicYear: fs.academicYear?.year || fs.academicYear?.name || fs.academicYear
+    })));
+    
+    return filtered;
+  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames, selectedStudentLookup]);
 
   // Map classes with their fee structures
   const classesWithFees = useMemo(() => {
@@ -340,9 +412,32 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         throw new Error(data.error || 'Failed to submit request');
       }
 
+      const result = await response.json();
+      
+      // Show immediate success message
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Success!',
+          message: 'Discount request submitted successfully. Email notifications are being sent in the background.',
+          duration: 5000
+        });
+      }
+
+      // Close form immediately after successful submission
       onClose();
     } catch (err: any) {
       setValidationState(prev => ({ ...prev, errors: [err.message] }));
+      
+      // Show error message
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'error',
+          title: 'Error',
+          message: err.message || 'Failed to submit discount request',
+          duration: 5000
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1100,8 +1195,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   <label className={label}>Target Type</label>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { value: 'total', label: 'Total Fees', description: 'Apply to entire fee amount' },
-                      { value: 'fee_structure', label: 'Specific Fee Structures', description: 'Apply to selected fee items only' }
+                      { 
+                        value: 'total', 
+                        label: 'Total Fees', 
+                        description: '⚠️ Applies to ALL fee structures (Transport + Tuition + Others)',
+                        warning: 'This will apply the discount to every fee structure for the selected student(s)'
+                      },
+                      { 
+                        value: 'fee_structure', 
+                        label: 'Specific Fee Structures', 
+                        description: '✅ Apply only to selected fee items (Recommended)',
+                        warning: 'Choose specific fees like Transport only or Tuition only'
+                      }
                     ].map((target) => (
                       <motion.button
                         key={target.value}
@@ -1114,11 +1219,47 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <div className="font-medium">{target.label}</div>
-                        <div className="text-xs text-gray-500 mt-1">{target.description}</div>
+                        <div className="font-semibold">{target.label}</div>
+                        <div className="text-xs mt-1 opacity-80">{target.description}</div>
+                        {target.warning && (
+                          <div className={`text-xs mt-2 p-2 rounded ${
+                            target.value === 'total' 
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' 
+                              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          }`}>
+                            {target.warning}
+                          </div>
+                        )}
                       </motion.button>
                     ))}
                   </div>
+                  
+                  {/* Additional warning for Total Fees */}
+                  {formData.targetType === 'total' && (
+                    <div className={`mt-3 p-3 rounded-lg border-2 ${isDark ? 'border-amber-600 bg-amber-900/20' : 'border-amber-400 bg-amber-50'}`}>
+                      <div className="flex items-start space-x-2">
+                        <span className="text-amber-600 dark:text-amber-400 text-lg">⚠️</span>
+                        <div>
+                          <div className="font-semibold text-amber-700 dark:text-amber-300 text-sm">Important Notice</div>
+                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                            You selected "Total Fees". This means the discount will be applied to <strong>ALL</strong> fee structures for the selected student(s), including:
+                          </div>
+                          <ul className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-4 list-disc">
+                            <li>Transport fees (if any)</li>
+                            <li>Tuition fees</li>
+                            <li>Lab fees, library fees, etc.</li>
+                            <li>Any other fee structures</li>
+                          </ul>
+                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                            <strong>Example:</strong> If you set a ₹1000 discount, ₹1000 will be applied to EACH fee structure, not just the total amount.
+                          </div>
+                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">
+                            💡 <strong>Recommendation:</strong> Use "Specific Fee Structures" to target only the fees you want to discount.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {formData.targetType === 'fee_structure' && (
@@ -1128,36 +1269,203 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     className="space-y-4"
                   >
                     <label className={label}>
-                      Select Fee Structures <span className="text-red-500">*</span>
+                      Select Fee Type <span className="text-red-500">*</span>
                     </label>
-                    <div className={`max-h-64 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                      {visibleFeeStructures.length > 0 ? visibleFeeStructures.map((fs: any) => (
-                        <label key={fs.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={formData.feeStructureIds.includes(fs.id)}
-                            onChange={(e) => {
-                              const newIds = e.target.checked
-                                ? [...formData.feeStructureIds, fs.id]
-                                : formData.feeStructureIds.filter(id => id !== fs.id);
-                              setFormData({...formData, feeStructureIds: newIds});
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          />
-                          <div className="flex-1">
-                            <span className="text-sm font-medium">
-                              {fs.name} <span className="text-gray-500 text-xs">({fs.category})</span>
-                            </span>
-                            <div className="text-xs text-gray-500">
-                              ₹{fs.amount}{fs.class?.name ? ` • ${fs.class.name}` : ''}
+                    <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                      {/* DEBUG: Show all available fee structures */}
+                      <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <div className="text-xs font-medium mb-2">DEBUG - Available Fee Structures ({visibleFeeStructures.length}):</div>
+                        <div className="space-y-1 text-xs">
+                          {visibleFeeStructures.map((fs: any) => (
+                            <div key={fs.id} className="flex justify-between">
+                              <span>{fs.name}</span>
+                              <span>₹{fs.amount}</span>
                             </div>
-                          </div>
-                        </label>
-                      )) : (
-                        <div className="text-center p-6 text-gray-500 text-sm">
-                          No fee structures available for the selected student/class and academic year
+                          ))}
                         </div>
-                      )}
+                      </div>
+                      
+                      {/* Group fee structures by type */}
+                      {(() => {
+                        console.log('DEBUG - All visible fee structures:', visibleFeeStructures);
+                        
+                        // More comprehensive transport detection
+                        const transportStructures = visibleFeeStructures.filter((fs: any) => {
+                          const name = (fs.name || '').toLowerCase();
+                          const category = (fs.category || '').toLowerCase();
+                          const description = (fs.description || '').toLowerCase();
+                          
+                          return name.includes('transport') || 
+                                 name.includes('bus') || 
+                                 name.includes('van') || 
+                                 name.includes('vehicle') ||
+                                 category.includes('transport') || 
+                                 category.includes('bus') ||
+                                 description.includes('transport') ||
+                                 description.includes('bus');
+                        });
+                        
+                        const tuitionStructures = visibleFeeStructures.filter((fs: any) => {
+                          const name = (fs.name || '').toLowerCase();
+                          const category = (fs.category || '').toLowerCase();
+                          const description = (fs.description || '').toLowerCase();
+                          
+                          const isTransport = name.includes('transport') || 
+                                           name.includes('bus') || 
+                                           name.includes('van') || 
+                                           name.includes('vehicle') ||
+                                           category.includes('transport') || 
+                                           category.includes('bus') ||
+                                           description.includes('transport') ||
+                                           description.includes('bus');
+                          
+                          return !isTransport;
+                        });
+                        
+                        console.log('DEBUG - Transport structures found:', transportStructures);
+                        console.log('DEBUG - Tuition structures found:', tuitionStructures);
+                        
+                        return (
+                          <div className="space-y-4">
+                            {/* Transport Fees */}
+                            {transportStructures.length > 0 && (
+                              <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                  <label className="flex items-center space-x-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={transportStructures.every(fs => formData.feeStructureIds.includes(fs.id))}
+                                      onChange={(e) => {
+                                        const newIds = e.target.checked
+                                          ? [...formData.feeStructureIds, ...transportStructures.filter(fs => !formData.feeStructureIds.includes(fs.id)).map(fs => fs.id)]
+                                          : formData.feeStructureIds.filter(id => !transportStructures.some(fs => fs.id === id));
+                                        setFormData({...formData, feeStructureIds: newIds});
+                                      }}
+                                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                      <span className="font-medium text-green-700 dark:text-green-300">🚌 Transport Fees</span>
+                                      <div className="text-xs text-gray-500">
+                                        {transportStructures.length} fee structure{transportStructures.length > 1 ? 's' : ''}
+                                      </div>
+                                    </div>
+                                  </label>
+                                </div>
+                                
+                                {/* Show individual transport structures */}
+                                <div className="space-y-2 ml-7">
+                                  {transportStructures.map((fs: any) => (
+                                    <label key={fs.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer transition-colors">
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.feeStructureIds.includes(fs.id)}
+                                          onChange={(e) => {
+                                            const newIds = e.target.checked
+                                              ? [...formData.feeStructureIds, fs.id]
+                                              : formData.feeStructureIds.filter(id => id !== fs.id);
+                                            setFormData({...formData, feeStructureIds: newIds});
+                                          }}
+                                          className="w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm">{fs.name}</span>
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        ₹{fs.amount}
+                                      </div>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Tuition Fees */}
+                            {tuitionStructures.length > 0 && (
+                              <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                  <label className="flex items-center space-x-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={tuitionStructures.every(fs => formData.feeStructureIds.includes(fs.id))}
+                                      onChange={(e) => {
+                                        const newIds = e.target.checked
+                                          ? [...formData.feeStructureIds, ...tuitionStructures.filter(fs => !formData.feeStructureIds.includes(fs.id)).map(fs => fs.id)]
+                                          : formData.feeStructureIds.filter(id => !tuitionStructures.some(fs => fs.id === id));
+                                        setFormData({...formData, feeStructureIds: newIds});
+                                      }}
+                                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                      <span className="font-medium text-blue-700 dark:text-blue-300">📚 Tuition Fees</span>
+                                      <div className="text-xs text-gray-500">
+                                        {tuitionStructures.length} fee structure{tuitionStructures.length > 1 ? 's' : ''}
+                                      </div>
+                                    </div>
+                                  </label>
+                                </div>
+                                
+                                {/* Show individual tuition structures */}
+                                <div className="space-y-2 ml-7">
+                                  {tuitionStructures.map((fs: any) => (
+                                    <label key={fs.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer transition-colors">
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.feeStructureIds.includes(fs.id)}
+                                          onChange={(e) => {
+                                            const newIds = e.target.checked
+                                              ? [...formData.feeStructureIds, fs.id]
+                                              : formData.feeStructureIds.filter(id => id !== fs.id);
+                                            setFormData({...formData, feeStructureIds: newIds});
+                                          }}
+                                          className="w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm">{fs.name}</span>
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        ₹{fs.amount}
+                                      </div>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Show summary */}
+                            {(transportStructures.length > 0 || tuitionStructures.length > 0) && (
+                              <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                <div className="text-sm font-medium mb-2">Summary:</div>
+                                <div className="space-y-1 text-xs">
+                                  {transportStructures.length > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>Transport Fees Total:</span>
+                                      <span>₹{transportStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                    </div>
+                                  )}
+                                  {tuitionStructures.length > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>Tuition Fees Total:</span>
+                                      <span>₹{tuitionStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-bold border-t pt-1 mt-1">
+                                    <span>Selected Total:</span>
+                                    <span>₹{visibleFeeStructures
+                                      .filter(fs => formData.feeStructureIds.includes(fs.id))
+                                      .reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {transportStructures.length === 0 && tuitionStructures.length === 0 && (
+                              <div className="text-center p-6 text-gray-500 text-sm">
+                                No fee structures available for the selected student/class and academic year
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 )}
