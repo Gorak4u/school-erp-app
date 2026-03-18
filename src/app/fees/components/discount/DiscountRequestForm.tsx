@@ -690,14 +690,24 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                 return cls ? (
                                   <span key={classId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                                     {cls.name}
-                                    {cls.monthlyFee && (
+                                    {cls.feeStructure?.monthlyFee && (
                                       <span className="ml-1 text-green-800 dark:text-green-200">
-                                        ₹{cls.monthlyFee.toLocaleString()}/mo
+                                        ₹{cls.feeStructure.monthlyFee.toLocaleString()}/mo
                                       </span>
                                     )}
-                                    {cls.yearlyFee && !cls.monthlyFee && (
+                                    {cls.feeStructure?.yearlyFee && !cls.feeStructure.monthlyFee && (
                                       <span className="ml-1 text-blue-800 dark:text-blue-200">
-                                        ₹{cls.yearlyFee.toLocaleString()}/yr
+                                        ₹{cls.feeStructure.yearlyFee.toLocaleString()}/yr
+                                      </span>
+                                    )}
+                                    {cls.fees?.monthlyFee && (
+                                      <span className="ml-1 text-green-800 dark:text-green-200">
+                                        ₹{cls.fees.monthlyFee.toLocaleString()}/mo
+                                      </span>
+                                    )}
+                                    {cls.fees?.yearlyFee && !cls.fees?.monthlyFee && (
+                                      <span className="ml-1 text-blue-800 dark:text-blue-200">
+                                        ₹{cls.fees.yearlyFee.toLocaleString()}/yr
                                       </span>
                                     )}
                                     <button
@@ -750,14 +760,29 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     {cls.studentCount && <span>{cls.studentCount}st</span>}
                                   </div>
                                   <div className="flex gap-2 truncate">
-                                    {cls.monthlyFee && (
+                                    {cls.feeStructure?.monthlyFee && (
                                       <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                                        ₹{cls.monthlyFee.toLocaleString()}/mo
+                                        ₹{cls.feeStructure.monthlyFee.toLocaleString()}/mo
                                       </span>
                                     )}
-                                    {cls.yearlyFee && (
+                                    {cls.feeStructure?.yearlyFee && (
                                       <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                                        ₹{cls.yearlyFee.toLocaleString()}/yr
+                                        ₹{cls.feeStructure.yearlyFee.toLocaleString()}/yr
+                                      </span>
+                                    )}
+                                    {cls.fees?.monthlyFee && (
+                                      <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                                        ₹{cls.fees.monthlyFee.toLocaleString()}/mo
+                                      </span>
+                                    )}
+                                    {cls.fees?.yearlyFee && (
+                                      <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                                        ₹{cls.fees.yearlyFee.toLocaleString()}/yr
+                                      </span>
+                                    )}
+                                    {!cls.feeStructure?.monthlyFee && !cls.feeStructure?.yearlyFee && !cls.fees?.monthlyFee && !cls.fees?.yearlyFee && (
+                                      <span className="text-xs text-gray-400">
+                                        No fee data
                                       </span>
                                     )}
                                   </div>
@@ -890,6 +915,71 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                             >
                               Clear All
                             </button>
+                          </div>
+                          
+                          {/* Search Results */}
+                          <div className={`max-h-56 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                            <div className="space-y-1">
+                              {transportRoutes
+                                .filter((route: any) => !searchTerm || 
+                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                                .map((route: any) => (
+                                <label key={route.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.transportRouteIds.includes(route.id)}
+                                    onChange={(e) => {
+                                      const newIds = e.target.checked
+                                        ? [...formData.transportRouteIds, route.id]
+                                        : formData.transportRouteIds.filter(id => id !== route.id);
+                                      setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
+                                    }}
+                                    className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-xs truncate">{route.name}</div>
+                                    <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
+                                      {route.routeNumber && <span>R{route.routeNumber}</span>}
+                                      {route.area && <span>{route.area}</span>}
+                                      <span>{route.students?.length || 0}st</span>
+                                    </div>
+                                    <div className="flex gap-2 truncate">
+                                      {route.monthlyFee && (
+                                        <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                                          ₹{route.monthlyFee.toLocaleString()}/mo
+                                        </span>
+                                      )}
+                                      {route.yearlyFee && (
+                                        <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                                          ₹{route.yearlyFee.toLocaleString()}/yr
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </label>
+                              ))}
+                              
+                              {transportRoutes.length === 0 && (
+                                <div className="text-center p-3 text-gray-500 text-xs">
+                                  No transport routes found
+                                </div>
+                              )}
+                              
+                              {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
+                                searchTerm && (
+                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                              ).length === 0 && (
+                                <div className="text-center p-3 text-gray-500 text-xs">
+                                  No transport routes found matching "{searchTerm}"
+                                </div>
+                              )}
+                            </div>
                           </div>
                           
                           {/* Selected Routes Preview */}
