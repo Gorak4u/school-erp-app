@@ -61,7 +61,7 @@ async function validateDiscountApplication(
     };
 
     // Build query based on scope
-    if ((discountData.scope === 'student' || discountData.scope === 'bulk') && discountData.studentIds.length > 0) {
+    if (discountData.scope === 'student' && discountData.studentIds.length > 0) {
       baseWhere.studentId = { in: discountData.studentIds };
       arrearsWhere.studentId = { in: discountData.studentIds };
     } else if (discountData.scope === 'class') {
@@ -93,6 +93,28 @@ async function validateDiscountApplication(
         });
         
         const studentIds = studentsInClasses.map((s: any) => s.id);
+        
+        if (studentIds.length > 0) {
+          baseWhere.studentId = { in: studentIds };
+          arrearsWhere.studentId = { in: studentIds };
+        } else {
+          // If no students found, make query fail safely
+          baseWhere.studentId = 'impossible-no-students-found';
+          arrearsWhere.studentId = 'impossible-no-students-found';
+        }
+      }
+    } else if (discountData.scope === 'transport') {
+      // Resolve transport routes to student IDs
+      if (discountData.transportRouteIds.length > 0) {
+        const transportStudents = await (schoolPrisma as any).Student.findMany({
+          where: {
+            transportRouteId: { in: discountData.transportRouteIds },
+            ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {})
+          },
+          select: { id: true }
+        });
+        
+        const studentIds = transportStudents.map((s: any) => s.id);
         
         if (studentIds.length > 0) {
           baseWhere.studentId = { in: studentIds };
@@ -408,9 +430,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Class scope requires classIds or sectionIds' }, { status: 400 });
     }
 
-    if (normalizedScope === 'bulk' && normalizedStudents.length === 0 && normalizedClasses.length === 0 && normalizedSections.length === 0) {
-      // bulk without explicit targets is allowed but warn via metadata
-      // no-op here to avoid breaking existing form; metadata warning handled later
+    if (normalizedScope === 'transport' && normalizedRoutes.length === 0) {
+      return NextResponse.json({ error: 'Transport scope requires at least one transport route' }, { status: 400 });
     }
 
     // Validate discount value and check for potential payment issues
