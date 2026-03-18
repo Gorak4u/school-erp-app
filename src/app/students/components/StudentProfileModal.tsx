@@ -1,12 +1,13 @@
 // @ts-nocheck
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
+import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 
 interface StudentProfileModalProps {
   activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
@@ -18,9 +19,54 @@ interface StudentProfileModalProps {
 }
 
 export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
+  const [showIdCard, setShowIdCard] = useState(false);
+  const [showCardBack, setShowCardBack] = useState(false);
+  
   const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
   const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
   const canRunLifecycleActions = normalizedStatus === 'active' || normalizedStatus === 'locked';
+
+  // ID Card functionality
+  const generateIdCardData = (student: Student): StudentIdCardData => {
+    return {
+      name: student.name,
+      admissionNo: student.admissionNo,
+      className: `${student.class}${student.section ? ` - ${student.section}` : ''}`,
+      schoolName: 'School Name', // This should come from school config
+      photo: student.photo,
+      dateOfBirth: student.dateOfBirth,
+      issueDate: student.admissionDate || new Date().toISOString().split('T')[0],
+      phone: student.phone,
+      address: student.address,
+      academicYear: student.academicYear || '2024-25',
+      bloodGroup: student.bloodGroup,
+      fatherName: student.fatherName,
+      motherName: student.motherName,
+      transportRoute: student.transportRoute
+    };
+  };
+
+  const handlePrintIdCard = () => {
+    const idCardData = generateIdCardData(selectedStudent);
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (printWindow) {
+      printWindow.document.write(buildStudentIdCardDocument(idCardData, showCardBack));
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleDownloadIdCardPdf = () => {
+    const idCardData = generateIdCardData(selectedStudent);
+    // This would require a PDF library like jsPDF or puppeteer
+    alert('PDF download feature would be implemented with a PDF library');
+  };
+
+  const handleDownloadIdCardImage = () => {
+    const idCardData = generateIdCardData(selectedStudent);
+    // This would require html2canvas or similar library
+    alert('Image download feature would be implemented with html2canvas');
+  };
 
   return (
     <>
@@ -84,6 +130,17 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       }`}
                     >
                       📱 SMS
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowIdCard(true)}
+                      className={`px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${
+                        theme === 'dark'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
+                    >
+                      🆔 ID Card
                     </button>
                     
                                         
@@ -564,6 +621,123 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                       onClose={() => setActiveTab('overview')}
                     />
                   )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ID Card Modal */}
+      <AnimatePresence>
+        {showIdCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
+            onClick={() => setShowIdCard(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className={`relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* ID Card Modal Header */}
+              <div className={`px-6 py-4 border-b ${
+                theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Student ID Card</h3>
+                  <button
+                    onClick={() => setShowIdCard(false)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ID Card Content */}
+              <div className="p-6">
+                <div className="flex justify-center items-center gap-2 mb-4">
+                  <button
+                    onClick={() => setShowCardBack(false)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      !showCardBack
+                        ? 'bg-blue-600 text-white'
+                        : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Front Side
+                  </button>
+                  <button
+                    onClick={() => setShowCardBack(true)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      showCardBack
+                        ? 'bg-green-600 text-white'
+                        : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Back Side
+                  </button>
+                </div>
+                
+                <div className="flex justify-center mb-6">
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: buildStudentIdCardSnippet(generateIdCardData(selectedStudent), showCardBack) 
+                  }} />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    onClick={handlePrintIdCard}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform`}
+                  >
+                    🖨️ Print
+                  </button>
+                  <button
+                    onClick={handleDownloadIdCardPdf}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border ${
+                      theme === 'dark' 
+                        ? 'border-gray-600 text-gray-200 hover:bg-gray-800' 
+                        : 'border-gray-300 text-gray-700 hover:bg-white'
+                    }`}
+                  >
+                    📄 Save PDF
+                  </button>
+                  <button
+                    onClick={handleDownloadIdCardImage}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border ${
+                      theme === 'dark' 
+                        ? 'border-gray-600 text-gray-200 hover:bg-gray-800' 
+                        : 'border-gray-300 text-gray-700 hover:bg-white'
+                    }`}
+                  >
+                    🖼️ Save Image
+                  </button>
+                  <button
+                    onClick={() => setShowIdCard(false)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border ${
+                      theme === 'dark' 
+                        ? 'border-gray-600 text-gray-200 hover:bg-gray-800' 
+                        : 'border-gray-300 text-gray-700 hover:bg-white'
+                    }`}
+                  >
+                    ✖️ Close
+                  </button>
                 </div>
               </div>
             </motion.div>
