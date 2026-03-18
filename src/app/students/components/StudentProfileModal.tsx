@@ -8,6 +8,7 @@ import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
+import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
 interface StudentProfileModalProps {
   activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
@@ -21,6 +22,7 @@ interface StudentProfileModalProps {
 export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
+  const { getSetting } = useSchoolConfig();
   
   const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
   const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
@@ -32,7 +34,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
       name: student.name,
       admissionNo: student.admissionNo,
       className: `${student.class}${student.section ? ` - ${student.section}` : ''}`,
-      schoolName: 'School Name', // This should come from school config
+      schoolName: getSetting('school_details', 'name', 'School Name'),
+      schoolLogo: getSetting('school_details', 'logo_url', ''),
       photo: student.photo,
       dateOfBirth: student.dateOfBirth,
       issueDate: student.admissionDate || new Date().toISOString().split('T')[0],

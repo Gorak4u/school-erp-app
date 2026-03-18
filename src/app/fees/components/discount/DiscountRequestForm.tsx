@@ -106,6 +106,9 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
         if (feeRes.ok) {
           const feeData = await feeRes.json();
+          console.log('Fee structures API response:', feeData);
+          console.log('Fee structures count:', feeData.feeStructures?.length || feeData.structures?.length || 0);
+          console.log('Sample fee structure:', feeData.feeStructures?.[0] || feeData.structures?.[0]);
           setFeeStructures(feeData.feeStructures || feeData.structures || []);
         }
         if (classRes.ok) {
@@ -805,6 +808,16 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     {cls.yearlyFee && (
                                       <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
                                         ₹{cls.yearlyFee.toLocaleString()}/yr
+                                      </span>
+                                    )}
+                                    {!cls.monthlyFee && !cls.yearlyFee && cls.hasFeeData && (
+                                      <span className="text-xs text-gray-400">
+                                        No amount set
+                                      </span>
+                                    )}
+                                    {!cls.monthlyFee && !cls.yearlyFee && !cls.hasFeeData && (
+                                      <span className="text-xs text-gray-400">
+                                        No fee structure
                                       </span>
                                     )}
                                   </div>
