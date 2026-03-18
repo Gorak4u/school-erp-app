@@ -1315,9 +1315,9 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden bg-white rounded-xl"
+              className="w-full h-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl"
             >
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fee Receipt</h3>
                   <button
@@ -1362,9 +1362,9 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-[900px] max-h-[90vh] overflow-hidden bg-white rounded-xl"
+              className="w-full max-w-[900px] max-h-[90vh] overflow-hidden rounded-xl"
             >
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-0 w-full max-w-[900px] max-h-[90vh] overflow-y-auto">
+              <div className="rounded-lg p-0 w-full max-w-[900px] max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center p-4 border-b">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment Receipt</h3>
                   <button
