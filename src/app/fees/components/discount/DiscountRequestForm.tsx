@@ -476,73 +476,153 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     <label className={label}>
                       Select Students <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search student by name or admission number (min 2 chars)..."
-                        className={`${input} pl-10`}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
                     
-                    {students.length > 0 && (
-                      <div className={`max-h-64 overflow-y-auto rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        {students.map((student: any) => (
-                          <motion.div
-                            key={student.id}
-                            className={`p-4 cursor-pointer border-b last:border-0 flex justify-between items-center transition-colors ${
-                              formData.studentIds.includes(student.id)
-                                ? (isDark ? 'bg-blue-900/30' : 'bg-blue-50')
-                                : (isDark ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-100')
-                            }`}
-                            onClick={() => {
+                    {/* Compact Search and Selection */}
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search students (min 2 chars)..."
+                          className={`${input} pl-10 text-sm`}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        {formData.studentIds.length > 0 && (
+                          <div className="absolute right-3 top-3">
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                              {formData.studentIds.length} selected
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Quick Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            // Add all currently visible students
+                            const visibleStudentIds = students.map((s: any) => s.id);
+                            const newStudentIds = [...new Set([...formData.studentIds, ...visibleStudentIds])];
+                            setFormData({...formData, studentIds: newStudentIds, feeStructureIds: []});
+                            // Update lookup
+                            students.forEach((student: any) => {
                               setSelectedStudentLookup(prev => ({
                                 ...prev,
                                 [student.id]: student,
                               }));
-
-                              if (formData.studentIds.includes(student.id)) {
-                                setFormData({
-                                  ...formData,
-                                  studentIds: formData.studentIds.filter(id => id !== student.id),
-                                  feeStructureIds: []
-                                });
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  studentIds: [...formData.studentIds, student.id],
-                                  feeStructureIds: []
-                                });
-                              }
-                            }}
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.99 }}
-                          >
-                            <div>
-                              <div className="font-medium text-sm">{student.name}</div>
-                              <div className="text-xs text-gray-500">
-                                Class: {student.class?.name || student.class} | Adm No: {student.admissionNo} | Status: {formatStudentStatus(student.status)}
-                              </div>
-                            </div>
-                            {formData.studentIds.includes(student.id) && (
-                              <CheckCircle className="w-5 h-5 text-blue-500" />
-                            )}
-                          </motion.div>
-                        ))}
+                            });
+                          }}
+                          disabled={students.length === 0}
+                          className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          + Add All ({students.length})
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFormData({...formData, studentIds: [], feeStructureIds: []});
+                            setSelectedStudentLookup({});
+                          }}
+                          disabled={formData.studentIds.length === 0}
+                          className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Clear All
+                        </button>
                       </div>
-                    )}
-                    
-                    {formData.studentIds.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-sm text-green-600 dark:text-green-400 font-medium"
-                      >
-                        {formData.studentIds.length} student(s) selected
-                      </motion.div>
-                    )}
+                      
+                      {/* Selected Students Preview */}
+                      {formData.studentIds.length > 0 && (
+                        <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Students:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {formData.studentIds.slice(0, 5).map((studentId) => {
+                              const student = selectedStudentLookup[studentId];
+                              return student ? (
+                                <span key={studentId} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+                                  {student.name}
+                                  <button
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        studentIds: formData.studentIds.filter(id => id !== studentId),
+                                        feeStructureIds: []
+                                      });
+                                    }}
+                                    className="hover:text-red-500 transition-colors"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ) : null;
+                            })}
+                            {formData.studentIds.length > 5 && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                                +{formData.studentIds.length - 5} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Search Results */}
+                      {students.length > 0 && (
+                        <div className={`max-h-48 overflow-y-auto rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                          {students.map((student: any) => (
+                            <motion.div
+                              key={student.id}
+                              className={`p-3 cursor-pointer border-b last:border-0 flex justify-between items-center transition-colors ${
+                                formData.studentIds.includes(student.id)
+                                  ? (isDark ? 'bg-blue-900/30' : 'bg-blue-50')
+                                  : (isDark ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-100')
+                              }`}
+                              onClick={() => {
+                                setSelectedStudentLookup(prev => ({
+                                  ...prev,
+                                  [student.id]: student,
+                                }));
+
+                                if (formData.studentIds.includes(student.id)) {
+                                  setFormData({
+                                    ...formData,
+                                    studentIds: formData.studentIds.filter(id => id !== student.id),
+                                    feeStructureIds: []
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    studentIds: [...formData.studentIds, student.id],
+                                    feeStructureIds: []
+                                  });
+                                }
+                              }}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
+                            >
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{student.name}</div>
+                                <div className="text-xs text-gray-500 flex items-center gap-3">
+                                  <span>Class: {student.class?.name || student.class}</span>
+                                  <span>Adm No: {student.admissionNo}</span>
+                                  <span>Status: {formatStudentStatus(student.status)}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {formData.studentIds.includes(student.id) && (
+                                  <CheckCircle className="w-4 h-4 text-blue-500" />
+                                )}
+                                <input
+                                  type="checkbox"
+                                  checked={formData.studentIds.includes(student.id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
@@ -553,39 +633,41 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       <label className={label}>
                         Select Medium <span className="text-xs text-gray-500">(Optional - will filter classes)</span>
                       </label>
-                      <div className={`max-h-32 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        <label className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.mediumIds.length === 0}
-                            onChange={(e) => {
-                              setFormData({...formData, mediumIds: []});
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium">All Mediums</span>
-                        </label>
-                        {mediums.map((medium: any) => (
-                          <label key={medium.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                      <div className={`max-h-32 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                        <div className="space-y-2">
+                          <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={formData.mediumIds.includes(medium.id)}
+                              checked={formData.mediumIds.length === 0}
                               onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...formData.mediumIds, medium.id]
-                                  : formData.mediumIds.filter(id => id !== medium.id);
-                                setFormData({...formData, mediumIds: newIds, classIds: []});
+                                setFormData({...formData, mediumIds: [], classIds: []});
                               }}
                               className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                             />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium">{medium.name}</span>
-                              <div className="text-xs text-gray-400">
-                                {medium.code && `Code: ${medium.code}`}
-                              </div>
-                            </div>
+                            <span className="text-sm font-medium">All Mediums</span>
                           </label>
-                        ))}
+                          {mediums.map((medium: any) => (
+                            <label key={medium.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.mediumIds.includes(medium.id)}
+                                onChange={(e) => {
+                                  const newIds = e.target.checked
+                                    ? [...formData.mediumIds, medium.id]
+                                    : formData.mediumIds.filter(id => id !== medium.id);
+                                  setFormData({...formData, mediumIds: newIds, classIds: []});
+                                }}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">{medium.name}</span>
+                                <div className="text-xs text-gray-400">
+                                  {medium.code && `Code: ${medium.code}`}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -593,66 +675,130 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       <label className={label}>
                         Select Classes <span className="text-red-500">*</span>
                       </label>
-                      <div className={`max-h-64 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        {classes
-                          .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
-                          .map((cls: any) => (
-                          <label key={cls.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={formData.classIds.includes(cls.id)}
-                              onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...formData.classIds, cls.id]
-                                  : formData.classIds.filter(id => id !== cls.id);
-                                setFormData({...formData, classIds: newIds, feeStructureIds: []});
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium">{cls.name}</span>
-                              <span className="text-xs text-gray-500 ml-2">
-                                ({cls.medium?.name || 'No Medium'})
-                              </span>
-                              <div className="text-xs text-gray-400">
-                                Code: {cls.code} | Level: {cls.level}
-                              </div>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const visibleClassIds = classes
+                                .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
+                                .map((cls: any) => cls.id);
+                              const newClassIds = [...new Set([...formData.classIds, ...visibleClassIds])];
+                              setFormData({...formData, classIds: newClassIds, feeStructureIds: []});
+                            }}
+                            disabled={classes.filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId)).length === 0}
+                            className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            + Add All ({classes.filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId)).length})
+                          </button>
+                          <button
+                            onClick={() => setFormData({...formData, classIds: [], feeStructureIds: []})}
+                            disabled={formData.classIds.length === 0}
+                            className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        
+                        {formData.classIds.length > 0 && (
+                          <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                            <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Classes:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {formData.classIds.slice(0, 5).map((classId) => {
+                                const cls = classes.find((c: any) => c.id === classId);
+                                return cls ? (
+                                  <span key={classId} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs">
+                                    {cls.name}
+                                    <button
+                                      onClick={() => {
+                                        setFormData({
+                                          ...formData,
+                                          classIds: formData.classIds.filter(id => id !== classId),
+                                          feeStructureIds: []
+                                        });
+                                      }}
+                                      className="hover:text-red-500 transition-colors"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ) : null;
+                              })}
+                              {formData.classIds.length > 5 && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                                  +{formData.classIds.length - 5} more
+                                </span>
+                              )}
                             </div>
-                          </label>
-                        ))}
+                          </div>
+                        )}
+                        
+                        <div className={`max-h-48 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                          <div className="space-y-2">
+                            {classes
+                              .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
+                              .map((cls: any) => (
+                              <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.classIds.includes(cls.id)}
+                                  onChange={(e) => {
+                                    const newIds = e.target.checked
+                                      ? [...formData.classIds, cls.id]
+                                      : formData.classIds.filter(id => id !== cls.id);
+                                    setFormData({...formData, classIds: newIds, feeStructureIds: []});
+                                  }}
+                                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                />
+                                <div className="flex-1">
+                                  <span className="text-sm font-medium">{cls.name}</span>
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    ({cls.medium?.name || 'No Medium'})
+                                  </span>
+                                  <div className="text-xs text-gray-400">
+                                    Code: {cls.code} | Level: {cls.level}
+                                  </div>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
                     <div>
                       <label className={label}>Select Sections (Optional)</label>
-                      <div className={`max-h-48 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        <label className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.sectionIds.length === 0}
-                            onChange={(e) => {
-                              setFormData({...formData, sectionIds: []});
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium">All Sections</span>
-                        </label>
-                        {sections.map((section: any) => (
-                          <label key={section.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.sectionIds.includes(section.id)}
-                              onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...formData.sectionIds, section.id]
-                                  : formData.sectionIds.filter(id => id !== section.id);
-                                setFormData({...formData, sectionIds: newIds});
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium">{section.name}</span>
-                          </label>
-                        ))}
+                      <div className="space-y-2">
+                        <div className={`max-h-32 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.sectionIds.length === 0}
+                                onChange={(e) => {
+                                  setFormData({...formData, sectionIds: []});
+                                }}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                              <span className="text-sm font-medium">All Sections</span>
+                            </label>
+                            {sections.map((section: any) => (
+                              <label key={section.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.sectionIds.includes(section.id)}
+                                  onChange={(e) => {
+                                    const newIds = e.target.checked
+                                      ? [...formData.sectionIds, section.id]
+                                      : formData.sectionIds.filter(id => id !== section.id);
+                                    setFormData({...formData, sectionIds: newIds});
+                                  }}
+                                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium">{section.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
@@ -671,13 +817,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                 {/* Transport Route Selection */}
                 {formData.scope === 'transport' && (
                   <div className="space-y-4">
-                    <div className={`p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-50/50'}`}>
+                    <div className={`p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-50/50'}`}>
                       <div className="flex items-center gap-3 mb-4">
-                        <Bus className="w-8 h-8 text-blue-600" />
+                        <Bus className="w-6 h-6 text-blue-600" />
                         <div>
-                          <h4 className="font-semibold">Transport Route Application</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            This discount will apply to all students in the selected transport routes
+                          <h4 className="font-semibold text-sm">Transport Route Application</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            This discount will apply to all students in selected routes
                           </p>
                         </div>
                       </div>
@@ -686,70 +832,151 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         <label className={label}>
                           Select Transport Routes <span className="text-red-500">*</span>
                         </label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                          <input
-                            type="text"
-                            placeholder="Search transport routes by name, number, or area..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className={`${input} pl-10`}
-                          />
-                        </div>
                         
-                        <div className={`max-h-64 overflow-y-auto p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                          {transportRoutes
-                            .filter((route: any) => !searchTerm || 
-                              route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              route.area?.toLowerCase().includes(searchTerm.toLowerCase())
-                            )
-                            .map((route: any) => (
-                            <label key={route.id} className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={formData.transportRouteIds.includes(route.id)}
-                                onChange={(e) => {
-                                  const newIds = e.target.checked
-                                    ? [...formData.transportRouteIds, route.id]
-                                    : formData.transportRouteIds.filter(id => id !== route.id);
-                                  setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
-                                }}
-                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">
-                                  {route.name} {route.routeNumber && `(${route.routeNumber})`}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {route.area && `Area: ${route.area}`}
-                                  {route.vehicle?.registrationNumber && ` • Vehicle: ${route.vehicle.registrationNumber}`}
-                                  {route.driver?.name && ` • Driver: ${route.driver.name}`}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {route.students?.length || 0} student(s) assigned
-                                </div>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Search routes by name, number, or area..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className={`${input} pl-10 text-sm`}
+                            />
+                            {formData.transportRouteIds.length > 0 && (
+                              <div className="absolute right-3 top-3">
+                                <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-full">
+                                  {formData.transportRouteIds.length} selected
+                                </span>
                               </div>
-                            </label>
-                          ))}
+                            )}
+                          </div>
                           
-                          {transportRoutes.length === 0 && (
-                            <div className="text-center p-6 text-gray-500 text-sm">
-                              No transport routes found
+                          {/* Quick Actions */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const visibleRouteIds = transportRoutes
+                                  .filter((route: any) => !searchTerm || 
+                                    route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                  )
+                                  .map((route: any) => route.id);
+                                const newRouteIds = [...new Set([...formData.transportRouteIds, ...visibleRouteIds])];
+                                setFormData({...formData, transportRouteIds: newRouteIds, feeStructureIds: []});
+                              }}
+                              disabled={transportRoutes.filter((route: any) => !searchTerm || 
+                                route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                              ).length === 0}
+                              className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              + Add All ({transportRoutes.filter((route: any) => !searchTerm || 
+                                route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                              ).length})
+                            </button>
+                            <button
+                              onClick={() => setFormData({...formData, transportRouteIds: [], feeStructureIds: []})}
+                              disabled={formData.transportRouteIds.length === 0}
+                              className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          
+                          {/* Selected Routes Preview */}
+                          {formData.transportRouteIds.length > 0 && (
+                            <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                              <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Routes:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {formData.transportRouteIds.slice(0, 5).map((routeId) => {
+                                  const route = transportRoutes.find((r: any) => r.id === routeId);
+                                  return route ? (
+                                    <span key={routeId} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs">
+                                      {route.name} {route.routeNumber && `(${route.routeNumber})`}
+                                      <button
+                                        onClick={() => {
+                                          setFormData({
+                                            ...formData,
+                                            transportRouteIds: formData.transportRouteIds.filter(id => id !== routeId),
+                                            feeStructureIds: []
+                                          });
+                                        }}
+                                        className="hover:text-red-500 transition-colors"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ) : null;
+                                })}
+                                {formData.transportRouteIds.length > 5 && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                                    +{formData.transportRouteIds.length - 5} more
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
                           
-                          {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
-                            searchTerm && (
-                              route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              route.area?.toLowerCase().includes(searchTerm.toLowerCase())
-                            )
-                          ).length === 0 && (
-                            <div className="text-center p-6 text-gray-500 text-sm">
-                              No transport routes found matching "{searchTerm}"
+                          {/* Search Results */}
+                          <div className={`max-h-48 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                            <div className="space-y-2">
+                              {transportRoutes
+                                .filter((route: any) => !searchTerm || 
+                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                                .map((route: any) => (
+                                <label key={route.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.transportRouteIds.includes(route.id)}
+                                    onChange={(e) => {
+                                      const newIds = e.target.checked
+                                        ? [...formData.transportRouteIds, route.id]
+                                        : formData.transportRouteIds.filter(id => id !== route.id);
+                                      setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
+                                    }}
+                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">
+                                      {route.name} {route.routeNumber && `(${route.routeNumber})`}
+                                    </div>
+                                    <div className="text-xs text-gray-500 flex items-center gap-3">
+                                      {route.area && <span>Area: {route.area}</span>}
+                                      {route.vehicle?.registrationNumber && <span>Vehicle: {route.vehicle.registrationNumber}</span>}
+                                      {route.driver?.name && <span>Driver: {route.driver.name}</span>}
+                                      <span>{route.students?.length || 0} students</span>
+                                    </div>
+                                  </div>
+                                </label>
+                              ))}
+                              
+                              {transportRoutes.length === 0 && (
+                                <div className="text-center p-4 text-gray-500 text-sm">
+                                  No transport routes found
+                                </div>
+                              )}
+                              
+                              {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
+                                searchTerm && (
+                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                              ).length === 0 && (
+                                <div className="text-center p-4 text-gray-500 text-sm">
+                                  No transport routes found matching "{searchTerm}"
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                         
                         {formData.transportRouteIds.length > 0 && (
