@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, GraduationCap, Building2, DollarSign, Calendar, FileText, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Bus } from 'lucide-react';
+import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface DiscountRequestFormProps {
   theme: 'dark' | 'light';
@@ -327,9 +327,9 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   };
 
   const steps = [
-    { id: 1, title: 'Scope & Targeting', icon: Users },
-    { id: 2, title: 'Discount Details', icon: DollarSign },
-    { id: 3, title: 'Review & Submit', icon: FileText }
+    { id: 1, title: 'Scope & Targeting', icon: '🎯' },
+    { id: 2, title: 'Discount Details', icon: '💰' },
+    { id: 3, title: 'Review & Submit', icon: '📋' }
   ];
 
   return (
@@ -337,7 +337,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-3">
         {steps.map((stepInfo, index) => {
-          const Icon = stepInfo.icon;
           const isActive = currentStep === stepInfo.id;
           const isCompleted = currentStep > stepInfo.id;
           
@@ -355,7 +354,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isCompleted ? <CheckCircle className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                  {isCompleted ? <CheckCircle className="w-4 h-4" /> : <span className="text-sm">{stepInfo.icon}</span>}
                 </motion.div>
                 <span className={`text-xs mt-1 font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {stepInfo.title}
@@ -408,7 +407,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           {currentStep === 1 && (
             <div>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users className="w-6 h-6 text-blue-600" />
+                <span className="text-2xl">🎯</span>
                 Scope & Targeting
               </h3>
               
@@ -448,9 +447,9 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   <label className={label}>Application Scope</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { value: 'student', label: 'Individual Students', icon: Users },
-                      { value: 'class', label: 'By Class', icon: GraduationCap },
-                      { value: 'transport', label: 'By Transport Route', icon: Bus }
+                      { value: 'student', label: 'Individual Students', icon: '👥' },
+                      { value: 'class', label: 'By Class', icon: '🎓' },
+                      { value: 'transport', label: 'By Transport Route', icon: '🚌' }
                     ].map((scope) => (
                       <motion.button
                         key={scope.value}
@@ -463,7 +462,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <scope.icon className="w-5 h-5 mx-auto mb-1" />
+                        <div className="text-2xl mb-1">{scope.icon}</div>
                         <div className="text-xs font-medium">{scope.label}</div>
                       </motion.button>
                     ))}
@@ -848,7 +847,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   <div className="space-y-4">
                     <div className={`p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-50/50'}`}>
                       <div className="flex items-center gap-3 mb-4">
-                        <Bus className="w-6 h-6 text-blue-600" />
+                        <span className="text-2xl">🚌</span>
                         <div>
                           <h4 className="font-semibold text-sm">Transport Route Application</h4>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -1102,7 +1101,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           {currentStep === 2 && (
             <div>
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <DollarSign className="w-6 h-6 text-blue-600" />
+                <span className="text-2xl">💰</span>
                 Discount Configuration
               </h3>
               
@@ -1258,7 +1257,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           {currentStep === 3 && (
             <div>
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <FileText className="w-6 h-6 text-blue-600" />
+                <span className="text-2xl">📋</span>
                 Review & Submit
               </h3>
               
