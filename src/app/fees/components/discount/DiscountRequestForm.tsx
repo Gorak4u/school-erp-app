@@ -532,13 +532,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       
                       {/* Selected Students Preview */}
                       {formData.studentIds.length > 0 && (
-                        <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                          <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Students:</div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Students:</div>
                           <div className="flex flex-wrap gap-1">
-                            {formData.studentIds.slice(0, 5).map((studentId) => {
-                              const student = selectedStudentLookup[studentId];
+                            {formData.studentIds.slice(0, 8).map((studentId) => {
+                              const student = students.find((s: any) => s.id === studentId);
                               return student ? (
-                                <span key={studentId} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+                                <span key={studentId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
                                   {student.name}
                                   <button
                                     onClick={() => {
@@ -548,16 +548,16 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                         feeStructureIds: []
                                       });
                                     }}
-                                    className="hover:text-red-500 transition-colors"
+                                    className="hover:text-red-500 transition-colors ml-1"
                                   >
                                     ×
                                   </button>
                                 </span>
                               ) : null;
                             })}
-                            {formData.studentIds.length > 5 && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
-                                +{formData.studentIds.length - 5} more
+                            {formData.studentIds.length > 8 && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                                +{formData.studentIds.length - 8} more
                               </span>
                             )}
                           </div>
@@ -682,13 +682,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         </div>
                         
                         {formData.classIds.length > 0 && (
-                          <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                            <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Classes:</div>
+                          <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                            <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Classes:</div>
                             <div className="flex flex-wrap gap-1">
-                              {formData.classIds.slice(0, 5).map((classId) => {
+                              {formData.classIds.slice(0, 8).map((classId) => {
                                 const cls = classes.find((c: any) => c.id === classId);
                                 return cls ? (
-                                  <span key={classId} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
+                                  <span key={classId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                                     {cls.name}
                                     {cls.monthlyFee && (
                                       <span className="ml-1 text-green-800 dark:text-green-200">
@@ -715,21 +715,21 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                   </span>
                                 ) : null;
                               })}
-                              {formData.classIds.length > 5 && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
-                                  +{formData.classIds.length - 5} more
+                              {formData.classIds.length > 8 && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                                  +{formData.classIds.length - 8} more
                                 </span>
                               )}
                             </div>
                           </div>
                         )}
                         
-                        <div className={`max-h-48 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                          <div className="space-y-2">
+                        <div className={`max-h-56 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                          <div className="space-y-1">
                             {classes
                               .filter((cls: any) => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
                               .map((cls: any) => (
-                              <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
+                              <label key={cls.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
                                 <input
                                   type="checkbox"
                                   checked={formData.classIds.includes(cls.id)}
@@ -739,29 +739,26 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                       : formData.classIds.filter(id => id !== cls.id);
                                     setFormData({...formData, classIds: newIds, feeStructureIds: []});
                                   }}
-                                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                  className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                 />
-                                <div className="flex-1">
-                                  <div className="font-medium text-sm">{cls.name}</div>
-                                  <div className="text-xs text-gray-500 flex items-center gap-3">
-                                    <span>Medium: {cls.medium?.name || 'No Medium'}</span>
-                                    <span>Level: {cls.level}</span>
-                                    {cls.sectionCount && <span>{cls.sectionCount} sections</span>}
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-xs truncate">{cls.name}</div>
+                                  <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
+                                    <span>{cls.medium?.name || 'No Medium'}</span>
+                                    <span>L{cls.level}</span>
+                                    {cls.sectionCount && <span>{cls.sectionCount}S</span>}
+                                    {cls.studentCount && <span>{cls.studentCount}st</span>}
                                   </div>
-                                  <div className="text-xs text-gray-400 flex items-center gap-3">
-                                    {cls.studentCount && <span>{cls.studentCount} students</span>}
-                                    <span>Code: {cls.code}</span>
-                                  </div>
-                                  <div className="flex gap-3 mt-1">
+                                  <div className="flex gap-2 truncate">
                                     {cls.monthlyFee && (
-                                      <div className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                                        Monthly: ₹{cls.monthlyFee.toLocaleString()}
-                                      </div>
+                                      <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                                        ₹{cls.monthlyFee.toLocaleString()}/mo
+                                      </span>
                                     )}
                                     {cls.yearlyFee && (
-                                      <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                                        Yearly: ₹{cls.yearlyFee.toLocaleString()}
-                                      </div>
+                                      <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                                        ₹{cls.yearlyFee.toLocaleString()}/yr
+                                      </span>
                                     )}
                                   </div>
                                 </div>
@@ -897,13 +894,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                           
                           {/* Selected Routes Preview */}
                           {formData.transportRouteIds.length > 0 && (
-                            <div className={`p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                              <div className="text-xs font-medium mb-2 text-gray-600 dark:text-gray-400">Selected Routes:</div>
+                            <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                              <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Routes:</div>
                               <div className="flex flex-wrap gap-1">
-                                {formData.transportRouteIds.slice(0, 5).map((routeId) => {
+                                {formData.transportRouteIds.slice(0, 8).map((routeId) => {
                                   const route = transportRoutes.find((r: any) => r.id === routeId);
                                   return route ? (
-                                    <span key={routeId} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
+                                    <span key={routeId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
                                       {route.name}
                                       {route.monthlyFee && (
                                         <span className="ml-1 text-orange-800 dark:text-orange-200">
@@ -930,9 +927,9 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     </span>
                                   ) : null;
                                 })}
-                                {formData.transportRouteIds.length > 5 && (
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
-                                    +{formData.transportRouteIds.length - 5} more
+                                {formData.transportRouteIds.length > 8 && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                                    +{formData.transportRouteIds.length - 8} more
                                   </span>
                                 )}
                               </div>
@@ -940,81 +937,54 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                           )}
                           
                           {/* Search Results */}
-                          <div className={`max-h-48 overflow-y-auto p-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                            <div className="space-y-2">
-                              {transportRoutes
-                                .filter((route: any) => !searchTerm || 
-                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                          <div className={`max-h-56 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                            <div className="space-y-1">
+                              {students
+                                .filter((student: any) => !searchTerm || 
+                                  student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.phone?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
-                                .map((route: any) => (
-                                <label key={route.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors">
+                                .map((student: any) => (
+                                <label key={student.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
                                   <input
                                     type="checkbox"
-                                    checked={formData.transportRouteIds.includes(route.id)}
+                                    checked={formData.studentIds.includes(student.id)}
                                     onChange={(e) => {
                                       const newIds = e.target.checked
-                                        ? [...formData.transportRouteIds, route.id]
-                                        : formData.transportRouteIds.filter(id => id !== route.id);
-                                      setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
+                                        ? [...formData.studentIds, student.id]
+                                        : formData.studentIds.filter(id => id !== student.id);
+                                      setFormData({...formData, studentIds: newIds, feeStructureIds: []});
                                     }}
-                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                   />
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">
-                                      {route.name}
-                                    </div>
-                                    <div className="text-xs text-gray-500 flex items-center gap-3">
-                                      {route.routeNumber && <span>Route No: {route.routeNumber}</span>}
-                                      {route.area && <span>Area: {route.area}</span>}
-                                      {route.distance && <span>Distance: {route.distance} km</span>}
-                                    </div>
-                                    <div className="text-xs text-gray-400 flex items-center gap-3">
-                                      {route.vehicle?.registrationNumber && <span>Vehicle: {route.vehicle.registrationNumber}</span>}
-                                      {route.driver?.name && <span>Driver: {route.driver.name}</span>}
-                                      <span>{route.students?.length || 0} students</span>
-                                    </div>
-                                    <div className="flex gap-3 mt-1">
-                                      {route.monthlyFee && (
-                                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                          Monthly: ₹{route.monthlyFee.toLocaleString()}
-                                        </div>
-                                      )}
-                                      {route.yearlyFee && (
-                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                          Yearly: ₹{route.yearlyFee.toLocaleString()}
-                                        </div>
-                                      )}
-                                      {route.pickupTime && (
-                                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                                          Pickup: {route.pickupTime}
-                                        </div>
-                                      )}
-                                      {route.dropTime && (
-                                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                          Drop: {route.dropTime}
-                                        </div>
-                                      )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-xs truncate">{student.name}</div>
+                                    <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
+                                      <span>{student.admissionNumber}</span>
+                                      <span>{student.class}</span>
+                                      <span>{student.status}</span>
                                     </div>
                                   </div>
                                 </label>
                               ))}
                               
-                              {transportRoutes.length === 0 && (
-                                <div className="text-center p-4 text-gray-500 text-sm">
-                                  No transport routes found
+                              {students.length === 0 && (
+                                <div className="text-center p-3 text-gray-500 text-xs">
+                                  No students found
                                 </div>
                               )}
                               
-                              {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
+                              {students.length > 0 && students.filter((student: any) => 
                                 searchTerm && (
-                                  route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
+                                  student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  student.phone?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                               ).length === 0 && (
-                                <div className="text-center p-4 text-gray-500 text-sm">
+                                <div className="text-center p-3 text-gray-500 text-xs">
                                   No transport routes found matching "{searchTerm}"
                                 </div>
                               )}

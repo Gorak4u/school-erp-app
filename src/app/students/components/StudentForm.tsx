@@ -856,36 +856,36 @@ export default function StudentForm({
 
   return (
     <div className="flex flex-col h-full">
-      <div className={`mb-2 rounded-xl border p-2 ${
+      <div className={`mb-1 rounded-lg border p-1.5 ${
         theme === 'dark' ? 'border-blue-900/50 bg-blue-900/10 text-blue-100' : 'border-blue-200 bg-blue-50 text-blue-900'
       }`}>
-        <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide opacity-70">Active Academic Year</p>
-            <p className="text-sm font-semibold">{ayLabel}</p>
+            <p className="text-xs uppercase tracking-wide opacity-60">Academic Year</p>
+            <p className="text-xs font-semibold">{ayLabel}</p>
           </div>
           <div>
             {subscriptionSummary.status === 'ready' && maxStudents > 0 ? (
               <p className="text-xs font-medium">
-                {studentsUsed}/{maxStudents} seats {seatsRemaining !== null && seatsRemaining >= 0 && `• ${seatsRemaining} left`}
+                {studentsUsed}/{maxStudents} {seatsRemaining !== null && seatsRemaining >= 0 && `• ${seatsRemaining} left`}
               </p>
             ) : subscriptionSummary.status === 'error' ? (
               <p className={`text-xs ${errorTextCls}`}>{planError || 'Unable to load plan limits'}</p>
             ) : (
-              <p className={`text-xs ${helperTextCls}`}>Checking subscription…</p>
+              <p className={`text-xs ${helperTextCls}`}>Checking…</p>
             )}
           </div>
           {limitReached && (
             <div className="flex items-center gap-1 text-xs font-semibold text-red-500">
-              ⚠️ Limit reached • Upgrade plan
+              ⚠️ Limit reached
             </div>
           )}
         </div>
         {subscriptionSummary.status === 'ready' && maxStudents > 0 && (
-          <div className="mt-2">
-            <div className={`h-1 rounded-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="mt-1">
+            <div className={`h-0.5 rounded-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
               <div
-                className="h-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                className="h-0.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
                 style={{ width: `${usagePercent}%` }}
               />
             </div>
