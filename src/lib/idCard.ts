@@ -38,7 +38,7 @@ const createCardContent = (data: StudentIdCardData) => {
         </div>
         <p style="margin: 0; font-size: 8px; color: rgba(248,250,252,0.8); text-align: right;">Issued: ${issueDate}</p>
       </div>
-      
+      <div style="height: 2px; background: rgba(255,255,255,0.6);"></div>
       <!-- Main Content - Horizontal Layout -->
       <div style="padding: 16px; color: #e2e8f0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; display: flex; gap: 16px;">
         <!-- Left Section - Photo -->

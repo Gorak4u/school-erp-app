@@ -2089,18 +2089,18 @@ export default function StudentForm({
                   <div id="student-id-card-print" className="flex justify-center">
                     <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData) }} />
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    <button type="button" onClick={handlePrintIdCard} className="px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
-                      Print ID Card
+                  <div className="grid grid-cols-4 gap-1">
+                    <button type="button" onClick={handlePrintIdCard} className="px-2 py-1.5 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
+                      Print ID
                     </button>
-                    <button type="button" onClick={handleDownloadIdCardPdf} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
-                      Save ID Card as PDF
+                    <button type="button" onClick={handleDownloadIdCardPdf} className={`px-2 py-1.5 rounded-lg text-xs font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Save ID
                     </button>
-                    <button type="button" onClick={handlePrintPreview} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
-                      Print Admission Preview
+                    <button type="button" onClick={handlePrintPreview} className={`px-2 py-1.5 rounded-lg text-xs font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Print Preview
                     </button>
-                    <button type="button" onClick={handleDownloadPreviewPdf} className={`px-5 py-2.5 rounded-xl text-sm font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
-                      Save Admission Preview PDF
+                    <button type="button" onClick={handleDownloadPreviewPdf} className={`px-2 py-1.5 rounded-lg text-xs font-medium border ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                      Save Preview
                     </button>
                   </div>
                 </div>

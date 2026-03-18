@@ -106,18 +106,14 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
         if (feeRes.ok) {
           const feeData = await feeRes.json();
-          console.log('Fee structures data:', feeData);
           setFeeStructures(feeData.feeStructures || feeData.structures || []);
         }
         if (classRes.ok) {
           const classData = await classRes.json();
-          console.log('Classes data:', classData);
           setClasses(classData.classes || []);
         }
         if (transportRes.ok) {
           const transportData = await transportRes.json();
-          console.log('Transport routes data:', transportData);
-          console.log('First route sample:', transportData.routes?.[0]);
           setTransportRoutes(transportData.routes || []);
         }
         if (yearRes.ok) {
@@ -236,10 +232,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
   // Map classes with their fee structures
   const classesWithFees = useMemo(() => {
-    console.log('Computing classesWithFees - classes:', classes.length, 'feeStructures:', feeStructures.length);
-    console.log('Sample class data:', classes[0]);
-    console.log('Sample fee structure data:', feeStructures[0]);
-    
     return classes.map((cls: any) => {
       // Find fee structures for this class - match both direct classId and relation class.id
       const classFeeStructures = feeStructures.filter((fs: any) => {
@@ -247,11 +239,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         const relationMatch = fs.class?.id === cls.id;
         return directMatch || relationMatch;
       });
-      
-      console.log(`Class ${cls.name} (${cls.id}):`, classFeeStructures.length, 'fee structures found');
-      if (classFeeStructures.length > 0) {
-        console.log('Sample fee structure for this class:', classFeeStructures[0]);
-      }
       
       // Calculate total fees from all structures for this class
       const monthlyFees = classFeeStructures
@@ -265,7 +252,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       const totalFees = classFeeStructures
         .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
 
-      const result = {
+      return {
         ...cls,
         // Count students from sections
         studentCount: cls.sections?.reduce((sum: number, section: any) => sum + (section.studentCount || 0), 0) || 0,
@@ -276,15 +263,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         feeStructures: classFeeStructures,
         hasFeeData: classFeeStructures.length > 0
       };
-      
-      console.log(`Class ${cls.name} result:`, { 
-        monthlyFee: result.monthlyFee, 
-        yearlyFee: result.yearlyFee, 
-        hasFeeData: result.hasFeeData,
-        foundStructures: classFeeStructures.length
-      });
-      
-      return result;
     });
   }, [classes, feeStructures]);
 
@@ -739,16 +717,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                 return cls ? (
                                   <span key={classId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                                     {cls.name}
-                                    {cls.monthlyFee && (
-                                      <span className="ml-1 text-green-800 dark:text-green-200">
-                                        ₹{cls.monthlyFee.toLocaleString()}/mo
-                                      </span>
-                                    )}
-                                    {cls.yearlyFee && !cls.monthlyFee && (
-                                      <span className="ml-1 text-blue-800 dark:text-blue-200">
-                                        ₹{cls.yearlyFee.toLocaleString()}/yr
-                                      </span>
-                                    )}
                                     <button
                                       onClick={() => {
                                         setFormData({
@@ -792,28 +760,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium text-xs truncate">{cls.name}</div>
-                                  <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
-                                    <span>{cls.medium?.name || 'No Medium'}</span>
-                                    <span>L{cls.level}</span>
-                                    {cls.sectionCount && <span>{cls.sectionCount}S</span>}
-                                    {cls.studentCount && <span>{cls.studentCount}st</span>}
-                                  </div>
-                                  <div className="flex gap-2 truncate">
-                                    {cls.monthlyFee && (
-                                      <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                                        ₹{cls.monthlyFee.toLocaleString()}/mo
-                                      </span>
-                                    )}
-                                    {cls.yearlyFee && (
-                                      <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                                        ₹{cls.yearlyFee.toLocaleString()}/yr
-                                      </span>
-                                    )}
-                                    {!cls.monthlyFee && !cls.yearlyFee && (
-                                      <span className="text-xs text-gray-400">
-                                        No fee data
-                                      </span>
-                                    )}
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {cls.medium?.name || 'No Medium'}
                                   </div>
                                 </div>
                               </label>
