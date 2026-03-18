@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
-import { StudentIdCardData, buildStudentIdCardSnippet, buildStudentIdCardDocument } from '@/lib/idCard';
+import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../lib/idCard';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
 const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');

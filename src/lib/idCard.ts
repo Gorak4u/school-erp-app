@@ -1,3 +1,5 @@
+import QRCode from 'qrcode';
+
 export interface StudentIdCardData {
   name: string;
   admissionNo: string;
@@ -16,7 +18,7 @@ export interface StudentIdCardData {
   transportRoute?: string;
 }
 
-const createCardContent = (data: StudentIdCardData, showBack: boolean = false) => {
+const createCardContent = async (data: StudentIdCardData, showBack: boolean = false) => {
   const issueDate = data.issueDate || new Date().toISOString().split('T')[0];
   const dobLine = data.dateOfBirth
     ? `<p style="margin: 4px 0 0 0; font-size: 8px; color: #94a3b8; text-align: center;"><strong>DOB:</strong> ${data.dateOfBirth}</p>`
@@ -28,8 +30,26 @@ const createCardContent = (data: StudentIdCardData, showBack: boolean = false) =
     ? `<img src="${data.photo}" alt="Student" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"/>${dobLine}`
     : `<div style="width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: rgba(255,255,255,0.6);">${data.name.charAt(0)}</div>${dobLine}`;
 
-  // QR Code placeholder (would need QR library for real implementation)
-  const qrCode = `<div style="width: 60px; height: 60px; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: black; text-align: center; border: 1px solid #ccc;">QR Code<br/>Student ID</div>`;
+  // Generate real QR code
+  const qrData = JSON.stringify({
+    studentId: data.admissionNo,
+    name: data.name,
+    class: data.className,
+    school: data.schoolName,
+    phone: data.phone,
+    verified: true
+  });
+  
+  const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+    width: 60,
+    margin: 0,
+    color: {
+      dark: '#000000',
+      light: '#FFFFFF'
+    }
+  });
+  
+  const qrCode = `<img src="${qrCodeDataUrl}" alt="QR Code" style="width: 60px; height: 60px; border-radius: 4px; border: 1px solid #ccc;" />`;
 
   if (showBack) {
     // Back side design - matching front side styling exactly
@@ -145,12 +165,12 @@ const createCardContent = (data: StudentIdCardData, showBack: boolean = false) =
   }
 };
 
-export function buildStudentIdCardSnippet(data: StudentIdCardData, showBack: boolean = false) {
-  return createCardContent(data, showBack);
+export async function buildStudentIdCardSnippet(data: StudentIdCardData, showBack: boolean = false) {
+  return await createCardContent(data, showBack);
 }
 
-export function buildStudentIdCardDocument(data: StudentIdCardData, showBack: boolean = false) {
-  const content = createCardContent(data, showBack);
+export async function buildStudentIdCardDocument(data: StudentIdCardData, showBack: boolean = false) {
+  const content = await createCardContent(data, showBack);
   return `<!doctype html>
     <html>
       <head>

@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
@@ -29,6 +29,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
   const canRunLifecycleActions = normalizedStatus === 'active' || normalizedStatus === 'locked';
 
   // ID Card functionality
+  const [idCardHtml, setIdCardHtml] = useState('');
+  
   const generateIdCardData = (student: Student): StudentIdCardData => {
     return {
       name: student.name,
@@ -49,11 +51,18 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
     };
   };
 
-  const handlePrintIdCard = () => {
+  const generateIdCardHtml = async (student: Student) => {
+    const idCardData = generateIdCardData(student);
+    const html = await buildStudentIdCardSnippet(idCardData, showCardBack);
+    setIdCardHtml(html);
+  };
+
+  const handlePrintIdCard = async () => {
     const idCardData = generateIdCardData(selectedStudent);
+    const html = await buildStudentIdCardDocument(idCardData, showCardBack);
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (printWindow) {
-      printWindow.document.write(buildStudentIdCardDocument(idCardData, showCardBack));
+      printWindow.document.write(html);
       printWindow.document.close();
       printWindow.print();
     }
@@ -70,6 +79,13 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
     // This would require html2canvas or similar library
     alert('Image download feature would be implemented with html2canvas');
   };
+
+  // Generate ID card HTML when modal opens or side changes
+  useEffect(() => {
+    if (showIdCard && selectedStudent) {
+      generateIdCardHtml(selectedStudent);
+    }
+  }, [showIdCard, showCardBack, selectedStudent]);
 
   return (
     <>
@@ -699,7 +715,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                 
                 <div className="flex justify-center mb-6">
                   <div dangerouslySetInnerHTML={{ 
-                    __html: buildStudentIdCardSnippet(generateIdCardData(selectedStudent), showCardBack) 
+                    __html: idCardHtml 
                   }} />
                 </div>
 

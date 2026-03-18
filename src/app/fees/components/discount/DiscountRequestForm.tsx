@@ -256,18 +256,46 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       });
       
       console.log(`Class ${cls.name} (${cls.id}):`, classFeeStructures.length, 'fee structures found');
+      console.log('Fee structures for this class:', classFeeStructures);
       
       // Calculate total fees from all structures for this class
+      // Try different field names for amount and category/frequency
       const monthlyFees = classFeeStructures
-        .filter((fs: any) => fs.category === 'monthly' || fs.frequency === 'monthly')
-        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+        .filter((fs: any) => {
+          // Check multiple possible field names for monthly
+          const isMonthly = fs.category === 'monthly' || 
+                          fs.frequency === 'monthly' || 
+                          fs.type === 'monthly' ||
+                          fs.period === 'monthly';
+          console.log(`Fee structure ${fs.name}: category=${fs.category}, frequency=${fs.frequency}, amount=${fs.amount}, isMonthly=${isMonthly}`);
+          return isMonthly;
+        })
+        .reduce((sum: number, fs: any) => {
+          const amount = parseFloat(fs.amount) || 0;
+          console.log(`Adding monthly fee: ${amount} from ${fs.name}`);
+          return sum + amount;
+        }, 0);
       
       const yearlyFees = classFeeStructures
-        .filter((fs: any) => fs.category === 'yearly' || fs.frequency === 'yearly')
-        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+        .filter((fs: any) => {
+          // Check multiple possible field names for yearly
+          const isYearly = fs.category === 'yearly' || 
+                         fs.frequency === 'yearly' || 
+                         fs.type === 'yearly' ||
+                         fs.period === 'yearly';
+          return isYearly;
+        })
+        .reduce((sum: number, fs: any) => {
+          const amount = parseFloat(fs.amount) || 0;
+          console.log(`Adding yearly fee: ${amount} from ${fs.name}`);
+          return sum + amount;
+        }, 0);
       
       const totalFees = classFeeStructures
-        .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
+        .reduce((sum: number, fs: any) => {
+          const amount = parseFloat(fs.amount) || 0;
+          return sum + amount;
+        }, 0);
 
       const result = {
         ...cls,
@@ -284,6 +312,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       console.log(`Class ${cls.name} result:`, { 
         monthlyFee: result.monthlyFee, 
         yearlyFee: result.yearlyFee, 
+        totalFee: result.totalFee,
         hasFeeData: result.hasFeeData,
         foundStructures: classFeeStructures.length
       });
