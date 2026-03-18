@@ -323,6 +323,7 @@ model Student {
   promotions            StudentPromotion[]
   transportAssignments  StudentTransport[]
   medicalRecords        MedicalRecord[]
+  razorpayTransactions  RazorpayPaymentTransaction[] @relation("RazorpayPaymentStudent")
 
   @@index([schoolId])
   @@index([class])
@@ -656,6 +657,7 @@ model FeeRecord {
   feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id])
   student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
+  razorpayTransactions RazorpayPaymentTransaction[] @relation("RazorpayPaymentFeeRecord")
 
   @@index([studentId])
   @@index([status])
@@ -1622,5 +1624,116 @@ model LeaveSettings {
 
   @@unique([schoolId, academicYearId])
   @@index([schoolId])
+  @@schema("school")
+}
+
+// ========================================
+// Razorpay Payment Integration Models
+// ========================================
+
+// Razorpay Payment Orders - Links to your existing FeeRecord
+model RazorpayPaymentOrder {
+  id          String   @id @db.VarChar(255) // Razorpay order ID
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("INR") @db.VarChar(3)
+  receipt     String   @db.VarChar(255)
+  status      String   @default("created") @db.VarChar(50) // created, paid, failed, expired
+  notes       Json?    // Student info, fee IDs, metadata
+  createdBy   String   @db.VarChar(255) @map("created_by") // Links to school_User.email
+  schoolId    String?  @db.VarChar(255) @map("school_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  transactions RazorpayPaymentTransaction[]
+
+  @@map("razorpay_payment_orders")
+  @@index([status])
+  @@index([createdBy])
+  @@index([schoolId])
+  @@index([createdAt])
+  @@index([receipt])
+  @@schema("school")
+}
+
+// Razorpay Payment Transactions - Links to your existing Payment model
+model RazorpayPaymentTransaction {
+  id             String    @id @db.VarChar(255) // Razorpay payment ID
+  orderId        String    @db.VarChar(255) @map("order_id")
+  amount         Decimal   @db.Decimal(10, 2)
+  currency       String    @default("INR") @db.VarChar(3)
+  status         String    @default("pending") @db.VarChar(50) // pending, verified, failed
+  gatewayResponse Json?    @map("gateway_response") // Full Razorpay response
+  verifiedAt     DateTime? @map("verified_at") // When payment was verified
+  feeRecordIds   Json?     @map("fee_record_ids") // Array of FeeRecord IDs (your existing model)
+  studentId      String?   @db.VarChar(255) @map("student_id") // Links to Student.id
+  paymentMethod  String?   @db.VarChar(50) @map("payment_method") // razorpay, upi, cash, etc.
+  collectedBy    String?   @db.VarChar(255) @map("collected_by") // Links to school_User.email
+  remarks        String?   @db.Text // Payment remarks
+  schoolId       String?   @db.VarChar(255) @map("school_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  order         RazorpayPaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Links to your existing models
+  student       Student?  @relation("RazorpayPaymentStudent", fields: [studentId], references: [id])
+  feeRecords    FeeRecord[] @relation("RazorpayPaymentFeeRecord")
+
+  @@map("razorpay_payment_transactions")
+  @@index([orderId])
+  @@index([status])
+  @@index([studentId])
+  @@index([paymentMethod])
+  @@index([schoolId])
+  @@index([createdAt])
+  @@index([verifiedAt])
+  @@schema("school")
+}
+
+// Razorpay Webhook Events
+model RazorpayWebhookEvent {
+  id              BigInt   @id @default(autoincrement())
+  eventId         String   @db.VarChar(255) @map("event_id") // Razorpay event ID
+  eventType       String   @db.VarChar(100) @map("event_type") // payment.captured, payment.failed, etc.
+  paymentId       String?  @db.VarChar(255) @map("payment_id") // Associated payment ID
+  orderId         String?  @db.VarChar(255) @map("order_id") // Associated order ID
+  payload         Json     // Full webhook payload
+  processed       Boolean  @default(false) // Whether webhook was processed
+  processingError String?  @db.Text @map("processing_error") // Any processing errors
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("razorpay_webhook_events")
+  @@index([eventId])
+  @@index([eventType])
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([processed])
+  @@index([createdAt])
+  @@schema("school")
+}
+
+// Razorpay Audit Log
+model RazorpayAuditLog {
+  id         BigInt   @id @default(autoincrement())
+  action     String   @db.VarChar(100) // order_created, payment_verified, etc.
+  entityType String   @db.VarChar(50) @map("entity_type") // order, transaction, webhook
+  entityId   String   @db.VarChar(255) @map("entity_id") // ID of the entity
+  oldValues  Json?    @map("old_values") // Previous state (for updates)
+  newValues  Json?    @map("new_values") // New state
+  userId     String?  @db.VarChar(255) @map("user_id") // User who performed action
+  userEmail  String?  @db.VarChar(255) @map("user_email") // User email
+  ipAddress  String?  @db.VarChar(45) @map("ip_address") // Client IP
+  userAgent  String?  @db.Text @map("user_agent") // Client user agent
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("razorpay_audit_log")
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([userId])
+  @@index([userEmail])
+  @@index([createdAt])
   @@schema("school")
 }

@@ -26,15 +26,202 @@ export class PDFGenerator {
 
   private static async captureElementCanvas(elementId: string): Promise<HTMLCanvasElement> {
     const element = this.getElement(elementId);
-    return html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: element.scrollWidth,
-      height: element.scrollHeight
+    
+    // Extract receipt data from the original element (like ID cards do)
+    const receiptData = this.extractReceiptData(element);
+    
+    // Create PURE HTML with inline styles (exactly like ID cards)
+    const cleanHTML = this.createPureReceiptHTML(receiptData);
+    
+    // Create temporary container (exactly like ID cards)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = cleanHTML;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '-9999px';
+    tempDiv.style.width = '800px';
+    tempDiv.style.background = '#ffffff';
+    document.body.appendChild(tempDiv);
+
+    try {
+      // Wait for content to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Capture with simple settings (exactly like ID cards)
+      return await html2canvas(tempDiv, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        width: 800,
+        height: tempDiv.scrollHeight,
+        logging: false
+      });
+    } finally {
+      // Clean up
+      if (tempDiv.parentNode) {
+        tempDiv.parentNode.removeChild(tempDiv);
+      }
+    }
+  }
+
+  private static extractReceiptData(element: HTMLElement): any {
+    // Extract data from the original receipt element
+    const data: any = {
+      schoolName: '',
+      receiptNumber: '',
+      paymentDate: '',
+      paymentMethod: '',
+      studentName: '',
+      admissionNo: '',
+      className: '',
+      fatherName: '',
+      feeItems: [],
+      totalAmount: 0
+    };
+
+    // Try to extract data from common selectors
+    const titleElement = element.querySelector('h1, .title, .school-name');
+    if (titleElement) data.schoolName = titleElement.textContent || '';
+
+    const receiptNumberElement = element.querySelector('.receipt-number, .reference, [data-receipt]');
+    if (receiptNumberElement) data.receiptNumber = receiptNumberElement.textContent || '';
+
+    const dateElement = element.querySelector('.date, .payment-date, [data-date]');
+    if (dateElement) data.paymentDate = dateElement.textContent || '';
+
+    const methodElement = element.querySelector('.method, .payment-method, [data-method]');
+    if (methodElement) data.paymentMethod = methodElement.textContent || '';
+
+    const studentNameElement = element.querySelector('.student-name, .name, [data-student]');
+    if (studentNameElement) data.studentName = studentNameElement.textContent || '';
+
+    const admissionElement = element.querySelector('.admission-no, .admission, [data-admission]');
+    if (admissionElement) data.admissionNo = admissionElement.textContent || '';
+
+    const classElement = element.querySelector('.class, .grade, [data-class]');
+    if (classElement) data.className = classElement.textContent || '';
+
+    const fatherElement = element.querySelector('.father-name, .parent-name, [data-father]');
+    if (fatherElement) data.fatherName = fatherElement.textContent || '';
+
+    // Extract fee items from table rows
+    const tableRows = element.querySelectorAll('table tr, .fee-row, .payment-row');
+    tableRows.forEach((row, index) => {
+      if (index === 0) return; // Skip header
+      
+      const cells = row.querySelectorAll('td, .fee-cell, .payment-cell');
+      if (cells.length >= 2) {
+        data.feeItems.push({
+          description: cells[0].textContent || 'Fee Payment',
+          amount: this.extractAmount(cells[1].textContent),
+          paid: this.extractAmount(cells[2]?.textContent || cells[1].textContent),
+          balance: this.extractAmount(cells[3]?.textContent || '0')
+        });
+      }
     });
+
+    // Calculate total
+    data.totalAmount = data.feeItems.reduce((sum: number, item: any) => sum + (item.paid || 0), 0);
+
+    return data;
+  }
+
+  private static extractAmount(text: string | null | undefined): number {
+    if (!text) return 0;
+    const match = text.toString().match(/[\d,]+/);
+    return match ? parseInt(match[0].replace(/,/g, '')) : 0;
+  }
+
+  private static createPureReceiptHTML(data: any): string {
+    // Create PURE HTML with inline styles (exactly like ID cards)
+    return `
+      <div style="width: 800px; background: #ffffff; color: #000000; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
+        <!-- Header Section -->
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb;">
+          <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${data.schoolName || 'School Fee Receipt'}</div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Fee Statement Receipt</div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Receipt: ${data.receiptNumber}</div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Date: ${data.paymentDate}</div>
+        </div>
+        
+        <!-- Student Information -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <div style="font-size: 16px; font-weight: bold; color: #000000; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb;">Student Information</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Name:</span>
+              <span style="color: #000000; font-weight: 600;">${data.studentName || 'N/A'}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Admission No:</span>
+              <span style="color: #000000; font-weight: 600;">${data.admissionNo || 'N/A'}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Class:</span>
+              <span style="color: #000000; font-weight: 600;">${data.className || 'N/A'}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Father Name:</span>
+              <span style="color: #000000; font-weight: 600;">${data.fatherName || 'N/A'}</span>
+            </div>
+          </div>
+          
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <div style="font-size: 16px; font-weight: bold; color: #000000; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb;">Payment Information</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Receipt No:</span>
+              <span style="color: #000000; font-weight: 600;">${data.receiptNumber}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Payment Date:</span>
+              <span style="color: #000000; font-weight: 600;">${data.paymentDate}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Payment Method:</span>
+              <span style="color: #000000; font-weight: 600;">${data.paymentMethod}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #6b7280; font-weight: 500;">Status:</span>
+              <span style="color: #059669; font-weight: 600;">Paid</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Fee Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+          <thead>
+            <tr>
+              <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Description</th>
+              <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Amount</th>
+              <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Paid</th>
+              <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.feeItems?.map((item: any) => `
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">${item.description || 'Fee Payment'}</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.paid || 0).toLocaleString('en-IN')}</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.balance || 0).toLocaleString('en-IN')}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="4" style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">No fee details available</td></tr>'}
+          </tbody>
+        </table>
+        
+        <!-- Total -->
+        <div style="text-align: right; font-size: 18px; font-weight: bold; color: #000000; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+          Total Amount Paid: ₹${Number(data.totalAmount || 0).toLocaleString('en-IN')}
+        </div>
+        
+        <!-- Footer -->
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
+          <div>This is a computer-generated receipt and does not require signature</div>
+          <div>Generated on ${new Date().toLocaleDateString('en-IN')}</div>
+        </div>
+      </div>
+    `;
   }
 
   private static async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -56,6 +243,123 @@ export class PDFGenerator {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Generate PDF receipt and return as blob (for email attachments)
+   */
+  static async generateReceiptPDF(receiptData: ReceiptData): Promise<Blob> {
+    try {
+      // Create a temporary div to render the receipt
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm'; // A4 width
+      tempDiv.style.backgroundColor = '#ffffff';
+      tempDiv.style.padding = '20px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+
+      // Generate receipt HTML (similar to ID card approach)
+      const receiptHTML = this.createReceiptHTML(receiptData);
+      tempDiv.innerHTML = receiptHTML;
+      document.body.appendChild(tempDiv);
+
+      // Capture as canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794, // A4 width in pixels at 96 DPI
+        height: 1123 // A4 height in pixels at 96 DPI
+      });
+
+      // Remove temporary div
+      document.body.removeChild(tempDiv);
+
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      // Return as blob
+      return pdf.output('blob');
+
+    } catch (error) {
+      console.error('PDF receipt generation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create receipt HTML string
+   */
+  private static createReceiptHTML(receiptData: ReceiptData): string {
+    const { receiptNumber, paymentDate, paymentMethod, studentData, paymentData } = receiptData;
+    
+    const totalAmount = paymentData?.currentYearFees?.reduce((sum: number, item: any) => 
+      sum + Number(item.amountPaid || item.paidAmount || 0), 0) || 0;
+
+    return `
+      <div style="width: 100%; padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="margin: 0; color: #1f2937; font-size: 24px;">Payment Receipt</h1>
+          <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">Receipt #: ${receiptNumber}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2 style="margin: 0 0 15px 0; color: #374151; font-size: 18px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Student Details</h2>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Name:</strong> ${studentData?.studentName || studentData?.name || 'N/A'}</p>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Class:</strong> ${studentData?.studentClass || studentData?.class || 'N/A'}</p>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Admission No:</strong> ${studentData?.admissionNo || studentData?.rollNo || 'N/A'}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2 style="margin: 0 0 15px 0; color: #374151; font-size: 18px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details</h2>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Date:</strong> ${new Date(paymentDate).toLocaleDateString()}</p>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Method:</strong> ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
+          <p style="margin: 5px 0; color: #4b5563;"><strong>Total Amount:</strong> ₹${totalAmount.toLocaleString()}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h2 style="margin: 0 0 15px 0; color: #374151; font-size: 18px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Fee Breakdown</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #d1d5db; color: #374151;">Fee Name</th>
+                <th style="padding: 10px; text-align: right; border: 1px solid #d1d5db; color: #374151;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentData?.currentYearFees?.map((fee: any) => `
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #d1d5db; color: #4b5563;">${fee.feeName || fee.name || 'Fee'}</td>
+                  <td style="padding: 8px; text-align: right; border: 1px solid #d1d5db; color: #4b5563;">₹${Number(fee.amountPaid || fee.paidAmount || 0).toLocaleString()}</td>
+                </tr>
+              `).join('') || ''}
+              <tr style="background-color: #f3f4f6; font-weight: bold;">
+                <td style="padding: 10px; border: 1px solid #d1d5db; color: #374151;">Total</td>
+                <td style="padding: 10px; text-align: right; border: 1px solid #d1d5db; color: #374151;">₹${totalAmount.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+          <p style="margin: 5px 0; color: #6b7280; font-size: 12px;">This is a computer-generated receipt</p>
+          <p style="margin: 5px 0; color: #6b7280; font-size: 12px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        </div>
+      </div>
+    `;
   }
 
   /**

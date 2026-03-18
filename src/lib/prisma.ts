@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Bump this whenever the schema changes to force a fresh client in dev
-const SCHEMA_VERSION = '13'; // Bumped for Leave Management models
+const SCHEMA_VERSION = '15'; // Bumped for Razorpay Payment Integration models - Force regeneration
 
 function createSaasPrisma() {
   // Add search_path to connection string

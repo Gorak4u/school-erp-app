@@ -72,6 +72,11 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
       setLoadingFeeData(false);
     }
   };
+
+  // Refresh fee data after payment
+  const handleRefreshFeeData = () => {
+    fetchStudentFeeData();
+  };
   
   const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
   const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
@@ -1059,6 +1064,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     studentId={feeManagement.selectedStudent.id}
                     studentData={feeData}
                     onClose={() => setFeeManagement({ ...feeManagement, showFeeModal: false })}
+                    onPaymentSuccess={handleRefreshFeeData}
                   />
                 ) : (
                   <div className="flex items-center justify-center py-12">

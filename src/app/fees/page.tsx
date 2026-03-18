@@ -86,6 +86,26 @@ export default function FeesPage() {
     }
   };
 
+  // Refresh fee data after payment
+  const handleRefreshFeeData = async () => {
+    if (feeCollectionModal.selectedStudent?.studentId) {
+      try {
+        const response = await fetch('/api/fees/students');
+        const data = await response.json();
+        if (data.success && data.data?.students) {
+          const studentFeeData = data.data.students.find(s => s.studentId === feeCollectionModal.selectedStudent.studentId);
+          setFeeCollectionModal(prev => ({ 
+            ...prev, 
+            feeData: studentFeeData,
+            selectedStudent: studentFeeData
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to refresh fee data:', error);
+      }
+    }
+  };
+
   const handleCloseFeeCollection = () => {
     setFeeCollectionModal({
       show: false,
@@ -315,6 +335,7 @@ export default function FeesPage() {
                   studentId={feeCollectionModal.selectedStudent.studentId}
                   studentData={feeCollectionModal.feeData}
                   onClose={handleCloseFeeCollection}
+                  onPaymentSuccess={handleRefreshFeeData}
                 />
               ) : (
                 <div className="flex items-center justify-center py-12">

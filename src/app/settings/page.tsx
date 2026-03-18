@@ -2717,6 +2717,7 @@ export default function SettingsPage() {
       api_secret: getSetting('payment_gateway', 'api_secret', ''),
       webhook_secret: getSetting('payment_gateway', 'webhook_secret', ''),
       enabled: getSetting('payment_gateway', 'enabled', 'false'),
+      upi_id: getSetting('payment_gateway', 'upi_id', ''),
     });
     return (
       <div className="space-y-6">
@@ -2740,12 +2741,36 @@ export default function SettingsPage() {
             <button className={btnPrimary} disabled={saving} onClick={() => saveBatchSettings('payment_gateway', pg)}>{saving ? 'Saving...' : 'Save Gateway'}</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(pg).map(([key, val]) => (
-              <div key={key}>
-                <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
-                <input className={input} type={key.includes('secret') ? 'password' : 'text'} value={val} onChange={e => setPg({ ...pg, [key]: e.target.value })} />
-              </div>
-            ))}
+            <div>
+              <label className={label}>Provider</label>
+              <select className={input} value={pg.provider} onChange={e => setPg({ ...pg, provider: e.target.value })}>
+                <option value="razorpay">Razorpay</option>
+                <option value="stripe">Stripe</option>
+              </select>
+            </div>
+            <div>
+              <label className={label}>API Key</label>
+              <input className={input} type="text" value={pg.api_key} onChange={e => setPg({ ...pg, api_key: e.target.value })} />
+            </div>
+            <div>
+              <label className={label}>API Secret</label>
+              <input className={input} type="password" value={pg.api_secret} onChange={e => setPg({ ...pg, api_secret: e.target.value })} />
+            </div>
+            <div>
+              <label className={label}>Webhook Secret</label>
+              <input className={input} type="password" value={pg.webhook_secret} onChange={e => setPg({ ...pg, webhook_secret: e.target.value })} />
+            </div>
+            <div>
+              <label className={label}>UPI ID</label>
+              <input className={input} type="text" value={pg.upi_id} onChange={e => setPg({ ...pg, upi_id: e.target.value })} placeholder="school@upi" />
+            </div>
+            <div>
+              <label className={label}>Enabled</label>
+              <select className={input} value={pg.enabled} onChange={e => setPg({ ...pg, enabled: e.target.value })}>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
