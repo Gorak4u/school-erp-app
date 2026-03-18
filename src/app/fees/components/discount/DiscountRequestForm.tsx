@@ -106,22 +106,18 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
         if (feeRes.ok) {
           const feeData = await feeRes.json();
+          console.log('Fee structures data:', feeData);
           setFeeStructures(feeData.feeStructures || feeData.structures || []);
         }
         if (classRes.ok) {
           const classData = await classRes.json();
+          console.log('Classes data:', classData);
           setClasses(classData.classes || []);
-        }
-        if (sectionRes.ok) {
-          const sectionData = await sectionRes.json();
-          setSections(sectionData.sections || []);
-        }
-        if (mediumRes.ok) {
-          const mediumData = await mediumRes.json();
-          setMediums(mediumData.mediums || []);
         }
         if (transportRes.ok) {
           const transportData = await transportRes.json();
+          console.log('Transport routes data:', transportData);
+          console.log('First route sample:', transportData.routes?.[0]);
           setTransportRoutes(transportData.routes || []);
         }
         if (yearRes.ok) {
@@ -240,11 +236,14 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
   // Map classes with their fee structures
   const classesWithFees = useMemo(() => {
+    console.log('Computing classesWithFees - classes:', classes.length, 'feeStructures:', feeStructures.length);
     return classes.map((cls: any) => {
       // Find fee structures for this class
       const classFeeStructures = feeStructures.filter((fs: any) => 
         fs.class?.id === cls.id || fs.classId === cls.id
       );
+      
+      console.log(`Class ${cls.name} (${cls.id}):`, classFeeStructures.length, 'fee structures found');
       
       // Calculate total fees from all structures for this class
       const monthlyFees = classFeeStructures
@@ -258,7 +257,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       const totalFees = classFeeStructures
         .reduce((sum: number, fs: any) => sum + (fs.amount || 0), 0);
 
-      return {
+      const result = {
         ...cls,
         // Count students from sections
         studentCount: cls.sections?.reduce((sum: number, section: any) => sum + (section.studentCount || 0), 0) || 0,
@@ -269,6 +268,10 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         feeStructures: classFeeStructures,
         hasFeeData: classFeeStructures.length > 0
       };
+      
+      console.log(`Class ${cls.name} result:`, { monthlyFee: result.monthlyFee, yearlyFee: result.yearlyFee, hasFeeData: result.hasFeeData });
+      
+      return result;
     });
   }, [classes, feeStructures]);
 

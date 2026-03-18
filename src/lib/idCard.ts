@@ -49,16 +49,16 @@ const createCardContent = (data: StudentIdCardData) => {
         <!-- Right Section - Student Information -->
         <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
           <!-- Basic Info -->
-          <div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+          <div style="margin-bottom: 1px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
               <strong style="color: #f8fafc;">Name</strong>
               <span>${data.name}</span>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
               <strong style="color: #f8fafc;">Admission No</strong>
               <span>${data.admissionNo}</span>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
               <strong style="color: #f8fafc;">Class</strong>
               <span>${data.className}</span>
             </div>
@@ -66,11 +66,11 @@ const createCardContent = (data: StudentIdCardData) => {
           </div>
           
           <!-- Additional Info -->
-          <div style="font-size: 9px; margin-top: 2px;">
+          <div style="font-size: 9px;">
             ${data.bloodGroup ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Blood Group</strong><span>${data.bloodGroup}</span></div>` : ''}
             ${data.academicYear ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Academic Year</strong><span>${data.academicYear}</span></div>` : ''}
             ${data.phone ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;"><strong style="color:#f8fafc;">Phone</strong><span>${data.phone}</span></div>` : ''}
-            ${data.address ? `<div style="margin-top:2px;font-size:8px;color:#94a3b8;line-height:1.1;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
+            ${data.address ? `<div style="margin-top:4px;font-size:8px;color:#94a3b8;line-height:1.2;"><strong style="color:#f8fafc;">Address:</strong> ${data.address}</div>` : ''}
           </div>
         </div>
       </div>
