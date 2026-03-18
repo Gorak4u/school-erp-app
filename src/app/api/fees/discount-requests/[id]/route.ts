@@ -323,6 +323,7 @@ export async function PATCH(
         updateData.approvedByEmail = ctx.email;
         updateData.approvedByName = approverName;
         updateData.approvedAt = new Date();
+        updateData.approvalNote = note;
       } else if (action === 'reject') {
         updateData.rejectedBy = ctx.userId;
         updateData.rejectedByEmail = ctx.email;

@@ -17,9 +17,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
-  const [mediums, setMediums] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
-  const [transportRoutes, setTransportRoutes] = useState<Array<{id: string; routeName: string; routeNumber: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>({});
 
@@ -61,18 +59,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       }
     };
 
-    const fetchMediums = async () => {
-      try {
-        const res = await fetch('/api/school-structure/mediums');
-        if (res.ok) {
-          const data = await res.json();
-          setMediums(data.mediums || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch mediums:', err);
-      }
-    };
-
     const fetchAcademicYears = async () => {
       try {
         const res = await fetch('/api/school-structure/academic-years');
@@ -84,25 +70,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         console.error('Failed to fetch academic years:', err);
       }
     };
-
-    const fetchTransportRoutes = async () => {
-      try {
-        const res = await fetch('/api/transport/routes');
-        if (res.ok) {
-          const data = await res.json();
-          setTransportRoutes(data.routes || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch transport routes:', err);
-      }
-    };
     
     fetchFeeStructures();
     fetchClasses();
     fetchSections();
-    fetchMediums();
     fetchAcademicYears();
-    fetchTransportRoutes();
   }, []);
 
   useEffect(() => {
@@ -150,7 +122,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     discountType: 'percentage',
     discountValue: '',
     maxCapAmount: '',
-    scope: 'student', // 'student', 'bulk'
+    scope: 'student',
     targetType: 'fee_structure',
     feeStructureIds: [] as string[],
     studentIds: [] as string[],
@@ -160,11 +132,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     reason: '',
     validFrom: new Date().toISOString().split('T')[0],
     validTo: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-    // Bulk discount options
-    bulkDiscountType: 'all', // 'all', 'class_only', 'transport_only'
-    transportRouteIds: [] as string[],
-    bulkTargetType: 'all_students', // 'all_students', 'specific_classes'
-    mediumIds: [] as string[],
   });
 
   // Set default academic year when data is loaded
@@ -218,21 +185,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         return false;
       }
 
-      // Handle bulk discount type filtering
       if (formData.scope === 'bulk') {
-        if (formData.bulkDiscountType === 'class_only') {
-          // Only show tuition/academic fees
-          return structure.category !== 'transport';
-        } else if (formData.bulkDiscountType === 'transport_only') {
-          // Only show transport fees
-          return structure.category === 'transport';
-        }
-        // 'all' - show all fees
-        return true;
-      }
-
-      // Transport fees are always available regardless of scope/class selection
-      if (structure.category === 'transport') {
         return true;
       }
 
@@ -244,9 +197,14 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         return selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
       }
 
+      if (formData.scope === 'class') {
+        if (selectedClassNames.length === 0 && formData.classIds.length === 0) return false;
+        return formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
+      }
+
       return true;
     });
-  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, formData.bulkDiscountType, selectedClassNames, selectedStudentClassNames]);
+  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames]);
 
   useEffect(() => {
     setFormData(prev => ({
@@ -355,8 +313,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
 
             <div>
               <label className="block text-sm font-medium mb-1">Scope</label>
-              <div className="grid grid-cols-2 gap-4">
-                {['student', 'bulk'].map((scope) => (
+              <div className="grid grid-cols-3 gap-4">
+                {['student', 'class', 'bulk'].map((scope) => (
                   <button
                     key={scope}
                     onClick={() => setFormData({...formData, scope})}
@@ -366,7 +324,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                     }`}
                   >
-                    {scope === 'student' ? 'Individual Students' : 'Bulk Discount'}
+                    {scope}
                   </button>
                 ))}
               </div>
@@ -436,187 +394,85 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
               </div>
             )}
             
-            {formData.scope === 'bulk' && (
+            {formData.scope === 'class' && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Target Students</label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button
-                      onClick={() => setFormData({...formData, bulkTargetType: 'all_students'})}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
-                        formData.bulkTargetType === 'all_students'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <div className="font-medium">All Students</div>
-                      <div className="text-xs opacity-70">Apply to all students in the school</div>
-                    </button>
-                    <button
-                      onClick={() => setFormData({...formData, bulkTargetType: 'specific_classes'})}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
-                        formData.bulkTargetType === 'specific_classes'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <div className="font-medium">Specific Classes</div>
-                      <div className="text-xs opacity-70">Apply to students in selected medium/classes</div>
-                    </button>
-                  </div>
-                </div>
-
-                {formData.bulkTargetType === 'specific_classes' && (
-                  <>
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium">Select Medium <span className="text-red-500">*</span></label>
-                      <div className={`max-h-32 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        {mediums.map((medium: any) => (
-                          <label key={medium.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.mediumIds.includes(medium.id)}
-                              onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...formData.mediumIds, medium.id]
-                                  : formData.mediumIds.filter(id => id !== medium.id);
-                                setFormData({...formData, mediumIds: newIds, classIds: [], feeStructureIds: []});
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium">{medium.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium">Select Classes <span className="text-red-500">*</span></label>
-                      <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                        {classes
-                          .filter(cls => formData.mediumIds.length === 0 || formData.mediumIds.includes(cls.mediumId))
-                          .map((cls: any) => (
-                          <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.classIds.includes(cls.id)}
-                              onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...formData.classIds, cls.id]
-                                  : formData.classIds.filter(id => id !== cls.id);
-                                setFormData({...formData, classIds: newIds, feeStructureIds: []});
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium">{cls.name}</span>
-                              <span className="text-xs text-gray-500 ml-2">
-                                ({cls.medium?.name || 'No Medium'})
-                              </span>
-                              <div className="text-xs text-gray-400">
-                                Code: {cls.code} | Level: {cls.level}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(formData.mediumIds.length > 0 || formData.classIds.length > 0) && (
-                      <div className="text-sm text-green-600">
-                        {formData.mediumIds.length} medium(s) and {formData.classIds.length} class(es) selected
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Bulk Discount Type</label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button
-                      onClick={() => setFormData({...formData, bulkDiscountType: 'all'})}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
-                        formData.bulkDiscountType === 'all'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <div className="font-medium">All Fees</div>
-                      <div className="text-xs opacity-70">Apply discount to all fee types (tuition + transport)</div>
-                    </button>
-                    <button
-                      onClick={() => setFormData({...formData, bulkDiscountType: 'class_only'})}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
-                        formData.bulkDiscountType === 'class_only'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <div className="font-medium">Class Fees Only</div>
-                      <div className="text-xs opacity-70">Apply discount only to tuition/academic fees, exclude transport</div>
-                    </button>
-                    <button
-                      onClick={() => setFormData({...formData, bulkDiscountType: 'transport_only'})}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
-                        formData.bulkDiscountType === 'transport_only'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <div className="font-medium">Transport Fees Only</div>
-                      <div className="text-xs opacity-70">Apply discount only to transport fees, exclude tuition</div>
-                    </button>
-                  </div>
-                </div>
-
-                {formData.bulkDiscountType === 'transport_only' && (
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium">Select Transport Routes (Optional)</label>
-                    <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                      <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Select Classes <span className="text-red-500">*</span></label>
+                  <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    {classes.map((cls: any) => (
+                      <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={formData.transportRouteIds.length === 0}
+                          checked={formData.classIds.includes(cls.id)}
                           onChange={(e) => {
-                            setFormData({...formData, transportRouteIds: []});
+                            const newIds = e.target.checked
+                              ? [...formData.classIds, cls.id]
+                              : formData.classIds.filter(id => id !== cls.id);
+                            setFormData({...formData, classIds: newIds, feeStructureIds: []});
                           }}
                           className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
-                        <span className="text-sm font-medium">All Routes</span>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{cls.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            ({cls.medium?.name || 'No Medium'})
+                          </span>
+                          <div className="text-xs text-gray-400">
+                            Code: {cls.code} | Level: {cls.level}
+                          </div>
+                        </div>
                       </label>
-                      {transportRoutes.map((route: any) => (
-                        <label key={route.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.transportRouteIds.includes(route.id)}
-                            onChange={(e) => {
-                              const newIds = e.target.checked
-                                ? [...formData.transportRouteIds, route.id]
-                                : formData.transportRouteIds.filter(id => id !== route.id);
-                              setFormData({...formData, transportRouteIds: newIds});
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium">{route.routeName} ({route.routeNumber})</span>
-                        </label>
-                      ))}
-                    </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Select Sections (Optional)</label>
+                  <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    <label className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.sectionIds.length === 0}
+                        onChange={(e) => {
+                          setFormData({...formData, sectionIds: []});
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium">All Sections</span>
+                    </label>
+                    {sections.map((section: any) => (
+                      <label key={section.id} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.sectionIds.includes(section.id)}
+                          onChange={(e) => {
+                            const newIds = e.target.checked
+                              ? [...formData.sectionIds, section.id]
+                              : formData.sectionIds.filter(id => id !== section.id);
+                            setFormData({...formData, sectionIds: newIds});
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium">{section.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {(formData.classIds.length > 0 || formData.sectionIds.length > 0) && (
+                  <div className="text-sm text-green-600">
+                    {formData.classIds.length} class(es) and {formData.sectionIds.length} section(s) selected
                   </div>
                 )}
-
+              </div>
+            )}
+            
+            {formData.scope === 'bulk' && (
+              <div className="space-y-4">
                 <div className="p-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {formData.bulkTargetType === 'all_students' && 'Bulk discount will apply to ' + (
-                      formData.bulkDiscountType === 'all' ? 'ALL fees for ALL students in the school.' :
-                      formData.bulkDiscountType === 'class_only' ? 'tuition/academic fees only for ALL students in the school. Transport fees will be excluded.' :
-                      'transport fees only for ALL students in the school. Tuition fees will be excluded.'
-                    )}
-                    {formData.bulkTargetType === 'specific_classes' && 'Bulk discount will apply to ' + (
-                      formData.bulkDiscountType === 'all' ? 'ALL fees for students in selected classes.' :
-                      formData.bulkDiscountType === 'class_only' ? 'tuition/academic fees only for students in selected classes. Transport fees will be excluded.' :
-                      'transport fees only for students in selected classes. Tuition fees will be excluded.'
-                    )}
-                    {formData.bulkDiscountType === 'transport_only' && formData.transportRouteIds.length > 0 && ` Limited to ${formData.transportRouteIds.length} selected route(s).`}
+                    Bulk application will apply to all students in the school. 
+                    You can search below to see which students will be affected.
                   </p>
                 </div>
                 
@@ -635,7 +491,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   {searchTerm.length >= 2 && (
                     <div className={`max-h-48 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                       <p className="text-xs text-gray-500 mb-2">
-                        Showing {students.length} students (this is a preview - bulk discount will apply to ALL eligible students)
+                        Showing {students.length} students (this is a preview - bulk discount will apply to ALL students)
                       </p>
                       {students.length > 0 ? (
                         <>
@@ -852,8 +708,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   setError('Please select at least one student');
                   return;
                 }
-                if (formData.scope === 'bulk' && formData.bulkTargetType === 'specific_classes' && (formData.mediumIds.length === 0 && formData.classIds.length === 0)) {
-                  setError('Please select at least one medium or class');
+                if (formData.scope === 'class' && formData.classIds.length === 0) {
+                  setError('Please select at least one class');
                   return;
                 }
                 setError('');
@@ -876,20 +732,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                   setError('Validity dates are required');
                   return;
                 }
-                // Additional validation for bulk discount types
-                if (formData.scope === 'bulk' && formData.bulkDiscountType === 'transport_only' && visibleFeeStructures.length === 0) {
-                  setError('No transport fee structures available for the selected criteria');
-                  return;
-                }
-                if (formData.scope === 'bulk' && formData.bulkDiscountType === 'class_only' && visibleFeeStructures.length === 0) {
-                  setError('No class fee structures available for the selected criteria');
-                  return;
-                }
                 setError('');
               }
               setStep(step + 1);
             }}
-            disabled={step === 1 && (!formData.name.trim() || !formData.academicYear || !formData.scope || (formData.scope === 'student' && formData.studentIds.length === 0) || (formData.scope === 'bulk' && formData.bulkTargetType === 'specific_classes' && formData.mediumIds.length === 0 && formData.classIds.length === 0))}
+            disabled={step === 1 && (!formData.name.trim() || !formData.academicYear || !formData.scope)}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
             Continue

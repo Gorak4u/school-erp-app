@@ -1,10 +1,5 @@
 import { DiscountRequest } from '@prisma/client';
 
-type DiscountRequestEmailData = DiscountRequest & {
-  approvedAt?: Date | string | null;
-  approvalNote?: string | null;
-};
-
 // Helper function to get user display name
 function getUserDisplayName(user: any): string {
   if (user.firstName && user.lastName) {
@@ -14,14 +9,14 @@ function getUserDisplayName(user: any): string {
 }
 
 export interface DiscountPendingEmailData {
-  discountRequest: DiscountRequestEmailData;
+  discountRequest: DiscountRequest;
   submitter: any; // User type from database
   approver: any; // User type from database
   schoolName: string;
 }
 
 export interface DiscountApprovedEmailData {
-  discountRequest: DiscountRequestEmailData;
+  discountRequest: DiscountRequest;
   submitter: any; // User type from database
   approver: any; // User type from database
   schoolName: string;
