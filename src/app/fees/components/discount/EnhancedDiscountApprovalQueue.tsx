@@ -21,6 +21,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
   const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; class?: {name: string}}>>([]);
   const [students, setStudents] = useState<Array<{id: string; name: string; class?: string; section?: string}>>([]);
   const [classes, setClasses] = useState<Array<{id: string; name: string}>>([]);
+  const [transportRoutes, setTransportRoutes] = useState<Array<{id: string; routeName: string; name: string; routeNumber: string}>>([]);
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,17 +69,24 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
   useEffect(() => {
     fetchFeeStructures();
     fetchStudentsAndClasses();
+    fetchTransportRoutes();
   }, []);
 
   const fetchStudentsAndClasses = async () => {
     try {
       const [studRes, configRes] = await Promise.all([
-        fetch('/api/fees/students?page=1&limit=500'),
+        fetch('/api/students?page=1&limit=500'), // Changed from /api/fees/students to /api/students
         fetch('/api/school-config'),
       ]);
       if (studRes.ok) {
         const d = await studRes.json();
-        setStudents((d.students || d.data?.students || d.data || []).map((s: any) => ({ id: s.studentId || s.id, name: s.studentName || s.name, class: s.studentClass || s.class, section: s.section })));
+        console.log('Students data from API:', d); // Debug log
+        setStudents((d.students || []).map((s: any) => ({ 
+          id: s.id, 
+          name: s.name, 
+          class: s.class?.name || s.className, 
+          section: s.section?.name || s.sectionName 
+        })));
       }
       if (configRes.ok) {
         const d = await configRes.json();
@@ -86,6 +94,23 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
       }
     } catch (err) {
       console.error('Failed to fetch students/classes:', err);
+    }
+  };
+
+  const fetchTransportRoutes = async () => {
+    try {
+      const res = await fetch('/api/transport/routes');
+      if (res.ok) {
+        const d = await res.json();
+        setTransportRoutes((d.routes || []).map((r: any) => ({ 
+          id: r.id, 
+          routeName: r.routeName || r.name, 
+          name: r.name || r.routeName,
+          routeNumber: r.routeNumber 
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch transport routes:', err);
     }
   };
 
@@ -119,14 +144,46 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
     return names.join(', ') + suffix;
   };
 
-  const getTargetDisplay = (request: any): { students: string; classes: string } => {
+  const getTargetDisplay = (request: any): { students: string; classes: string; transport: string } => {
     let studentIds: string[] = [];
     let classIds: string[] = [];
+    let transportRouteIds: string[] = [];
     try { studentIds = JSON.parse(request.studentIds || '[]'); } catch { studentIds = []; }
     try { classIds = JSON.parse(request.classIds || '[]'); } catch { classIds = []; }
+    try { transportRouteIds = JSON.parse(request.transportRouteIds || '[]'); } catch { transportRouteIds = []; }
+    
+    // Debug logging
+    console.log('getTargetDisplay debug:', {
+      studentIds,
+      classIds,
+      transportRouteIds,
+      studentsCount: students.length,
+      classesCount: classes.length,
+      transportRoutesCount: transportRoutes.length
+    });
+    
+    const studentNames = studentIds.slice(0, 3).map(id => {
+      const student = students.find(s => s.id === id);
+      if (!student) {
+        console.log('Student not found for ID:', id, 'Available students:', students.map(s => ({ id: s.id, name: s.name })));
+      }
+      return student ? student.name : `Student (${id.slice(0, 8)}...)`;
+    });
+    const classNames = classIds.slice(0, 3).map(id => {
+      const cls = classes.find(c => c.id === id);
+      return cls ? cls.name : `Class (${id.slice(0, 8)}...)`;
+    });
+    const transportNames = transportRouteIds.slice(0, 3).map(id => {
+      const route = transportRoutes.find(r => r.id === id);
+      return route ? (route.routeName || route.name || `Route ${route.routeNumber}`) : `Route (${id.slice(0, 8)}...)`;
+    });
+    
+    const suffix = (arr: any[], count: number) => arr.length > count ? ` +${arr.length - count} more` : '';
+    
     return {
-      students: resolveStudentNames(studentIds),
-      classes: resolveClassNames(classIds),
+      students: studentNames.join(', ') + suffix(studentIds, 3),
+      classes: classNames.join(', ') + suffix(classIds, 3),
+      transport: transportNames.join(', ') + suffix(transportRouteIds, 3)
     };
   };
 
@@ -472,6 +529,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                       <div>
                         {request.scope === 'student' && <p className={`text-sm font-medium ${textPrimary}`}>{target.students}</p>}
                         {request.scope === 'class' && <p className={`text-sm font-medium ${textPrimary}`}>{target.classes}</p>}
+                        {request.scope === 'transport' && <p className={`text-sm font-medium ${textPrimary}`}>{target.transport}</p>}
                         {request.scope === 'bulk' && (
                           <div>
                             <p className={`text-xs ${textSecondary}`}>S: {target.students}</p>
@@ -505,11 +563,13 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                   <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                     request.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                     request.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    request.scope === 'transport' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
                     request.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                   }`}>
                     {request.scope === 'student' ? '👤 Single' : 
                      request.scope === 'class' ? '🏫 Class' :
+                     request.scope === 'transport' ? '🚌 Transport' :
                      request.scope === 'bulk' ? '👥 Bulk' : 
                      request.scope}
                   </div>
@@ -741,11 +801,13 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                   <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                     selectedRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                     selectedRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    selectedRequest.scope === 'transport' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
                     selectedRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                   }`}>
                     {selectedRequest.scope === 'student' ? '👤 Single' : 
                      selectedRequest.scope === 'class' ? '🏫 Class' :
+                     selectedRequest.scope === 'transport' ? '🚌 Transport' :
                      selectedRequest.scope === 'bulk' ? '👥 Bulk' : 
                      selectedRequest.scope}
                   </div>
@@ -806,6 +868,25 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                               return (
                                 <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-green-900/30 text-green-200 border-green-700/50' : 'bg-green-100 text-green-800 border-green-200/50'} border`}>
                                   🏫 {c?.name || id}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {selectedRequest.scope === 'transport' && (() => {
+                      let routeIds: string[] = []; try { routeIds = JSON.parse(selectedRequest.transportRouteIds || '[]'); } catch {}
+                      return routeIds.length > 0 ? (
+                        <div>
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Target Transport Routes ({routeIds.length})</label>
+                          <div className="flex flex-wrap gap-1">
+                            {routeIds.map(id => {
+                              const route = transportRoutes.find(r => r.id === id);
+                              return (
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-orange-900/30 text-orange-200 border-orange-700/50' : 'bg-orange-100 text-orange-800 border-orange-200/50'} border`}>
+                                  🚌 {route ? (route.routeName || route.name || `Route ${route.routeNumber}`) : id}
                                 </span>
                               );
                             })}

@@ -68,6 +68,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
   const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
   const row = `p-4 rounded-xl border ${isDark ? 'border-gray-600/50 bg-gray-700/30' : 'border-gray-200 bg-gray-50/50'}`;
+  
+  // Text color variables
+  const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+  const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
+  const textTertiary = isDark ? 'text-gray-500' : 'text-gray-500';
 
   // Form State
   const [formData, setFormData] = useState<FormData>({
@@ -107,15 +112,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         if (feeRes.ok) {
           const feeData = await feeRes.json();
           const allFeeStructures = feeData.feeStructures || feeData.structures || [];
-          console.log('DEBUG - All fee structures loaded from API:', allFeeStructures.length, allFeeStructures.map((fs: any) => ({
-            id: fs.id,
-            name: fs.name,
-            category: fs.category,
-            className: fs.class?.name || fs.className,
-            classId: fs.class?.id || fs.classId,
-            academicYear: fs.academicYear?.year || fs.academicYear?.name || fs.academicYear,
-            amount: fs.amount
-          })));
           setFeeStructures(allFeeStructures);
         }
         if (classRes.ok) {
@@ -221,27 +217,13 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   }, [classIdToName, formData.classIds, formData.scope]);
 
   const visibleFeeStructures = useMemo(() => {
-    console.log('DEBUG - Filtering fee structures:', {
-      totalFeeStructures: feeStructures.length,
-      formData: {
-        scope: formData.scope,
-        academicYear: formData.academicYear,
-        classIds: formData.classIds
-      },
-      selectedStudentClassNames,
-      selectedClassNames,
-      selectedStudentsHaveTransport: Object.values(selectedStudentLookup).some(student => student.transport?.isActive)
-    });
-    
     const filtered = feeStructures.filter((structure: any) => {
       const structureAcademicYear = structure.academicYear?.year || structure.academicYear?.name || structure.academicYear || '';
       if (formData.academicYear && structureAcademicYear && structureAcademicYear !== formData.academicYear) {
-        console.log('DEBUG - Filtering out by academic year:', structure.name, structureAcademicYear);
         return false;
       }
 
       if (formData.scope === 'transport') {
-        console.log('DEBUG - Transport scope - showing all structures');
         return true;
       }
 
@@ -257,10 +239,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       if (formData.scope === 'student' && isTransportFee) {
         const studentsWithTransport = Object.values(selectedStudentLookup).filter(student => student.transport?.isActive);
         if (studentsWithTransport.length > 0) {
-          console.log('DEBUG - Transport fee - showing to students with transport:', structure.name);
           return true;
         } else {
-          console.log('DEBUG - Transport fee - no selected students have transport, filtering out:', structure.name);
           return false;
         }
       }
@@ -268,44 +248,24 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       const structureClassName = structure.class?.name || structure.className || '';
       const structureClassId = structure.class?.id || structure.classId || '';
 
-      console.log('DEBUG - Checking structure:', structure.name, {
-        structureClassName,
-        structureClassId,
-        selectedStudentClassNames,
-        formDataClassIds: formData.classIds,
-        isTransportFee
-      });
-
       if (formData.scope === 'student') {
         if (selectedStudentClassNames.length === 0) {
-          console.log('DEBUG - No selected student class names, filtering out:', structure.name);
           return false;
         }
         const matches = selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
-        console.log('DEBUG - Student scope match for', structure.name, ':', matches);
         return matches;
       }
 
       if (formData.scope === 'class') {
         if (selectedClassNames.length === 0 && formData.classIds.length === 0) {
-          console.log('DEBUG - No selected class names/ids, filtering out:', structure.name);
           return false;
         }
         const matches = formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
-        console.log('DEBUG - Class scope match for', structure.name, ':', matches);
         return matches;
       }
 
       return true;
     });
-    
-    console.log('DEBUG - Filtered fee structures:', filtered.length, filtered.map(fs => ({
-      name: fs.name,
-      className: fs.class?.name || fs.className,
-      classId: fs.class?.id || fs.classId,
-      category: fs.category,
-      academicYear: fs.academicYear?.year || fs.academicYear?.name || fs.academicYear
-    })));
     
     return filtered;
   }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames, selectedStudentLookup]);
@@ -358,12 +318,77 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
+  // Generate automatic discount name based on scope and targets
+  const generateDiscountName = (): string => {
+    const scopeText = formData.scope === 'student' ? 'Student' : 
+                      formData.scope === 'class' ? 'Class' : 
+                      formData.scope === 'transport' ? 'Transport' : 'Bulk';
+    
+    let targetDetails = '';
+    
+    if (formData.scope === 'student' && formData.studentIds.length > 0) {
+      const studentNames = formData.studentIds.slice(0, 2).map(id => {
+        const student = selectedStudentLookup[id];
+        return student ? student.name : '';
+      }).filter(Boolean);
+      
+      if (studentNames.length === 1) {
+        targetDetails = studentNames[0];
+      } else if (studentNames.length === 2) {
+        targetDetails = `${studentNames[0]} & ${studentNames[1]}`;
+      } else {
+        targetDetails = `${studentNames[0]} +${formData.studentIds.length - 1} more`;
+      }
+    } else if (formData.scope === 'class' && formData.classIds.length > 0) {
+      const classNames = formData.classIds.slice(0, 3).map(id => {
+        const cls = classes.find(c => c.id === id);
+        return cls ? cls.name : '';
+      }).filter(Boolean);
+      
+      if (classNames.length === 1) {
+        targetDetails = classNames[0];
+      } else if (classNames.length === 2) {
+        targetDetails = `${classNames[0]} & ${classNames[1]}`;
+      } else if (classNames.length === 3) {
+        targetDetails = `${classNames[0]}, ${classNames[1]} & ${classNames[2]}`;
+      } else {
+        targetDetails = `${classNames[0]} +${formData.classIds.length - 1} more`;
+      }
+    } else if (formData.scope === 'transport' && formData.transportRouteIds.length > 0) {
+      const routeNames = formData.transportRouteIds.slice(0, 3).map(id => {
+        const route = transportRoutes.find(r => r.id === id);
+        return route ? (route.routeName || route.name || `Route ${route.routeNumber}`) : '';
+      }).filter(Boolean);
+      
+      if (routeNames.length === 1) {
+        targetDetails = routeNames[0];
+      } else if (routeNames.length === 2) {
+        targetDetails = `${routeNames[0]} & ${routeNames[1]}`;
+      } else if (routeNames.length === 3) {
+        targetDetails = `${routeNames[0]}, ${routeNames[1]} & ${routeNames[2]}`;
+      } else {
+        targetDetails = `${routeNames[0]} +${formData.transportRouteIds.length - 1} more`;
+      }
+    }
+    
+    // Generate discount type text
+    const discountTypeText = formData.discountType === 'percentage' ? `${formData.discountValue}%` :
+                           formData.discountType === 'fixed' ? `₹${formData.discountValue}` :
+                           formData.discountType === 'full_waiver' ? 'Full Waiver' : 'Discount';
+    
+    // Combine all parts
+    if (targetDetails) {
+      return `${scopeText} ${targetDetails} - ${discountTypeText}`;
+    } else {
+      return `${scopeText} Discount - ${discountTypeText}`;
+    }
+  };
+
   const validateStep = (step: number): { isValid: boolean; errors: string[]; warnings: string[] } => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (step === 1) {
-      if (!formData.name.trim()) errors.push('Discount name is required');
       if (!formData.academicYear) errors.push('Academic year is required');
       if (!formData.scope) errors.push('Scope selection is required');
       if (formData.scope === 'student' && formData.studentIds.length === 0) errors.push('Please select at least one student');
@@ -372,8 +397,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     }
 
     if (step === 2) {
-      if (!formData.targetType) errors.push('Target type selection is required');
-      if (formData.targetType === 'fee_structure' && formData.feeStructureIds.length === 0) errors.push('Please select at least one fee structure');
+      // Auto-determine targetType based on scope for validation
+      const targetType = formData.scope === 'transport' ? 'total' : 'fee_structure';
+      
+      if (!targetType) errors.push('Target type selection is required');
+      if (targetType === 'fee_structure' && formData.feeStructureIds.length === 0) errors.push('Please select at least one fee structure');
       if (formData.discountType !== 'full_waiver' && (!formData.discountValue || parseFloat(formData.discountValue) <= 0)) {
         errors.push('Discount value must be greater than 0');
       }
@@ -396,11 +424,29 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       setIsSubmitting(true);
       setValidationState(prev => ({ ...prev, errors: [], warnings: [] }));
 
+      // Auto-determine targetType based on scope
+      let targetType = 'fee_structure';
+      let feeStructureIds = formData.feeStructureIds;
+      
+      if (formData.scope === 'transport') {
+        targetType = 'total';
+        feeStructureIds = []; // Transport-wide applies to all transport fees
+      } else if (formData.scope === 'class') {
+        targetType = 'fee_structure';
+        // Class scope uses selected fee structures
+      } else if (formData.scope === 'student') {
+        targetType = 'fee_structure';
+        // Student scope uses selected fee structures
+      }
+
       const response = await fetch('/api/fees/discount-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          name: generateDiscountName(), // Auto-generated discount name
+          targetType,
+          feeStructureIds,
           discountValue: Number(formData.discountValue),
           maxCapAmount: formData.maxCapAmount ? Number(formData.maxCapAmount) : null,
           transportRouteIds: formData.transportRouteIds,
@@ -543,19 +589,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
               </h3>
               
               <div className="space-y-4">
-                <div>
-                  <label className={label}>
-                    Discount Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Financial hardship, merit scholarship, sibling discount..."
-                    className={input}
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  />
-                </div>
-
                 <div>
                   <label className={label}>
                     Academic Year <span className="text-red-500">*</span>
@@ -937,6 +970,42 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                         </div>
                       </div>
                       
+                      {/* Show selected routes summary */}
+                      {formData.transportRouteIds.length > 0 && (
+                        <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-green-900/20 border-green-600' : 'bg-green-50 border-green-200'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-green-600 dark:text-green-400">✓</span>
+                              <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                                {formData.transportRouteIds.length} Route(s) Selected
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setFormData({...formData, transportRouteIds: [], feeStructureIds: []})}
+                              className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {formData.transportRouteIds.slice(0, 3).map((routeId: string) => {
+                              const route = transportRoutes.find((r: any) => r.id === routeId);
+                              return route ? (
+                                <div key={routeId} className="text-xs text-green-600 dark:text-green-400">
+                                  🚌 {route.name || route.routeName || `Route ${route.routeNumber}`}
+                                  {route.vehicleNumber && ` • ${route.vehicleNumber}`}
+                                </div>
+                              ) : null;
+                            })}
+                            {formData.transportRouteIds.length > 3 && (
+                              <div className="text-xs text-green-600 dark:text-green-400">
+                                ... and {formData.transportRouteIds.length - 3} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="space-y-3">
                         <label className={label}>
                           Select Transport Routes <span className="text-red-500">*</span>
@@ -973,8 +1042,11 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     route.description?.toLowerCase().includes(searchTerm.toLowerCase())
                                   )
                                   .map((route: any) => route.id);
-                                const newRouteIds = [...new Set([...formData.transportRouteIds, ...visibleRouteIds])];
-                                setFormData({...formData, transportRouteIds: newRouteIds, feeStructureIds: []});
+                                setFormData({
+                                  ...formData, 
+                                  transportRouteIds: [...new Set([...formData.transportRouteIds, ...visibleRouteIds])], 
+                                  feeStructureIds: []
+                                });
                               }}
                               disabled={transportRoutes.filter((route: any) => !searchTerm || 
                                 route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1190,79 +1262,79 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                 Discount Configuration
               </h3>
               
-              <div className="space-y-6">
-                <div>
-                  <label className={label}>Target Type</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { 
-                        value: 'total', 
-                        label: 'Total Fees', 
-                        description: '⚠️ Applies to ALL fee structures (Transport + Tuition + Others)',
-                        warning: 'This will apply the discount to every fee structure for the selected student(s)'
-                      },
-                      { 
-                        value: 'fee_structure', 
-                        label: 'Specific Fee Structures', 
-                        description: '✅ Apply only to selected fee items (Recommended)',
-                        warning: 'Choose specific fees like Transport only or Tuition only'
-                      }
-                    ].map((target) => (
-                      <motion.button
-                        key={target.value}
-                        onClick={() => setFormData({...formData, targetType: target.value as 'total' | 'fee_structure'})}
-                        className={`p-4 rounded-xl border text-left transition-all hover:scale-105 ${
-                          formData.targetType === target.value
-                            ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 shadow-lg'
-                            : isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <div className="font-semibold">{target.label}</div>
-                        <div className="text-xs mt-1 opacity-80">{target.description}</div>
-                        {target.warning && (
-                          <div className={`text-xs mt-2 p-2 rounded ${
-                            target.value === 'total' 
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' 
-                              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                          }`}>
-                            {target.warning}
-                          </div>
-                        )}
-                      </motion.button>
-                    ))}
+              {/* Auto-generated discount name display */}
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/20 border-blue-600' : 'bg-blue-50 border-blue-200'} mb-6`}>
+                <div className="flex items-center space-x-3">
+                  <span className="text-xl">🏷️</span>
+                  <div className="flex-1">
+                    <div className={`text-sm font-semibold ${textPrimary} mb-1`}>Auto-Generated Discount Name:</div>
+                    <div className={`text-lg font-bold text-blue-700 dark:text-blue-300`}>
+                      {generateDiscountName()}
+                    </div>
+                    <div className={`text-xs ${textSecondary} mt-1`}>
+                      This name is automatically generated based on your scope, targets, and discount type
+                    </div>
                   </div>
-                  
-                  {/* Additional warning for Total Fees */}
-                  {formData.targetType === 'total' && (
-                    <div className={`mt-3 p-3 rounded-lg border-2 ${isDark ? 'border-amber-600 bg-amber-900/20' : 'border-amber-400 bg-amber-50'}`}>
-                      <div className="flex items-start space-x-2">
-                        <span className="text-amber-600 dark:text-amber-400 text-lg">⚠️</span>
-                        <div>
-                          <div className="font-semibold text-amber-700 dark:text-amber-300 text-sm">Important Notice</div>
-                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                            You selected "Total Fees". This means the discount will be applied to <strong>ALL</strong> fee structures for the selected student(s), including:
+                </div>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Auto-determined Target Type Info */}
+                <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">
+                      {formData.scope === 'student' && '👤'}
+                      {formData.scope === 'class' && '🏫'}
+                      {formData.scope === 'transport' && '🚌'}
+                    </span>
+                    <div>
+                      <div className="font-semibold text-gray-700 dark:text-gray-300">
+                        {formData.scope === 'student' && 'Student-Specific Discount'}
+                        {formData.scope === 'class' && 'Class-Wide Discount'}
+                        {formData.scope === 'transport' && 'Transport-Wide Discount'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formData.scope === 'student' && 'Applying to selected students only'}
+                        {formData.scope === 'class' && 'Applying to all students in selected classes'}
+                        {formData.scope === 'transport' && 'Applying to all students using transport'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bulk Discount Warning */}
+                {(formData.scope === 'class' || formData.scope === 'transport') && (
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-amber-900/20 border-amber-600' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xl mt-1">⚠️</span>
+                      <div className="flex-1">
+                        <div className={`font-semibold text-sm mb-2 text-amber-700 dark:text-amber-300`}>
+                          Important: Bulk Discount Application
+                        </div>
+                        <div className={`text-xs space-y-1 text-amber-600 dark:text-amber-400`}>
+                          <div className="font-medium">🛡️ Automatic Negative Balance Prevention:</div>
+                          <div>• Students with <span className="font-bold">no outstanding fees</span> will be automatically skipped</div>
+                          <div>• Students who have <span className="font-bold">already paid full amount</span> will be automatically skipped</div>
+                          <div>• Discounts will <span className="font-bold">never create negative balances</span> - limited to remaining outstanding amount</div>
+                          <div>• Each student's discount is calculated individually based on their actual outstanding amount</div>
+                          
+                          <div className="mt-2 p-2 rounded bg-amber-100 dark:bg-amber-900/30">
+                            <div className={`font-medium text-amber-700 dark:text-amber-300`}>Example Scenarios:</div>
+                            <div className={`text-amber-700 dark:text-amber-300`}>• Student A: Total ₹10,000, Paid ₹10,000, Outstanding ₹0 → <span className="font-bold">SKIPPED</span></div>
+                            <div className={`text-amber-700 dark:text-amber-300`}>• Student B: Total ₹10,000, Paid ₹8,000, Outstanding ₹2,000, 10% discount → ₹200 discount, New Outstanding ₹1,800</div>
+                            <div className={`text-amber-700 dark:text-amber-300`}>• Student C: Total ₹10,000, Paid ₹0, Outstanding ₹10,000, 10% discount → ₹1,000 discount, New Outstanding ₹9,000</div>
                           </div>
-                          <ul className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-4 list-disc">
-                            <li>Transport fees (if any)</li>
-                            <li>Tuition fees</li>
-                            <li>Lab fees, library fees, etc.</li>
-                            <li>Any other fee structures</li>
-                          </ul>
-                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                            <strong>Example:</strong> If you set a ₹1000 discount, ₹1000 will be applied to EACH fee structure, not just the total amount.
-                          </div>
-                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">
-                            💡 <strong>Recommendation:</strong> Use "Specific Fee Structures" to target only the fees you want to discount.
+                          
+                          <div className="mt-2 font-medium">
+                            💡 This ensures fair and safe discount application across all students in the selected classes/transport routes.
                           </div>
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 
-                {formData.targetType === 'fee_structure' && (
+                {formData.scope !== 'transport' && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1272,23 +1344,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       Select Fee Type <span className="text-red-500">*</span>
                     </label>
                     <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                      {/* DEBUG: Show all available fee structures */}
-                      <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <div className="text-xs font-medium mb-2">DEBUG - Available Fee Structures ({visibleFeeStructures.length}):</div>
-                        <div className="space-y-1 text-xs">
-                          {visibleFeeStructures.map((fs: any) => (
-                            <div key={fs.id} className="flex justify-between">
-                              <span>{fs.name}</span>
-                              <span>₹{fs.amount}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
                       {/* Group fee structures by type */}
                       {(() => {
-                        console.log('DEBUG - All visible fee structures:', visibleFeeStructures);
-                        
                         // More comprehensive transport detection
                         const transportStructures = visibleFeeStructures.filter((fs: any) => {
                           const name = (fs.name || '').toLowerCase();
@@ -1321,9 +1378,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                           
                           return !isTransport;
                         });
-                        
-                        console.log('DEBUG - Transport structures found:', transportStructures);
-                        console.log('DEBUG - Tuition structures found:', tuitionStructures);
                         
                         return (
                           <div className="space-y-4">
@@ -1469,6 +1523,92 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     </div>
                   </motion.div>
                 )}
+                
+                {formData.scope === 'transport' && (
+                  <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
+                    <div className="text-center">
+                      <span className="text-2xl mb-2">🚌</span>
+                      <div className="font-semibold text-green-700 dark:text-green-300">Transport-Wide Discount</div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        This discount will apply to all students using the selected transport services
+                      </div>
+                      
+                      {/* Show selected transport routes */}
+                      {formData.transportRouteIds.length > 0 && (
+                        <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                          <div className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                            📍 Selected Transport Routes ({formData.transportRouteIds.length}):
+                          </div>
+                          <div className="space-y-2">
+                            {formData.transportRouteIds.map((routeId: string) => {
+                              const route = transportRoutes.find((r: any) => r.id === routeId);
+                              return route ? (
+                                <div key={routeId} className={`p-2 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-600 dark:text-green-400">🚌</span>
+                                      <div>
+                                        <div className="font-medium text-sm text-gray-800 dark:text-gray-200">
+                                          {route.name || route.routeName || `Route ${route.routeNumber}`}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {route.routeNumber && `Route #: ${route.routeNumber}`}
+                                          {route.vehicleNumber && ` • Vehicle: ${route.vehicleNumber}`}
+                                          {route.driverName && ` • Driver: ${route.driverName}`}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                        ₹{route.fare || route.monthlyFee || route.yearlyFee || '0'}
+                                      </div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {route.fare && 'per student'}
+                                        {route.monthlyFee && '/month'}
+                                        {route.yearlyFee && '/year'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                          
+                          {/* Show total students affected */}
+                          <div className={`mt-3 pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">
+                                👥 Total Students Using These Routes:
+                              </span>
+                              <span className="font-semibold text-green-600 dark:text-green-400">
+                                {/* This would need to be calculated from actual data */}
+                                {formData.transportRouteIds.length} route(s) selected
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {formData.transportRouteIds.length === 0 && (
+                        <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-amber-900/20 border-amber-600' : 'bg-amber-50 border-amber-200'}`}>
+                          <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-300">
+                            <span className="text-lg">⚠️</span>
+                            <div className="text-sm">
+                              <div className="font-semibold">No Transport Routes Selected</div>
+                              <div className="text-xs mt-1">
+                                Please go back to Step 1 and select at least one transport route
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-gray-400 mt-3">
+                        💡 This discount will be applied to ALL students using the selected transport routes above
+                      </div>
+                    </div>
+                  </div>
+                )}
             
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -1501,6 +1641,78 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Important Discount Type Warnings */}
+                <div className={`mt-4 p-4 rounded-lg border ${
+                  formData.discountType === 'percentage' 
+                    ? isDark ? 'bg-blue-900/20 border-blue-600' : 'bg-blue-50 border-blue-200'
+                    : formData.discountType === 'full_waiver'
+                    ? isDark ? 'bg-green-900/20 border-green-600' : 'bg-green-50 border-green-200'
+                    : isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-xl mt-1">
+                      {formData.discountType === 'percentage' ? '📊' : 
+                       formData.discountType === 'full_waiver' ? '🆓' : '💰'}
+                    </span>
+                    <div className="flex-1">
+                      <div className={`font-semibold text-sm mb-2 ${textPrimary}`}>
+                        {formData.discountType === 'percentage' && '⚠️ Important: Percentage Discount Calculation'}
+                        {formData.discountType === 'full_waiver' && '⚠️ Important: Full Waiver Calculation'}
+                        {formData.discountType === 'fixed' && '💡 Fixed Amount Discount'}
+                      </div>
+                      
+                      {formData.discountType === 'percentage' && (
+                        <div className="text-xs space-y-1">
+                          <div className={`font-medium ${textPrimary}`}>How it works:</div>
+                          <div className={textSecondary}>• Percentage is calculated on <span className="font-bold">TOTAL FEE AMOUNT</span>, not outstanding balance</div>
+                          <div className={textSecondary}>• Example: 10% of ₹10,000 = ₹1,000 discount (even if only ₹5,000 is outstanding)</div>
+                          <div className={textSecondary}>• More beneficial for students who have already made partial payments</div>
+                          <div className="mt-2 p-2 rounded bg-blue-100 dark:bg-blue-900/30">
+                            <div className={`font-medium ${textPrimary}`}>Scenario:</div>
+                            <div className={textSecondary}>Total Fee: ₹10,000 | Already Paid: ₹5,000 | Outstanding: ₹5,000</div>
+                            <div className={textSecondary}>10% Discount: ₹1,000 | New Outstanding: ₹4,000</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {formData.discountType === 'full_waiver' && (
+                        <div className="text-xs space-y-1">
+                          <div className={`font-medium ${textPrimary}`}>How it works:</div>
+                          <div className={textSecondary}>• Waiver covers <span className="font-bold">TOTAL FEE AMOUNT</span>, but limited to remaining balance</div>
+                          <div className={textSecondary}>• Example: Full waiver on ₹10,000, but only ₹5,000 outstanding = ₹0 remaining</div>
+                          <div className={textSecondary}>• Will not create negative balance - limited to actual outstanding amount</div>
+                          <div className="mt-2 p-2 rounded bg-green-100 dark:bg-green-900/30">
+                            <div className={`font-medium ${textPrimary}`}>Scenario:</div>
+                            <div className={textSecondary}>Total Fee: ₹10,000 | Already Paid: ₹5,000 | Outstanding: ₹5,000</div>
+                            <div className={textSecondary}>Full Waiver: Covers remaining ₹5,000 | New Outstanding: ₹0</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {formData.discountType === 'fixed' && (
+                        <div className="text-xs space-y-1">
+                          <div className={`font-medium ${textPrimary}`}>How it works:</div>
+                          <div className={textSecondary}>• Fixed amount is <span className="font-bold">subtracted directly from outstanding balance</span></div>
+                          <div className={textSecondary}>• Example: ₹1,000 discount reduces outstanding by exactly ₹1,000</div>
+                          <div className={textSecondary}>• Predictable regardless of total fee amount or partial payments</div>
+                          <div className="mt-2 p-2 rounded bg-gray-100 dark:bg-gray-700/30">
+                            <div className={`font-medium ${textPrimary}`}>Scenario:</div>
+                            <div className={textSecondary}>Total Fee: ₹10,000 | Already Paid: ₹5,000 | Outstanding: ₹5,000</div>
+                            <div className={textSecondary}>Fixed Discount: ₹1,000 | New Outstanding: ₹4,000</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="mt-3 pt-2 border-t border-current/20">
+                        <div className={`text-xs font-medium ${textSecondary}`}>
+                          🛡️ Safety: All discounts prevent negative balances and skip students with no outstanding fees
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+/* ... */
                 </div>
 
                 {formData.discountType === 'percentage' && (

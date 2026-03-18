@@ -106,15 +106,22 @@ async function validateDiscountApplication(
     } else if (discountData.scope === 'transport') {
       // Resolve transport routes to student IDs
       if (discountData.transportRouteIds.length > 0) {
-        const transportStudents = await (schoolPrisma as any).Student.findMany({
+        const transportStudents = await (schoolPrisma as any).studentTransport.findMany({
           where: {
-            transportRouteId: { in: discountData.transportRouteIds },
-            ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {})
+            routeId: { in: discountData.transportRouteIds },
+            isActive: true,
+            ...(ctx.schoolId ? { 
+              student: { 
+                schoolId: ctx.schoolId 
+              } 
+            } : {})
           },
-          select: { id: true }
+          select: { 
+            studentId: true 
+          }
         });
         
-        const studentIds = transportStudents.map((s: any) => s.id);
+        const studentIds = transportStudents.map((s: any) => s.studentId);
         
         if (studentIds.length > 0) {
           baseWhere.studentId = { in: studentIds };
