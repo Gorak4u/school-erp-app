@@ -113,7 +113,7 @@ export default function StudentForm({
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
   const initialLanguageMedium = !student && mediums.length === 1 ? mediums[0].name : (student?.languageMedium || '');
 
-  const inputCls = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+  const inputCls = `w-full px-4 py-3 md:px-3 md:py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
     theme === 'dark'
       ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500 focus:border-blue-500'
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
@@ -121,7 +121,7 @@ export default function StudentForm({
   const labelCls = `block text-xs font-semibold uppercase tracking-wide mb-1 ${
     theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
   }`;
-  const sectionCls = `rounded-xl border p-4 mb-4 ${
+  const sectionCls = `rounded-xl border p-3 md:p-4 mb-3 md:mb-4 ${
     theme === 'dark' ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'
   }`;
   const sectionTitleCls = `text-sm font-bold mb-3 flex items-center gap-2 ${
@@ -844,7 +844,7 @@ export default function StudentForm({
   };
 
   const tabBtnCls = (id: string) =>
-    `px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+    `px-3 py-2.5 md:px-4 md:py-2 text-sm font-semibold rounded-lg transition-all ${
       activeTab === id
         ? 'bg-blue-600 text-white shadow'
         : theme === 'dark'
@@ -897,9 +897,9 @@ export default function StudentForm({
         )}
       </div>
       {/* Tab Bar */}
-      <div className={`flex gap-1 pb-3 border-b flex-shrink-0 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`flex gap-1 pb-3 border-b flex-shrink-0 overflow-x-auto ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
         {TABS.map(t => (
-          <button key={t.id} type="button" onClick={() => setActiveTab(t.id)} className={tabBtnCls(t.id)}>
+          <button key={t.id} type="button" onClick={() => setActiveTab(t.id)} className={`${tabBtnCls(t.id)} flex-shrink-0`}>
             {t.label}
           </button>
         ))}
@@ -931,10 +931,10 @@ export default function StudentForm({
 
           {/* ── TAB: ADMISSION ─────────────────────────────── */}
           {activeTab === 'admission' && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>📚 Admission Details</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Admission No</label>
                     <input readOnly value={formData.admissionNo} className={`${inputCls} opacity-60 cursor-not-allowed`} />
@@ -1016,7 +1016,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>📋 Academic Info</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Board</label>
                     <select
@@ -1053,7 +1053,7 @@ export default function StudentForm({
 
           {/* ── TAB: FEE INFORMATION ─────────────────────── */}
           {activeTab === 'fees' && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               {/* Fee Structure List */}
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>💰 Fee Structure{formData.class ? ` — ${formData.class}` : ''}</p>
@@ -1206,7 +1206,7 @@ export default function StudentForm({
 
                     {/* Amount */}
                     {discountData.discountType !== 'full_waiver' && (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className={labelCls}>{discountData.discountType === 'percentage' ? 'Discount (%)' : 'Discount Amount (₹)'}</label>
                           <input
@@ -1248,7 +1248,7 @@ export default function StudentForm({
                     </div>
 
                     {/* Validity dates */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className={labelCls}>Valid From *</label>
                         <input type="date" value={discountData.validFrom} onChange={e => setDiscountData(prev => ({ ...prev, validFrom: e.target.value }))} className={inputCls} />
@@ -1461,7 +1461,7 @@ export default function StudentForm({
 
           {/* ── TAB: PERSONAL ─────────────────────────────── */}
           {activeTab === 'personal' && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               {/* Photo */}
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>📷 Student Photo</p>
@@ -1485,7 +1485,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>👤 Basic Details</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className={labelCls}>Full Name *</label>
                     <input type="text" required placeholder="Student's full name" value={formData.name} onChange={e => set('name', e.target.value)} className={inputCls} />
@@ -1546,7 +1546,7 @@ export default function StudentForm({
           {activeTab === 'contact' && (
             <div className={sectionCls}>
               <p className={sectionTitleCls}>📞 Contact Details</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Phone Number *</label>
                   <input
@@ -1598,10 +1598,10 @@ export default function StudentForm({
 
           {/* ── TAB: PARENTS ─────────────────────────────── */}
           {activeTab === 'parents' && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>👨 Father's Details</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className={labelCls}>Father's Name *</label>
                     <input type="text" required value={formData.fatherName} onChange={e => set('fatherName', e.target.value)} className={inputCls} />
@@ -1623,7 +1623,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>👩 Mother's Details</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className={labelCls}>Mother's Name *</label>
                     <input type="text" required value={formData.motherName} onChange={e => set('motherName', e.target.value)} className={inputCls} />
@@ -1649,7 +1649,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🚨 Emergency Contact</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className={labelCls}>Contact Number *</label>
                     <div className="flex gap-2">
@@ -1674,10 +1674,10 @@ export default function StudentForm({
 
           {/* ── TAB: ADDITIONAL ─────────────────────────────── */}
           {activeTab === 'additional' && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🏦 Bank Details</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className={labelCls}>Bank Name</label><input type="text" value={formData.bankName} onChange={e => set('bankName', e.target.value)} className={inputCls} /></div>
                   <div><label className={labelCls}>Account Number</label><input type="text" value={formData.bankAccountNumber} onChange={e => set('bankAccountNumber', e.target.value)} className={inputCls} /></div>
                   <div><label className={labelCls}>IFSC Code</label><input type="text" value={formData.bankIfsc} onChange={e => set('bankIfsc', e.target.value)} className={inputCls} /></div>
@@ -1686,7 +1686,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🏥 Medical Info</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2"><label className={labelCls}>Medical Conditions</label><input type="text" placeholder="e.g. Asthma, Diabetes" value={formData.medicalConditions} onChange={e => set('medicalConditions', e.target.value)} className={inputCls} /></div>
                   <div className="col-span-2"><label className={labelCls}>Allergies</label><input type="text" placeholder="e.g. Peanuts, Dust" value={formData.allergies} onChange={e => set('allergies', e.target.value)} className={inputCls} /></div>
                 </div>
@@ -1694,7 +1694,7 @@ export default function StudentForm({
 
               <div className={sectionCls}>
                 <p className={sectionTitleCls}>🚌 Transport & Hostel</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Transport</label>
                     <select
@@ -1818,7 +1818,7 @@ export default function StudentForm({
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={onCancel}
-              className={`px-4 py-2 text-sm rounded-lg border font-medium ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
+              className={`px-4 py-2.5 md:px-4 md:py-2 text-sm rounded-lg border font-medium ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
               Cancel
             </button>
             {isLastTab && (
@@ -2019,7 +2019,7 @@ export default function StudentForm({
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-2 md:space-y-4">
                   <div id="student-id-card-print" className="flex justify-center">
                     <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData) }} />
                   </div>

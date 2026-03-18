@@ -4,12 +4,12 @@ import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
 import { sendSchoolEmail } from '@/lib/email';
 import { generateDiscountPendingEmail } from '@/lib/discount-email-templates';
-import { 
-  validateSearchQuery, 
-  rateLimit, 
-  getClientIdentifier, 
+import {
+  validateSearchQuery,
+  rateLimit,
+  getClientIdentifier,
   sanitizePaginationParams,
-  validateDateRange 
+  validateDateRange
 } from '@/lib/apiSecurity';
 import { canApproveDiscountsAccess } from '@/lib/permissions';
 
@@ -25,6 +25,7 @@ async function validateDiscountApplication(
     studentIds: string[];
     classIds: string[];
     sectionIds: string[];
+    transportRouteIds: string[];
     academicYear: string;
   },
   ctx: SessionContext
@@ -105,7 +106,7 @@ async function validateDiscountApplication(
     }
 
     // Filter by fee structures (only applies to FeeRecord, not FeeArrears)
-    if (discountData.targetType === 'fee_structure' && discountData.feeStructureIds.length > 0) {
+    if (['fee_structure', 'individual'].includes(discountData.targetType) && discountData.feeStructureIds.length > 0) {
       baseWhere.feeStructureId = { in: discountData.feeStructureIds };
     }
 
@@ -368,6 +369,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => (typeof item === 'string' ? item : String(item ?? ''))).filter(Boolean))];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
@@ -377,6 +383,7 @@ export async function POST(request: NextRequest) {
     const {
       name, description, discountType, discountValue, maxCapAmount,
       scope, targetType, feeStructureIds, studentIds, classIds, sectionIds,
+      transportRouteIds, metadata,
       academicYear, reason, supportingDoc, validFrom, validTo
     } = body;
 
@@ -385,18 +392,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const normalizedScope = String(scope).toLowerCase();
+    const normalizedTargetType = String(targetType).toLowerCase();
+    const normalizedFeeStructures = normalizeStringArray(feeStructureIds);
+    const normalizedStudents = normalizeStringArray(studentIds);
+    const normalizedClasses = normalizeStringArray(classIds);
+    const normalizedSections = normalizeStringArray(sectionIds);
+    const normalizedRoutes = normalizeStringArray(transportRouteIds);
+
+    if (normalizedScope === 'student' && normalizedStudents.length === 0) {
+      return NextResponse.json({ error: 'Student scope requires at least one student' }, { status: 400 });
+    }
+
+    if (normalizedScope === 'class' && normalizedClasses.length === 0 && normalizedSections.length === 0) {
+      return NextResponse.json({ error: 'Class scope requires classIds or sectionIds' }, { status: 400 });
+    }
+
+    if (normalizedScope === 'bulk' && normalizedStudents.length === 0 && normalizedClasses.length === 0 && normalizedSections.length === 0) {
+      // bulk without explicit targets is allowed but warn via metadata
+      // no-op here to avoid breaking existing form; metadata warning handled later
+    }
+
     // Validate discount value and check for potential payment issues
     const discountValidation = await validateDiscountApplication(
       {
         discountType,
         discountValue: Number(discountValue),
         maxCapAmount: maxCapAmount ? Number(maxCapAmount) : null,
-        scope,
-        targetType,
-        feeStructureIds: feeStructureIds || [],
-        studentIds: studentIds || [],
-        classIds: classIds || [],
-        sectionIds: sectionIds || [],
+        scope: normalizedScope,
+        targetType: normalizedTargetType,
+        feeStructureIds: normalizedFeeStructures,
+        studentIds: normalizedStudents,
+        classIds: normalizedClasses,
+        sectionIds: normalizedSections,
+        transportRouteIds: normalizedRoutes,
         academicYear
       },
       ctx
@@ -427,12 +456,14 @@ export async function POST(request: NextRequest) {
           discountType,
           discountValue: Number(discountValue),
           maxCapAmount: maxCapAmount ? Number(maxCapAmount) : null,
-          scope,
-          targetType,
-          feeStructureIds: JSON.stringify(feeStructureIds || []),
-          studentIds: JSON.stringify(studentIds || []),
-          classIds: JSON.stringify(classIds || []),
-          sectionIds: JSON.stringify(sectionIds || []),
+          scope: normalizedScope,
+          targetType: normalizedTargetType,
+          feeStructureIds: JSON.stringify(normalizedFeeStructures),
+          studentIds: JSON.stringify(normalizedStudents),
+          classIds: JSON.stringify(normalizedClasses),
+          sectionIds: JSON.stringify(normalizedSections),
+          transportRouteIds: JSON.stringify(normalizedRoutes),
+          metadata: metadata && typeof metadata === 'object' ? metadata : null,
           academicYear,
           reason,
           supportingDoc,

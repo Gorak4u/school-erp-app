@@ -1037,6 +1037,8 @@ model DiscountRequest {
   studentIds       String                    @default("[]")
   classIds         String                    @default("[]")
   sectionIds       String                    @default("[]")
+  transportRouteIds String                   @default("[]")
+  metadata         Json?
   academicYear     String
   reason           String
   supportingDoc    String?

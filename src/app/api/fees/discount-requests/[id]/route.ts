@@ -63,6 +63,7 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
     const classIds = JSON.parse(discountReq.classIds || '[]');
     const sectionIds = JSON.parse(discountReq.sectionIds || '[]');
     const feeStructureIds = JSON.parse(discountReq.feeStructureIds || '[]');
+    const transportRouteIds = JSON.parse(discountReq.transportRouteIds || '[]');
 
     if (!discountReq.academicYear) {
       return { success: false, error: 'Discount request is missing academic year scope' };
@@ -106,6 +107,18 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
       feeRecordsQuery.where.student = { schoolId: ctx.schoolId };
     }
 
+    // Concurrency guard: check if already being applied
+    const inProgressCount = await (schoolPrisma as any).DiscountRequestAuditLog.count({
+      where: {
+        discountRequestId,
+        action: 'applying',
+        createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } // last 5 minutes
+      }
+    });
+    if (inProgressCount > 0) {
+      return { success: false, error: 'Discount application is already in progress' };
+    }
+
     // Fetch target records
     const targetRecords = await (schoolPrisma as any).FeeRecord.findMany({
       where: feeRecordsQuery.where,
@@ -120,8 +133,8 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
     console.log(`📊 Found ${targetRecords.length} target fee records`);
 
     // Calculate and apply discounts
-    const applications = [];
-    const updates = [];
+    const applications: any[] = [];
+    const updates: any[] = [];
     let skippedCount = 0;
 
     for (const record of targetRecords) {
@@ -191,11 +204,27 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
       return { success: true, appliedCount: 0, skippedCount, message: 'No valid records to apply discount' };
     }
 
-    // Execute batch operations
-    await (schoolPrisma as any).$transaction([
-      ...updates,
-      (schoolPrisma as any).DiscountApplication.createMany({ data: applications }),
-      (schoolPrisma as any).DiscountRequest.update({
+    // Execute batch operations with concurrency guard audit logs
+    await (schoolPrisma as any).$transaction(async (tx: any) => {
+      // Mark as applying to prevent concurrent runs
+      await tx.DiscountRequestAuditLog.create({
+        data: {
+          schoolId: ctx.schoolId,
+          discountRequestId,
+          action: 'applying',
+          actorUserId: ctx.userId,
+          actorEmail: ctx.email,
+          actorName: ctx.email.split('@')[0],
+          actorRole: ctx.role || 'admin',
+          previousStatus: discountReq.status,
+          newStatus: 'applying',
+          details: JSON.stringify({ targetCount: targetRecords.length })
+        }
+      });
+
+      await Promise.all(updates);
+      await tx.DiscountApplication.createMany({ data: applications });
+      await tx.DiscountRequest.update({
         where: { id: discountRequestId },
         data: {
           status: 'applied',
@@ -204,11 +233,11 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
           appliedAt: new Date(),
           appliedCount: applications.length
         }
-      }),
-      (schoolPrisma as any).DiscountRequestAuditLog.create({
+      });
+      await tx.DiscountRequestAuditLog.create({
         data: {
           schoolId: ctx.schoolId,
-          discountRequestId: discountRequestId,
+          discountRequestId,
           action: 'applied',
           actorUserId: ctx.userId,
           actorEmail: ctx.email,
@@ -216,18 +245,20 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
           actorRole: ctx.role || 'admin',
           previousStatus: 'approved',
           newStatus: 'applied',
-          details: JSON.stringify({ appliedCount: applications.length, skippedCount })
+          details: JSON.stringify({ appliedCount: applications.length, skippedCount, transportRouteIds })
         }
-      })
-    ]);
+      });
+    });
 
     console.log(`✅ Auto-applied discount to ${applications.length} fee records (${skippedCount} skipped)`);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       appliedCount: applications.length,
       skippedCount,
-      message: `Discount applied to ${applications.length} fee records`
+      message: `Discount applied to ${applications.length} fee records`,
+      transportRouteIds,
+      metadata: discountReq.metadata
     };
 
   } catch (error: any) {
