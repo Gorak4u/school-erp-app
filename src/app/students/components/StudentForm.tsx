@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
-import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../lib/idCard';
+import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
 const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');
@@ -113,6 +113,17 @@ export default function StudentForm({
   // Initialize mediumId if only one medium exists
   const initialMediumId = !student && mediums.length === 1 ? mediums[0].id : (student?._mediumId || '');
   const initialLanguageMedium = !student && mediums.length === 1 ? mediums[0].name : (student?.languageMedium || '');
+
+  // Generate ID card HTML when side changes
+  useEffect(() => {
+    if (showIdCard && idCardData) {
+      const generateIdCardHtml = async () => {
+        const html = await buildStudentIdCardSnippet(idCardData, showCardBack);
+        setIdCardHtml(html);
+      };
+      generateIdCardHtml();
+    }
+  }, [showIdCard, showCardBack, idCardData]);
 
   const inputCls = `w-full px-3 py-2 md:px-2 md:py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
     theme === 'dark'
@@ -708,15 +719,15 @@ export default function StudentForm({
     setPreviewPayload(buildPreviewPayload());
     setPreviewOpen(true);
   }, [buildPreviewPayload, validateBeforeSubmit]);
-  const handlePrintIdCard = useCallback(() => {
-    if (!idCardHtml) return;
+  const handlePrintIdCard = useCallback(async () => {
+    if (!idCardData) return;
+    const html = await buildStudentIdCardDocument(idCardData, showCardBack);
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return;
-    printWindow.document.write(idCardHtml);
+    printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 250);
-  }, [idCardHtml]);
+    printWindow.print();
+  }, [idCardData, showCardBack]);
   const handlePrintPreview = useCallback(() => {
     if (!previewPayload?.previewDocumentHtml) return;
     const printWindow = window.open('', '_blank', 'width=1100,height=850');
@@ -2115,7 +2126,7 @@ export default function StudentForm({
                     </button>
                   </div>
                   <div id="student-id-card-print" className="flex justify-center">
-                    <div dangerouslySetInnerHTML={{ __html: buildStudentIdCardSnippet(idCardData, showCardBack) }} />
+                    <div dangerouslySetInnerHTML={{ __html: idCardHtml }} />
                   </div>
                   <div className="grid grid-cols-4 gap-1">
                     <button type="button" onClick={handlePrintIdCard} className="px-2 py-1.5 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
