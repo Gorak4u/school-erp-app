@@ -502,23 +502,23 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                     request.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                     request.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                     request.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                   }`}>
-                    {request.scope === 'student' ? '👤 Single Student' : 
+                    {request.scope === 'student' ? '👤 Single' : 
                      request.scope === 'class' ? '🏫 Class' :
-                     request.scope === 'bulk' ? '👥 Bulk Students' : 
+                     request.scope === 'bulk' ? '👥 Bulk' : 
                      request.scope}
                   </div>
-                  <div className={`text-xs ${textSecondary} mt-1`}>
+                  <div className={`text-xs ${textSecondary} mt-1 whitespace-nowrap`}>
                     {request.targetType.replace('_', ' ')}
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(request.status)}`}>
+                  <span className={`px-2 py-1 text-xs rounded-full font-bold uppercase ${getStatusColor(request.status)}`}>
                     {request.status}
                   </span>
                 </td>
@@ -533,11 +533,13 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                 <td className="px-4 py-3">
                   <button
                     onClick={() => setSelectedRequest(request)}
-                    className={`px-3 py-1 text-xs rounded border transition-colors ${
-                      isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'
+                    className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all transform hover:scale-105 shadow-sm hover:shadow-md ${
+                      isDark 
+                        ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-emerald-500 shadow-emerald-500/25' 
+                        : 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white border-emerald-400 shadow-emerald-400/25'
                     }`}
                   >
-                    View
+                    👁️ View
                   </button>
                 </td>
               </tr>
@@ -609,45 +611,181 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Detail Modal - Redesigned */}
       {selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className={`w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col ${bgCard}`}>
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className={`text-xl font-bold ${textPrimary}`}>Discount Request Details</h2>
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className={`w-full max-w-5xl max-h-[95vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white via-gray-50 to-white border-gray-200'} border`}>
+            
+            {/* Header with Status Badge - Compact Design */}
+            <div className={`relative p-4 pb-3 ${isDark ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30' : 'bg-gradient-to-r from-blue-50 to-purple-50'} border-b ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className={`text-lg font-black ${textPrimary}`}>🎁 Discount Request Details</h2>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wide ${
+                      selectedRequest.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' :
+                      selectedRequest.status === 'approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' :
+                      selectedRequest.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300'
+                    }`}>
+                      {selectedRequest.status}
+                    </span>
+                  </div>
+                  <p className={`${textSecondary} text-sm`}>{selectedRequest.name}</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs ${textSecondary}">
+                    <span>📅 {new Date(selectedRequest.createdAt).toLocaleDateString()}</span>
+                    <span>👤 {selectedRequest.requestedByName}</span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setSelectedRequest(null)}
+                  className={`p-2 rounded-lg transition-all transform hover:scale-110 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Action Buttons - Right Side */}
+              {selectedRequest.status === 'pending' && canApproveDiscounts && (
+                <div className="flex justify-end mt-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleAction(selectedRequest.id, 'approve', approvalNote)}
+                      className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-all transform hover:scale-105 shadow hover:shadow-lg flex items-center justify-center gap-1.5 min-w-[120px] ${
+                        isProcessing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700'
+                      }`}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          ✅ Approve
+                        </>
+                      )}
+                    </button>
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleAction(selectedRequest.id, 'reject', approvalNote)}
+                      className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-all transform hover:scale-105 shadow hover:shadow-lg flex items-center justify-center gap-1.5 min-w-[120px] ${
+                        isProcessing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700'
+                      }`}
+                    >
+                      ❌ Reject
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Apply Button - Right Side */}
+              {selectedRequest.status === 'approved' && canApproveDiscounts && (
+                <div className="flex justify-end mt-3">
+                  <button
+                    disabled={isProcessing}
+                    onClick={() => handleAction(selectedRequest.id, 'apply')}
+                    className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-all transform hover:scale-105 shadow hover:shadow-lg flex items-center justify-center gap-1.5 min-w-[140px] ${
+                      isProcessing 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        🚀 Apply
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
             
+            {/* Main Content - Compact Design */}
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quick Info Cards - Compact Design */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50' : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/50'} border`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-lg ${isDark ? 'bg-blue-800/50' : 'bg-blue-200/50'}`}>
+                      <span className="text-sm">💰</span>
+                    </div>
+                    <h4 className={`font-semibold text-sm ${textPrimary}`}>Discount Value</h4>
+                  </div>
+                  <p className={`text-lg font-bold ${textPrimary}`}>
+                    {selectedRequest.discountType === 'percentage' ? `${selectedRequest.discountValue}%` : `₹${selectedRequest.discountValue}`}
+                  </p>
+                  {selectedRequest.maxCapAmount && (
+                    <p className={`text-xs ${textSecondary} mt-1`}>Max: ₹{selectedRequest.maxCapAmount}</p>
+                  )}
+                </div>
+                
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-gradient-to-br from-purple-900/30 to-purple-800/30 border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200/50'} border`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-lg ${isDark ? 'bg-purple-800/50' : 'bg-purple-200/50'}`}>
+                      <span className="text-sm">🎯</span>
+                    </div>
+                    <h4 className={`font-semibold text-sm ${textPrimary}`}>Scope</h4>
+                  </div>
+                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                    selectedRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    selectedRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    selectedRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                  }`}>
+                    {selectedRequest.scope === 'student' ? '👤 Single' : 
+                     selectedRequest.scope === 'class' ? '🏫 Class' :
+                     selectedRequest.scope === 'bulk' ? '👥 Bulk' : 
+                     selectedRequest.scope}
+                  </div>
+                  <p className={`text-xs ${textSecondary} mt-1`}>{selectedRequest.targetType.replace('_', ' ')}</p>
+                </div>
+                
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 border-green-700/50' : 'bg-gradient-to-br from-green-50 to-green-100/50 border-green-200/50'} border`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-lg ${isDark ? 'bg-green-800/50' : 'bg-green-200/50'}`}>
+                      <span className="text-sm">📚</span>
+                    </div>
+                    <h4 className={`font-semibold text-sm ${textPrimary}`}>Academic Year</h4>
+                  </div>
+                  <p className={`text-lg font-bold ${textPrimary}`}>{selectedRequest.academicYear || '-'}</p>
+                </div>
+              </div>
+              
+              {/* Detailed Information - Compact Design */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Request Information */}
                 <div>
-                  <h3 className={`font-semibold ${textPrimary} mb-4`}>Request Information</h3>
-                  <div className="space-y-3">
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-4 flex items-center gap-2`}>
+                    📋 Request Information
+                  </h3>
+                  <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800/30 border-gray-700/50' : 'bg-gray-50 border-gray-200/50'} border space-y-3`}>
                     <div>
-                      <span className={`text-sm ${textSecondary}`}>Name:</span>
-                      <p className={`font-medium ${textPrimary}`}>{selectedRequest.name}</p>
+                      <label className={`text-xs font-semibold ${textSecondary} block mb-1`}>Description</label>
+                      <p className={`text-sm ${textPrimary}`}>{selectedRequest.description}</p>
                     </div>
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Academic Year:</span>
-                      <span className={`ml-2 px-2 py-1 text-sm font-bold rounded ${isDark ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-800'}`}>
-                        {selectedRequest.academicYear || '-'}
-                      </span>
-                    </div>
+                    
                     {selectedRequest.scope === 'student' && (() => {
                       let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
                       return sIds.length > 0 ? (
                         <div>
-                          <span className={`text-sm ${textSecondary}`}>Student(s):</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Target Students ({sIds.length})</label>
+                          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                             {sIds.map(id => {
                               const s = students.find(st => st.id === id);
                               return (
-                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-200 border-blue-700/50' : 'bg-blue-100 text-blue-800 border-blue-200/50'} border`}>
                                   👤 {s ? `${s.name}${s.class ? ` (${s.class})` : ''}` : id}
                                 </span>
                               );
@@ -656,16 +794,17 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                         </div>
                       ) : null;
                     })()}
+                    
                     {(selectedRequest.scope === 'class' || selectedRequest.scope === 'bulk') && (() => {
                       let cIds: string[] = []; try { cIds = JSON.parse(selectedRequest.classIds || '[]'); } catch {}
                       return cIds.length > 0 ? (
                         <div>
-                          <span className={`text-sm ${textSecondary}`}>Class(es):</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Target Classes ({cIds.length})</label>
+                          <div className="flex flex-wrap gap-1">
                             {cIds.map(id => {
                               const c = classes.find(cl => cl.id === id);
                               return (
-                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-green-900/30 text-green-200 border-green-700/50' : 'bg-green-100 text-green-800 border-green-200/50'} border`}>
                                   🏫 {c?.name || id}
                                 </span>
                               );
@@ -674,16 +813,17 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                         </div>
                       ) : null;
                     })()}
+                    
                     {selectedRequest.scope === 'bulk' && (() => {
                       let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
                       return sIds.length > 0 ? (
                         <div>
-                          <span className={`text-sm ${textSecondary}`}>Students ({sIds.length}):</span>
-                          <div className="mt-1 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Additional Students ({sIds.length})</label>
+                          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                             {sIds.map(id => {
                               const s = students.find(st => st.id === id);
                               return (
-                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'}`}>
+                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-purple-900/30 text-purple-200 border-purple-700/50' : 'bg-purple-100 text-purple-800 border-purple-200/50'} border`}>
                                   👤 {s?.name || id}
                                 </span>
                               );
@@ -692,68 +832,33 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                         </div>
                       ) : null;
                     })()}
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Description:</span>
-                      <p className={`${textPrimary}`}>{selectedRequest.description}</p>
-                    </div>
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Status:</span>
-                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(selectedRequest.status)}`}>
-                        {selectedRequest.status}
-                      </span>
-                    </div>
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Created:</span>
-                      <p className={`${textPrimary}`}>{new Date(selectedRequest.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Requested By:</span>
-                      <p className={`font-medium ${textPrimary}`}>{selectedRequest.requestedByName}</p>
-                      <p className={`text-xs ${textSecondary}`}>{selectedRequest.requestedByEmail}</p>
-                    </div>
                   </div>
                 </div>
                 
+                {/* Discount Details */}
                 <div>
-                  <h3 className={`font-semibold ${textPrimary} mb-4`}>Discount Details</h3>
-                  <div className="space-y-3">
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-4 flex items-center gap-2`}>
+                    💸 Discount Configuration
+                  </h3>
+                  <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800/30 border-gray-700/50' : 'bg-gray-50 border-gray-200/50'} border space-y-3`}>
                     <div>
-                      <span className={`text-sm ${textSecondary}`}>Type:</span>
-                      <p className={`${textPrimary}`}>{selectedRequest.discountType === 'percentage' ? 'Percentage' : 'Fixed Amount'}</p>
-                    </div>
-                    <div>
-                      <span className={`text-sm ${textSecondary}`}>Value:</span>
-                      <p className={`font-medium ${textPrimary}`}>
-                        {selectedRequest.discountType === 'percentage' ? `${selectedRequest.discountValue}%` : `₹${selectedRequest.discountValue}`}
+                      <label className={`text-xs font-semibold ${textSecondary} block mb-1`}>Discount Type</label>
+                      <p className={`text-sm font-medium ${textPrimary}`}>
+                        {selectedRequest.discountType === 'percentage' ? '📊 Percentage Based' : '💰 Fixed Amount'}
                       </p>
                     </div>
-                    {selectedRequest.maxCapAmount && (
-                      <div>
-                        <span className={`text-sm ${textSecondary}`}>Max Cap:</span>
-                        <p className={`${textPrimary}`}>₹{selectedRequest.maxCapAmount}</p>
-                      </div>
-                    )}
+                    
                     <div>
-                      <span className={`text-sm ${textSecondary}`}>Scope:</span>
-                      <div className={`mt-1 inline-flex items-center px-3 py-2 rounded-full text-base font-bold ${
-                        selectedRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                        selectedRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                        selectedRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
-                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                      }`}>
-                        {selectedRequest.scope === 'student' ? '👤 Single Student' : 
-                         selectedRequest.scope === 'class' ? '🏫 Class' :
-                         selectedRequest.scope === 'bulk' ? '👥 Bulk Students' : 
-                         selectedRequest.scope}
-                      </div>
-                      <p className={`text-sm ${textSecondary} mt-1`}>
-                        Target: {selectedRequest.targetType.replace('_', ' ')}
+                      <label className={`text-xs font-semibold ${textSecondary} block mb-1`}>Target Type</label>
+                      <p className={`text-sm font-medium ${textPrimary}`}>
+                        {selectedRequest.targetType === 'total' ? '📈 Total Fees' : '🎯 Specific Fee Structures'}
                       </p>
                     </div>
+                    
                     {selectedRequest.targetType === 'fee_structure' && (
                       <div>
-                        <span className={`text-sm ${textSecondary}`}>Fee Structures:</span>
-                        <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Selected Fee Structures</label>
+                        <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-900/30' : 'bg-white'} border ${isDark ? 'border-gray-600/50' : 'border-gray-300/50'}`}>
                           {(() => {
                             let feeStructureIds = [];
                             try {
@@ -765,98 +870,69 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                             const structures = getFeeStructureNames(feeStructureIds);
                             
                             return structures.length > 0 ? (
-                              <div className="space-y-3">
+                              <div className="space-y-2">
                                 {structures.map(structure => (
-                                  <div key={structure.id} className="flex flex-col sm:flex-row sm:items-center justify-between border-b last:border-0 pb-2 last:pb-0 border-gray-200 dark:border-gray-700">
-                                    <div className="flex flex-col">
-                                      <span className={`font-medium ${textPrimary}`}>{structure.name}</span>
-                                      <span className={`text-xs ${textSecondary}`}>
-                                        {selectedRequest.scope === 'student' ? 'For Student Only' : 
-                                         selectedRequest.scope === 'class' ? 'For Class' :
-                                         selectedRequest.scope === 'bulk' ? 'For Selected Students' : 
-                                         'For Students'}
-                                      </span>
+                                  <div key={structure.id} className={`p-2 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'} border ${isDark ? 'border-gray-600/50' : 'border-gray-200/50'}`}>
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <span className={`text-sm font-medium ${textPrimary}`}>{structure.name}</span>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>
+                                          {structure.class ? `🏫 ${structure.class}` : '📚 All Classes'}
+                                        </p>
+                                      </div>
+                                      <div className={`px-2 py-0.5 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                                        Active
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <p className={textSecondary}>No specific fee structures selected</p>
+                              <p className={`text-sm ${textSecondary}`}>No specific fee structures selected</p>
                             );
                           })()}
                         </div>
                       </div>
                     )}
+                    
                     {selectedRequest.targetType === 'total' && (
                       <div>
-                        <span className={`text-sm ${textSecondary}`}>Fee Structures:</span>
-                        <p className={`font-medium ${textPrimary}`}>All Fee Structures</p>
-                        <p className={`text-xs ${textSecondary} mt-1`}>(Total Fees option - applies to all fee structures)</p>
+                        <label className={`text-xs font-semibold ${textSecondary} block mb-1`}>Fee Coverage</label>
+                        <div className={`p-3 rounded-lg ${isDark ? 'bg-gradient-to-r from-green-900/20 to-emerald-900/20' : 'bg-gradient-to-r from-green-50 to-emerald-50'} border ${isDark ? 'border-green-700/50' : 'border-green-200/50'}`}>
+                          <p className={`text-sm font-medium ${textPrimary}`}>📊 All Fee Structures</p>
+                          <p className={`text-xs ${textSecondary} mt-1`}>Applies to total fees for selected students/classes</p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
               
+              {/* Reason Section - Compact Design */}
               {selectedRequest.reason && (
                 <div className="mt-6">
-                  <h3 className={`font-semibold ${textPrimary} mb-2`}>Reason</h3>
-                  <p className={`${textPrimary}`}>{selectedRequest.reason}</p>
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-3 flex items-center gap-2`}>
+                    📝 Reason for Request
+                  </h3>
+                  <div className={`p-4 rounded-xl ${isDark ? 'bg-amber-900/20 border-amber-700/50' : 'bg-amber-50 border-amber-200/50'} border`}>
+                    <p className={`text-sm ${textPrimary} leading-relaxed`}>{selectedRequest.reason}</p>
+                  </div>
                 </div>
               )}
               
+              {/* Approval Note Input - Compact Design */}
               {selectedRequest.status === 'pending' && canApproveDiscounts && (
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className={`font-semibold ${textPrimary} mb-4`}>Approval Action</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Approval Note (Optional)</label>
-                      <textarea
-                        value={approvalNote}
-                        onChange={(e) => setApprovalNote(e.target.value)}
-                        placeholder="Add a note for this approval..."
-                        rows={3}
-                        className={`w-full px-3 py-2 rounded-lg border ${inputCls}`}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        disabled={isProcessing}
-                        onClick={() => handleAction(selectedRequest.id, 'reject', approvalNote)}
-                        className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium"
-                      >
-                        Reject Request
-                      </button>
-                      <button
-                        disabled={isProcessing}
-                        onClick={() => handleAction(selectedRequest.id, 'approve', approvalNote)}
-                        className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium flex items-center gap-2"
-                      >
-                        {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                        Approve Discount
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {selectedRequest.status === 'approved' && canApproveDiscounts && (
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-4">
-                    <p className="text-blue-800 dark:text-blue-300 text-sm">
-                      This request has been approved. Click apply to execute the batch update on all target fee records. This action cannot be undone automatically.
-                    </p>
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      disabled={isProcessing}
-                      onClick={() => handleAction(selectedRequest.id, 'apply')}
-                      className="px-6 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium flex items-center gap-2"
-                    >
-                      {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                      Apply to Fee Records
-                    </button>
-                  </div>
+                <div className="mt-6">
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-3 flex items-center gap-2`}>
+                    💬 Approval Note (Optional)
+                  </h3>
+                  <textarea
+                    value={approvalNote}
+                    onChange={(e) => setApprovalNote(e.target.value)}
+                    placeholder="Add a note for this approval or rejection..."
+                    rows={2}
+                    className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400' : 'bg-white/50 border-gray-300/50 text-gray-900 placeholder-gray-500'} focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all`}
+                  />
                 </div>
               )}
             </div>

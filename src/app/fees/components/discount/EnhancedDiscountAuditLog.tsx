@@ -168,15 +168,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
             <div className="space-y-1">
               <div>Reason: {details.reason || 'No reason provided'}</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}
@@ -188,15 +188,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
             <div className="space-y-1">
               <div>{details.note ? `Approved with note: ${details.note}` : 'Approved'}</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}
@@ -210,15 +210,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
                 ? `Rejected: ${details.note || details.rejectionReason}`
                 : 'Rejected'}</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}
@@ -232,15 +232,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
                 ? `Cancelled: ${details.note}`
                 : 'Cancelled'}</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}
@@ -252,15 +252,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
             <div className="space-y-1">
               <div>Applied to {details.appliedCount || 0} fee records</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}
@@ -272,15 +272,15 @@ export default function EnhancedDiscountAuditLog({ theme }: EnhancedDiscountAudi
             <div className="space-y-1">
               <div>{details.note || details.reason || JSON.stringify(details)}</div>
               {log.discountRequest?.scope && (
-                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                   log.discountRequest.scope === 'student' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                   log.discountRequest.scope === 'class' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                   log.discountRequest.scope === 'bulk' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                 }`}>
-                  {log.discountRequest.scope === 'student' ? '👤 Single Student' : 
+                  {log.discountRequest.scope === 'student' ? '👤 Single' : 
                    log.discountRequest.scope === 'class' ? '🏫 Class' :
-                   log.discountRequest.scope === 'bulk' ? '👥 Bulk Students' : 
+                   log.discountRequest.scope === 'bulk' ? '👥 Bulk' : 
                    log.discountRequest.scope}
                 </div>
               )}

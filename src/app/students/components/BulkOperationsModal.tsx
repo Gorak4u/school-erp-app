@@ -65,6 +65,7 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                     <option value="update_status">Update Status</option>
                     <option value="assign_fees">Assign Fees</option>
                     <option value="send_message">Send Message</option>
+                    <option value="generate_id_cards">Generate ID Cards</option>
                     <option value="export">Export Data</option>
                     <option value="delete">Delete Students</option>
                   </select>
@@ -236,6 +237,59 @@ export default function BulkOperationsModal({ bulkOperationData, bulkOperationPr
                       rows={4}
                       placeholder="Enter message to send to parents"
                     />
+                  </div>
+                )}
+
+                {bulkOperationType === 'generate_id_cards' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Output Format
+                      </label>
+                      <select
+                        value={bulkOperationData.outputFormat || 'pdf'}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, outputFormat: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      >
+                        <option value="pdf">PDF Document</option>
+                        <option value="image">PNG Images</option>
+                        <option value="both">Both PDF and Images</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Layout Options
+                      </label>
+                      <select
+                        value={bulkOperationData.layout || 'grid'}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, layout: e.target.value }))}
+                        className={`w-full px-3 py-2 rounded-lg border ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      >
+                        <option value="grid">Grid Layout (Multiple per page)</option>
+                        <option value="individual">Individual Cards</option>
+                        <option value="compact">Compact Layout</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="includeBothSides"
+                        checked={bulkOperationData.includeBothSides !== false}
+                        onChange={(e) => setBulkOperationData(prev => ({ ...prev, includeBothSides: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <label htmlFor="includeBothSides" className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Include both front and back sides
+                      </label>
+                    </div>
                   </div>
                 )}
 

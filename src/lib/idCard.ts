@@ -54,13 +54,13 @@ const createCardContent = async (data: StudentIdCardData, showBack: boolean = fa
   if (showBack) {
     // Back side design - matching front side styling exactly
     return `
-      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
+      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: #1f2937; border: 1px solid rgba(255,255,255,0.1);">
         <!-- Header Section - Same blue as front -->
-        <div style="padding: 12px 16px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+        <div style="padding: 12px 16px; background: #2563eb; color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 10px;">
             ${logoBlock}
             <div>
-              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
+              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: #3b82f6; color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
               <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">EMERGENCY INFO</h1>
             </div>
           </div>
@@ -100,9 +100,9 @@ const createCardContent = async (data: StudentIdCardData, showBack: boolean = fa
             <!-- Status Badges -->
             <div style="font-size: 9px;">
               <div style="display: flex; gap: 2px; flex-wrap: wrap;">
-                <span style="padding: 1px 4px; background: rgba(34,197,94,0.2); color: #86efac; border-radius: 999px; font-size: 7px; font-weight: 500;">Active</span>
-                <span style="padding: 1px 4px; background: rgba(59,130,246,0.2); color: #93c5fd; border-radius: 999px; font-size: 7px; font-weight: 500;">${data.academicYear || '2024-25'}</span>
-                ${data.transportRoute ? `<span style="padding: 1px 4px; background: rgba(251,146,60,0.2); color: #fbbf24; border-radius: 999px; font-size: 7px; font-weight: 500;">Bus</span>` : ''}
+                <span style="padding: 1px 4px; background: #22c55e; color: #86efac; border-radius: 999px; font-size: 7px; font-weight: 500;">Active</span>
+                <span style="padding: 1px 4px; background: #3b82f6; color: #93c5fd; border-radius: 999px; font-size: 7px; font-weight: 500;">${data.academicYear || '2024-25'}</span>
+                ${data.transportRoute ? `<span style="padding: 1px 4px; background: #fb923c; color: #fbbf24; border-radius: 999px; font-size: 7px; font-weight: 500;">Bus</span>` : ''}
               </div>
             </div>
           </div>
@@ -112,13 +112,13 @@ const createCardContent = async (data: StudentIdCardData, showBack: boolean = fa
   } else {
     // Front side design (existing)
     return `
-      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.1);">
+      <div style="width: 325px; height: 203px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(15,23,42,0.5); background: #1f2937; border: 1px solid rgba(255,255,255,0.1);">
         <!-- Header Section -->
-        <div style="padding: 12px 16px; background: linear-gradient(135deg, #2563eb, #1e40af); color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+        <div style="padding: 12px 16px; background: #2563eb; color: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 10px;">
             ${logoBlock}
             <div>
-              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
+              <span style="display: inline-flex; font-size: 9px; padding: 2px 6px; border-radius: 999px; background: #3b82f6; color: #93c5fd; letter-spacing: 0.08em; font-weight: 600;">${data.schoolName}</span>
               <h1 style="margin: 2px 0 0; font-size: 12px; letter-spacing: 0.02em;">STUDENT ID CARD</h1>
             </div>
           </div>

@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
@@ -9,6 +9,8 @@ import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface StudentProfileModalProps {
   activeTab: any; printStudentProfile: any; selectedStudent: any; sendStudentSMS: any; setAcademicPerformance: any; setActiveTab: any; setAttendanceTracking: any; setCommunicationCenter: any; setEditingStudent: any; setFeeManagement: any; setParentPortal: any; setSelectedStudent: any; theme: any; students?: Student[];
@@ -23,6 +25,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
   const { getSetting } = useSchoolConfig();
+  const idCardRef = useRef<HTMLDivElement>(null);
+  const idCardContainerRef = useRef<HTMLDivElement>(null);
   
   const normalizedStatus = selectedStudent?.status === 'exit' ? 'exited' : selectedStudent?.status;
   const canEditStudentRecord = canEditStudents && selectedStudent && !(selectedStudent.needsPromotion || normalizedStatus === 'locked') && (normalizedStatus !== 'exited' || isAdmin);
@@ -30,6 +34,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
   // ID Card functionality
   const [idCardHtml, setIdCardHtml] = useState('');
+  const [idCardBackHtml, setIdCardBackHtml] = useState('');
   
   const generateIdCardData = (student: Student): StudentIdCardData => {
     return {
@@ -53,39 +58,235 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
   const generateIdCardHtml = async (student: Student) => {
     const idCardData = generateIdCardData(student);
-    const html = await buildStudentIdCardSnippet(idCardData, showCardBack);
-    setIdCardHtml(html);
+    const frontHtml = await buildStudentIdCardSnippet(idCardData, false);
+    const backHtml = await buildStudentIdCardSnippet(idCardData, true);
+    setIdCardHtml(frontHtml);
+    setIdCardBackHtml(backHtml);
   };
 
   const handlePrintIdCard = async () => {
     const idCardData = generateIdCardData(selectedStudent);
-    const html = await buildStudentIdCardDocument(idCardData, showCardBack);
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    const frontHtml = await buildStudentIdCardDocument(idCardData, false);
+    const backHtml = await buildStudentIdCardDocument(idCardData, true);
+    
+    const printWindow = window.open('', '_blank', 'width=1200,height=700');
     if (printWindow) {
-      printWindow.document.write(html);
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>ID Card - Both Sides</title>
+            <style>
+              body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f3f4f6; }
+              .card-container { display: flex; gap: 40px; align-items: center; }
+              .card-side { text-align: center; }
+              .card-side h3 { margin-bottom: 10px; color: #374151; }
+              @media print { 
+                body { background: white; } 
+                .card-container { page-break-inside: avoid; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="card-container">
+              <div class="card-side">
+                <h3>Front Side</h3>
+                ${frontHtml}
+              </div>
+              <div class="card-side">
+                <h3>Back Side</h3>
+                ${backHtml}
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
       printWindow.document.close();
       printWindow.print();
     }
   };
 
-  const handleDownloadIdCardPdf = () => {
-    const idCardData = generateIdCardData(selectedStudent);
-    // This would require a PDF library like jsPDF or puppeteer
-    alert('PDF download feature would be implemented with a PDF library');
+  const handleDownloadIdCardPdf = async () => {
+    if (!idCardContainerRef.current || !selectedStudent) return;
+    
+    try {
+      // Create canvas from the container with both sides - enhanced quality
+      const canvas = await html2canvas(idCardContainerRef.current, {
+        scale: 4, // Higher scale for better quality
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        ignoreElements: (element) => {
+          return element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'LINK';
+        },
+        onclone: (clonedDoc) => {
+          // Enhance colors in the cloned document for better contrast
+          const elements = clonedDoc.querySelectorAll('*');
+          elements.forEach(el => {
+            const computedStyle = window.getComputedStyle(el);
+            const htmlEl = el as HTMLElement;
+            
+            // Fix any lab() color functions
+            if (computedStyle.background?.includes('lab(')) {
+              htmlEl.style.background = '#0f172a';
+            }
+            if (computedStyle.backgroundColor?.includes('lab(')) {
+              htmlEl.style.backgroundColor = '#0f172a';
+            }
+            if (computedStyle.color?.includes('lab(')) {
+              htmlEl.style.color = '#f1f5f9';
+            }
+            
+            // Enhance contrast for better PDF quality
+            if (htmlEl.style.background === '#1f2937') {
+              htmlEl.style.background = '#0f172a'; // Much darker for better contrast
+            }
+            if (htmlEl.style.backgroundColor === '#1f2937') {
+              htmlEl.style.backgroundColor = '#0f172a';
+            }
+            if (htmlEl.style.background === '#2563eb') {
+              htmlEl.style.background = '#1e40af'; // Darker blue for better contrast
+            }
+            if (htmlEl.style.backgroundColor === '#2563eb') {
+              htmlEl.style.backgroundColor = '#1e40af';
+            }
+            
+            // Enhance text colors for better readability
+            if (htmlEl.style.color === '#e2e8f0') {
+              htmlEl.style.color = '#f1f5f9'; // Lighter text for better contrast
+            }
+            if (htmlEl.style.color === '#94a3b8') {
+              htmlEl.style.color = '#cbd5e1'; // Lighter secondary text
+            }
+            if (htmlEl.style.color === '#f8fafc') {
+              htmlEl.style.color = '#ffffff'; // Pure white for headers
+            }
+            if (htmlEl.style.color === '#93c5fd') {
+              htmlEl.style.color = '#dbeafe'; // Lighter blue text
+            }
+            if (htmlEl.style.color === '#86efac') {
+              htmlEl.style.color = '#bbf7d0'; // Lighter green text
+            }
+            if (htmlEl.style.color === '#fbbf24') {
+              htmlEl.style.color = '#fde68a'; // Lighter yellow text
+            }
+          });
+        }
+      });
+      
+      // Create PDF with enhanced quality settings
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+        compress: false // Disable compression for better quality
+      });
+      
+      // Convert canvas to high-quality image
+      const imgData = canvas.toDataURL('image/png', 1.0); // Maximum quality
+      const imgWidth = 280; // Width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Add image to PDF with better positioning
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
+      
+      // Download PDF with enhanced name
+      const fileName = `ID_Card_Both_Sides_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedStudent.admissionNo}.pdf`;
+      pdf.save(fileName);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
-  const handleDownloadIdCardImage = () => {
-    const idCardData = generateIdCardData(selectedStudent);
-    // This would require html2canvas or similar library
-    alert('Image download feature would be implemented with html2canvas');
+  const handleDownloadIdCardImage = async () => {
+    if (!idCardContainerRef.current || !selectedStudent) return;
+    
+    try {
+      // Create canvas from the container with both sides - enhanced quality
+      const canvas = await html2canvas(idCardContainerRef.current, {
+        scale: 3, // Higher scale for better quality
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        ignoreElements: (element) => {
+          return element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'LINK';
+        },
+        onclone: (clonedDoc) => {
+          // Enhance colors in the cloned document for better contrast
+          const elements = clonedDoc.querySelectorAll('*');
+          elements.forEach(el => {
+            const computedStyle = window.getComputedStyle(el);
+            const htmlEl = el as HTMLElement;
+            
+            // Fix any lab() color functions
+            if (computedStyle.background?.includes('lab(')) {
+              htmlEl.style.background = '#1f2937';
+            }
+            if (computedStyle.backgroundColor?.includes('lab(')) {
+              htmlEl.style.backgroundColor = '#1f2937';
+            }
+            if (computedStyle.color?.includes('lab(')) {
+              htmlEl.style.color = '#e2e8f0';
+            }
+            
+            // Enhance contrast for better image quality
+            if (htmlEl.style.background === '#1f2937') {
+              htmlEl.style.background = '#111827'; // Darker for better contrast
+            }
+            if (htmlEl.style.backgroundColor === '#1f2937') {
+              htmlEl.style.backgroundColor = '#111827';
+            }
+            if (htmlEl.style.background === '#2563eb') {
+              htmlEl.style.background = '#1d4ed8'; // Darker blue for better contrast
+            }
+            if (htmlEl.style.backgroundColor === '#2563eb') {
+              htmlEl.style.backgroundColor = '#1d4ed8';
+            }
+            
+            // Enhance text colors for better readability
+            if (htmlEl.style.color === '#e2e8f0') {
+              htmlEl.style.color = '#f1f5f9'; // Lighter text for better contrast
+            }
+            if (htmlEl.style.color === '#94a3b8') {
+              htmlEl.style.color = '#cbd5e1'; // Lighter secondary text
+            }
+            if (htmlEl.style.color === '#f8fafc') {
+              htmlEl.style.color = '#ffffff'; // Pure white for headers
+            }
+          });
+        }
+      });
+      
+      // Convert to high-quality blob
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ID_Card_Both_Sides_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedStudent.admissionNo}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 'image/png', 1.0); // Maximum quality
+      
+    } catch (error) {
+      console.error('Error generating image:', error);
+      alert('Failed to generate image. Please try again.');
+    }
   };
 
-  // Generate ID card HTML when modal opens or side changes
+  // Generate ID card HTML when modal opens
   useEffect(() => {
     if (showIdCard && selectedStudent) {
       generateIdCardHtml(selectedStudent);
     }
-  }, [showIdCard, showCardBack, selectedStudent]);
+  }, [showIdCard, selectedStudent]);
 
   return (
     <>
@@ -690,33 +891,26 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
 
               {/* ID Card Content */}
               <div className="p-6">
-                <div className="flex justify-center items-center gap-2 mb-4">
-                  <button
-                    onClick={() => setShowCardBack(false)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      !showCardBack
-                        ? 'bg-blue-600 text-white'
-                        : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    Front Side
-                  </button>
-                  <button
-                    onClick={() => setShowCardBack(true)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      showCardBack
-                        ? 'bg-green-600 text-white'
-                        : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    Back Side
-                  </button>
-                </div>
-                
-                <div className="flex justify-center mb-6">
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: idCardHtml 
-                  }} />
+                <div ref={idCardContainerRef} className="flex justify-center items-center gap-8 mb-6 flex-wrap">
+                  {/* Front Side */}
+                  <div className="text-center">
+                    <h4 className={`text-sm font-semibold mb-3 ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Front Side</h4>
+                    <div dangerouslySetInnerHTML={{ 
+                      __html: idCardHtml 
+                    }} />
+                  </div>
+                  
+                  {/* Back Side */}
+                  <div className="text-center">
+                    <h4 className={`text-sm font-semibold mb-3 ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Back Side</h4>
+                    <div dangerouslySetInnerHTML={{ 
+                      __html: idCardBackHtml 
+                    }} />
+                  </div>
                 </div>
 
                 {/* Action Buttons */}

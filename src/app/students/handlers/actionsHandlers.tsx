@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { Student } from '../types';
+import { generateBulkIdCards, downloadBulkIdCards } from '@/lib/bulkIdCards';
 
 export function createActionsHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students } = ctx;
+  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students, getSetting } = ctx;
 
   // Quick Action Functions (Legacy - replaced by bulk operations)
   const exportStudentsLegacy = () => {
@@ -806,6 +807,45 @@ export function createActionsHandlers(ctx: any) {
             // Export selected students data
             await exportStudentData([student]);
             break;
+            
+          case 'generate_id_cards':
+            // Generate ID cards for selected students
+            try {
+              const schoolConfig = { getSetting };
+              
+              const options = {
+                outputFormat: bulkOperationData.outputFormat || 'pdf',
+                layout: bulkOperationData.layout || 'grid',
+                includeBothSides: bulkOperationData.includeBothSides !== false
+              };
+              
+              // Generate ID cards for all selected students at once after loop
+              // This is more efficient than generating one by one
+              if (i === selectedStudentsData.length - 1) {
+                const result = await generateBulkIdCards(selectedStudentsData, options, schoolConfig);
+                downloadBulkIdCards(result, selectedStudentsData);
+                
+                if ((window as any).toast) {
+                  (window as any).toast({
+                    type: 'success',
+                    title: 'ID Cards Generated',
+                    message: `Successfully generated ID cards for ${selectedStudentsData.length} students`,
+                    duration: 3000
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error generating ID cards:', error);
+              if ((window as any).toast) {
+                (window as any).toast({
+                  type: 'error',
+                  title: 'ID Card Generation Failed',
+                  message: 'Failed to generate ID cards. Please try again.',
+                  duration: 3000
+                });
+              }
+            }
+            break;
         }
         
         setBulkOperationProgress(prev => ({ ...prev, current: i + 1 }));
@@ -821,7 +861,7 @@ export function createActionsHandlers(ctx: any) {
         (window as any).toast({
           type: 'success',
           title: 'Bulk Operation Completed',
-          message: `${bulkOperationType.replace('_', ' ')} completed for ${studentsToProcess.length} students`,
+          message: `${bulkOperationType.replace('_', ' ')} completed for ${selectedStudentsData.length} students`,
           duration: 3000
         });
       }

@@ -42,14 +42,16 @@ import { StudentSearchEngine } from './search/StudentSearchEngine';
 export default function StudentsPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const { hasPermission, isAdmin } = usePermissions();
+  const { getSetting } = useSchoolConfig();
   const canCreateStudents = isAdmin || hasPermission('create_students');
   const canEditStudents = isAdmin || hasPermission('edit_students');
   const canDeleteStudents = isAdmin || hasPermission('delete_students');
   const canPromoteStudents = isAdmin || hasPermission('promote_students');
   const canManageStudentBulk = canCreateStudents || canEditStudents || canDeleteStudents || canPromoteStudents;
   const state = useStudentState();
-  // Build handler context incrementally so each group can access previous groups
-  const ctx: any = { ...state };
+  
+  // Create context with school config
+  const ctx: any = { ...state, getSetting };
 
   Object.assign(ctx, createSearchHandlers(ctx));
   Object.assign(ctx, createActionsHandlers(ctx));
