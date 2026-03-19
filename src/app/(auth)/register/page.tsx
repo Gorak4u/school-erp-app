@@ -63,8 +63,14 @@ function RegisterContent() {
   const searchParams = useSearchParams();
   const planParam = searchParams.get('plan') || '';
   const billingParam = (searchParams.get('billing') as 'monthly' | 'yearly') || 'monthly';
+  const promoParam = searchParams.get('promo') || '';
+  const discountParam = searchParams.get('discount') || '';
   const [selectedPlan, setSelectedPlan] = useState(planParam || '');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(billingParam);
+  const [promoCode, setPromoCode] = useState(promoParam);
+  const [discountedPrice, setDiscountedPrice] = useState(discountParam ? parseFloat(discountParam) : null);
+  const [promoValidation, setPromoValidation] = useState<any>(null);
+  const [promoError, setPromoError] = useState('');
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const planInfo = plans.find(p => p.name === selectedPlan);
@@ -98,6 +104,46 @@ function RegisterContent() {
       if (billingParam) setBillingCycle(billingParam);
     }
   }, [planParam, billingParam, plans]);
+
+  // Validate promo code if present in URL
+  useEffect(() => {
+    if (promoParam && selectedPlan) {
+      validatePromoCode(promoParam);
+    }
+  }, [promoParam, selectedPlan]);
+
+  const validatePromoCode = async (code: string) => {
+    if (!code.trim() || !selectedPlan) {
+      setPromoValidation(null);
+      setPromoError('');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), plan: selectedPlan })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        setPromoValidation(data.discount);
+        setPromoError('');
+      } else {
+        setPromoValidation(null);
+        setPromoError(data.error || 'Invalid promo code');
+        setPromoCode('');
+        setDiscountedPrice(null);
+      }
+    } catch (error) {
+      setPromoError('Failed to validate promo code');
+      setPromoValidation(null);
+      setPromoCode('');
+      setDiscountedPrice(null);
+    }
+  };
 
   const totalSteps = isPaid ? 3 : 2;
 
@@ -184,11 +230,26 @@ function RegisterContent() {
       if (!schoolId) { setSuccess(''); return; }
 
       setSuccess('Initializing payment...');
-      const amount = Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18);
-      const orderRes = await fetch('/api/create-payment-order', {
+      const basePrice = billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly;
+      const finalPrice = discountedPrice && discountedPrice < basePrice ? discountedPrice : basePrice;
+      const amount = Math.round(finalPrice * 1.18);
+      const orderRes = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planInfo.name, amount, currency: 'INR', billingCycle, schoolId }),
+        body: JSON.stringify({ 
+          amount, 
+          currency: 'INR', 
+          receipt: `school_${schoolId}_${Date.now()}`,
+          notes: {
+            schoolId,
+            plan: planInfo.name,
+            billingCycle,
+            promoCode: promoCode || null,
+          },
+          promoCode: promoCode || null,
+          plan: planInfo.name,
+          billingCycle,
+        }),
       });
       const orderData = await orderRes.json();
       if (!orderData.success) { setSuccess(''); setError(orderData.error || 'Payment order failed.'); return; }
@@ -209,14 +270,18 @@ function RegisterContent() {
         modal: { ondismiss: () => { setIsSubmitting(false); setSuccess(''); } },
         handler: async (response: any) => {
           setSuccess('Payment received! Activating your account...');
-          const verifyRes = await fetch('/api/verify-payment', {
+
+          const verifyRes = await fetch('/api/razorpay/verify-subscription-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
-              billingCycle, schoolId,
+              billingCycle, 
+              schoolId,
+              plan: planInfo.name,
+              promoCode: promoCode || null,
             }),
           });
           const verifyData = await verifyRes.json();
@@ -287,6 +352,11 @@ function RegisterContent() {
                     {planInfo.displayName}
                   </span>
                   <span className="text-sm text-gray-300">{priceDisplay}</span>
+                  {promoCode && promoValidation && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+                      {promoCode} applied
+                    </span>
+                  )}
                 </div>
                 <button onClick={() => { setStep(1); setError(''); }} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
                   Change plan
@@ -450,14 +520,34 @@ function RegisterContent() {
                       </div>
                       {(() => {
                         const base = billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly;
-                        const gst = Math.round(base * 0.18);
-                        const total = Math.round(base * 1.18);
+                        const finalPrice = discountedPrice && discountedPrice < base ? discountedPrice : base;
+                        const discountAmount = discountedPrice && discountedPrice < base ? base - discountedPrice : 0;
+                        const gst = Math.round(finalPrice * 0.18);
+                        const total = Math.round(finalPrice * 1.18);
                         return (
                           <>
-                            <div className="flex justify-between text-sm mb-1.5">
-                              <span className="text-gray-400">{planInfo.displayName} ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
-                              <span className="text-white">₹{base.toLocaleString()}</span>
-                            </div>
+                            {discountAmount > 0 && (
+                              <>
+                                <div className="flex justify-between text-sm mb-1.5">
+                                  <span className="text-gray-400">{planInfo.displayName} ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
+                                  <span className="text-white line-through">₹{base.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm mb-1.5 text-green-400">
+                                  <span className="text-gray-400">Discount ({promoCode})</span>
+                                  <span>-₹{discountAmount.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm mb-1.5">
+                                  <span className="text-gray-400">Discounted Price</span>
+                                  <span className="text-green-400 font-semibold">₹{finalPrice.toLocaleString()}</span>
+                                </div>
+                              </>
+                            )}
+                            {!discountAmount && (
+                              <div className="flex justify-between text-sm mb-1.5">
+                                <span className="text-gray-400">{planInfo.displayName} ({billingCycle === 'yearly' ? 'Yearly' : 'Monthly'})</span>
+                                <span className="text-white">₹{base.toLocaleString()}</span>
+                              </div>
+                            )}
                             <div className="flex justify-between text-sm mb-3">
                               <span className="text-gray-400">GST (18%)</span>
                               <span className="text-white">₹{gst.toLocaleString()}</span>
@@ -491,7 +581,11 @@ function RegisterContent() {
                         {isSubmitting ? (
                           <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>Processing...</>
                         ) : (
-                          <>Pay ₹{Math.round((billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly) * 1.18).toLocaleString()} via Razorpay</>
+                          <>Pay ₹{(() => {
+                            const base = billingCycle === 'yearly' ? planInfo.priceYearly : planInfo.priceMonthly;
+                            const finalPrice = discountedPrice && discountedPrice < base ? discountedPrice : base;
+                            return Math.round(finalPrice * 1.18).toLocaleString();
+                          })()} via Razorpay</>
                         )}
                       </button>
                     </div>

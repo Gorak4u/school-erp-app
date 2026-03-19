@@ -38,6 +38,11 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [loading, setLoading] = useState(true);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoValidation, setPromoValidation] = useState<any>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [discountedPrices, setDiscountedPrices] = useState<Record<string, number>>({});
+  const [promoError, setPromoError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/plans?cache=true')
@@ -48,7 +53,100 @@ export default function PricingPage() {
   }, []);
 
   const handleSelectPlan = (planName: string) => {
-    router.push(`/register?plan=${planName}&billing=${billing}`);
+    const params = new URLSearchParams({
+      plan: planName,
+      billing: billing,
+    });
+    
+    if (promoValidation && discountedPrices[planName]) {
+      params.set('promo', promoCode);
+      params.set('discount', discountedPrices[planName].toString());
+    }
+    
+    router.push(`/register?${params.toString()}`);
+  };
+
+  const validatePromoCode = async (code: string) => {
+    if (!code.trim()) {
+      setPromoValidation(null);
+      setDiscountedPrices({});
+      setPromoError('');
+      return;
+    }
+
+    setValidatingPromo(true);
+    setPromoError('');
+
+    try {
+      const response = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), plan: 'all' })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        setPromoValidation(data.discount);
+        calculateDiscountedPrices(data.discount);
+        setPromoError('');
+      } else {
+        setPromoValidation(null);
+        setDiscountedPrices({});
+        setPromoError(data.error || 'Invalid promo code');
+      }
+    } catch (error) {
+      setPromoError('Failed to validate promo code');
+      setPromoValidation(null);
+      setDiscountedPrices({});
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const calculateDiscountedPrices = (discount: any) => {
+    const newDiscountedPrices: Record<string, number> = {};
+    
+    plans.forEach(plan => {
+      const originalPrice = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
+      let discountedPrice = originalPrice;
+
+      if (discount.type === 'percentage') {
+        discountedPrice = originalPrice * (1 - discount.value / 100);
+        if (discount.maxAmount && discountedPrice < originalPrice - discount.maxAmount) {
+          discountedPrice = originalPrice - discount.maxAmount;
+        }
+      } else if (discount.type === 'fixed') {
+        discountedPrice = Math.max(0, originalPrice - discount.value);
+      }
+
+      newDiscountedPrices[plan.name] = Math.round(discountedPrice);
+    });
+
+    setDiscountedPrices(newDiscountedPrices);
+  };
+
+  const handlePromoCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const code = e.target.value.toUpperCase();
+    setPromoCode(code);
+    
+    // Debounce validation
+    const timeoutId = setTimeout(() => {
+      validatePromoCode(code);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  const getDisplayPrice = (plan: PlanFromDB) => {
+    const originalPrice = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
+    const discountedPrice = discountedPrices[plan.name];
+    
+    if (discountedPrice && discountedPrice < originalPrice) {
+      return { original: originalPrice, discounted: discountedPrice, hasDiscount: true };
+    }
+    
+    return { original: originalPrice, discounted: null, hasDiscount: false };
   };
 
   return (
@@ -107,6 +205,34 @@ export default function PricingPage() {
               Yearly <span className="text-green-400 text-sm">(Save 20%)</span>
             </span>
           </div>
+
+          {/* Promo Code Input */}
+          <div className="flex items-center justify-center gap-4 mt-6">
+            <div className="relative max-w-xs">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={handlePromoCodeChange}
+                placeholder="Enter promo code"
+                className={`w-full px-4 py-2 rounded-lg border bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 ${
+                  promoError ? 'border-red-500' : promoValidation ? 'border-green-500' : ''
+                }`}
+              />
+              {validatingPromo && (
+                <div className="absolute right-3 top-2.5">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            {promoError && (
+              <span className="text-red-400 text-sm">{promoError}</span>
+            )}
+            {promoValidation && (
+              <span className="text-green-400 text-sm">
+                {promoValidation.type === 'percentage' ? `${promoValidation.value}% off` : `₹${promoValidation.value} off`}
+              </span>
+            )}
+          </div>
         </motion.div>
 
         {/* Plans Grid */}
@@ -116,8 +242,8 @@ export default function PricingPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan, index) => {
             const isPopular = plan.name === 'professional';
-            const price = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
             const isTrial = plan.name === 'trial';
+            const priceInfo = getDisplayPrice(plan);
             let featuresList: string[] = [];
             try { featuresList = JSON.parse(plan.features || '[]'); } catch { featuresList = []; }
             // Add student/teacher limits as features
@@ -153,12 +279,26 @@ export default function PricingPage() {
               </div>
 
               <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-white">
-                    {price === 0 ? 'Free' : `₹${price.toLocaleString()}`}
-                  </span>
+                <div className="flex items-baseline gap-2">
+                  {priceInfo.hasDiscount ? (
+                    <>
+                      <span className="text-2xl text-gray-500 line-through">
+                        ₹{priceInfo.original.toLocaleString()}
+                      </span>
+                      <span className="text-4xl font-bold text-green-400">
+                        ₹{priceInfo.discounted?.toLocaleString()}
+                      </span>
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+                        Save ₹{(priceInfo.original - (priceInfo.discounted || 0)).toLocaleString()}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-4xl font-bold text-white">
+                      {priceInfo.original === 0 ? 'Free' : `₹${priceInfo.original.toLocaleString()}`}
+                    </span>
+                  )}
                   {isTrial && <span className="text-gray-400 text-sm ml-1">{plan.trialDays} days</span>}
-                  {!isTrial && price > 0 && <span className="text-gray-400 text-sm">/{billing === 'monthly' ? 'mo' : 'yr'}</span>}
+                  {!isTrial && priceInfo.original > 0 && <span className="text-gray-400 text-sm">/{billing === 'monthly' ? 'mo' : 'yr'}</span>}
                 </div>
               </div>
 

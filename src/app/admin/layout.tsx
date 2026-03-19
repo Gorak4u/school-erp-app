@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/schools', label: 'Schools', icon: '🏫' },
   { href: '/admin/users', label: 'Users', icon: '👥' },
   { href: '/admin/plans', label: 'Plans & Pricing', icon: '💰' },
+  { href: '/admin/promo-codes', label: 'Promo Codes', icon: '🎁' },
   { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
   { href: '/admin/payments', label: 'Payment Config', icon: '💳' },
   { href: '/admin/reminder-settings', label: 'Reminder Settings', icon: '🔔' },

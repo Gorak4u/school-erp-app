@@ -61,6 +61,9 @@ model Subscription {
   features             String                @default("[]")
   billingCycle         String                @default("monthly")
   price                Int                   @default(0)
+  originalAmount       Int?
+  discountAmount       Int                   @default(0)
+  promoCodeId          String?
   billingEmail         String?
   paymentMethod        String?
   paymentId            String?
@@ -71,8 +74,10 @@ model Subscription {
   razorpayOrderId      String?
   razorpayPaymentId    String?
   invoices             Invoice[]
-  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   subscriptionPayments SubscriptionPayment[]
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  promoCodes           SubscriptionPromo[]
+  promoCode            PromoCode?            @relation(fields: [promoCodeId], references: [id])
 
   @@index([plan])
   @@index([status])
@@ -84,6 +89,9 @@ model Invoice {
   id             String       @id @default(cuid())
   subscriptionId String
   amount         Float
+  originalAmount Float?       // Original amount before discount
+  discountAmount Float        @default(0) // Discount amount applied
+  promoCodeId    String?      // Reference to applied promo code
   currency       String       @default("INR")
   status         String       @default("pending")
   description    String?
@@ -94,10 +102,12 @@ model Invoice {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  promoCode      PromoCode?    @relation(fields: [promoCodeId], references: [id])
 
   @@index([subscriptionId])
   @@index([status])
   @@index([dueDate])
+  @@index([promoCodeId])
   @@schema("saas")
 }
 
@@ -1736,4 +1746,49 @@ model RazorpayAuditLog {
   @@index([userEmail])
   @@index([createdAt])
   @@schema("school")
+}
+
+// Promo Code System for Subscription Discounts
+model PromoCode {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  description       String?
+  discountType      String    // "percentage" or "fixed"
+  discountValue     Float     // e.g., 20.0 for 20% or ₹2000
+  maxDiscountAmount Float?    // Cap for percentage discounts
+  applicablePlans   String    // JSON array: ["basic", "professional"] or "all"
+  usageLimit        Int?      // Max times usable across all users
+  usageCount        Int       @default(0) // Current usage count
+  validFrom         DateTime
+  validTo           DateTime
+  isActive          Boolean   @default(true)
+  createdBy         String    // Super admin email
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  subscriptionPromos SubscriptionPromo[]
+  invoices           Invoice[]
+  subscriptions       Subscription[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom])
+  @@index([validTo])
+  @@schema("saas")
+}
+
+model SubscriptionPromo {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  promoCodeId    String
+  discountAmount Float     // Actual discount amount applied
+  appliedAt      DateTime  @default(now())
+
+  // Relations
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  promoCode      PromoCode    @relation(fields: [promoCodeId], references: [id])
+
+  @@unique([subscriptionId, promoCodeId]) // One promo per subscription
+  @@schema("saas")
 }

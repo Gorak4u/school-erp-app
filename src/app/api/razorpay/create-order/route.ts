@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { amount, currency = 'INR', receipt, notes } = body;
+    const { amount, currency = 'INR', receipt, notes, promoCode, plan, billingCycle } = body;
 
     // Input validation
     if (!amount || typeof amount !== 'number' || amount <= 0) {
@@ -32,6 +32,49 @@ export async function POST(request: Request) {
 
     if (!receipt || typeof receipt !== 'string') {
       return NextResponse.json({ error: 'Receipt is required' }, { status: 400 });
+    }
+
+    // Handle promo code validation if provided
+    let finalAmount = amount;
+    let discountAmount = 0;
+    let appliedPromo: any = null;
+
+    if (promoCode && plan && billingCycle) {
+      try {
+        const promoValidation = await fetch(`${process.env.NEXTAUTH_URL}/api/promo-codes/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: promoCode, plan })
+        });
+
+        const validationData = await promoValidation.json();
+
+        if (promoValidation.ok && validationData.valid) {
+          const discount = validationData.discount;
+          
+          if (discount.type === 'percentage') {
+            discountAmount = amount * (discount.value / 100);
+            if (discount.maxAmount && discountAmount > discount.maxAmount) {
+              discountAmount = discount.maxAmount;
+            }
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value;
+          }
+
+          finalAmount = Math.max(0, amount - discountAmount);
+          appliedPromo = validationData.discount;
+
+          console.log('💰 Promo code applied:', {
+            promoCode,
+            originalAmount: amount,
+            discountAmount,
+            finalAmount
+          });
+        }
+      } catch (error) {
+        console.error('Promo validation failed:', error);
+        // Continue with original amount if promo validation fails
+      }
     }
 
     // Get Razorpay credentials from school settings
@@ -50,7 +93,7 @@ export async function POST(request: Request) {
 
     // Create order with production-ready options
     const orderOptions = {
-      amount: Math.round(amount * 100), // Convert to paise and ensure integer
+      amount: Math.round(finalAmount * 100), // Convert to paise and ensure integer
       currency,
       receipt,
       notes: {
@@ -58,6 +101,13 @@ export async function POST(request: Request) {
         created_by: session.user.email,
         created_at: new Date().toISOString(),
         school_id: notes?.schoolId || 'default',
+        original_amount: amount,
+        discount_amount: discountAmount,
+        final_amount: finalAmount,
+        promo_code: promoCode || null,
+        promo_discount: appliedPromo,
+        plan: plan || null,
+        billing_cycle: billingCycle || null,
       },
       payment_capture: 1, // Auto-capture payments
       partial_payment: false, // Disable partial payments
@@ -96,6 +146,13 @@ export async function POST(request: Request) {
         notes: order.notes,
         created_at: order.created_at,
       },
+      discount: discountAmount > 0 ? {
+        originalAmount: amount,
+        discountAmount,
+        finalAmount: finalAmount,
+        promoCode: promoCode,
+        promoDetails: appliedPromo
+      } : null
     });
 
   } catch (error: any) {

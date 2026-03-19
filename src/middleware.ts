@@ -23,7 +23,7 @@ import {
 export const runtime = 'nodejs';
 
 // Routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login', '/api/plans', '/api/admin/plans', '/api/auth', '/api/register', '/api/reset-password'];
+const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login', '/api/plans', '/api/admin/plans', '/api/auth', '/api/register', '/api/reset-password', '/api/test/subscription-discounts', '/api/test/create-sample-promo', '/api/promo-codes/validate', '/api/cron/promo-cleanup'];
 
 // Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {

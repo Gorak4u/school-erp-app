@@ -221,7 +221,7 @@ async function processPaymentInDatabase(params: {
           action: 'payment_verified',
           entityType: 'transaction',
           entityId: paymentId,
-          oldValues: null,
+          oldValues: undefined,
           newValues: {
             status: 'verified',
             amount: totalAmount,
