@@ -111,6 +111,7 @@ export default function TeacherDashboardTab({ teacher, dashboard, schoolConfig, 
           <h4 className={`text-sm font-semibold mb-3 ${txt}`}>👤 Profile Overview</h4>
           <div className="space-y-2">
             {[
+              { label: 'Employee ID', value: teacher.employeeId || '—' },
               { label: 'Email', value: teacher.email },
               { label: 'Phone', value: teacher.phone || '—' },
               { label: 'Department', value: teacher.department || '—' },

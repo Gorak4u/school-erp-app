@@ -11,6 +11,7 @@ import TeacherAssignmentsTab from './tabs/TeacherAssignmentsTab';
 import TeacherAnalyticsTab from './tabs/TeacherAnalyticsTab';
 import TeacherLeaveTab from './tabs/TeacherLeaveTab';
 import TeacherNotesTab from './tabs/TeacherNotesTab';
+import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -36,6 +37,7 @@ export default function TeacherProfileModal({ teacherId, onClose }: Props) {
   const [dashboard, setDashboard] = useState<any>(null);
   const [schoolConfig, setSchoolConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingIdCard, setDownloadingIdCard] = useState(false);
 
   const bg     = isDark ? 'bg-gray-900'    : 'bg-gray-50';
   const card   = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -44,6 +46,20 @@ export default function TeacherProfileModal({ teacherId, onClose }: Props) {
   const tabBg  = isDark ? 'bg-gray-800'    : 'bg-white';
   const activeBg = isDark ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white';
   const inactiveBg = isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100';
+
+  const handleDownloadIdCard = async () => {
+    if (!teacher || !schoolConfig) return;
+    
+    setDownloadingIdCard(true);
+    try {
+      await downloadTeacherIdCard(teacher, schoolConfig);
+    } catch (error) {
+      console.error('Error downloading ID card:', error);
+      alert('Failed to download ID card. Please try again.');
+    } finally {
+      setDownloadingIdCard(false);
+    }
+  };
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -121,6 +137,30 @@ export default function TeacherProfileModal({ teacherId, onClose }: Props) {
                 </div>
               </div>
             )}
+            <button
+              onClick={handleDownloadIdCard}
+              disabled={downloadingIdCard || !teacher || !schoolConfig}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                downloadingIdCard
+                  ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white hover:scale-105 shadow-lg'
+              }`}
+              title="Download Staff ID Card"
+            >
+              {downloadingIdCard ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span className="hidden sm:inline">ID Card</span>
+                </>
+              )}
+            </button>
             <button onClick={onClose} className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
