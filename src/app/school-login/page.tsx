@@ -492,11 +492,11 @@ function SchoolLoginInner() {
         ))}
       </div>
 
-      {/* Interactive light effect following mouse with school color */}
+      {/* Interactive light effect following mouse with school color - reduced opacity */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle 600px at ${mousePosition.x}px ${mousePosition.y}px, ${schoolBranding.primaryColor || theme?.accentColor || 'rgba(59, 130, 246, 0.1)'} 0%, transparent 50%)`
+          background: `radial-gradient(circle 400px at ${mousePosition.x}px ${mousePosition.y}px, ${schoolBranding.primaryColor || theme?.accentColor || 'rgba(59, 130, 246, 0.03)'} 0%, transparent 50%)`
         }}
       />
       {/* Header with comprehensive school branding */}
@@ -676,7 +676,7 @@ function SchoolLoginInner() {
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
               animate={{ opacity: 1, scale: 1, rotateY: 0 }}
               transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
-              className="rounded-3xl p-8 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
+              className="rounded-3xl p-6 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
                 borderColor: `${theme?.accentColor}40`,
@@ -751,14 +751,14 @@ function SchoolLoginInner() {
               </div>
               
               {/* Title with school branding */}
-              <div className="text-center mb-8 relative z-10">
+              <div className="text-center mb-6 relative z-10">
                 <motion.div
                   initial={{ opacity: 0, y: -20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
                 >
                   <motion.div
-                    className="w-24 h-24 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+                    className="w-20 h-20 mx-auto mb-3 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
                     whileHover={{ scale: 1.1, rotate: 10 }}
                     whileTap={{ scale: 0.95 }}
                     style={{
@@ -768,7 +768,7 @@ function SchoolLoginInner() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
                     <motion.span 
-                      className="text-4xl relative z-10"
+                      className="text-3xl relative z-10"
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
@@ -785,7 +785,7 @@ function SchoolLoginInner() {
                   </motion.div>
                   
                   <motion.h2 
-                    className="text-4xl font-bold mb-3 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
+                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.6 }}
@@ -795,7 +795,7 @@ function SchoolLoginInner() {
                   
                   {schoolBranding.schoolMotto && (
                     <motion.p 
-                      className="text-base font-medium mb-2 italic opacity-90"
+                      className="text-sm font-medium mb-1 italic opacity-90"
                       style={{ color: schoolBranding.accentColor || theme?.textColor || '#ffffff' }}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 0.9, y: 0 }}
@@ -806,7 +806,7 @@ function SchoolLoginInner() {
                   )}
                   
                   <motion.p 
-                    className="text-base opacity-80" 
+                    className="text-sm opacity-80" 
                     style={{ color: theme?.textColor || '#ffffff' }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 0.8, y: 0 }}
@@ -817,7 +817,7 @@ function SchoolLoginInner() {
                   
                   {schoolBranding.schoolTagline && (
                     <motion.p 
-                      className="text-sm opacity-70 mt-2"
+                      className="text-xs opacity-70 mt-1"
                       style={{ color: theme?.textColor || '#ffffff' }}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 0.7, y: 0 }}
@@ -830,7 +830,7 @@ function SchoolLoginInner() {
               </div>
 
               {/* Form */}
-              <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+              <form onSubmit={handleLogin} className="space-y-4 relative z-10">
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -862,7 +862,7 @@ function SchoolLoginInner() {
                       required
                       autoFocus
                       placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                      className="w-full px-5 py-4 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-14 shadow-lg"
+                      className="w-full px-4 py-3 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
                       style={{
                         backgroundColor: `${theme?.inputBackgroundColor}80`,
                         borderColor: theme?.inputBorderColor,
@@ -936,7 +936,7 @@ function SchoolLoginInner() {
                       onChange={e => setPassword(e.target.value)}
                       required
                       placeholder="Enter your password"
-                      className="w-full px-5 py-4 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-14 shadow-lg"
+                      className="w-full px-4 py-3 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
                       style={{
                         backgroundColor: `${theme?.inputBackgroundColor}80`,
                         borderColor: theme?.inputBorderColor,
@@ -1041,7 +1041,7 @@ function SchoolLoginInner() {
                   transition={{ duration: 0.8, delay: 1, type: "spring", stiffness: 100 }}
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-4 px-6 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-2xl relative overflow-hidden group"
+                  className="w-full py-3 px-6 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-2xl relative overflow-hidden group"
                   style={{
                     background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#1d4ed8'} 100%)`,
                     color: theme?.textColor || '#ffffff',
