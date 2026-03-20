@@ -88,6 +88,26 @@ function SchoolLoginInner() {
   const [mounted, setMounted] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
+  const [randomShapes, setRandomShapes] = useState<Array<{
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+    borderRadius: string;
+  }>>([]);
+  const [randomParticles, setRandomParticles] = useState<Array<{
+    left: number;
+    top: number;
+    duration: number;
+    delay: number;
+  }>>([]);
+  const [cardParticles, setCardParticles] = useState<Array<{
+    left: number;
+    top: number;
+    duration: number;
+    delay: number;
+    xMove: number;
+  }>>([]);
   const [schoolBranding, setSchoolBranding] = useState({
     primaryColor: '',
     secondaryColor: '',
@@ -188,12 +208,41 @@ function SchoolLoginInner() {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
-    
+
     if (typeof window !== 'undefined') {
       window.addEventListener('mousemove', handleMouseMove);
       setMounted(true);
+      
+      // Generate random shapes only on client side
+      const shapes = [...Array(8)].map(() => ({
+        width: Math.random() * 100 + 50,
+        height: Math.random() * 100 + 50,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        borderRadius: Math.random() > 0.5 ? '50%' : '10%'
+      }));
+      setRandomShapes(shapes);
+      
+      // Generate random particles only on client side
+      const particles = [...Array(20)].map(() => ({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        duration: 4 + Math.random() * 3,
+        delay: Math.random() * 4
+      }));
+      setRandomParticles(particles);
+      
+      // Generate card particles only on client side
+      const cardParts = [...Array(6)].map(() => ({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        duration: 3 + Math.random() * 2,
+        delay: Math.random() * 3,
+        xMove: Math.random() * 20 - 10
+      }));
+      setCardParticles(cardParts);
     }
-    
+
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('mousemove', handleMouseMove);
@@ -464,16 +513,16 @@ function SchoolLoginInner() {
 
       {/* Floating geometric shapes with school colors */}
       <div className="absolute inset-0 pointer-events-none">
-        {[...Array(8)].map((_, i) => (
+        {mounted && randomShapes.map((shape, i) => (
           <motion.div
             key={i}
             className="absolute border-2 border-white/5"
             style={{
-              width: Math.random() * 100 + 50 + 'px',
-              height: Math.random() * 100 + 50 + 'px',
-              left: Math.random() * 100 + '%',
-              top: Math.random() * 100 + '%',
-              borderRadius: Math.random() > 0.5 ? '50%' : '10%',
+              width: `${shape.width}px`,
+              height: `${shape.height}px`,
+              left: `${shape.left}%`,
+              top: `${shape.top}%`,
+              borderRadius: shape.borderRadius,
               borderColor: `${schoolBranding.primaryColor || theme?.accentColor || '#3b82f6'}20`
             }}
             animate={{
@@ -492,11 +541,11 @@ function SchoolLoginInner() {
         ))}
       </div>
 
-      {/* Interactive light effect following mouse with school color - reduced opacity */}
+      {/* Interactive light effect following mouse with school color - very light */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle 400px at ${mousePosition.x}px ${mousePosition.y}px, ${schoolBranding.primaryColor || theme?.accentColor || 'rgba(59, 130, 246, 0.03)'} 0%, transparent 50%)`
+          background: `radial-gradient(circle 300px at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 50%)`
         }}
       />
       {/* Header with comprehensive school branding */}
@@ -727,24 +776,24 @@ function SchoolLoginInner() {
               
               {/* Floating particles inside card */}
               <div className="absolute inset-0 pointer-events-none">
-                {[...Array(6)].map((_, i) => (
+                {mounted && cardParticles.map((particle, i) => (
                   <motion.div
                     key={i}
                     className="absolute w-1 h-1 bg-white/40 rounded-full"
                     animate={{
                       y: [0, -20, 0],
-                      x: [0, Math.random() * 20 - 10, 0],
+                      x: [0, particle.xMove, 0],
                       opacity: [0, 1, 0]
                     }}
                     transition={{
-                      duration: 3 + Math.random() * 2,
+                      duration: particle.duration,
                       repeat: Infinity,
-                      delay: Math.random() * 3,
+                      delay: particle.delay,
                       ease: "easeInOut"
                     }}
                     style={{
-                      left: Math.random() * 100 + '%',
-                      top: Math.random() * 100 + '%'
+                      left: `${particle.left}%`,
+                      top: `${particle.top}%`
                     }}
                   />
                 ))}
@@ -889,8 +938,9 @@ function SchoolLoginInner() {
                     <motion.div
                       className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
+                        backgroundImage: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
                         backgroundSize: '200% 100%',
+                        backgroundPosition: '0% 50%',
                         opacity: 0
                       }}
                       whileFocus={{ opacity: 1 }}
@@ -967,8 +1017,9 @@ function SchoolLoginInner() {
                     <motion.div
                       className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
+                        backgroundImage: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
                         backgroundSize: '200% 100%',
+                        backgroundPosition: '0% 50%',
                         opacity: 0
                       }}
                       whileFocus={{ opacity: 1 }}
@@ -1059,7 +1110,7 @@ function SchoolLoginInner() {
                     <motion.div
                       className="absolute inset-0"
                       style={{
-                        background: `linear-gradient(90deg, transparent, ${schoolBranding.accentColor || '#ffffff'}40, transparent)`
+                        backgroundImage: `linear-gradient(90deg, transparent, ${schoolBranding.accentColor || '#ffffff'}40, transparent)`
                       }}
                       initial={{ x: '-100%' }}
                       whileHover={{ x: '100%' }}
@@ -1465,7 +1516,7 @@ export default function SchoolLoginPage() {
 
         {/* Floating particles */}
         <div className="absolute inset-0">
-          {[...Array(15)].map((_, i) => (
+          {[...Array(20)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute w-1 h-1 bg-white/40 rounded-full"
