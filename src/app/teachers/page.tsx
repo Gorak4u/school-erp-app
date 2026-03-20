@@ -769,10 +769,15 @@ export default function StaffPage() {
 <button
                             onClick={() => {
                               setEditingTeacher(teacher);
+                              // Better logic to split name into first and last name
+                              const nameParts = (teacher.name || '').trim().split(/\s+/);
+                              const firstName = nameParts[0] || '';
+                              const lastName = nameParts.slice(1).join(' ') || '';
+                              
                               setForm({
                                 name: teacher.name || '',
-                                firstName: teacher.name?.split(' ')[0] || '',
-                                lastName: teacher.name?.split(' ').slice(1).join(' ') || '',
+                                firstName: firstName,
+                                lastName: lastName,
                                 email: teacher.email || '',
                                 phone: teacher.phone || '',
                                 department: teacher.department || '',
