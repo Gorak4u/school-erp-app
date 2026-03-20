@@ -73,22 +73,22 @@ export default function ClassTeacherFormAssignments({
       return;
     }
 
-    const selectedBoard = boards.find(b => b.id === newAssignment.boardId);
-    const selectedMedium = mediums.find(m => m.id === newAssignment.mediumId);
-    const selectedClass = classes.find(c => c.id === newAssignment.classId);
-    const selectedSection = sections.find(s => s.id === newAssignment.sectionId);
+    const selectedBoard = boards.find(b => b.value === newAssignment.boardId);
+    const selectedMedium = mediums.find(m => m.value === newAssignment.mediumId);
+    const selectedClass = filteredClasses.find(c => c.value === newAssignment.classId);
+    const selectedSection = filteredSections.find(s => s.value === newAssignment.sectionId);
     const selectedYear = academicYears.find(y => y.id === newAssignment.academicYearId);
 
     const assignment = {
       id: Date.now().toString(),
       boardId: newAssignment.boardId,
-      boardName: selectedBoard?.name || 'Unknown',
+      boardName: selectedBoard?.label || 'Unknown',
       mediumId: newAssignment.mediumId,
-      mediumName: selectedMedium?.name || 'Unknown',
+      mediumName: selectedMedium?.label || 'Unknown',
       classId: newAssignment.classId,
-      className: selectedClass?.name || 'Unknown',
+      className: selectedClass?.label || 'Unknown',
       sectionId: newAssignment.sectionId,
-      sectionName: selectedSection?.name || 'All Sections',
+      sectionName: selectedSection?.label || 'All Sections',
       academicYearId: newAssignment.academicYearId,
       academicYearName: selectedYear?.name || selectedYear?.year || 'Unknown',
       assignedDate: new Date().toISOString().split('T')[0]
