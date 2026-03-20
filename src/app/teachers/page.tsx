@@ -1308,6 +1308,29 @@ export default function StaffPage() {
                       remarks: form.remarks,
                       isClassTeacher: form.isClassTeacher,
                     });
+                    
+                    // Update class teacher assignments separately if needed
+                    if (form.isClassTeacher && form.classTeacherAssignments.length > 0) {
+                      try {
+                        for (const assignment of form.classTeacherAssignments) {
+                          await fetch(`/api/teachers/${editingTeacher.id}/class-assignments`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              classId: assignment.classId,
+                              sectionId: assignment.sectionId,
+                              boardId: assignment.boardId,
+                              mediumId: assignment.mediumId,
+                              academicYearId: assignment.academicYearId,
+                              assignedDate: new Date().toISOString()
+                            })
+                          });
+                        }
+                      } catch (assignmentError) {
+                        console.error('Failed to update class teacher assignments:', assignmentError);
+                        // Don't fail the whole operation, just log the error
+                      }
+                    }
                     setShowEditModal(false); setForm({ ...EMPTY_FORM }); refresh();
                   } catch (err: any) { 
                     setFormError(err.message || 'Failed to update staff');
@@ -1823,6 +1846,29 @@ export default function StaffPage() {
                       isClassTeacher: form.isClassTeacher,
                       employeeId: form.employeeId,
                     });
+                    
+                    // Create class teacher assignments separately if needed
+                    if (form.isClassTeacher && form.classTeacherAssignments.length > 0) {
+                      try {
+                        for (const assignment of form.classTeacherAssignments) {
+                          await fetch(`/api/teachers/${response.teacher.id}/class-assignments`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              classId: assignment.classId,
+                              sectionId: assignment.sectionId,
+                              boardId: assignment.boardId,
+                              mediumId: assignment.mediumId,
+                              academicYearId: assignment.academicYearId,
+                              assignedDate: new Date().toISOString()
+                            })
+                          });
+                        }
+                      } catch (assignmentError) {
+                        console.error('Failed to create class teacher assignments:', assignmentError);
+                        // Don't fail the whole operation, just log the error
+                      }
+                    }
                     setShowAddModal(false); setForm({ ...EMPTY_FORM }); refresh();
                     const generatedEmployeeId = response?.teacher?.employeeId;
                     
