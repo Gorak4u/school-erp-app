@@ -1277,11 +1277,13 @@ export default function StaffPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.name || !form.email) { setFormError('Name and Email are required'); return; }
+                  if (!form.firstName || !form.lastName || !form.email) { setFormError('First name, last name and email are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     await teachersApi.update(editingTeacher.id, { 
-                      name: form.name,
+                      firstName: form.firstName,
+                      lastName: form.lastName,
+                      name: `${form.firstName} ${form.lastName}`.trim(),
                       email: form.email,
                       phone: form.phone,
                       gender: form.gender,
@@ -1789,11 +1791,13 @@ export default function StaffPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.name) { setFormError('Name is required'); return; }
+                  if (!form.firstName || !form.lastName) { setFormError('First name and last name are required'); return; }
                   setSaving(true); setFormError('');
                   try {
                     const response = await teachersApi.create({ 
-                      name: form.name,
+                      firstName: form.firstName,
+                      lastName: form.lastName,
+                      name: `${form.firstName} ${form.lastName}`.trim(),
                       email: form.email,
                       phone: form.phone,
                       gender: form.gender,
