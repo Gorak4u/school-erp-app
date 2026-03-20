@@ -88,6 +88,22 @@ function SchoolLoginInner() {
   const [mounted, setMounted] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
+  const [schoolBranding, setSchoolBranding] = useState({
+    primaryColor: '',
+    secondaryColor: '',
+    accentColor: '',
+    customBackground: '',
+    schoolMotto: '',
+    schoolTagline: '',
+    contactInfo: '',
+    socialLinks: [] as Array<{ platform: string; url: string; icon: string }>,
+    customAnimations: false,
+    schoolType: '',
+    establishedYear: '',
+    totalStudents: '',
+    totalTeachers: '',
+    achievements: [] as Array<{ title: string; description: string; icon: string }>
+  });
 
   // Resolve subdomain: from URL param or from hostname
   useEffect(() => {
@@ -113,26 +129,51 @@ function SchoolLoginInner() {
     if (!subdomain) return;
     setLoadingSchool(true);
     
-    // First fetch school info
-    fetch(`/api/school/by-subdomain?subdomain=${encodeURIComponent(subdomain)}`)
+    // First fetch school info with branding
+    fetch(`/api/school/by-subdomain?subdomain=${encodeURIComponent(subdomain)}&includeBranding=true`)
       .then(r => r.json())
       .then(schoolData => {
         if (schoolData.school) {
           setSchool(schoolData.school);
-          // Generate theme from school name (reliable fallback)
-          const fallbackTheme = generateSchoolTheme(schoolData.school.name);
-          setTheme(fallbackTheme);
+          
+          // Set comprehensive school branding
+          const branding = schoolData.branding || {};
+          setSchoolBranding({
+            primaryColor: branding.primaryColor || generateSchoolTheme(schoolData.school.name).primaryColor,
+            secondaryColor: branding.secondaryColor || generateSchoolTheme(schoolData.school.name).secondaryColor,
+            accentColor: branding.accentColor || generateSchoolTheme(schoolData.school.name).accentColor,
+            customBackground: branding.customBackground || '',
+            schoolMotto: branding.schoolMotto || 'Excellence in Education',
+            schoolTagline: branding.schoolTagline || 'Empowering Tomorrow\'s Leaders',
+            contactInfo: branding.contactInfo || `${schoolData.school.city || ''}, ${schoolData.school.state || ''}`,
+            socialLinks: branding.socialLinks || [],
+            customAnimations: branding.customAnimations !== false,
+            schoolType: branding.schoolType || 'Educational Institution',
+            establishedYear: branding.establishedYear || '',
+            totalStudents: branding.totalStudents || '',
+            totalTeachers: branding.totalTeachers || '',
+            achievements: branding.achievements || []
+          });
+          
+          // Generate enhanced theme from school branding
+          const enhancedTheme = {
+            ...generateSchoolTheme(schoolData.school.name),
+            primaryColor: branding.primaryColor || generateSchoolTheme(schoolData.school.name).primaryColor,
+            secondaryColor: branding.secondaryColor || generateSchoolTheme(schoolData.school.name).secondaryColor,
+            accentColor: branding.accentColor || generateSchoolTheme(schoolData.school.name).accentColor,
+            backgroundColor: branding.customBackground || generateSchoolTheme(schoolData.school.name).backgroundColor
+          };
+          setTheme(enhancedTheme);
           
           // Try to load custom theme in background (non-blocking)
           getSchoolTheme(subdomain)
             .then(customTheme => {
               if (customTheme.themeType !== 'auto') {
-                setTheme(customTheme);
+                setTheme({ ...enhancedTheme, ...customTheme });
               }
             })
             .catch(() => {
-              // Silently fail, keep using fallback theme
-              console.log('Using auto-generated theme for school');
+              console.log('Using enhanced school branding theme');
             });
         } else {
           setSchoolError(schoolData.error || 'School not found');
@@ -231,14 +272,14 @@ function SchoolLoginInner() {
     const parallax = calculateParallax(50);
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Advanced animated background */}
+        {/* Advanced animated background with school colors */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
           <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
         
-        {/* Floating particles */}
+        {/* Floating particles with school colors */}
         <div className="absolute inset-0">
           {[...Array(20)].map((_, i) => (
             <motion.div
@@ -306,18 +347,30 @@ function SchoolLoginInner() {
           </motion.h1>
           
           <motion.p 
-            className="text-gray-300 mb-8 leading-relaxed text-lg"
+            className="text-gray-300 mb-6 leading-relaxed text-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6 }}
           >
             {schoolError}
           </motion.p>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.6 }}
+            className="mb-6"
+          >
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+              <p className="text-sm text-gray-300 mb-2">Looking for your school?</p>
+              <p className="text-xs text-gray-400">Check your school's unique URL or contact your administrator</p>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.6 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -355,22 +408,22 @@ function SchoolLoginInner() {
         minHeight: '100vh'
       }}
     >
-      {/* Advanced animated background layers */}
+      {/* Advanced animated background layers with school branding */}
       <div className="absolute inset-0">
-        {/* Base gradient */}
+        {/* Base gradient with school colors */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/10 to-purple-900/20"></div>
         
-        {/* Animated gradient orbs */}
+        {/* School-branded animated gradient orbs */}
         <motion.div
           className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-20"
-          style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}
+          style={{ background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#8b5cf6'} 100%)` }}
           animate={{
             x: [0, 100, 0],
             y: [0, -50, 0],
             scale: [1, 1.2, 1]
           }}
           transition={{
-            duration: 20,
+            duration: schoolBranding.customAnimations ? 20 : 30,
             repeat: Infinity,
             ease: "easeInOut"
           }}
@@ -378,14 +431,14 @@ function SchoolLoginInner() {
         
         <motion.div
           className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-20"
-          style={{ background: theme?.accentColor || '#60a5fa' }}
+          style={{ background: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}
           animate={{
             x: [0, -100, 0],
             y: [0, 50, 0],
             scale: [1, 1.3, 1]
           }}
           transition={{
-            duration: 25,
+            duration: schoolBranding.customAnimations ? 25 : 35,
             repeat: Infinity,
             ease: "easeInOut",
             delay: 5
@@ -394,14 +447,14 @@ function SchoolLoginInner() {
         
         <motion.div
           className="absolute top-1/2 left-1/2 w-96 h-96 rounded-full opacity-10"
-          style={{ background: theme?.secondaryColor || '#1d4ed8' }}
+          style={{ background: schoolBranding.secondaryColor || theme?.secondaryColor || '#1d4ed8' }}
           animate={{
             x: [0, 50, -50, 0],
             y: [0, -30, 30, 0],
             scale: [1, 1.1, 1]
           }}
           transition={{
-            duration: 30,
+            duration: schoolBranding.customAnimations ? 30 : 40,
             repeat: Infinity,
             ease: "easeInOut",
             delay: 10
@@ -409,7 +462,7 @@ function SchoolLoginInner() {
         />
       </div>
 
-      {/* Floating geometric shapes */}
+      {/* Floating geometric shapes with school colors */}
       <div className="absolute inset-0 pointer-events-none">
         {[...Array(8)].map((_, i) => (
           <motion.div
@@ -420,7 +473,8 @@ function SchoolLoginInner() {
               height: Math.random() * 100 + 50 + 'px',
               left: Math.random() * 100 + '%',
               top: Math.random() * 100 + '%',
-              borderRadius: Math.random() > 0.5 ? '50%' : '10%'
+              borderRadius: Math.random() > 0.5 ? '50%' : '10%',
+              borderColor: `${schoolBranding.primaryColor || theme?.accentColor || '#3b82f6'}20`
             }}
             animate={{
               rotate: [0, 360],
@@ -429,7 +483,7 @@ function SchoolLoginInner() {
               opacity: [0.1, 0.3, 0.1]
             }}
             transition={{
-              duration: 20 + Math.random() * 20,
+              duration: schoolBranding.customAnimations ? 20 + Math.random() * 20 : 30 + Math.random() * 30,
               repeat: Infinity,
               ease: "linear",
               delay: Math.random() * 10
@@ -438,19 +492,19 @@ function SchoolLoginInner() {
         ))}
       </div>
 
-      {/* Interactive light effect following mouse */}
+      {/* Interactive light effect following mouse with school color */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle 600px at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.1) 0%, transparent 50%)`
+          background: `radial-gradient(circle 600px at ${mousePosition.x}px ${mousePosition.y}px, ${schoolBranding.primaryColor || theme?.accentColor || 'rgba(59, 130, 246, 0.1)'} 0%, transparent 50%)`
         }}
       />
-      {/* Header */}
+      {/* Header with comprehensive school branding */}
       <motion.div 
         className="flex-shrink-0 px-6 py-4 border-b backdrop-blur-sm relative z-20"
         style={{
-          background: `linear-gradient(135deg, ${theme?.secondaryColor}20 0%, ${theme?.accentColor}20 100%)`,
-          borderColor: `${theme?.accentColor}30`,
+          background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.secondaryColor}20 0%, ${schoolBranding.accentColor || theme?.accentColor}20 100%)`,
+          borderColor: `${schoolBranding.accentColor || theme?.accentColor}30`,
           borderWidth: '1px',
           transform: `translateY(${parallax.y * 0.5}px)`
         }}
@@ -468,9 +522,12 @@ function SchoolLoginInner() {
             <div className="relative group">
               {school?.logo ? (
                 <motion.div 
-                  className="w-14 h-14 rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/20 relative"
+                  className="w-16 h-16 rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/20 relative"
                   whileHover={{ scale: 1.05, rotate: 5 }}
                   whileTap={{ scale: 0.95 }}
+                  style={{
+                    boxShadow: `0 0 20px ${schoolBranding.primaryColor || theme?.accentColor}40`
+                  }}
                 >
                   <img src={school.logo} alt={schoolName} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -482,8 +539,11 @@ function SchoolLoginInner() {
                 </motion.div>
               ) : (
                 <motion.div 
-                  className="w-14 h-14 rounded-3xl flex items-center justify-center text-white font-bold text-2xl shadow-2xl ring-4 ring-white/20 relative overflow-hidden"
-                  style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                  className="w-16 h-16 rounded-3xl flex items-center justify-center text-white font-bold text-2xl shadow-2xl ring-4 ring-white/20 relative overflow-hidden"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#1d4ed8'} 100%)`,
+                    boxShadow: `0 0 20px ${schoolBranding.primaryColor || theme?.accentColor}40`
+                  }}
                   whileHover={{ scale: 1.05, rotate: 5 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -511,6 +571,7 @@ function SchoolLoginInner() {
                       className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      style={{ borderColor: schoolBranding.primaryColor || theme?.accentColor || '#3b82f6' }}
                     />
                     <span>Loading...</span>
                   </div>
@@ -524,31 +585,60 @@ function SchoolLoginInner() {
                   </motion.span>
                 )}
               </motion.h1>
-              {schoolLocation && (
-                <motion.p 
-                  className="text-sm opacity-80 flex items-center gap-2" 
-                  style={{ color: theme?.textColor || '#ffffff' }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 0.8, y: 0 }}
-                  transition={{ delay: 0.8, duration: 0.6 }}
-                >
-                  <motion.span
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              <motion.div className="flex items-center gap-3">
+                {schoolLocation && (
+                  <motion.p 
+                    className="text-sm opacity-80 flex items-center gap-2" 
+                    style={{ color: theme?.textColor || '#ffffff' }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 0.8, y: 0 }}
+                    transition={{ delay: 0.8, duration: 0.6 }}
                   >
-                    📍
+                    <motion.span
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      📍
+                    </motion.span>
+                    {schoolLocation}
+                  </motion.p>
+                )}
+                {schoolBranding.schoolType && (
+                  <motion.span
+                    className="text-xs px-2 py-1 rounded-full"
+                    style={{
+                      backgroundColor: `${schoolBranding.primaryColor || theme?.accentColor}20`,
+                      color: theme?.textColor || '#ffffff',
+                      borderColor: `${schoolBranding.primaryColor || theme?.accentColor}40`,
+                      borderWidth: '1px'
+                    }}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1, duration: 0.6 }}
+                  >
+                    {schoolBranding.schoolType}
                   </motion.span>
-                  {schoolLocation}
-                </motion.p>
-              )}
+                )}
+              </motion.div>
             </div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
-            className="flex items-center gap-3"
+            className="flex items-center gap-4"
           >
+            {schoolBranding.establishedYear && (
+              <motion.span 
+                className="hidden sm:block text-xs opacity-80 px-3 py-1 rounded-full border border-white/20"
+                style={{ color: theme?.textColor || '#ffffff' }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 0.8, scale: 1 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+              >
+                Since {schoolBranding.establishedYear}
+              </motion.span>
+            )}
             <motion.span 
               className="text-xs hidden sm:block opacity-80 px-4 py-2 rounded-full border border-white/30 backdrop-blur-sm font-medium"
               style={{ color: theme?.textColor || '#ffffff' }}
@@ -660,7 +750,7 @@ function SchoolLoginInner() {
                 ))}
               </div>
               
-              {/* Title */}
+              {/* Title with school branding */}
               <div className="text-center mb-8 relative z-10">
                 <motion.div
                   initial={{ opacity: 0, y: -20, scale: 0.8 }}
@@ -668,24 +758,32 @@ function SchoolLoginInner() {
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
                 >
                   <motion.div
-                    className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+                    className="w-24 h-24 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
                     whileHover={{ scale: 1.1, rotate: 10 }}
                     whileTap={{ scale: 0.95 }}
+                    style={{
+                      background: `linear-gradient(135deg, ${schoolBranding.primaryColor || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || '#8b5cf6'} 50%, ${schoolBranding.accentColor || '#ec4899'} 100%)`,
+                      boxShadow: `0 0 30px ${schoolBranding.primaryColor || '#3b82f6'}40`
+                    }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
                     <motion.span 
-                      className="text-3xl relative z-10"
+                      className="text-4xl relative z-10"
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
                       🔐
                     </motion.span>
                     <motion.div
-                      className="absolute -inset-2 bg-gradient-to-br from-blue-500 to-pink-500 rounded-3xl blur-xl opacity-50"
+                      className="absolute -inset-2 rounded-3xl blur-xl opacity-50"
+                      style={{
+                        background: `linear-gradient(135deg, ${schoolBranding.primaryColor || '#3b82f6'}, ${schoolBranding.accentColor || '#ec4899'})`
+                      }}
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                     />
                   </motion.div>
+                  
                   <motion.h2 
                     className="text-4xl font-bold mb-3 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
                     initial={{ opacity: 0, y: 20 }}
@@ -694,15 +792,40 @@ function SchoolLoginInner() {
                   >
                     Welcome Back
                   </motion.h2>
+                  
+                  {schoolBranding.schoolMotto && (
+                    <motion.p 
+                      className="text-base font-medium mb-2 italic opacity-90"
+                      style={{ color: schoolBranding.accentColor || theme?.textColor || '#ffffff' }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 0.9, y: 0 }}
+                      transition={{ delay: 0.7, duration: 0.6 }}
+                    >
+                      "{schoolBranding.schoolMotto}"
+                    </motion.p>
+                  )}
+                  
                   <motion.p 
-                    className="text-base opacity-90" 
+                    className="text-base opacity-80" 
                     style={{ color: theme?.textColor || '#ffffff' }}
                     initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 0.9, y: 0 }}
-                    transition={{ delay: 0.7, duration: 0.6 }}
+                    animate={{ opacity: 0.8, y: 0 }}
+                    transition={{ delay: 0.9, duration: 0.6 }}
                   >
                     {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
                   </motion.p>
+                  
+                  {schoolBranding.schoolTagline && (
+                    <motion.p 
+                      className="text-sm opacity-70 mt-2"
+                      style={{ color: theme?.textColor || '#ffffff' }}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 0.7, y: 0 }}
+                      transition={{ delay: 1.1, duration: 0.6 }}
+                    >
+                      {schoolBranding.schoolTagline}
+                    </motion.p>
+                  )}
                 </motion.div>
               </div>
 
@@ -762,11 +885,11 @@ function SchoolLoginInner() {
                     >
                       <span className="text-lg">👤</span>
                     </motion.div>
-                    {/* Animated input border */}
+                    {/* Animated input border with school colors */}
                     <motion.div
                       className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `linear-gradient(90deg, ${theme?.inputFocusColor || '#3b82f6'}, ${theme?.accentColor || '#60a5fa'}, ${theme?.inputFocusColor || '#3b82f6'})`,
+                        background: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
                         backgroundSize: '200% 100%',
                         opacity: 0
                       }}
@@ -775,7 +898,7 @@ function SchoolLoginInner() {
                         backgroundPosition: ['0% 50%', '200% 50%']
                       }}
                       transition={{
-                        duration: 3,
+                        duration: schoolBranding.customAnimations ? 3 : 4,
                         repeat: Infinity,
                         ease: "linear"
                       }}
@@ -840,11 +963,11 @@ function SchoolLoginInner() {
                     >
                       {showPassword ? '🙈' : '👁️'}
                     </motion.button>
-                    {/* Animated input border */}
+                    {/* Animated input border with school colors */}
                     <motion.div
                       className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `linear-gradient(90deg, ${theme?.inputFocusColor || '#3b82f6'}, ${theme?.accentColor || '#60a5fa'}, ${theme?.inputFocusColor || '#3b82f6'})`,
+                        background: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
                         backgroundSize: '200% 100%',
                         opacity: 0
                       }}
@@ -853,7 +976,7 @@ function SchoolLoginInner() {
                         backgroundPosition: ['0% 50%', '200% 50%']
                       }}
                       transition={{
-                        duration: 3,
+                        duration: schoolBranding.customAnimations ? 3 : 4,
                         repeat: Infinity,
                         ease: "linear"
                       }}
@@ -920,35 +1043,39 @@ function SchoolLoginInner() {
                   disabled={isLoading}
                   className="w-full py-4 px-6 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-2xl relative overflow-hidden group"
                   style={{
-                    background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#1d4ed8'} 100%)`,
                     color: theme?.textColor || '#ffffff',
-                    opacity: isLoading ? 0.7 : 1
+                    opacity: isLoading ? 0.7 : 1,
+                    boxShadow: `0 10px 30px -10px ${schoolBranding.primaryColor || '#3b82f6'}50`
                   }}
                   whileHover={{ 
                     scale: !isLoading ? 1.03 : 1,
-                    boxShadow: '0 20px 40px -15px rgba(59, 130, 246, 0.5)'
+                    boxShadow: `0 20px 40px -15px ${schoolBranding.primaryColor || '#3b82f6'}70`
                   }}
                   whileTap={{ scale: !isLoading ? 0.98 : 1 }}
                 >
-                  {/* Advanced shimmer effect */}
+                  {/* Advanced shimmer effect with school colors */}
                   <div className="absolute inset-0">
                     <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(90deg, transparent, ${schoolBranding.accentColor || '#ffffff'}40, transparent)`
+                      }}
                       initial={{ x: '-100%' }}
                       whileHover={{ x: '100%' }}
-                      transition={{ duration: 0.8, ease: "easeInOut" }}
+                      transition={{ duration: schoolBranding.customAnimations ? 0.8 : 1, ease: "easeInOut" }}
                     />
                   </div>
                   
-                  {/* Pulsing glow effect */}
+                  {/* Pulsing glow effect with school colors */}
                   <motion.div
                     className="absolute inset-0 rounded-2xl"
                     style={{
-                      background: `linear-gradient(135deg, ${theme?.accentColor || '#60a5fa'}, transparent)`,
+                      background: `linear-gradient(135deg, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, transparent)`,
                       opacity: 0
                     }}
                     animate={{ opacity: [0, 0.3, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                    transition={{ duration: schoolBranding.customAnimations ? 2 : 3, repeat: Infinity }}
                   />
                   
                   <div className="relative flex items-center justify-center gap-3">
@@ -958,6 +1085,7 @@ function SchoolLoginInner() {
                           className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          style={{ borderColor: schoolBranding.accentColor || '#ffffff' }}
                         />
                         <span>Signing in...</span>
                       </>
@@ -971,7 +1099,8 @@ function SchoolLoginInner() {
                         </motion.span>
                         <span>Sign In</span>
                         <motion.div
-                          className="w-2 h-2 bg-white rounded-full"
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: schoolBranding.accentColor || '#ffffff' }}
                           animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
                           transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
                         />
@@ -1156,7 +1285,7 @@ function SchoolLoginInner() {
             </motion.div>
           )}
 
-          {/* Footer */}
+          {/* Footer with comprehensive school branding */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1166,16 +1295,73 @@ function SchoolLoginInner() {
               transform: `translateY(${parallax.y * 0.2}px)`
             }}
           >
+            {/* School achievements showcase */}
+            {schoolBranding.achievements && schoolBranding.achievements.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.3, duration: 0.6 }}
+                className="mb-6"
+              >
+                <div className="flex flex-wrap justify-center gap-3">
+                  {schoolBranding.achievements.slice(0, 3).map((achievement, index) => (
+                    <motion.div
+                      key={index}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full border backdrop-blur-sm"
+                      style={{
+                        background: `${schoolBranding.primaryColor || theme?.accentColor}10`,
+                        borderColor: `${schoolBranding.primaryColor || theme?.accentColor}30`,
+                        color: theme?.textColor || '#ffffff'
+                      }}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 1.4 + index * 0.1, duration: 0.6 }}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <span className="text-sm">{achievement.icon}</span>
+                      <span className="text-xs font-medium">{achievement.title}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* School stats */}
+            {(schoolBranding.totalStudents || schoolBranding.totalTeachers) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.5, duration: 0.6 }}
+                className="mb-6"
+              >
+                <div className="flex justify-center gap-6 text-sm">
+                  {schoolBranding.totalStudents && (
+                    <div className="flex items-center gap-2">
+                      <span>👥</span>
+                      <span className="opacity-80">{schoolBranding.totalStudents} Students</span>
+                    </div>
+                  )}
+                  {schoolBranding.totalTeachers && (
+                    <div className="flex items-center gap-2">
+                      <span>👨‍🏫</span>
+                      <span className="opacity-80">{schoolBranding.totalTeachers} Teachers</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Main footer content */}
             <motion.div 
               className="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 backdrop-blur-xl shadow-2xl group"
               style={{ 
                 background: 'rgba(255, 255, 255, 0.05)',
-                borderColor: `${theme?.accentColor}30`
+                borderColor: `${schoolBranding.accentColor || theme?.accentColor}30`
               }}
               whileHover={{ 
                 scale: 1.05,
-                boxShadow: '0 10px 30px -10px rgba(59, 130, 246, 0.3)',
-                borderColor: `${theme?.accentColor}60`
+                boxShadow: `0 10px 30px -10px ${schoolBranding.primaryColor || '#3b82f6'}30`,
+                borderColor: `${schoolBranding.accentColor || theme?.accentColor}60`
               }}
             >
               <motion.div
@@ -1190,11 +1376,11 @@ function SchoolLoginInner() {
               </span>
               <motion.div 
                 className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: theme?.accentColor || '#60a5fa' }}
+                style={{ backgroundColor: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}
                 animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
-              <span className="text-xs font-bold" style={{ color: theme?.accentColor || '#60a5fa' }}>
+              <span className="text-xs font-bold" style={{ color: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}>
                 Contact your school administrator
               </span>
               
@@ -1202,12 +1388,41 @@ function SchoolLoginInner() {
               <motion.div
                 className="absolute inset-0 rounded-full opacity-0"
                 style={{
-                  background: `radial-gradient(circle at center, ${theme?.accentColor}40 0%, transparent 70%)`
+                  background: `radial-gradient(circle at center, ${schoolBranding.primaryColor || theme?.accentColor || '#3b82f6'}40 0%, transparent 70%)`
                 }}
                 whileHover={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               />
             </motion.div>
+
+            {/* Social links */}
+            {schoolBranding.socialLinks && schoolBranding.socialLinks.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.7, duration: 0.6 }}
+                className="mt-4"
+              >
+                <div className="flex justify-center gap-3">
+                  {schoolBranding.socialLinks.map((social, index) => (
+                    <motion.a
+                      key={index}
+                      href={social.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20"
+                      style={{
+                        background: `${schoolBranding.primaryColor || theme?.accentColor}10`
+                      }}
+                      whileHover={{ scale: 1.2, rotate: 360 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <span className="text-sm">{social.icon}</span>
+                    </motion.a>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
       </motion.div>
@@ -1219,7 +1434,7 @@ export default function SchoolLoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/30 flex items-center justify-center relative overflow-hidden">
-        {/* Animated background */}
+        {/* Animated background with school colors */}
         <div className="absolute inset-0">
           <motion.div
             className="absolute top-0 left-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"
@@ -1280,7 +1495,7 @@ export default function SchoolLoginPage() {
           className="text-center relative z-10"
         >
           <motion.div
-            className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+            className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
             animate={{ 
               rotate: [0, 360],
               scale: [1, 1.1, 1]
@@ -1293,7 +1508,7 @@ export default function SchoolLoginPage() {
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
             <motion.div
-              className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full"
+              className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
@@ -1309,6 +1524,16 @@ export default function SchoolLoginPage() {
             transition={{ duration: 2, repeat: Infinity }}
           >
             Loading School Portal...
+          </motion.p>
+          
+          {/* School-specific loading message */}
+          <motion.p 
+            className="text-gray-400 text-sm mt-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.7 }}
+            transition={{ delay: 0.5, duration: 1 }}
+          >
+            Preparing your personalized experience
           </motion.p>
           
           {/* Loading dots */}
