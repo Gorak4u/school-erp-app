@@ -1222,8 +1222,26 @@ export default function SettingsPage() {
 
     const autoCode = (name: string, medCode: string) => {
       const parts = name.trim().split(/\s+/);
-      const abbr = parts.map((p) => p[0] || '').join('').toUpperCase();
-      return (`${abbr}${(medCode || '').replace(/[^A-Z0-9]/gi, '')}`).toUpperCase().slice(0, 8) || 'CLS';
+      let abbr = '';
+      
+      // Enhanced logic to handle multi-digit numbers properly
+      for (const part of parts) {
+        if (/\d+/.test(part)) {
+          // If part contains numbers, take the full number
+          const numbers = part.match(/\d+/);
+          if (numbers) {
+            abbr += numbers[0];
+          }
+        } else {
+          // If part is text, take first letter
+          abbr += part[0] || '';
+        }
+      }
+      
+      abbr = abbr.toUpperCase();
+      const cleanMedCode = (medCode || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const fullCode = `${abbr}${cleanMedCode}`.slice(0, 8);
+      return fullCode || 'CLS';
     };
     const autoLevel = (name: string) => {
       const n = name.toLowerCase();
