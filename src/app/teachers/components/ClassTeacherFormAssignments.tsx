@@ -116,9 +116,9 @@ export default function ClassTeacherFormAssignments({
         {/* Current Assignments */}
         {assignments.length > 0 && (
           <div className="space-y-2 mb-4">
-            {assignments.map((assignment) => (
+            {assignments.map((assignment, index) => (
               <div
-                key={assignment.id}
+                key={assignment.id || `assignment-${index}`}
                 className={`p-3 rounded-lg border flex justify-between items-center ${
                   isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
                 }`}
@@ -159,8 +159,8 @@ export default function ClassTeacherFormAssignments({
                 onChange={e => setNewAssignment(prev => ({ ...prev, boardId: e.target.value }))}
               >
                 <option value="">Select Board</option>
-                {boards.map(board => (
-                  <option key={board.id} value={board.id}>{board.name}</option>
+                {boards.map((board, index) => (
+                  <option key={board.id || `board-${index}`} value={board.id}>{board.name}</option>
                 ))}
               </select>
             </div>
@@ -173,8 +173,8 @@ export default function ClassTeacherFormAssignments({
                 onChange={e => setNewAssignment(prev => ({ ...prev, mediumId: e.target.value }))}
               >
                 <option value="">Select Medium</option>
-                {mediums.map(medium => (
-                  <option key={medium.id} value={medium.id}>{medium.name}</option>
+                {mediums.map((medium, index) => (
+                  <option key={medium.id || `medium-${index}`} value={medium.id}>{medium.name}</option>
                 ))}
               </select>
             </div>
@@ -188,8 +188,8 @@ export default function ClassTeacherFormAssignments({
                 disabled={!newAssignment.boardId || !newAssignment.mediumId}
               >
                 <option value="">Select Class</option>
-                {filteredClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                {filteredClasses.map((cls, index) => (
+                  <option key={cls.id || `class-${index}`} value={cls.id}>{cls.name}</option>
                 ))}
               </select>
             </div>
@@ -203,8 +203,8 @@ export default function ClassTeacherFormAssignments({
                 disabled={!newAssignment.classId}
               >
                 <option value="">All Sections</option>
-                {filteredSections.map(section => (
-                  <option key={section.id} value={section.id}>{section.name}</option>
+                {filteredSections.map((section, index) => (
+                  <option key={section.id || `section-${index}`} value={section.id}>{section.name}</option>
                 ))}
               </select>
             </div>
@@ -217,8 +217,8 @@ export default function ClassTeacherFormAssignments({
                 onChange={e => setNewAssignment(prev => ({ ...prev, academicYearId: e.target.value }))}
               >
                 <option value="">Select Academic Year</option>
-                {academicYears.map(year => (
-                  <option key={year.id} value={year.id}>{year.name || year.year}</option>
+                {academicYears.map((year, index) => (
+                  <option key={year.id || `year-${index}`} value={year.id}>{year.name || year.year}</option>
                 ))}
               </select>
             </div>
