@@ -45,8 +45,10 @@ export default function ClassTeacherFormAssignments({
   useEffect(() => {
     if (newAssignment.boardId && newAssignment.mediumId) {
       const filtered = classes.filter(cls => 
-        cls.boardId === newAssignment.boardId && 
-        cls.mediumId === newAssignment.mediumId
+        cls.mediumId === newAssignment.mediumId && 
+        // Note: classes don't have boardId in this structure, so we'll filter by medium only
+        // The board filtering should happen at the API level or we need to adjust the data structure
+        true
       );
       setFilteredClasses(filtered);
     } else {
@@ -160,7 +162,7 @@ export default function ClassTeacherFormAssignments({
               >
                 <option value="">Select Board</option>
                 {boards.map((board, index) => (
-                  <option key={board.id || `board-${index}`} value={board.id}>{board.name}</option>
+                  <option key={board.value || `board-${index}`} value={board.value}>{board.label}</option>
                 ))}
               </select>
             </div>
@@ -174,7 +176,7 @@ export default function ClassTeacherFormAssignments({
               >
                 <option value="">Select Medium</option>
                 {mediums.map((medium, index) => (
-                  <option key={medium.id || `medium-${index}`} value={medium.id}>{medium.name}</option>
+                  <option key={medium.value || `medium-${index}`} value={medium.value}>{medium.label}</option>
                 ))}
               </select>
             </div>
@@ -189,7 +191,7 @@ export default function ClassTeacherFormAssignments({
               >
                 <option value="">Select Class</option>
                 {filteredClasses.map((cls, index) => (
-                  <option key={cls.id || `class-${index}`} value={cls.id}>{cls.name}</option>
+                  <option key={cls.value || `class-${index}`} value={cls.value}>{cls.label}</option>
                 ))}
               </select>
             </div>
@@ -204,7 +206,7 @@ export default function ClassTeacherFormAssignments({
               >
                 <option value="">All Sections</option>
                 {filteredSections.map((section, index) => (
-                  <option key={section.id || `section-${index}`} value={section.id}>{section.name}</option>
+                  <option key={section.value || `section-${index}`} value={section.value}>{section.label}</option>
                 ))}
               </select>
             </div>
