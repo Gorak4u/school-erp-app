@@ -97,8 +97,8 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
       feeRecordsQuery.where.studentId = { in: resolvedStudentIds };
     }
 
-    // Filter by fee structures
-    if (discountReq.targetType === 'fee_structure') {
+    // Filter by fee structures (apply when feeStructureIds are provided)
+    if (feeStructureIds.length > 0) {
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
 

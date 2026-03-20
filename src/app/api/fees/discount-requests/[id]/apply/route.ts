@@ -106,8 +106,8 @@ export async function POST(
       arrearsQuery.where.studentId = { in: resolvedStudentIds };
     }
 
-    // Filter by fee structures (only for FeeRecord, not FeeArrears)
-    if (discountReq.targetType === 'fee_structure') {
+    // Filter by fee structures (apply when feeStructureIds are provided)
+    if (feeStructureIds.length > 0) {
       feeRecordsQuery.where.feeStructureId = { in: feeStructureIds };
     }
 
