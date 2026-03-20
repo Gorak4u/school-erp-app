@@ -774,6 +774,14 @@ export default function StaffPage() {
                               const firstName = nameParts[0] || '';
                               const lastName = nameParts.slice(1).join(' ') || '';
                               
+                              // Debug: Log the form data being set
+                              console.log('Setting edit form data:', {
+                                teacherName: teacher.name,
+                                firstName,
+                                lastName,
+                                email: teacher.email
+                              });
+                              
                               setForm({
                                 name: teacher.name || '',
                                 firstName: firstName,
@@ -1282,7 +1290,20 @@ export default function StaffPage() {
               <button
                 disabled={saving}
                 onClick={async () => {
-                  if (!form.firstName || !form.lastName || !form.email) { setFormError('First name, last name and email are required'); return; }
+                  // Debug: Log form state before validation
+                  console.log('Edit form validation check:', {
+                    firstName: form.firstName,
+                    lastName: form.lastName,
+                    email: form.email,
+                    firstNameLength: form.firstName?.length,
+                    lastNameLength: form.lastName?.length,
+                    emailLength: form.email?.length
+                  });
+                  
+                  if (!form.firstName || !form.lastName || !form.email) { 
+                    setFormError('First name, last name and email are required'); 
+                    return; 
+                  }
                   setSaving(true); setFormError('');
                   try {
                     await teachersApi.update(editingTeacher.id, { 
