@@ -92,11 +92,13 @@ export async function POST(request: NextRequest) {
     // Auto-generate or validate Employee ID
     let employeeId = providedEmployeeId;
     if (!employeeId) {
-      // Auto-generate Employee ID in TCH0001 format
+      // Auto-generate Employee ID using school abbreviation format
       employeeId = await generateEmployeeId(ctx.schoolId!);
       console.log(`✅ Auto-generated Employee ID: ${employeeId}`);
     } else if (!isValidEmployeeIdFormat(employeeId)) {
-      return NextResponse.json({ error: 'Invalid Employee ID format. Use TCH#### (e.g., TCH0001)' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Invalid Employee ID format. Use {SchoolAbbreviation}{####} (e.g., SVSN0001, DPS0001)' 
+      }, { status: 400 });
     } else {
       // Check if Employee ID already exists in this school
       const existingTeacher = await (schoolPrisma as any).teacher.findFirst({

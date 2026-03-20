@@ -49,8 +49,8 @@ export function isValidLoginIdentifier(identifier: string): boolean {
     return true;
   }
   
-  // Check if it's an employeeId (TCH#### format)
-  const employeeIdRegex = /^TCH\d{4}$/i;
+  // Check if it's an employeeId (SchoolAbbreviation#### format, e.g., SVSN0001, DPS0001)
+  const employeeIdRegex = /^[A-Z]{2,4}\d{4}$/i;
   if (employeeIdRegex.test(identifier)) {
     return true;
   }
@@ -59,9 +59,9 @@ export function isValidLoginIdentifier(identifier: string): boolean {
 }
 
 /**
- * Get login hint text for UI
+ * Get hint text for login form
  * @returns string - Hint text for login form
  */
 export function getLoginHintText(): string {
-  return 'Email address or Employee ID (e.g., TCH0001)';
+  return 'Email address or Employee ID (e.g., SVSN0001, DPS0001)';
 }
