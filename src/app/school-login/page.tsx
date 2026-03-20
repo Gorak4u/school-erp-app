@@ -85,6 +85,9 @@ function SchoolLoginInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
 
   // Resolve subdomain: from URL param or from hostname
   useEffect(() => {
@@ -138,6 +141,34 @@ function SchoolLoginInner() {
       .catch(() => setSchoolError('Failed to load school information'))
       .finally(() => setLoadingSchool(false));
   }, [subdomain]);
+
+  // Advanced mouse tracking for interactive effects
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousemove', handleMouseMove);
+      setMounted(true);
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
+  }, []);
+
+  // Calculate parallax effect based on mouse position
+  const calculateParallax = (depth: number) => {
+    if (!mounted) return { x: 0, y: 0 };
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const moveX = (mousePosition.x - centerX) / depth;
+    const moveY = (mousePosition.y - centerY) / depth;
+    return { x: moveX, y: moveY };
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,30 +228,116 @@ function SchoolLoginInner() {
 
   // Invalid subdomain screen
   if (!loadingSchool && subdomain && schoolError) {
+    const parallax = calculateParallax(50);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Advanced animated background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
+        
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white/30 rounded-full"
+              initial={{ 
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                opacity: 0
+              }}
+              animate={{
+                y: [null, -100, -200],
+                opacity: [0, 1, 0],
+                x: [null, Math.random() * 100 - 50]
+              }}
+              transition={{
+                duration: 3 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 3,
+                ease: "linear"
+              }}
+              style={{
+                left: Math.random() * 100 + '%',
+                top: Math.random() * 100 + '%'
+              }}
+            />
+          ))}
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center max-w-md"
+          initial={{ opacity: 0, scale: 0.8, rotateY: 180 }}
+          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+          transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
+          className="text-center max-w-md relative z-10"
+          style={{
+            transform: `translateX(${parallax.x}px) translateY(${parallax.y}px)`
+          }}
         >
-          <div className="mb-8">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-2xl">
-              <span className="text-4xl">🏫</span>
+          <motion.div
+            animate={{ 
+              rotateY: [0, 360],
+              scale: [1, 1.05, 1]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="mb-8"
+          >
+            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 flex items-center justify-center shadow-2xl relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+              <span className="text-5xl relative z-10">🏫</span>
+              <div className="absolute -inset-1 bg-gradient-to-br from-red-500 to-purple-600 rounded-3xl blur-lg opacity-50 animate-pulse"></div>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-3 bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
-              School Not Found
-            </h1>
-            <p className="text-gray-400 mb-8 leading-relaxed">{schoolError}</p>
+          </motion.div>
+          
+          <motion.h1 
+            className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 bg-clip-text text-transparent"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            School Not Found
+          </motion.h1>
+          
+          <motion.p 
+            className="text-gray-300 mb-8 leading-relaxed text-lg"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+          >
+            {schoolError}
+          </motion.p>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <Link 
               href="/" 
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium transition-all transform hover:scale-105 shadow-lg"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-lg transition-all shadow-2xl relative overflow-hidden group"
             >
-              <span>←</span>
-              Return to main site
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              <div className="relative flex items-center gap-3">
+                <motion.span
+                  animate={{ x: [-5, 5, -5] }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  ←
+                </motion.span>
+                <span>Return to main site</span>
+                <span className="text-xl">🚀</span>
+              </div>
             </Link>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     );
@@ -228,275 +345,636 @@ function SchoolLoginInner() {
 
   const schoolName = school?.name || 'School Portal';
   const schoolLocation = [school?.city, school?.state].filter(Boolean).join(', ');
+  const parallax = calculateParallax(30);
 
   return (
     <div 
-      className="min-h-screen flex flex-col"
+      className="min-h-screen flex flex-col relative overflow-hidden"
       style={{ 
         background: theme?.backgroundColor || '#030712',
         minHeight: '100vh'
       }}
     >
+      {/* Advanced animated background layers */}
+      <div className="absolute inset-0">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/10 to-purple-900/20"></div>
+        
+        {/* Animated gradient orbs */}
+        <motion.div
+          className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-20"
+          style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div
+          className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-20"
+          style={{ background: theme?.accentColor || '#60a5fa' }}
+          animate={{
+            x: [0, -100, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.3, 1]
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 5
+          }}
+        />
+        
+        <motion.div
+          className="absolute top-1/2 left-1/2 w-96 h-96 rounded-full opacity-10"
+          style={{ background: theme?.secondaryColor || '#1d4ed8' }}
+          animate={{
+            x: [0, 50, -50, 0],
+            y: [0, -30, 30, 0],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{
+            duration: 30,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 10
+          }}
+        />
+      </div>
+
+      {/* Floating geometric shapes */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(8)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute border-2 border-white/5"
+            style={{
+              width: Math.random() * 100 + 50 + 'px',
+              height: Math.random() * 100 + 50 + 'px',
+              left: Math.random() * 100 + '%',
+              top: Math.random() * 100 + '%',
+              borderRadius: Math.random() > 0.5 ? '50%' : '10%'
+            }}
+            animate={{
+              rotate: [0, 360],
+              x: [0, Math.random() * 100 - 50],
+              y: [0, Math.random() * 100 - 50],
+              opacity: [0.1, 0.3, 0.1]
+            }}
+            transition={{
+              duration: 20 + Math.random() * 20,
+              repeat: Infinity,
+              ease: "linear",
+              delay: Math.random() * 10
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Interactive light effect following mouse */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle 600px at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.1) 0%, transparent 50%)`
+        }}
+      />
       {/* Header */}
-      <div 
-        className="flex-shrink-0 px-6 py-4 border-b backdrop-blur-sm"
+      <motion.div 
+        className="flex-shrink-0 px-6 py-4 border-b backdrop-blur-sm relative z-20"
         style={{
           background: `linear-gradient(135deg, ${theme?.secondaryColor}20 0%, ${theme?.accentColor}20 100%)`,
           borderColor: `${theme?.accentColor}30`,
-          borderWidth: '1px'
+          borderWidth: '1px',
+          transform: `translateY(${parallax.y * 0.5}px)`
         }}
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div 
             className="flex items-center gap-4"
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.8, delay: 0.2, type: "spring", stiffness: 100 }}
           >
-            <div className="relative">
+            <div className="relative group">
               {school?.logo ? (
-                <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10">
-                  <img src={school.logo} alt={schoolName} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-white/10"
-                  style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                <motion.div 
+                  className="w-14 h-14 rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/20 relative"
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  {schoolName.charAt(0)}
-                </div>
+                  <img src={school.logo} alt={schoolName} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <motion.div
+                    className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div 
+                  className="w-14 h-14 rounded-3xl flex items-center justify-center text-white font-bold text-2xl shadow-2xl ring-4 ring-white/20 relative overflow-hidden"
+                  style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <span className="relative z-10">{schoolName.charAt(0)}</span>
+                  <motion.div
+                    className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </motion.div>
               )}
-              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
             <div>
-              <h1 
-                className="font-bold text-lg leading-tight"
+              <motion.h1 
+                className="font-bold text-xl leading-tight"
                 style={{ color: theme?.textColor || '#ffffff' }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
               >
                 {loadingSchool ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Loading...
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                    <span>Loading...</span>
                   </div>
-                ) : schoolName}
-              </h1>
+                ) : (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6, duration: 0.8 }}
+                  >
+                    {schoolName}
+                  </motion.span>
+                )}
+              </motion.h1>
               {schoolLocation && (
-                <p className="text-xs opacity-70 flex items-center gap-1" style={{ color: theme?.textColor || '#ffffff' }}>
-                  <span>📍</span>
+                <motion.p 
+                  className="text-sm opacity-80 flex items-center gap-2" 
+                  style={{ color: theme?.textColor || '#ffffff' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 0.8, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.6 }}
+                >
+                  <motion.span
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    📍
+                  </motion.span>
                   {schoolLocation}
-                </p>
+                </motion.p>
               )}
             </div>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
             className="flex items-center gap-3"
           >
-            <span className="text-xs hidden sm:block opacity-60 px-3 py-1 rounded-full border border-white/20" style={{ color: theme?.textColor || '#ffffff' }}>
-              ⚡ Powered by School ERP
-            </span>
+            <motion.span 
+              className="text-xs hidden sm:block opacity-80 px-4 py-2 rounded-full border border-white/30 backdrop-blur-sm font-medium"
+              style={{ color: theme?.textColor || '#ffffff' }}
+              whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <motion.span
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                className="inline-block mr-2"
+              >
+                ⚡
+              </motion.span>
+              Powered by School ERP
+            </motion.span>
           </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      <motion.div 
+        className="flex-1 flex items-center justify-center p-4 relative z-10"
+        style={{
+          transform: `translateY(${parallax.y * 0.3}px)`
+        }}
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          initial={{ opacity: 0, scale: 0.8, rotateX: 15 }}
+          animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+          transition={{ duration: 1, type: "spring", stiffness: 100 }}
           className="w-full max-w-md"
+          whileHover={{ scale: 1.02 }}
         >
           {mode === 'login' ? (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+              transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
               className="rounded-3xl p-8 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
                 borderColor: `${theme?.accentColor}40`,
                 borderWidth: '1px'
               }}
+              whileHover={{ 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                borderColor: `${theme?.accentColor}60`
+              }}
             >
-              {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
-                style={{ background: theme?.gradient }}
-              ></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10"
-                style={{ background: theme?.accentColor }}
-              ></div>
+              {/* Advanced decorative elements */}
+              <div className="absolute inset-0">
+                <motion.div
+                  className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20"
+                  style={{ background: theme?.gradient }}
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    rotate: [0, 180, 360]
+                  }}
+                  transition={{
+                    duration: 10,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                />
+                <motion.div
+                  className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15"
+                  style={{ background: theme?.accentColor }}
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    rotate: [0, -180, -360]
+                  }}
+                  transition={{
+                    duration: 15,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: 2
+                  }}
+                />
+                {/* Animated grid pattern */}
+                <div className="absolute inset-0 opacity-5">
+                  <div className="h-full w-full" style={{
+                    backgroundImage: `linear-gradient(${theme?.accentColor}40 1px, transparent 1px), linear-gradient(90deg, ${theme?.accentColor}40 1px, transparent 1px)`,
+                    backgroundSize: '20px 20px'
+                  }}></div>
+                </div>
+              </div>
+              
+              {/* Floating particles inside card */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(6)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white/40 rounded-full"
+                    animate={{
+                      y: [0, -20, 0],
+                      x: [0, Math.random() * 20 - 10, 0],
+                      opacity: [0, 1, 0]
+                    }}
+                    transition={{
+                      duration: 3 + Math.random() * 2,
+                      repeat: Infinity,
+                      delay: Math.random() * 3,
+                      ease: "easeInOut"
+                    }}
+                    style={{
+                      left: Math.random() * 100 + '%',
+                      top: Math.random() * 100 + '%'
+                    }}
+                  />
+                ))}
+              </div>
               
               {/* Title */}
               <div className="text-center mb-8 relative z-10">
                 <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
+                  initial={{ opacity: 0, y: -20, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
                 >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <span className="text-2xl">🔐</span>
-                  </div>
-                  <h2 
-                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
+                  <motion.div
+                    className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+                    whileHover={{ scale: 1.1, rotate: 10 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
+                    <motion.span 
+                      className="text-3xl relative z-10"
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      🔐
+                    </motion.span>
+                    <motion.div
+                      className="absolute -inset-2 bg-gradient-to-br from-blue-500 to-pink-500 rounded-3xl blur-xl opacity-50"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  </motion.div>
+                  <motion.h2 
+                    className="text-4xl font-bold mb-3 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.6 }}
                   >
                     Welcome Back
-                  </h2>
-                  <p className="text-sm opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
+                  </motion.h2>
+                  <motion.p 
+                    className="text-base opacity-90" 
+                    style={{ color: theme?.textColor || '#ffffff' }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 0.9, y: 0 }}
+                    transition={{ delay: 0.7, duration: 0.6 }}
+                  >
                     {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
-                  </p>
+                  </motion.p>
                 </motion.div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleLogin} className="space-y-5 relative z-10">
+              <form onSubmit={handleLogin} className="space-y-6 relative z-10">
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
+                  transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
                 >
-                  <label 
-                    className="block text-sm font-semibold mb-2 flex items-center gap-2"
+                  <motion.label 
+                    className="block text-sm font-bold mb-3 flex items-center gap-2"
                     style={{ color: theme?.textColor || '#ffffff' }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.6 }}
                   >
-                    <span>📧</span>
+                    <motion.span
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      📧
+                    </motion.span>
                     Email or Employee ID
-                  </label>
-                  <div className="relative">
-                    <input
+                  </motion.label>
+                  <motion.div 
+                    className="relative group"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <motion.input
                       type="text"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       required
                       autoFocus
                       placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                      className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
+                      className="w-full px-5 py-4 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-14 shadow-lg"
                       style={{
                         backgroundColor: `${theme?.inputBackgroundColor}80`,
                         borderColor: theme?.inputBorderColor,
                         borderWidth: '1px'
                       }}
+                      whileFocus={{ 
+                        scale: 1.02,
+                        boxShadow: `0 0 0 4px ${theme?.inputFocusColor}40`
+                      }}
                       onFocus={(e) => {
                         e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                        e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
                       }}
                       onBlur={(e) => {
                         e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                        e.target.style.boxShadow = 'none';
                       }}
                     />
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-50">
-                      <span className="text-sm">👤</span>
-                    </div>
-                  </div>
+                    <motion.div 
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-60"
+                      whileHover={{ scale: 1.2, rotate: 15 }}
+                    >
+                      <span className="text-lg">👤</span>
+                    </motion.div>
+                    {/* Animated input border */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl pointer-events-none"
+                      style={{
+                        background: `linear-gradient(90deg, ${theme?.inputFocusColor || '#3b82f6'}, ${theme?.accentColor || '#60a5fa'}, ${theme?.inputFocusColor || '#3b82f6'})`,
+                        backgroundSize: '200% 100%',
+                        opacity: 0
+                      }}
+                      whileFocus={{ opacity: 1 }}
+                      animate={{
+                        backgroundPosition: ['0% 50%', '200% 50%']
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    />
+                  </motion.div>
                 </motion.div>
 
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
+                  transition={{ duration: 0.8, delay: 0.6, type: "spring", stiffness: 100 }}
                 >
-                  <label 
-                    className="block text-sm font-semibold mb-2 flex items-center gap-2"
+                  <motion.label 
+                    className="block text-sm font-bold mb-3 flex items-center gap-2"
                     style={{ color: theme?.textColor || '#ffffff' }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7, duration: 0.6 }}
                   >
-                    <span>🔒</span>
+                    <motion.span
+                      animate={{ rotate: [0, -10, 10, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      🔒
+                    </motion.span>
                     Password
-                  </label>
-                  <div className="relative">
-                    <input
+                  </motion.label>
+                  <motion.div 
+                    className="relative group"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <motion.input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
                       placeholder="Enter your password"
-                      className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
+                      className="w-full px-5 py-4 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-14 shadow-lg"
                       style={{
                         backgroundColor: `${theme?.inputBackgroundColor}80`,
                         borderColor: theme?.inputBorderColor,
                         borderWidth: '1px'
                       }}
+                      whileFocus={{ 
+                        scale: 1.02,
+                        boxShadow: `0 0 0 4px ${theme?.inputFocusColor}40`
+                      }}
                       onFocus={(e) => {
                         e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                        e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
                       }}
                       onBlur={(e) => {
                         e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                        e.target.style.boxShadow = 'none';
                       }}
                     />
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-all hover:scale-110"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-all"
                       style={{ color: theme?.textColor || '#ffffff' }}
+                      whileHover={{ scale: 1.2, rotate: showPassword ? 180 : 0 }}
+                      whileTap={{ scale: 0.9 }}
                     >
                       {showPassword ? '🙈' : '👁️'}
-                    </button>
-                  </div>
+                    </motion.button>
+                    {/* Animated input border */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl pointer-events-none"
+                      style={{
+                        background: `linear-gradient(90deg, ${theme?.inputFocusColor || '#3b82f6'}, ${theme?.accentColor || '#60a5fa'}, ${theme?.inputFocusColor || '#3b82f6'})`,
+                        backgroundSize: '200% 100%',
+                        opacity: 0
+                      }}
+                      whileFocus={{ opacity: 1 }}
+                      animate={{
+                        backgroundPosition: ['0% 50%', '200% 50%']
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    />
+                  </motion.div>
                 </motion.div>
 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
+                  transition={{ duration: 0.8, delay: 0.8, type: "spring", stiffness: 100 }}
                   className="flex justify-end"
                 >
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => { setMode('forgot'); setError(''); }}
-                    className="text-sm font-medium transition-all hover:scale-105 flex items-center gap-1"
+                    className="text-sm font-bold transition-all flex items-center gap-2 group"
                     style={{ color: theme?.accentColor || '#60a5fa' }}
+                    whileHover={{ scale: 1.05, x: 5 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <span>❓</span>
-                    Forgot password?
-                  </button>
+                    <motion.span
+                      animate={{ rotate: [0, 15, -15, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      ❓
+                    </motion.span>
+                    <span className="group-hover:underline">Forgot password?</span>
+                  </motion.button>
                 </motion.div>
 
                 {error && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl px-4 py-3.5 text-sm border backdrop-blur-sm flex items-center gap-3"
+                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
+                    className="rounded-2xl px-4 py-4 text-sm border backdrop-blur-sm flex items-center gap-3 shadow-lg"
                     style={{
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      borderColor: 'rgba(239, 68, 68, 0.5)',
                       color: '#f87171'
                     }}
                   >
-                    <span className="text-lg">⚠️</span>
-                    <span>{error}</span>
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 0.5, repeat: 2, ease: "easeInOut" }}
+                    >
+                      <span className="text-xl">⚠️</span>
+                    </motion.div>
+                    <span className="font-medium">{error}</span>
+                    <motion.div
+                      className="ml-auto w-2 h-2 bg-red-500 rounded-full"
+                      animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    />
                   </motion.div>
                 )}
 
                 <motion.button
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.6 }}
+                  transition={{ duration: 0.8, delay: 1, type: "spring", stiffness: 100 }}
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-lg relative overflow-hidden group"
+                  className="w-full py-4 px-6 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-2xl relative overflow-hidden group"
                   style={{
                     background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                     color: theme?.textColor || '#ffffff',
                     opacity: isLoading ? 0.7 : 1
                   }}
-                  whileHover={{ scale: !isLoading ? 1.02 : 1 }}
+                  whileHover={{ 
+                    scale: !isLoading ? 1.03 : 1,
+                    boxShadow: '0 20px 40px -15px rgba(59, 130, 246, 0.5)'
+                  }}
                   whileTap={{ scale: !isLoading ? 0.98 : 1 }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                  <div className="relative flex items-center justify-center gap-2">
+                  {/* Advanced shimmer effect */}
+                  <div className="absolute inset-0">
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.8, ease: "easeInOut" }}
+                    />
+                  </div>
+                  
+                  {/* Pulsing glow effect */}
+                  <motion.div
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      background: `linear-gradient(135deg, ${theme?.accentColor || '#60a5fa'}, transparent)`,
+                      opacity: 0
+                    }}
+                    animate={{ opacity: [0, 0.3, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  
+                  <div className="relative flex items-center justify-center gap-3">
                     {isLoading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Signing in...
+                        <motion.div
+                          className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                        <span>Signing in...</span>
                       </>
                     ) : (
                       <>
-                        <span>🚀</span>
-                        Sign In
+                        <motion.span
+                          animate={{ y: [0, -3, 0] }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          🚀
+                        </motion.span>
+                        <span>Sign In</span>
+                        <motion.div
+                          className="w-2 h-2 bg-white rounded-full"
+                          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+                        />
                       </>
                     )}
                   </div>
@@ -680,22 +1158,59 @@ function SchoolLoginInner() {
 
           {/* Footer */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
+            transition={{ duration: 0.8, delay: 1.2, type: "spring", stiffness: 100 }}
             className="text-center"
+            style={{
+              transform: `translateY(${parallax.y * 0.2}px)`
+            }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
-              <span className="text-xs opacity-60" style={{ color: theme?.textColor || '#ffffff' }}>
-                💡 Having trouble? 
+            <motion.div 
+              className="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 backdrop-blur-xl shadow-2xl group"
+              style={{ 
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderColor: `${theme?.accentColor}30`
+              }}
+              whileHover={{ 
+                scale: 1.05,
+                boxShadow: '0 10px 30px -10px rgba(59, 130, 246, 0.3)',
+                borderColor: `${theme?.accentColor}60`
+              }}
+            >
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                className="text-lg"
+              >
+                💡
+              </motion.div>
+              <span className="text-xs opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
+                Having trouble?
               </span>
-              <span className="text-xs font-medium" style={{ color: theme?.accentColor || '#60a5fa' }}>
+              <motion.div 
+                className="w-1 h-1 rounded-full"
+                style={{ backgroundColor: theme?.accentColor || '#60a5fa' }}
+                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <span className="text-xs font-bold" style={{ color: theme?.accentColor || '#60a5fa' }}>
                 Contact your school administrator
               </span>
-            </div>
+              
+              {/* Hover glow effect */}
+              <motion.div
+                className="absolute inset-0 rounded-full opacity-0"
+                style={{
+                  background: `radial-gradient(circle at center, ${theme?.accentColor}40 0%, transparent 70%)`
+                }}
+                whileHover={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              />
+            </motion.div>
           </motion.div>
         </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -703,17 +1218,117 @@ function SchoolLoginInner() {
 export default function SchoolLoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/30 flex items-center justify-center relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0">
+          <motion.div
+            className="absolute top-0 left-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360]
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          <motion.div
+            className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.3, 1],
+              rotate: [0, -180, -360]
+            }}
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              ease: "linear",
+              delay: 5
+            }}
+          />
+        </div>
+
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(15)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white/40 rounded-full"
+              animate={{
+                y: [null, -150, -300],
+                opacity: [0, 1, 0],
+                x: [null, Math.random() * 100 - 50]
+              }}
+              transition={{
+                duration: 4 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 4,
+                ease: "linear"
+              }}
+              style={{
+                left: Math.random() * 100 + '%',
+                top: Math.random() * 100 + '%'
+              }}
+            />
+          ))}
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center"
+          initial={{ opacity: 0, scale: 0.8, rotateY: 180 }}
+          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+          transition={{ duration: 1, type: "spring", stiffness: 100 }}
+          className="text-center relative z-10"
         >
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          <motion.div
+            className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
+            <motion.div
+              className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+            <motion.div
+              className="absolute -inset-2 bg-gradient-to-br from-blue-500 to-pink-500 rounded-3xl blur-xl opacity-50"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
+          <motion.p 
+            className="text-gray-300 text-lg font-medium animate-pulse"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            Loading School Portal...
+          </motion.p>
+          
+          {/* Loading dots */}
+          <div className="flex justify-center gap-2 mt-4">
+            {[...Array(3)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-blue-400 rounded-full"
+                animate={{ 
+                  scale: [1, 1.5, 1],
+                  opacity: [0.5, 1, 0.5]
+                }}
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
+                  delay: i * 0.2
+                }}
+              />
+            ))}
           </div>
-          <p className="text-gray-400 animate-pulse">Loading School Portal...</p>
         </motion.div>
       </div>
     }>
