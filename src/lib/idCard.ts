@@ -41,15 +41,16 @@ const createCardContent = async (data: StudentIdCardData, showBack: boolean = fa
   });
   
   const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-    width: 60,
+    width: 40, // Reduced from 60 to 40 pixels
     margin: 0,
     color: {
       dark: '#000000',
       light: '#FFFFFF'
-    }
+    },
+    errorCorrectionLevel: 'L' // Lower error correction for smaller size
   });
   
-  const qrCode = `<img src="${qrCodeDataUrl}" alt="QR Code" style="width: 60px; height: 60px; border-radius: 4px; border: 1px solid #ccc;" />`;
+  const qrCode = `<img src="${qrCodeDataUrl}" alt="QR Code" style="width: 40px; height: 40px; border-radius: 4px; border: 1px solid #ccc;" />`;
 
   if (showBack) {
     // Back side design - matching front side styling exactly

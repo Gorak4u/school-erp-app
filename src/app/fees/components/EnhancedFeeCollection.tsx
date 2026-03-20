@@ -251,8 +251,32 @@ School Administration
 
       // For QR code attachments, we need to send a separate request with attachments
       if (emailContent.attachments && emailContent.attachments.length > 0) {
-        const attachmentPromises = emailRecipients.map(recipient =>
-          fetch('/api/school-email', {
+        const attachmentPromises = emailRecipients.map(recipient => {
+          // Check attachment size
+          const totalSize = emailContent.attachments.reduce((total: number, att: any) => {
+            const base64Size = att.content ? att.content.length * 0.75 : 0;
+            return total + base64Size;
+          }, 0);
+
+          // If attachments are too large, send without them
+          if (totalSize > 8 * 1024 * 1024) {
+            console.warn(`QR code attachments too large, sending without attachments to:`, recipient);
+            
+            return fetch('/api/school-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                to: recipient,
+                subject: emailContent.subject + ' (QR code omitted)',
+                html: emailContent.body.replace(/\n/g, '<br>') + '<br><br><p style="color: #666; font-size: 12px;">Note: QR code was too large to attach. Please generate it from the system.</p>'
+              })
+            });
+          }
+
+          // Send normally if size is acceptable
+          return fetch('/api/school-email', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -263,8 +287,8 @@ School Administration
               html: emailContent.body.replace(/\n/g, '<br>'),
               attachments: emailContent.attachments
             })
-          })
-        );
+          });
+        });
         
         await Promise.all(attachmentPromises);
       } else {
@@ -340,9 +364,39 @@ School Administration
         return;
       }
 
-      // Send emails asynchronously
-      const emailPromises = emailRecipients.map(recipient => 
-        fetch('/api/school-email', {
+      // Send emails asynchronously with attachment size validation
+      const emailPromises = emailRecipients.map(recipient => {
+        // Check attachment size before sending
+        const totalSize = emailContent.attachments?.reduce((total: number, att: any) => {
+          const base64Size = att.content ? att.content.length * 0.75 : 0; // Base64 is ~33% larger than binary
+          return total + base64Size;
+        }, 0) || 0;
+
+        // Log attachment sizes for debugging
+        if (emailContent.attachments?.length > 0) {
+          console.log(`Email attachment size for ${recipient}: ${Math.round(totalSize / 1024 / 1024)}MB, ${emailContent.attachments.length} files`);
+        }
+
+        // If attachments are too large (>8MB), send without attachments
+        if (totalSize > 8 * 1024 * 1024) {
+          console.warn(`Email attachments too large (${Math.round(totalSize / 1024 / 1024)}MB), sending without attachments to:`, recipient);
+          
+          return fetch('/api/school-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: recipient,
+              subject: emailContent.subject + (emailContent.attachments?.length ? ' (Large attachments omitted)' : ''),
+              html: emailContent.body + '<br><br><p style="color: #666; font-size: 12px;">Note: Receipt PDF was too large to attach. Please download it from the system.</p>'
+            })
+          });
+        }
+
+        // Send normally if size is acceptable
+        console.log(`Sending email with attachments (${Math.round(totalSize / 1024 / 1024)}MB) to:`, recipient);
+        return fetch('/api/school-email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -353,8 +407,8 @@ School Administration
             html: emailContent.body,
             attachments: emailContent.attachments
           })
-        })
-      );
+        });
+      });
 
       // Send emails asynchronously (don't wait for completion)
       Promise.all(emailPromises).then(() => {
@@ -1772,6 +1826,7 @@ School Administration
       <AnimatePresence>
         {showReceipt && (
           <motion.div
+            key="receipt-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1849,6 +1904,7 @@ School Administration
       <AnimatePresence>
         {showDetailedReceipt && (
           <motion.div
+            key="detailed-receipt-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1896,6 +1952,7 @@ School Administration
       <AnimatePresence>
         {showHistoryReceipt && selectedHistoryEntry && (
           <motion.div
+            key="history-receipt-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1965,11 +2022,13 @@ School Administration
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* UPI QR Code Modal */}
-        <AnimatePresence>
+      {/* UPI QR Code Modal */}
+      <AnimatePresence>
           {showUpiQr && (
             <motion.div
+              key="upi-qr-modal"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1977,12 +2036,12 @@ School Administration
               onClick={() => setShowUpiQr(false)}
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className={`relative w-full max-w-md mx-4 ${cardCls} rounded-2xl border shadow-2xl`}
-                onClick={(e) => e.stopPropagation()}
-              >
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`relative w-full max-w-md mx-4 ${cardCls} rounded-2xl border shadow-2xl`}
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -2092,10 +2151,9 @@ School Administration
                     </div>
                   </div>
                 </div>
-              </motion.div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   </div>

@@ -375,4 +375,7 @@ export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|uploads).*)',
   ],
+  // Increase body size limit for email attachments with base64 images
+  // Correct property for Next.js 16.1.6
+  middlewareClientMaxBodySize: '50mb',
 };

@@ -24,10 +24,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { to, subject, html } = await req.json();
+    // Check content length before parsing
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB limit
+      return NextResponse.json({ 
+        error: 'Request body too large. Maximum size is 50MB.' 
+      }, { status: 413 });
+    }
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return NextResponse.json({ 
+        error: 'Invalid JSON format. Request body may be too large or malformed.' 
+      }, { status: 400 });
+    }
+
+    const { to, subject, html } = body;
 
     if (!to || !subject || !html) {
       return NextResponse.json({ error: 'to, subject, and html are required' }, { status: 400 });
+    }
+
+    // Check HTML content size
+    if (html.length > 40 * 1024 * 1024) { // 40MB limit for HTML content
+      return NextResponse.json({ 
+        error: 'Email content too large. Maximum HTML size is 40MB.' 
+      }, { status: 413 });
     }
 
     // Validate email format
@@ -52,6 +77,8 @@ export async function POST(req: Request) {
     }
   } catch (error: any) {
     console.error('School email API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message || 'Internal server error' 
+    }, { status: 500 });
   }
 }
