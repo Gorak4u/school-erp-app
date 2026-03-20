@@ -198,15 +198,30 @@ function SchoolLoginInner() {
   // Invalid subdomain screen
   if (!loadingSchool && subdomain && schoolError) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🏫</div>
-          <h1 className="text-2xl font-bold text-white mb-2">School Not Found</h1>
-          <p className="text-gray-400 mb-6">{schoolError}</p>
-          <Link href="/" className="text-blue-400 hover:underline text-sm">
-            Return to main site
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-md"
+        >
+          <div className="mb-8">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-2xl">
+              <span className="text-4xl">🏫</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-3 bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
+              School Not Found
+            </h1>
+            <p className="text-gray-400 mb-8 leading-relaxed">{schoolError}</p>
+            <Link 
+              href="/" 
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium transition-all transform hover:scale-105 shadow-lg"
+            >
+              <span>←</span>
+              Return to main site
+            </Link>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -224,42 +239,65 @@ function SchoolLoginInner() {
     >
       {/* Header */}
       <div 
-        className="flex-shrink-0 px-6 py-4 border-b"
+        className="flex-shrink-0 px-6 py-4 border-b backdrop-blur-sm"
         style={{
-          backgroundColor: theme?.secondaryColor || '#1f2937',
-          borderColor: theme?.accentColor || '#374151',
+          background: `linear-gradient(135deg, ${theme?.secondaryColor}20 0%, ${theme?.accentColor}20 100%)`,
+          borderColor: `${theme?.accentColor}30`,
           borderWidth: '1px'
         }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {school?.logo ? (
-              <img src={school.logo} alt={schoolName} className="h-9 w-9 rounded-lg object-cover" />
-            ) : (
-              <div 
-                className="h-9 w-9 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-                style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
-              >
-                {schoolName.charAt(0)}
-              </div>
-            )}
+          <motion.div 
+            className="flex items-center gap-4"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="relative">
+              {school?.logo ? (
+                <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10">
+                  <img src={school.logo} alt={schoolName} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div 
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-white/10"
+                  style={{ background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                >
+                  {schoolName.charAt(0)}
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+            </div>
             <div>
               <h1 
-                className="font-semibold text-base leading-tight"
+                className="font-bold text-lg leading-tight"
                 style={{ color: theme?.textColor || '#ffffff' }}
               >
-                {loadingSchool ? 'Loading...' : schoolName}
+                {loadingSchool ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Loading...
+                  </div>
+                ) : schoolName}
               </h1>
               {schoolLocation && (
-                <p className="text-xs opacity-70" style={{ color: theme?.textColor || '#ffffff' }}>
+                <p className="text-xs opacity-70 flex items-center gap-1" style={{ color: theme?.textColor || '#ffffff' }}>
+                  <span>📍</span>
                   {schoolLocation}
                 </p>
               )}
             </div>
-          </div>
-          <span className="text-xs hidden sm:block opacity-60" style={{ color: theme?.textColor || '#ffffff' }}>
-            Powered by School ERP
-          </span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="flex items-center gap-3"
+          >
+            <span className="text-xs hidden sm:block opacity-60 px-3 py-1 rounded-full border border-white/20" style={{ color: theme?.textColor || '#ffffff' }}>
+              ⚡ Powered by School ERP
+            </span>
+          </motion.div>
         </div>
       </div>
 
@@ -272,63 +310,99 @@ function SchoolLoginInner() {
           className="w-full max-w-md"
         >
           {mode === 'login' ? (
-            <div 
-              className="rounded-2xl p-8 shadow-2xl border"
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="rounded-3xl p-8 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
               style={{
-                backgroundColor: theme?.backgroundColor || '#1f2937',
-                borderColor: theme?.secondaryColor || '#374151',
+                background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
+                borderColor: `${theme?.accentColor}40`,
                 borderWidth: '1px'
               }}
             >
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
+                style={{ background: theme?.gradient }}
+              ></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10"
+                style={{ background: theme?.accentColor }}
+              ></div>
+              
               {/* Title */}
-              <div className="text-center mb-8">
-                <h2 
-                  className="text-2xl font-bold"
-                  style={{ color: theme?.textColor || '#ffffff' }}
+              <div className="text-center mb-8 relative z-10">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  Welcome Back
-                </h2>
-                <p className="text-sm mt-1 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
-                  {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
-                </p>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <span className="text-2xl">🔐</span>
+                  </div>
+                  <h2 
+                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
+                  >
+                    Welcome Back
+                  </h2>
+                  <p className="text-sm opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
+                    {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
+                  </p>
+                </motion.div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleLogin} className="space-y-5">
-                <div>
+              <form onSubmit={handleLogin} className="space-y-5 relative z-10">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
                   <label 
-                    className="block text-sm font-medium mb-2"
+                    className="block text-sm font-semibold mb-2 flex items-center gap-2"
                     style={{ color: theme?.textColor || '#ffffff' }}
                   >
+                    <span>📧</span>
                     Email or Employee ID
                   </label>
-                  <input
-                    type="text"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                    placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                    className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12"
-                    style={{
-                      backgroundColor: theme?.inputBackgroundColor || '#374151',
-                      borderColor: theme?.inputBorderColor || '#6b7280',
-                      borderWidth: '1px'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                    }}
-                  />
-                </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      placeholder="Enter your email or Employee ID (e.g., TCH0001)"
+                      className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
+                      style={{
+                        backgroundColor: `${theme?.inputBackgroundColor}80`,
+                        borderColor: theme?.inputBorderColor,
+                        borderWidth: '1px'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                        e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-50">
+                      <span className="text-sm">👤</span>
+                    </div>
+                  </div>
+                </motion.div>
 
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
                   <label 
-                    className="block text-sm font-medium mb-2"
+                    className="block text-sm font-semibold mb-2 flex items-center gap-2"
                     style={{ color: theme?.textColor || '#ffffff' }}
                   >
+                    <span>🔒</span>
                     Password
                   </label>
                   <div className="relative">
@@ -338,181 +412,288 @@ function SchoolLoginInner() {
                       onChange={e => setPassword(e.target.value)}
                       required
                       placeholder="Enter your password"
-                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12"
+                      className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
                       style={{
-                        backgroundColor: theme?.inputBackgroundColor || '#374151',
-                        borderColor: theme?.inputBorderColor || '#6b7280',
+                        backgroundColor: `${theme?.inputBackgroundColor}80`,
+                        borderColor: theme?.inputBorderColor,
                         borderWidth: '1px'
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                        e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
                       }}
                       onBlur={(e) => {
                         e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
+                        e.target.style.boxShadow = 'none';
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-all hover:scale-110"
                       style={{ color: theme?.textColor || '#ffffff' }}
                     >
-                      {showPassword ? '�️' : '👁️‍🗨️'}
+                      {showPassword ? '🙈' : '👁️'}
                     </button>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="flex justify-end">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                  className="flex justify-end"
+                >
                   <button
                     type="button"
                     onClick={() => { setMode('forgot'); setError(''); }}
-                    className="text-sm transition-colors"
+                    className="text-sm font-medium transition-all hover:scale-105 flex items-center gap-1"
                     style={{ color: theme?.accentColor || '#60a5fa' }}
                   >
+                    <span>❓</span>
                     Forgot password?
                   </button>
-                </div>
+                </motion.div>
 
                 {error && (
-                  <div className="rounded-lg px-4 py-3 text-sm border"
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl px-4 py-3.5 text-sm border backdrop-blur-sm flex items-center gap-3"
                     style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      borderColor: 'rgba(239, 68, 68, 0.3)',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
                       color: '#f87171'
                     }}
                   >
-                    {error}
-                  </div>
+                    <span className="text-lg">⚠️</span>
+                    <span>{error}</span>
+                  </motion.div>
                 )}
 
-                <button
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 px-4 font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
+                  className="w-full py-3.5 px-4 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-lg relative overflow-hidden group"
                   style={{
                     background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                     color: theme?.textColor || '#ffffff',
                     opacity: isLoading ? 0.7 : 1
                   }}
+                  whileHover={{ scale: !isLoading ? 1.02 : 1 }}
+                  whileTap={{ scale: !isLoading ? 0.98 : 1 }}
                 >
-                  {isLoading ? 'Signing in...' : 'Sign In'}
-                </button>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                  <div className="relative flex items-center justify-center gap-2">
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀</span>
+                        Sign In
+                      </>
+                    )}
+                  </div>
+                </motion.button>
               </form>
-            </div>
+            </motion.div>
           ) : (
             /* Forgot Password */
-            <div 
-              className="rounded-2xl p-8 shadow-2xl border"
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="rounded-3xl p-8 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
               style={{
-                backgroundColor: theme?.backgroundColor || '#1f2937',
-                borderColor: theme?.secondaryColor || '#374151',
+                background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
+                borderColor: `${theme?.accentColor}40`,
                 borderWidth: '1px'
               }}
             >
-              <div className="text-center mb-8">
-                <div className="text-4xl mb-3">🔑</div>
-                <h2 
-                  className="text-2xl font-bold"
-                  style={{ color: theme?.textColor || '#ffffff' }}
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
+                style={{ background: theme?.gradient }}
+              ></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10"
+                style={{ background: theme?.accentColor }}
+              ></div>
+              
+              <div className="text-center mb-8 relative z-10">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  Reset Password
-                </h2>
-                <p className="text-sm mt-1 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
-                  Enter your email to receive a reset link
-                </p>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                    <span className="text-2xl">🔑</span>
+                  </div>
+                  <h2 
+                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
+                  >
+                    Reset Password
+                  </h2>
+                  <p className="text-sm opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
+                    Enter your email to receive a reset link
+                  </p>
+                </motion.div>
               </div>
 
               {forgotSent ? (
-                <div className="text-center">
-                  <div className="text-4xl mb-3">📧</div>
-                  <p className="font-medium mb-2" style={{ color: '#4ade80' }}>Reset email sent!</p>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center relative z-10"
+                >
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                    <span className="text-2xl">📧</span>
+                  </div>
+                  <p className="font-bold text-lg mb-2 text-green-400">Reset email sent!</p>
                   <p className="text-sm mb-6 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
                     Check your inbox for the password reset link.
                   </p>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => { setMode('login'); setForgotSent(false); setEmail(''); }}
-                    className="text-sm transition-colors"
+                    className="font-medium transition-all flex items-center gap-2 mx-auto"
                     style={{ color: theme?.accentColor || '#60a5fa' }}
                   >
+                    <span>←</span>
                     Back to sign in
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               ) : (
-                <form onSubmit={handleForgotPassword} className="space-y-5">
-                  <div>
+                <form onSubmit={handleForgotPassword} className="space-y-5 relative z-10">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
                     <label 
-                      className="block text-sm font-medium mb-2"
+                      className="block text-sm font-semibold mb-2 flex items-center gap-2"
                       style={{ color: theme?.textColor || '#ffffff' }}
                     >
+                      <span>📧</span>
                       Email or Employee ID
                     </label>
-                    <input
-                      type="text"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      autoFocus
-                      placeholder="Enter your email or Employee ID (e.g., TCH0001)"
-                      className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none transition-all"
-                      style={{
-                        backgroundColor: theme?.inputBackgroundColor || '#374151',
-                        borderColor: theme?.inputBorderColor || '#6b7280',
-                        borderWidth: '1px'
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                      }}
-                    />
-                  </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        required
+                        autoFocus
+                        placeholder="Enter your email or Employee ID (e.g., TCH0001)"
+                        className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
+                        style={{
+                          backgroundColor: `${theme?.inputBackgroundColor}80`,
+                          borderColor: theme?.inputBorderColor,
+                          borderWidth: '1px'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
+                          e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-50">
+                        <span className="text-sm">👤</span>
+                      </div>
+                    </div>
+                  </motion.div>
 
                   {error && (
-                    <div className="rounded-lg px-4 py-3 text-sm border"
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl px-4 py-3.5 text-sm border backdrop-blur-sm flex items-center gap-3"
                       style={{
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
                         color: '#f87171'
                       }}
                     >
-                      {error}
-                    </div>
+                      <span className="text-lg">⚠️</span>
+                      <span>{error}</span>
+                    </motion.div>
                   )}
 
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3 px-4 font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
+                    className="w-full py-3.5 px-4 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-lg relative overflow-hidden group"
                     style={{
                       background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                       color: theme?.textColor || '#ffffff',
                       opacity: isLoading ? 0.7 : 1
                     }}
+                    whileHover={{ scale: !isLoading ? 1.02 : 1 }}
+                    whileTap={{ scale: !isLoading ? 0.98 : 1 }}
                   >
-                    {isLoading ? 'Sending...' : 'Send Reset Link'}
-                  </button>
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <div className="relative flex items-center justify-center gap-2">
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <span>📤</span>
+                          Send Reset Link
+                        </>
+                      )}
+                    </div>
+                  </motion.button>
 
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
                     type="button"
                     onClick={() => { setMode('login'); setError(''); }}
-                    className="w-full text-center text-sm transition-colors"
+                    className="w-full text-center text-sm font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
                     style={{ 
                       color: theme?.textColor || '#ffffff',
                       opacity: 0.7
                     }}
                   >
-                    ← Back to sign in
-                  </button>
+                    <span>←</span>
+                    Back to sign in
+                  </motion.button>
                 </form>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Footer */}
-          <p className="text-center text-xs text-gray-600 mt-6">
-            Having trouble? Contact your school administrator.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
+              <span className="text-xs opacity-60" style={{ color: theme?.textColor || '#ffffff' }}>
+                💡 Having trouble? 
+              </span>
+              <span className="text-xs font-medium" style={{ color: theme?.accentColor || '#60a5fa' }}>
+                Contact your school administrator
+              </span>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>
@@ -522,8 +703,18 @@ function SchoolLoginInner() {
 export default function SchoolLoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-400 animate-pulse">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          </div>
+          <p className="text-gray-400 animate-pulse">Loading School Portal...</p>
+        </motion.div>
       </div>
     }>
       <SchoolLoginInner />
