@@ -910,7 +910,7 @@ function SchoolLoginInner() {
                       onChange={e => setEmail(e.target.value)}
                       required
                       autoFocus
-                      placeholder="Enter your email or Employee ID (e.g., SVSN0001, DPS0001)"
+                      placeholder="Enter your email or Employee ID"
                       className="w-full px-4 py-3 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
                       style={{
                         backgroundColor: `${theme?.inputBackgroundColor}80`,
@@ -1247,7 +1247,7 @@ function SchoolLoginInner() {
                         onChange={e => setEmail(e.target.value)}
                         required
                         autoFocus
-                        placeholder="Enter your email or Employee ID (e.g., SVSN0001, DPS0001)"
+                        placeholder="Enter your email or Employee ID"
                         className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
                         style={{
                           backgroundColor: `${theme?.inputBackgroundColor}80`,

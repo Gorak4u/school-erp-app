@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Auto-generated Employee ID: ${employeeId}`);
     } else if (!isValidEmployeeIdFormat(employeeId)) {
       return NextResponse.json({ 
-        error: 'Invalid Employee ID format. Use {SchoolAbbreviation}{####} (e.g., SVSN0001, DPS0001)' 
+        error: 'Invalid Employee ID format. Use {SchoolAbbreviation}{####} format' 
       }, { status: 400 });
     } else {
       // Check if Employee ID already exists in this school

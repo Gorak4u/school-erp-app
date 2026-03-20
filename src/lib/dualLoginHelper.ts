@@ -4,7 +4,7 @@ import { schoolPrisma } from './prisma';
  * Find a user by email OR employeeId
  * Supports dual login: teachers can login with either email or employeeId
  * 
- * @param identifier - Email address or Employee ID (TCH0001 format)
+ * @param identifier - Email address or Employee ID
  * @param schoolId - Optional school ID for school-specific lookup
  * @returns Promise<any> - User object if found, null otherwise
  */
@@ -49,7 +49,7 @@ export function isValidLoginIdentifier(identifier: string): boolean {
     return true;
   }
   
-  // Check if it's an employeeId (SchoolAbbreviation#### format, e.g., SVSN0001, DPS0001)
+  // Check if it's an employeeId (SchoolAbbreviation#### format)
   const employeeIdRegex = /^[A-Z]{2,4}\d{4}$/i;
   if (employeeIdRegex.test(identifier)) {
     return true;
@@ -63,5 +63,5 @@ export function isValidLoginIdentifier(identifier: string): boolean {
  * @returns string - Hint text for login form
  */
 export function getLoginHintText(): string {
-  return 'Email address or Employee ID (e.g., SVSN0001, DPS0001)';
+  return 'Email address or Employee ID';
 }
