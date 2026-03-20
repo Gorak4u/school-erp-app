@@ -34,33 +34,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json();
     const { classId, sectionId, boardId, mediumId, academicYearId, assignedDate } = body;
 
-    const assignment = await (schoolPrisma as any).classTeacherAssignment.upsert({
+    // Handle upsert manually due to nullable sectionId in unique constraint
+    let assignment;
+    const existingAssignment = await (schoolPrisma as any).classTeacherAssignment.findFirst({
       where: {
-        teacherId_classId_sectionId_academicYearId: {
-          teacherId: id,
-          classId,
-          sectionId: sectionId || null,
-          academicYearId,
-        },
-      },
-      update: { isActive: true, boardId, mediumId, assignedDate: assignedDate || new Date().toISOString().split('T')[0] },
-      create: {
         teacherId: id,
         classId,
         sectionId: sectionId || null,
-        boardId,
-        mediumId,
         academicYearId,
-        assignedDate: assignedDate || new Date().toISOString().split('T')[0],
-        schoolId: ctx.schoolId,
       },
     });
 
-    // Update teacher's isClassTeacher flag
-    await (schoolPrisma as any).teacher.update({
-      where: { id },
-      data: { isClassTeacher: true },
-    });
+    if (existingAssignment) {
+      // Update existing assignment
+      assignment = await (schoolPrisma as any).classTeacherAssignment.update({
+        where: { id: existingAssignment.id },
+        data: { isActive: true, boardId, mediumId, assignedDate: assignedDate || new Date().toISOString().split('T')[0] },
+      });
+    } else {
+      // Create new assignment
+      assignment = await (schoolPrisma as any).classTeacherAssignment.create({
+        data: {
+          teacherId: id,
+          classId,
+          sectionId: sectionId || null,
+          boardId,
+          mediumId,
+          academicYearId,
+          assignedDate: assignedDate || new Date().toISOString().split('T')[0],
+          schoolId: ctx.schoolId,
+        },
+      });
+    }
 
     return NextResponse.json({ assignment }, { status: 201 });
   } catch (err) {
@@ -82,14 +87,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       where: { id: assignmentId },
       data: { isActive: false },
     });
-
-    // If no active assignments left, clear isClassTeacher
-    const remaining = await (schoolPrisma as any).classTeacherAssignment.count({
-      where: { teacherId: id, isActive: true },
-    });
-    if (remaining === 0) {
-      await (schoolPrisma as any).teacher.update({ where: { id }, data: { isClassTeacher: false } });
-    }
 
     return NextResponse.json({ message: 'Class assignment removed' });
   } catch (err) {

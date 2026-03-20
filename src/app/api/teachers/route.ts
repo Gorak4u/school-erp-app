@@ -49,9 +49,50 @@ export async function GET(request: NextRequest) {
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          classTeacherAssignments: {
+            where: { isActive: true }
+          }
+        }
       }),
       (schoolPrisma as any).teacher.count({ where }),
     ]);
+
+    // Fetch class and section details for assignments
+    const classIds = new Set<string>();
+    const sectionIds = new Set<string>();
+    
+    teachers.forEach((teacher: any) => {
+      teacher.classTeacherAssignments?.forEach((assignment: any) => {
+        if (assignment.classId) classIds.add(assignment.classId);
+        if (assignment.sectionId) sectionIds.add(assignment.sectionId);
+      });
+    });
+
+    const [classes, sections] = await Promise.all([
+      classIds.size > 0 ? (schoolPrisma as any).class.findMany({
+        where: { id: { in: Array.from(classIds) } },
+        select: { id: true, name: true }
+      }) : [],
+      sectionIds.size > 0 ? (schoolPrisma as any).section.findMany({
+        where: { id: { in: Array.from(sectionIds) } },
+        select: { id: true, name: true }
+      }) : []
+    ]);
+
+    // Create lookup maps
+    const classMap = new Map(classes.map((c: any) => [c.id, c.name]));
+    const sectionMap = new Map(sections.map((s: any) => [s.id, s.name]));
+
+    // Attach class and section names to assignments
+    teachers.forEach((teacher: any) => {
+      if (teacher.classTeacherAssignments) {
+        teacher.classTeacherAssignments.forEach((assignment: any) => {
+          assignment.className = classMap.get(assignment.classId) || 'Unknown';
+          assignment.sectionName = sectionMap.get(assignment.sectionId) || '';
+        });
+      }
+    });
 
     const response = NextResponse.json({
       teachers,
@@ -82,11 +123,11 @@ export async function POST(request: NextRequest) {
     if (limitError) return limitError;
 
     const body = await request.json();
-    const { email, password, firstName, lastName, phone, employeeId: providedEmployeeId, ...teacherData } = body;
+    const { email, password, name, phone, employeeId: providedEmployeeId, ...teacherData } = body;
 
     // Validate required fields
-    if (!firstName || !lastName) {
-      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     // Auto-generate or validate Employee ID
@@ -129,7 +170,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = createUserAccount ? await bcrypt.hash(defaultPassword, 12) : '';
 
     // Prepare teacher data with name field and filter only valid fields
-    const teacherName = `${firstName} ${lastName}`.trim();
+    const teacherName = name;
     
     // Only include valid Teacher model fields
     const validTeacherData: any = {};
@@ -170,8 +211,7 @@ export async function POST(request: NextRequest) {
             email,
             employeeId,
             password: hashedPassword,
-            firstName,
-            lastName,
+            name: teacherName,
             role: 'teacher',
             schoolId: ctx.schoolId,
             isActive: true,
