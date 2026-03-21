@@ -55,8 +55,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           orderBy: { createdAt: 'desc' },
         } : false,
         promotions: {
-          select: { fromClass: true, toClass: true, fromAcademicYear: true, toAcademicYear: true, promotedAt: true },
-          orderBy: { promotedAt: 'desc' },
+          select: { fromClass: true, toClass: true, fromAcademicYear: true, toAcademicYear: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
