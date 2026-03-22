@@ -69,10 +69,14 @@ export default function FeesPage() {
     setFeeCollectionModal(prev => ({ ...prev, show: true, selectedStudent: { studentId }, loading: true }));
     
     try {
-      const response = await fetch(`/api/fees/students?includeArchived=${includeArchivedStudents}`);
+      const params = new URLSearchParams({
+        studentId,
+        includeArchived: includeArchivedStudents ? 'true' : 'false',
+      });
+      const response = await fetch(`/api/fees/students?${params.toString()}`);
       const data = await response.json();
       if (data.success && data.data?.students) {
-        const studentFeeData = data.data.students.find(s => s.studentId === studentId);
+        const studentFeeData = data.data.students[0] || data.data.students.find((s: any) => s.studentId === studentId);
         setFeeCollectionModal(prev => ({ 
           ...prev, 
           feeData: studentFeeData,
@@ -90,10 +94,14 @@ export default function FeesPage() {
   const handleRefreshFeeData = async () => {
     if (feeCollectionModal.selectedStudent?.studentId) {
       try {
-        const response = await fetch(`/api/fees/students?includeArchived=${includeArchivedStudents}`);
+        const params = new URLSearchParams({
+          studentId: feeCollectionModal.selectedStudent.studentId,
+          includeArchived: includeArchivedStudents ? 'true' : 'false',
+        });
+        const response = await fetch(`/api/fees/students?${params.toString()}`);
         const data = await response.json();
         if (data.success && data.data?.students) {
-          const studentFeeData = data.data.students.find(s => s.studentId === feeCollectionModal.selectedStudent.studentId);
+          const studentFeeData = data.data.students[0] || data.data.students.find((s: any) => s.studentId === feeCollectionModal.selectedStudent.studentId);
           setFeeCollectionModal(prev => ({ 
             ...prev, 
             feeData: studentFeeData,

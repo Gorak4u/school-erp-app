@@ -1,45 +1,78 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useFeeState } from '../fees/hooks/useFeeState';
-import { createFeeDataHandlers } from '../fees/handlers/feeDataHandlers';
 import EnhancedFeeCollection from '../fees/components/EnhancedFeeCollection';
 
 export default function FeeCollectionPage() {
   const { theme } = useTheme();
   const router = useRouter();
-  const feeState = useFeeState();
-  const feeHandlers = createFeeDataHandlers(feeState);
 
   const [studentId, setStudentId] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const [studentResults, setStudentResults] = useState<any[]>([]);
+  const [isStudentListLoading, setIsStudentListLoading] = useState(false);
 
   const isDark = theme === 'dark';
 
   useEffect(() => {
     setIsClient(true);
-    feeState.setIsClient(true);
-    // Load all students including archived ones for fee collection
-    console.log('Fee collection: Loading all students including archived...');
-    feeState.loadAllStudentsData(1, 100, true);
   }, []);
 
-  // Ensure fee collection always includes archived students (they might have outstanding fees)
   useEffect(() => {
-    if (isClient && feeState.studentFeeSummaries.length === 0) {
-      console.log('Fee collection: No students found, reloading with archived=true...');
-      feeState.loadAllStudentsData(1, 100, true);
-    } else if (isClient) {
-      console.log(`Fee collection: Loaded ${feeState.studentFeeSummaries.length} students`);
-    }
-  }, [isClient, feeState.studentFeeSummaries.length]);
+    if (!isClient) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setIsStudentListLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '25',
+          includeArchived: 'true',
+        });
+
+        if (studentId) {
+          params.set('studentId', studentId);
+        } else if (searchQuery.trim()) {
+          params.set('search', searchQuery.trim());
+        }
+
+        const response = await fetch(`/api/fees/students?${params.toString()}`, { signal: controller.signal });
+        const data = await response.json();
+
+        if (controller.signal.aborted) return;
+
+        const students = data?.data?.students || [];
+        setStudentResults(students);
+
+        if (studentId) {
+          const found = students.find((s: any) => s.studentId === studentId);
+          if (found) setSelectedStudent(found);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load fee-collection students:', error);
+          setStudentResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsStudentListLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [isClient, studentId, searchQuery]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -51,21 +84,10 @@ export default function FeeCollectionPage() {
   }, [isClient]);
 
   useEffect(() => {
-    if (studentId && feeState.studentFeeSummaries.length > 0) {
-      const found = feeState.studentFeeSummaries.find(s => s.studentId === studentId);
-      if (found) setSelectedStudent(found);
+    if (!studentId) {
+      setSelectedStudent(null);
     }
-  }, [studentId, feeState.studentFeeSummaries]);
-
-  const filteredStudents = useMemo(() => {
-    if (!searchQuery.trim()) return feeState.studentFeeSummaries;
-    const q = searchQuery.toLowerCase();
-    return feeState.studentFeeSummaries.filter(s =>
-      s.studentName?.toLowerCase().includes(q) ||
-      s.rollNo?.toLowerCase().includes(q) ||
-      s.studentClass?.toLowerCase().includes(q)
-    );
-  }, [searchQuery, feeState.studentFeeSummaries]);
+  }, [studentId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,6 +102,7 @@ export default function FeeCollectionPage() {
     setSelectedStudent(student);
     setStudentId(student.studentId);
     setSearchQuery('');
+    setStudentResults([student]);
   };
 
   const handleClearStudent = () => {
@@ -92,7 +115,7 @@ export default function FeeCollectionPage() {
   if (!isClient) return null;
 
   // Show loading state while data is being fetched
-  if (feeState.isLoading) {
+  if (isStudentListLoading) {
     return (
       <AppLayout currentPage="fee-collection" title="Fee Collection">
         <div className="flex items-center justify-center h-96">
@@ -185,20 +208,18 @@ export default function FeeCollectionPage() {
                   <span className={`text-xs font-semibold uppercase tracking-wider ${
                     isDark ? 'text-gray-400' : 'text-gray-500'
                   }`}>
-                    {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
+                    {studentResults.length} student{studentResults.length !== 1 ? 's' : ''} found
                   </span>
                 </div>
 
-                {filteredStudents.length === 0 ? (
+                {studentResults.length === 0 ? (
                   <div className="py-16 text-center">
                     <p className="text-3xl mb-2">🔍</p>
                     <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>No students match your search</p>
                   </div>
                 ) : (
-                  <div className="divide-y ${
-                    isDark ? 'divide-gray-700' : 'divide-gray-100'
-                  }">
-                    {filteredStudents.map(student => (
+                  <div className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-100'}`}>
+                    {studentResults.map(student => (
                       <motion.button
                         key={student.studentId}
                         whileHover={{ x: 4 }}

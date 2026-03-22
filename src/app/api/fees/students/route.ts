@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100');
+    const studentId = searchParams.get('studentId');
     const studentClass = searchParams.get('class');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
     
     if (studentClass && studentClass !== 'all') {
       whereConditions.class = studentClass;
+    }
+
+    if (studentId) {
+      whereConditions.id = studentId;
     }
     
     if (status && status !== 'all') {

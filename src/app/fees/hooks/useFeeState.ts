@@ -20,6 +20,9 @@ export function useFeeState() {
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [studentFeeSummaries, setStudentFeeSummaries] = useState<StudentFeeSummary[]>([]);
+  const [studentFeeTotal, setStudentFeeTotal] = useState(0);
+  const [studentFeeTotalPages, setStudentFeeTotalPages] = useState(1);
+  const [feeStatistics, setFeeStatistics] = useState<any>(null);
   const [includeArchivedStudents, setIncludeArchivedStudents] = useState(false);
 
   // Advanced filtering states
@@ -263,6 +266,17 @@ export function useFeeState() {
 
   // Live statistics derived from visibleStudentFeeSummaries (always fresh)
   const calculateStatistics = () => {
+    if (feeStatistics) {
+      const overdueBreakdown = feeStatistics.paymentStatusBreakdown?.find((item: any) => item.status === 'overdue');
+      return {
+        totalFees: feeStatistics.totalFees || 0,
+        collectedFees: feeStatistics.totalCollected || 0,
+        pendingFees: feeStatistics.totalPending || 0,
+        overdueFees: overdueBreakdown?.totalPending || 0,
+        collectionRate: feeStatistics.collectionRate || 0,
+      };
+    }
+
     const totalFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0);
     const collectedFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
     const pendingFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0);
@@ -286,80 +300,8 @@ export function useFeeState() {
     });
   }, [feeRecords, selectedClass, selectedStatus, debouncedSearchTerm]);
 
-  // Enhanced filtering with AI search capabilities
-  const filteredStudentSummaries = React.useMemo(() => {
-    return visibleStudentFeeSummaries.filter(student => {
-    let matchesSearch = true;
-    
-    if (debouncedSearchTerm) {
-      const lowerQuery = debouncedSearchTerm.toLowerCase().trim();
-      const status = (student.calculatedPaymentStatus || student.paymentStatus || '').toLowerCase();
-      const cls = (student.studentClass || '').toLowerCase();
-
-      // Basic text matching — name, roll no, class, admission no, parent name
-      const basicMatch =
-        (student.studentName || '').toLowerCase().includes(lowerQuery) ||
-        (student.rollNo || '').toLowerCase().includes(lowerQuery) ||
-        cls.includes(lowerQuery) ||
-        (student.admissionNo || '').toLowerCase().includes(lowerQuery) ||
-        (student.parentName || student.fatherName || '').toLowerCase().includes(lowerQuery);
-
-      // Parse amount from query like "> 50000" or "< 10000"
-      const gtMatch = lowerQuery.match(/>\s*(\d+)/);
-      const ltMatch = lowerQuery.match(/<\s*(\d+)/);
-      const amountGt = gtMatch ? parseInt(gtMatch[1]) : null;
-      const amountLt = ltMatch ? parseInt(ltMatch[1]) : null;
-
-      // Extract class number like "class 10" or "10a"
-      const classMatch = lowerQuery.match(/(?:class\s*)?(\d{1,2})\s*([a-z]?)/i);
-      const classNumber = classMatch ? classMatch[1] : null;
-      const classSection = classMatch ? classMatch[2] : '';
-
-      // AI-powered semantic matching
-      const aiMatch =
-        // Status queries
-        (lowerQuery.includes('pending') && student.totalPending > 0) ||
-        (lowerQuery.includes('overdue') && status.includes('overdue')) ||
-        (lowerQuery.includes('fully paid') && status.includes('fully_paid')) ||
-        (lowerQuery.includes('paid') && status.includes('paid')) ||
-        (lowerQuery.includes('partial') && status.includes('partial')) ||
-        (lowerQuery.includes('unpaid') && student.totalPaid === 0) ||
-        (lowerQuery.includes('no payment') && student.totalPaid === 0) ||
-
-        // Amount-based
-        (amountGt !== null && student.totalFees > amountGt) ||
-        (amountLt !== null && student.totalFees < amountLt) ||
-        (lowerQuery.includes('high fee') && student.totalFees > 75000) ||
-        (lowerQuery.includes('low fee') && student.totalFees < 30000) ||
-
-        // Class matching
-        (classNumber !== null && cls.includes(classNumber) && (!classSection || cls.includes(classSection))) ||
-
-        // Fee situation
-        (lowerQuery.includes('defaulter') && (student.totalPending > 0 || status.includes('overdue'))) ||
-        (lowerQuery.includes('discount') && (student.totalDiscount || 0) > 0) ||
-        (lowerQuery.includes('scholarship') && (student.totalDiscount || 0) > 0) ||
-
-        // Time-based
-        ((lowerQuery.includes('this month') || lowerQuery.includes('recent')) && student.lastPaymentDate &&
-          new Date(student.lastPaymentDate).getMonth() === new Date().getMonth() &&
-          new Date(student.lastPaymentDate).getFullYear() === new Date().getFullYear()) ||
-
-        // Risk / performance
-        (lowerQuery.includes('risk') && (status.includes('overdue') || student.totalPending > 0)) ||
-        (lowerQuery.includes('good standing') && status.includes('fully_paid')) ||
-        (lowerQuery.includes('top') && student.totalPaid > 0 && status.includes('fully_paid'));
-
-      matchesSearch = basicMatch || aiMatch;
-    }
-    
-    const matchesClass = selectedClass === 'all' || (student.studentClass || '').toLowerCase() === selectedClass.toLowerCase();
-    const matchesStatus = selectedStatus === 'all' ||
-      (student.calculatedPaymentStatus || student.paymentStatus || '') === selectedStatus;
-    
-      return matchesSearch && matchesClass && matchesStatus;
-    });
-  }, [visibleStudentFeeSummaries, debouncedSearchTerm, selectedClass, selectedStatus]);
+  // The list is now server-filtered/paginated; keep this as a lightweight alias.
+  const filteredStudentSummaries = React.useMemo(() => visibleStudentFeeSummaries, [visibleStudentFeeSummaries]);
 
   // Bulk operations
   const [bulkOperationType, setBulkOperationType] = useState<'collect' | 'discount' | 'reminder' | 'export' | 'delete'>('collect');
@@ -393,7 +335,12 @@ export function useFeeState() {
   }, []);
 
   // Tab-specific API loaders with DB aggregation
-  const loadAllStudentsData = async (page = 1, limit = 100, includeArchived = includeArchivedStudents) => {
+  const loadAllStudentsData = async (
+    page = 1,
+    limit = 100,
+    includeArchived = includeArchivedStudents,
+    filters?: { search?: string; studentClass?: string; paymentStatus?: string }
+  ) => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams({
@@ -401,12 +348,17 @@ export function useFeeState() {
         limit: limit.toString(),
         includeArchived: includeArchived ? 'true' : 'false'
       });
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.studentClass && filters.studentClass !== 'all') params.append('class', filters.studentClass);
+      if (filters?.paymentStatus && filters.paymentStatus !== 'all') params.append('paymentStatus', filters.paymentStatus);
       
       const response = await fetch(`/api/fees/students?${params}`);
       const data = await response.json();
       
       if (data.success) {
         setStudentFeeSummaries(data.data.students);
+        setStudentFeeTotal(data.data.pagination?.total || data.data.total || data.data.students?.length || 0);
+        setStudentFeeTotalPages(data.data.pagination?.totalPages || 1);
         return data.data;
       } else {
         throw new Error(data.error);
@@ -416,6 +368,35 @@ export function useFeeState() {
       throw error;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadFeeStatistics = async (filters?: { academicYear?: string; studentClass?: string; includeArchived?: boolean }) => {
+    try {
+      const params = new URLSearchParams();
+
+      if (filters?.academicYear && filters.academicYear !== 'all') {
+        params.append('academicYear', filters.academicYear);
+      }
+      if (filters?.studentClass && filters.studentClass !== 'all') {
+        params.append('class', filters.studentClass);
+      }
+      if (filters?.includeArchived) {
+        params.append('includeArchived', 'true');
+      }
+
+      const response = await fetch(`/api/fees/statistics${params.toString() ? `?${params.toString()}` : ''}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setFeeStatistics(data.data);
+        return data.data;
+      }
+
+      throw new Error(data.error || 'Failed to load fee statistics');
+    } catch (error) {
+      console.error('Error loading fee statistics:', error);
+      throw error;
     }
   };
 
@@ -524,8 +505,6 @@ export function useFeeState() {
   useEffect(() => {
     const loadTabData = async () => {
       try {
-        setIsLoading(true);
-        
         // Load common data (structures, discounts)
         const [feeStructuresResponse, discountsResponse] = await Promise.all([
           feeStructuresApi.list(),
@@ -537,9 +516,6 @@ export function useFeeState() {
         
         // Load tab-specific data
         switch (activeTab) {
-          case 'all-students':
-            await loadAllStudentsData();
-            break;
           case 'collections':
             await loadCollectionsData();
             break;
@@ -550,25 +526,42 @@ export function useFeeState() {
             await loadFeeRecordsData();
             break;
           default:
-            // Default to loading students data for other tabs
-            await loadAllStudentsData();
+            break;
         }
-        
-        setIsClient(true);
       } catch (error) {
         console.error('Error loading tab data:', error);
       } finally {
-        setIsLoading(false);
+        setIsClient(true);
       }
     };
     
     loadTabData();
   }, [activeTab]); // Reload data when tab changes
 
-  // Keep the fee student cache in sync with the archived-student toggle
+  // Keep the fee student cache in sync with the archived-student toggle and server-side filters
   useEffect(() => {
-    loadAllStudentsData(1, 100, includeArchivedStudents);
-  }, [includeArchivedStudents]);
+    if (activeTab !== 'all-students') return;
+
+    const loadAllStudents = async () => {
+      try {
+        await Promise.all([
+          loadAllStudentsData(currentPage, pageSize, includeArchivedStudents, {
+            search: debouncedSearchTerm,
+            studentClass: selectedClass,
+            paymentStatus: selectedStatus,
+          }),
+          loadFeeStatistics({
+            studentClass: selectedClass,
+            includeArchived: includeArchivedStudents,
+          }),
+        ]);
+      } catch (error) {
+        console.error('Error loading fee tab data:', error);
+      }
+    };
+
+    loadAllStudents();
+  }, [activeTab, currentPage, pageSize, debouncedSearchTerm, selectedClass, selectedStatus, includeArchivedStudents]);
 
   // Legacy data loading (DISABLED - using new tab-specific loaders)
   // useEffect(() => {
@@ -608,8 +601,11 @@ export function useFeeState() {
     discounts, setDiscounts,
     selectedStudents, setSelectedStudents,
     studentFeeSummaries, setStudentFeeSummaries,
+    studentFeeTotal, setStudentFeeTotal,
+    studentFeeTotalPages, setStudentFeeTotalPages,
     visibleStudentFeeSummaries,
     includeArchivedStudents, setIncludeArchivedStudents,
+    feeStatistics, setFeeStatistics,
     filteredStudentSummaries,
     filteredFeeRecords,
     calculateStatistics,
@@ -651,6 +647,7 @@ export function useFeeState() {
     feeStructureForm, setFeeStructureForm,
     // New tab-specific loaders
     loadAllStudentsData,
+    loadFeeStatistics,
     loadCollectionsData,
     loadReportsData,
     loadFeeRecordsData,

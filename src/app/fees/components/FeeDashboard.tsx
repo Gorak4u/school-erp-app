@@ -9,24 +9,33 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
     theme, showDashboard, setShowDashboard,
     calculateStatistics, setShowFeeStructureModal,     setShowBulkOperations, setShowImportModal, selectedStudents,
     studentFeeSummaries, visibleStudentFeeSummaries, filteredStudentSummaries, recentActivities, canManageFees,
+    feeStatistics,
   } = ctx;
 
   const stats = calculateStatistics ? calculateStatistics() : { totalFees: 0, collectedFees: 0, pendingFees: 0, overdueFees: 0, collectionRate: 0 };
 
   const dashboardStudents = visibleStudentFeeSummaries || studentFeeSummaries || [];
+  const paymentBreakdown = feeStatistics?.paymentStatusBreakdown || [];
+  const totalStudents = feeStatistics?.totalStudents || dashboardStudents.length;
+  const fullyPaidCount = paymentBreakdown.find((item: any) => item.status === 'fully_paid')?.count ?? dashboardStudents.filter(s => s.paymentStatus === 'fully_paid').length;
+  const partiallyPaidCount = paymentBreakdown.find((item: any) => item.status === 'partially_paid')?.count ?? dashboardStudents.filter(s => s.paymentStatus === 'partially_paid').length;
+  const overdueCount = paymentBreakdown.find((item: any) => item.status === 'overdue')?.count ?? dashboardStudents.filter(s => s.totalOverdue > 0).length;
+  const pendingCount = Math.max(0, totalStudents - fullyPaidCount);
   
   // Calculate total discount from all student fee summaries
-  const totalDiscount = dashboardStudents?.reduce((sum: number, student: any) => {
-    // Calculate discount from student's fee records
-    const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => discountSum + (record.discount || 0), 0) || 0;
-    return sum + studentDiscount;
-  }, 0) || 0;
+  const totalDiscount = feeStatistics?.totalDiscount ?? (
+    dashboardStudents?.reduce((sum: number, student: any) => {
+      // Calculate discount from student's fee records
+      const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => discountSum + (record.discount || 0), 0) || 0;
+      return sum + studentDiscount;
+    }, 0) || 0
+  );
 
   const statCards = [
     { label: 'Total Fees', value: `₹${(stats.totalFees / 1000).toFixed(0)}K`, icon: '💰', color: 'blue', trend: `${stats.collectionRate?.toFixed(1) || 0}% collected` },
-    { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${dashboardStudents?.filter(s => s.paymentStatus === 'fully_paid').length || 0} fully paid` },
-    { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${dashboardStudents?.filter(s => s.totalPending > 0).length || 0} students` },
-    { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${dashboardStudents?.filter(s => s.totalOverdue > 0).length || 0} students` },
+    { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${fullyPaidCount} fully paid` },
+    { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${pendingCount} students` },
+    { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${overdueCount} students` },
   ];
 
   const colorMap: Record<string, string> = {
@@ -36,8 +45,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
     red: 'from-red-500 to-red-700',
   };
 
-  const overdueCount = dashboardStudents?.filter(s => s.totalOverdue > 0).length || 0;
-  const partialCount = dashboardStudents?.filter(s => s.paymentStatus === 'partially_paid').length || 0;
+  const partialCount = partiallyPaidCount;
 
   const activities = recentActivities || [];
 
@@ -51,7 +59,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
             theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
           }`}
         >
-          {showDashboard ? '📊 Hide Dashboard' : '� Show Dashboard'}
+          {showDashboard ? '📊 Hide Dashboard' : '📊 Show Dashboard'}
         </button>
         <div className="flex gap-2">
           {canManageFees && (
@@ -81,7 +89,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      {/* Collapsible Dashboard Panel */}
       <AnimatePresence>
         {showDashboard && (
           <motion.div
@@ -90,7 +97,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
             exit={{ opacity: 0, height: 0 }}
             className="mb-6 overflow-hidden"
           >
-            {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {statCards.map((card, i) => (
                 <motion.div
@@ -110,7 +116,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
               ))}
             </div>
 
-            {/* Total Discount Display */}
             <div className="mb-4">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -119,21 +124,15 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                   theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
                 }`}
               >
-                <div className="text-lg font-semibold text-green-600 mb-1">
-                  🎁 Total Discount Applied
-                </div>
-                <div className="text-3xl font-bold text-green-600">
-                  ₹{totalDiscount.toLocaleString()}
-                </div>
+                <div className="text-lg font-semibold text-green-600 mb-1">🎁 Total Discount Applied</div>
+                <div className="text-3xl font-bold text-green-600">₹{totalDiscount.toLocaleString()}</div>
                 <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   Across all students
                 </div>
               </motion.div>
             </div>
 
-            {/* Secondary Stats Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-              {/* Payment Status Distribution */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
@@ -147,13 +146,15 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                     { label: 'Partially Paid', value: partialCount, color: 'bg-yellow-500' },
                     { label: 'Overdue', value: overdueCount, color: 'bg-red-500' },
                   ].map(g => {
-                    const total = dashboardStudents?.length || 1;
+                    const total = totalStudents || dashboardStudents?.length || 1;
                     const pct = total > 0 ? (g.value / total) * 100 : 0;
                     return (
                       <div key={g.label}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>{g.label}</span>
-                          <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>{g.value} ({pct.toFixed(0)}%)</span>
+                          <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>
+                            {g.value} ({pct.toFixed(0)}%)
+                          </span>
                         </div>
                         <div className={`h-2 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
                           <div className={`h-2 rounded-full ${g.color}`} style={{ width: `${pct}%` }} />
@@ -164,7 +165,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                 </div>
               </motion.div>
 
-              {/* Alerts */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
@@ -200,7 +200,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                 </div>
               </motion.div>
 
-              {/* Recent Activities */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className={`rounded-xl p-6 border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
@@ -213,23 +212,28 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                     <div key={activity.id} className={`flex items-center gap-2 p-2 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
                       <span className="text-sm">{activity.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{activity.message}</p>
-                        <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{activity.time}</p>
+                        <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {activity.message}
+                        </p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {activity.time}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </motion.div>
-            </div>
 
-            {/* Results Summary */}
-            <div className={`flex items-center justify-between px-4 py-2 rounded-lg text-sm ${
-              theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-600'
-            }`}>
-              <span>Showing {filteredStudentSummaries?.length || 0} of {dashboardStudents?.length || 0} records</span>
-              {selectedStudents?.length > 0 && (
-                <span className="text-blue-500 font-medium">{selectedStudents.length} selected</span>
-              )}
+                <div className={`flex items-center justify-between px-4 py-2 rounded-lg text-sm ${
+                  theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <span>Showing {filteredStudentSummaries?.length || 0} of {totalStudents} records</span>
+                    {selectedStudents?.length > 0 && (
+                      <span className="text-blue-500 font-medium ml-2">{selectedStudents.length} selected</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </motion.div>
         )}

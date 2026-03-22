@@ -16,6 +16,8 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
   const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, visibleStudentFeeSummaries, includeArchivedStudents, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
 
   const visibleStudents = visibleStudentFeeSummaries || studentFeeSummaries || [];
+  const totalStudentResults = ctx.studentFeeTotal || visibleStudents.length;
+  const totalStudentPages = ctx.studentFeeTotalPages || Math.max(1, Math.ceil(totalStudentResults / pageSize) || 1);
 
   // State for date range filtering
   const [fromDate, setFromDate] = useState('');
@@ -1355,7 +1357,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                      {filteredStudentSummaries.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((student) => (
+                      {filteredStudentSummaries.map((student) => (
                         <tr key={student.studentId} className={`hover:${
                           theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
                         } transition-colors ${selectedStudents.includes(student.studentId) ? (
@@ -1376,7 +1378,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                 theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
               }`}>
                 <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredStudentSummaries.length)} of {filteredStudentSummaries.length} results
+                  Showing {totalStudentResults === 0 ? 0 : ((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalStudentResults)} of {totalStudentResults} results
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1393,8 +1395,8 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                   
                   {/* Page Numbers */}
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, Math.ceil(filteredStudentSummaries.length / pageSize)) }, (_, i) => {
-                      const totalPages = Math.ceil(filteredStudentSummaries.length / pageSize);
+                    {Array.from({ length: Math.min(5, totalStudentPages) }, (_, i) => {
+                      const totalPages = totalStudentPages;
                       let pageNum;
                       
                       if (totalPages <= 5) {
@@ -1424,10 +1426,10 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                   </div>
                   
                   <button
-                    onClick={() => setCurrentPage(Math.min(Math.ceil(filteredStudentSummaries.length / pageSize), currentPage + 1))}
-                    disabled={currentPage === Math.ceil(filteredStudentSummaries.length / pageSize)}
+                    onClick={() => setCurrentPage(Math.min(totalStudentPages, currentPage + 1))}
+                    disabled={currentPage === totalStudentPages}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      currentPage === Math.ceil(filteredStudentSummaries.length / pageSize)
+                      currentPage === totalStudentPages
                         ? theme === 'dark' ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-300'
                     }`}

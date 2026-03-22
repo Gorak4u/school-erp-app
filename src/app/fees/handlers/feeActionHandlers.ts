@@ -17,17 +17,7 @@ export function createFeeActionHandlers(ctx: any) {
     return matchesClass && matchesStatus && matchesSearch;
   });
 
-  const filteredStudentSummaries = (visibleStudentFeeSummaries || studentFeeSummaries).filter((student: StudentFeeSummary) => {
-    const studentName = student.studentName || '';
-    const rollNo = student.rollNo || '';
-    const studentClass = student.studentClass || '';
-    
-    const matchesClass = selectedClass === 'all' || studentClass.includes(selectedClass);
-    const matchesStatus = selectedStatus === 'all' || student.paymentStatus === selectedStatus;
-    const matchesSearch = (studentName && studentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (rollNo && rollNo.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesClass && matchesStatus && matchesSearch;
-  });
+  const filteredStudentSummaries = visibleStudentFeeSummaries || studentFeeSummaries;
 
   // Export functions
   const exportFeeRecords = () => {

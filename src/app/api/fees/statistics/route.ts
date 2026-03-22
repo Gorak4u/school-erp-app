@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
           amount: true,
           paidAmount: true,
           pendingAmount: true,
+          discount: true,
         },
       }),
       
@@ -125,6 +126,7 @@ export async function GET(request: NextRequest) {
     const totalFees = feeAggregates._sum.amount || 0;
     const totalCollected = feeAggregates._sum.paidAmount || 0;
     const totalPending = feeAggregates._sum.pendingAmount || 0;
+    const totalDiscount = feeAggregates._sum.discount || 0;
     const collectionRate = totalFees > 0 ? (totalCollected / totalFees) * 100 : 0;
 
     // OPTIMIZED: Use database aggregation for payment status with date filtering
@@ -144,6 +146,7 @@ export async function GET(request: NextRequest) {
         amount: true,
         paidAmount: true,
         pendingAmount: true,
+        discount: true,
       },
     });
 
@@ -153,6 +156,7 @@ export async function GET(request: NextRequest) {
       totalFees: item._sum.amount || 0,
       totalPaid: item._sum.paidAmount || 0,
       totalPending: item._sum.pendingAmount || 0,
+      totalDiscount: item._sum.discount || 0,
       percentage: totalStudents > 0 ? (item._count.id / totalStudents) * 100 : 0
     }));
 
@@ -226,6 +230,7 @@ export async function GET(request: NextRequest) {
         totalFees,
         totalCollected,
         totalPending,
+        totalDiscount,
         collectionRate,
         paymentStatusBreakdown: completeStatusBreakdown,
         classBreakdown: Object.entries(classBreakdown).map(([className, data]: [string, any]) => ({
