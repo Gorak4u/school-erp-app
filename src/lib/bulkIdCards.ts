@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { buildStudentIdCardDocument, StudentIdCardData } from './idCard';
+import { buildTeacherIdCardDocument, TeacherIdCardData } from './teacherIdCard';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -663,6 +664,130 @@ async function generateBulkImages(
   }
 
   return images;
+}
+
+export async function generateBulkTeacherIdCards(
+  teachers: any[],
+  options: BulkIdCardOptions,
+  schoolConfig: any
+): Promise<BulkIdCardResult> {
+  const { outputFormat, layout, includeBothSides } = options;
+  
+  // Generate ID card data for all teachers
+  const idCards: TeacherIdCardData[] = teachers.map(teacher => ({
+    name: teacher.name,
+    employeeId: teacher.employeeId,
+    department: teacher.department || 'General',
+    designation: teacher.designation || 'Teacher',
+    qualification: teacher.qualification,
+    schoolName: schoolConfig.school?.name || 'School',
+    schoolLogo: schoolConfig.schoolDetails?.logo_url,
+    photo: teacher.photo,
+    dateOfBirth: teacher.dateOfBirth,
+    phone: teacher.phone,
+    email: teacher.email,
+    address: teacher.address,
+    bloodGroup: teacher.bloodGroup,
+    joiningDate: teacher.joiningDate,
+    academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString().slice(-2),
+    issueDate: new Date().toISOString().split('T')[0]
+  }));
+
+  const result: BulkIdCardResult = {
+    summary: {
+      totalStudents: teachers.length,
+      format: outputFormat,
+      layout,
+      includeBothSides
+    }
+  };
+
+  if (outputFormat === 'pdf' || outputFormat === 'both') {
+    result.pdf = await generateBulkTeacherPDF(idCards, layout, includeBothSides);
+  }
+
+  return result;
+}
+
+async function generateBulkTeacherPDF(
+  idCards: TeacherIdCardData[],
+  layout: string,
+  includeBothSides: boolean
+): Promise<Uint8Array> {
+  const pdf = new jsPDF({
+    orientation: layout === 'individual' ? 'portrait' : 'landscape',
+    unit: 'mm',
+    format: 'a4',
+    compress: false
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const cardWidth = 85; // mm
+  const cardHeight = 55; // mm
+  const padding = 10; // mm
+  const cardsPerRow = Math.floor((pageWidth - padding * 2) / cardWidth);
+  const cardsPerColumn = Math.floor((pageHeight - padding * 2) / cardHeight);
+
+  let currentPage = 0;
+  let cardIndex = 0;
+
+  while (cardIndex < idCards.length) {
+    if (currentPage > 0) {
+      pdf.addPage();
+    }
+    currentPage++;
+
+    for (let row = 0; row < cardsPerColumn && cardIndex < idCards.length; row++) {
+      for (let col = 0; col < cardsPerRow && cardIndex < idCards.length; col++) {
+        const x = padding + col * cardWidth;
+        const y = padding + row * cardHeight;
+        
+        // Generate card HTML
+        const cardHtml = await buildTeacherIdCardDocument(idCards[cardIndex], false);
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = cardHtml;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.width = '325px';
+        document.body.appendChild(tempDiv);
+
+        try {
+          const canvas = await html2canvas(tempDiv, {
+            scale: 4,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            allowTaint: true,
+          });
+
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          pdf.addImage(imgData, 'PNG', x, y, cardWidth, cardHeight);
+
+          if (includeBothSides) {
+            const backHtml = await buildTeacherIdCardDocument(idCards[cardIndex], true);
+            tempDiv.innerHTML = backHtml;
+            
+            const backCanvas = await html2canvas(tempDiv, {
+              scale: 4,
+              backgroundColor: '#ffffff',
+              useCORS: true,
+              allowTaint: true,
+            });
+
+            const backImgData = backCanvas.toDataURL('image/png', 1.0);
+            pdf.addImage(backImgData, 'PNG', x + cardWidth + 2, y, cardWidth, cardHeight);
+          }
+        } finally {
+          document.body.removeChild(tempDiv);
+        }
+
+        cardIndex++;
+      }
+    }
+  }
+
+  return new Uint8Array(pdf.output('arraybuffer'));
 }
 
 export function downloadBulkIdCards(result: BulkIdCardResult, students: any[]): void {

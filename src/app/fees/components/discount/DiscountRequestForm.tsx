@@ -7,6 +7,15 @@ import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight
 interface DiscountRequestFormProps {
   theme: 'dark' | 'light';
   onClose: () => void;
+  onSuccess?: () => void;
+  initialScope?: 'student' | 'class' | 'transport';
+  initialStudent?: {
+    id: string;
+    name: string;
+    admissionNo?: string;
+    class?: string;
+    status?: string;
+  };
 }
 
 interface FormData {
@@ -36,7 +45,7 @@ interface ValidationState {
   warnings: string[];
 }
 
-export default function DiscountRequestForm({ theme, onClose }: DiscountRequestFormProps) {
+export default function DiscountRequestForm({ theme, onClose, onSuccess, initialScope, initialStudent }: DiscountRequestFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationState, setValidationState] = useState<ValidationState>({
@@ -48,15 +57,17 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   
   // Data States
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>(initialStudent ? [initialStudent] : []);
   const [classes, setClasses] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [mediums, setMediums] = useState<any[]>([]);
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>({});
+  const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>(initialStudent ? { [initialStudent.id]: initialStudent } : {});
   const [previewData, setPreviewData] = useState<any>(null);
+  const [feeTypeBalances, setFeeTypeBalances] = useState<Record<string, { totalAmount: number; paidAmount: number; pendingAmount: number; discountAmount: number }>>({});
+  const [loadingFeeBalances, setLoadingFeeBalances] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // CSS Variables
@@ -81,7 +92,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
     discountType: 'percentage',
     discountValue: '',
     maxCapAmount: '',
-    scope: 'student',
+    scope: initialScope || (initialStudent ? 'student' : 'student'),
     targetType: 'fee_structure',
     feeStructureIds: [],
     studentIds: [],
@@ -151,6 +162,25 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
   }, []);
 
   useEffect(() => {
+    if (!initialStudent?.id) return;
+
+    setStudents(prev => prev.some(student => student.id === initialStudent.id) ? prev : [initialStudent, ...prev]);
+    setSelectedStudentLookup(prev => ({
+      ...prev,
+      [initialStudent.id]: {
+        ...prev[initialStudent.id],
+        ...initialStudent,
+      },
+    }));
+    setFormData(prev => ({
+      ...prev,
+      scope: initialScope || 'student',
+      studentIds: prev.studentIds.includes(initialStudent.id) ? prev.studentIds : [initialStudent.id],
+      feeStructureIds: prev.studentIds.includes(initialStudent.id) ? prev.feeStructureIds : [],
+    }));
+  }, [initialStudent, initialScope]);
+
+  useEffect(() => {
     if (searchTerm.length >= 2) {
       const fetchStudents = async () => {
         try {
@@ -164,7 +194,12 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           if (res.ok) {
             const result = await res.json();
             const fetchedStudents = result.students || [];
-            setStudents(fetchedStudents);
+            setStudents(initialStudent
+              ? [
+                  initialStudent,
+                  ...fetchedStudents.filter((student: any) => student.id !== initialStudent.id)
+                ]
+              : fetchedStudents);
             setSelectedStudentLookup(prev => {
               const next = { ...prev };
               fetchedStudents.forEach((student: any) => {
@@ -184,7 +219,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       const timeoutId = setTimeout(fetchStudents, 500);
       return () => clearTimeout(timeoutId);
     } else {
-      setStudents([]);
+      setStudents(initialStudent ? [initialStudent] : []);
     }
   }, [searchTerm]);
 
@@ -312,6 +347,65 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
       feeStructureIds: prev.feeStructureIds.filter(id => visibleFeeStructures.some((fs: any) => fs.id === id))
     }));
   }, [visibleFeeStructures]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFeeTypeBalances = async () => {
+      if (formData.scope !== 'student' || formData.studentIds.length === 0) {
+        setFeeTypeBalances({});
+        return;
+      }
+
+      setLoadingFeeBalances(true);
+      try {
+        const summaries = await Promise.all(
+          formData.studentIds.map(async (studentId) => {
+            const res = await fetch(`/api/fees/students/${studentId}/summary`);
+            if (!res.ok) return null;
+            const result = await res.json();
+            return result.success ? result.data : null;
+          })
+        );
+
+        const selectedYear = formData.academicYear && formData.academicYear !== 'all' ? formData.academicYear : '';
+        const aggregated = new Map<string, { totalAmount: number; paidAmount: number; pendingAmount: number; discountAmount: number }>();
+
+        summaries.filter(Boolean).forEach((summary: any) => {
+          (summary?.feeRecords || [])
+            .filter((record: any) => !selectedYear || record.academicYear === selectedYear)
+            .forEach((record: any) => {
+              const key = record.feeStructureId || record.id;
+              const current = aggregated.get(key) || { totalAmount: 0, paidAmount: 0, pendingAmount: 0, discountAmount: 0 };
+              current.totalAmount += Number(record.amount || 0);
+              current.paidAmount += Number(record.paidAmount || 0);
+              current.pendingAmount += Number(record.pendingAmount || Math.max(0, (record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0)));
+              current.discountAmount += Number(record.discount || 0);
+              aggregated.set(key, current);
+            });
+        });
+
+        if (!cancelled) {
+          setFeeTypeBalances(Object.fromEntries(aggregated.entries()));
+        }
+      } catch (error) {
+        console.error('Failed to load fee type balances:', error);
+        if (!cancelled) {
+          setFeeTypeBalances({});
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFeeBalances(false);
+        }
+      }
+    };
+
+    loadFeeTypeBalances();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.scope, formData.studentIds, formData.academicYear]);
 
   const formatStudentStatus = (status?: string) => {
     if (!status) return 'Unknown';
@@ -469,6 +563,8 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
           duration: 5000
         });
       }
+
+      onSuccess?.();
 
       // Close form immediately after successful submission
       onClose();
@@ -699,7 +795,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                           <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Students:</div>
                           <div className="flex flex-wrap gap-1">
                             {formData.studentIds.slice(0, 8).map((studentId) => {
-                              const student = students.find((s: any) => s.id === studentId);
+                              const student = selectedStudentLookup[studentId] || students.find((s: any) => s.id === studentId);
                               return student ? (
                                 <span key={studentId} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
                                   {student.name}
@@ -1343,45 +1439,33 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                     <label className={label}>
                       Select Fee Type <span className="text-red-500">*</span>
                     </label>
+                    {loadingFeeBalances && formData.scope === 'student' && (
+                      <div className={`mb-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Loading pending balances for selected students...
+                      </div>
+                    )}
                     <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                      {/* Group fee structures by type */}
                       {(() => {
-                        // More comprehensive transport detection
-                        const transportStructures = visibleFeeStructures.filter((fs: any) => {
-                          const name = (fs.name || '').toLowerCase();
-                          const category = (fs.category || '').toLowerCase();
-                          const description = (fs.description || '').toLowerCase();
-                          
-                          return name.includes('transport') || 
-                                 name.includes('bus') || 
-                                 name.includes('van') || 
-                                 name.includes('vehicle') ||
-                                 category.includes('transport') || 
-                                 category.includes('bus') ||
-                                 description.includes('transport') ||
-                                 description.includes('bus');
-                        });
-                        
-                        const tuitionStructures = visibleFeeStructures.filter((fs: any) => {
-                          const name = (fs.name || '').toLowerCase();
-                          const category = (fs.category || '').toLowerCase();
-                          const description = (fs.description || '').toLowerCase();
-                          
-                          const isTransport = name.includes('transport') || 
-                                           name.includes('bus') || 
-                                           name.includes('van') || 
-                                           name.includes('vehicle') ||
-                                           category.includes('transport') || 
-                                           category.includes('bus') ||
-                                           description.includes('transport') ||
-                                           description.includes('bus');
-                          
-                          return !isTransport;
-                        });
-                        
+                        const formatAmount = (value: number) => value.toLocaleString('en-IN');
+                        const getStructureAmount = (structure: any) => {
+                          const balance = feeTypeBalances[structure.id]?.totalAmount;
+                          return typeof balance === 'number' ? balance : Number(structure.amount || 0);
+                        };
+
+                        const isTransportStructure = (structure: any) => {
+                          const name = (structure.name || '').toLowerCase();
+                          const category = (structure.category || '').toLowerCase();
+                          const description = (structure.description || '').toLowerCase();
+                          return name.includes('transport') || name.includes('bus') || name.includes('van') || name.includes('vehicle') ||
+                                 category.includes('transport') || category.includes('bus') ||
+                                 description.includes('transport') || description.includes('bus');
+                        };
+
+                        const transportStructures = visibleFeeStructures.filter(isTransportStructure);
+                        const tuitionStructures = visibleFeeStructures.filter((fs: any) => !isTransportStructure(fs));
+
                         return (
                           <div className="space-y-4">
-                            {/* Transport Fees */}
                             {transportStructures.length > 0 && (
                               <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
                                 <div className="flex items-center justify-between mb-3">
@@ -1405,8 +1489,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     </div>
                                   </label>
                                 </div>
-                                
-                                {/* Show individual transport structures */}
                                 <div className="space-y-2 ml-7">
                                   {transportStructures.map((fs: any) => (
                                     <label key={fs.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer transition-colors">
@@ -1424,16 +1506,22 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                         />
                                         <span className="text-sm">{fs.name}</span>
                                       </div>
-                                      <div className="text-xs text-gray-500">
-                                        ₹{fs.amount}
+                                      <div className="text-xs text-right text-gray-500">
+                                        <div className="font-medium text-blue-600 dark:text-blue-400">
+                                          Amount: ₹{formatAmount(getStructureAmount(fs))}
+                                        </div>
+                                        {formData.scope === 'student' && feeTypeBalances[fs.id]?.pendingAmount != null && (
+                                          <div>
+                                            Outstanding: ₹{formatAmount(feeTypeBalances[fs.id].pendingAmount)}
+                                          </div>
+                                        )}
                                       </div>
                                     </label>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            
-                            {/* Tuition Fees */}
+
                             {tuitionStructures.length > 0 && (
                               <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
                                 <div className="flex items-center justify-between mb-3">
@@ -1457,8 +1545,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                     </div>
                                   </label>
                                 </div>
-                                
-                                {/* Show individual tuition structures */}
                                 <div className="space-y-2 ml-7">
                                   {tuitionStructures.map((fs: any) => (
                                     <label key={fs.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer transition-colors">
@@ -1476,16 +1562,20 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                         />
                                         <span className="text-sm">{fs.name}</span>
                                       </div>
-                                      <div className="text-xs text-gray-500">
-                                        ₹{fs.amount}
+                                      <div className="text-xs text-right text-gray-500">
+                                        <div className="font-medium text-blue-600 dark:text-blue-400">
+                                          Amount: ₹{formatAmount(getStructureAmount(fs))}
+                                        </div>
+                                        <div>
+                                          Outstanding: ₹{formatAmount(Number(feeTypeBalances[fs.id]?.pendingAmount || 0))}
+                                        </div>
                                       </div>
                                     </label>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            
-                            {/* Show summary */}
+
                             {(transportStructures.length > 0 || tuitionStructures.length > 0) && (
                               <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                                 <div className="text-sm font-medium mb-2">Summary:</div>
@@ -1493,25 +1583,25 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                                   {transportStructures.length > 0 && (
                                     <div className="flex justify-between">
                                       <span>Transport Fees Total:</span>
-                                      <span>₹{transportStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                      <span>₹{transportStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
                                     </div>
                                   )}
                                   {tuitionStructures.length > 0 && (
                                     <div className="flex justify-between">
                                       <span>Tuition Fees Total:</span>
-                                      <span>₹{tuitionStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                      <span>₹{tuitionStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
                                     </div>
                                   )}
                                   <div className="flex justify-between font-bold border-t pt-1 mt-1">
                                     <span>Selected Total:</span>
                                     <span>₹{visibleFeeStructures
                                       .filter(fs => formData.feeStructureIds.includes(fs.id))
-                                      .reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0)}</span>
+                                      .reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
                                   </div>
                                 </div>
                               </div>
                             )}
-                            
+
                             {transportStructures.length === 0 && tuitionStructures.length === 0 && (
                               <div className="text-center p-6 text-gray-500 text-sm">
                                 No fee structures available for the selected student/class and academic year
@@ -1712,7 +1802,6 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
                       </div>
                     </div>
                   </div>
-/* ... */
                 </div>
 
                 {formData.discountType === 'percentage' && (
@@ -1876,7 +1965,7 @@ export default function DiscountRequestForm({ theme, onClose }: DiscountRequestF
         {currentStep < 3 ? (
           <motion.button
             onClick={nextStep}
-            disabled={currentStep === 1 && (!formData.name.trim() || !formData.academicYear || !formData.scope)}
+            disabled={currentStep === 1 && (!formData.academicYear || !formData.scope)}
             className={`${btnPrimary} disabled:opacity-50 disabled:cursor-not-allowed`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

@@ -97,7 +97,7 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
       // Fallback to fee structure amount if no student-specific data
       return {
         totalAmount: structure.amount,
-        pendingAmount: structure.amount, // Assume full amount is pending
+        pendingAmount: structure.amount, // Assume full amount is outstanding when no payment data exists
         paidAmount: 0
       };
     }
@@ -297,10 +297,10 @@ export default function StudentDiscountForm({ theme, studentId, studentName, onC
                         )}
                         <div className="flex items-center justify-between mt-1">
                           <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Total: <span className="font-medium">₹{feeData.totalAmount.toLocaleString('en-IN')}</span>
+                            Amount: <span className="font-medium">₹{feeData.totalAmount.toLocaleString('en-IN')}</span>
                           </div>
                           <div className={`text-xs ${feeData.pendingAmount > 0 ? 'text-orange-500 font-medium' : 'text-green-500'}`}>
-                            {feeData.pendingAmount > 0 ? `Pending: ₹${feeData.pendingAmount.toLocaleString('en-IN')}` : 'Paid'}
+                            {feeData.pendingAmount > 0 ? `Outstanding: ₹${feeData.pendingAmount.toLocaleString('en-IN')}` : 'Cleared'}
                           </div>
                         </div>
                         {feeData.paidAmount > 0 && (

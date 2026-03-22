@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { canManageStudentLifecycleAccess } from '@/lib/permissions';
+import { generateTcNumber } from '@/lib/tcNumber';
 
 // GET /api/students/exit?class=10&section=A  → preview students eligible for exit
 export async function GET(request: NextRequest) {
@@ -26,8 +27,34 @@ export async function GET(request: NextRequest) {
     const students = await schoolPrisma.student.findMany({
       where,
       select: {
-        id: true, name: true, admissionNo: true, class: true,
-        section: true, academicYear: true, status: true,
+        id: true,
+        name: true,
+        admissionNo: true,
+        rollNo: true,
+        class: true,
+        section: true,
+        academicYear: true,
+        status: true,
+        gender: true,
+        dateOfBirth: true,
+        admissionDate: true,
+        phone: true,
+        email: true,
+        address: true,
+        city: true,
+        state: true,
+        pinCode: true,
+        category: true,
+        bloodGroup: true,
+        parentName: true,
+        parentPhone: true,
+        parentEmail: true,
+        fatherName: true,
+        fatherPhone: true,
+        fatherEmail: true,
+        motherName: true,
+        motherPhone: true,
+        motherEmail: true,
         feeRecords: {
           select: { amount: true, paidAmount: true, discount: true, status: true },
         },
@@ -48,10 +75,31 @@ export async function GET(request: NextRequest) {
         id: s.id,
         name: s.name,
         admissionNo: s.admissionNo,
+        rollNo: s.rollNo,
         class: s.class,
         section: s.section,
         academicYear: s.academicYear,
         status: s.status,
+        gender: s.gender,
+        dateOfBirth: s.dateOfBirth,
+        admissionDate: s.admissionDate,
+        phone: s.phone,
+        email: s.email,
+        address: s.address,
+        city: s.city,
+        state: s.state,
+        pinCode: s.pinCode,
+        category: s.category,
+        bloodGroup: s.bloodGroup,
+        parentName: s.parentName,
+        parentPhone: s.parentPhone,
+        parentEmail: s.parentEmail,
+        fatherName: s.fatherName,
+        fatherPhone: s.fatherPhone,
+        fatherEmail: s.fatherEmail,
+        motherName: s.motherName,
+        motherPhone: s.motherPhone,
+        motherEmail: s.motherEmail,
         pendingDues,
         canExit: true,
       };
@@ -110,11 +158,20 @@ export async function POST(request: NextRequest) {
     const processed: any[] = [];
     const failed: any[] = [];
 
-    for (const studentId of studentIds) {
+    const schoolSetting = await (schoolPrisma as any).schoolSetting.findFirst({
+      where: { group: 'school_details', key: 'name', ...(ctx.schoolId ? { schoolId: ctx.schoolId } : {}) }
+    });
+    const schoolName = schoolSetting?.value || 'School';
+
+    const manualTcNumber = typeof tcNumber === 'string' ? tcNumber.trim() : '';
+
+    for (const [index, studentId] of studentIds.entries()) {
       try {
         const student = await schoolPrisma.student.findFirst({
           where: { id: studentId, ...tenantWhere(ctx) },
           include: {
+            school: true,
+            academicYearRef: true,
             feeRecords: { select: { id: true, amount: true, paidAmount: true, discount: true, status: true } },
             arrears: { where: { status: { not: 'paid' } }, select: { id: true, amount: true, paidAmount: true } },
           },
@@ -160,13 +217,23 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const generatedTcNumber = manualTcNumber
+          ? (studentIds.length > 1 ? `${manualTcNumber}-${String(index + 1).padStart(2, '0')}` : manualTcNumber)
+          : generateTcNumber({
+              schoolName,
+              admissionNo: student.admissionNo,
+              studentName: student.name,
+              studentId: student.id,
+              exitDate,
+            });
+
         await schoolPrisma.student.update({
           where: { id: studentId },
           data: {
             status: newStatus,
             exitDate,
             exitReason,
-            tcNumber: tcNumber || null,
+            tcNumber: generatedTcNumber,
             exitRemarks: exitRemarks || null,
           },
         });
@@ -174,9 +241,38 @@ export async function POST(request: NextRequest) {
         processed.push({
           studentId,
           studentName: student.name,
+          admissionNo: student.admissionNo,
+          rollNo: student.rollNo,
+          class: student.class,
+          section: student.section,
+          academicYear: student.academicYear,
+          gender: student.gender,
+          dateOfBirth: student.dateOfBirth,
+          admissionDate: student.admissionDate,
+          phone: student.phone,
+          email: student.email,
+          address: student.address,
+          city: student.city,
+          state: student.state,
+          pinCode: student.pinCode,
+          category: student.category,
+          bloodGroup: student.bloodGroup,
+          parentName: student.parentName,
+          parentPhone: student.parentPhone,
+          parentEmail: student.parentEmail,
+          fatherName: student.fatherName,
+          fatherPhone: student.fatherPhone,
+          fatherEmail: student.fatherEmail,
+          motherName: student.motherName,
+          motherPhone: student.motherPhone,
+          motherEmail: student.motherEmail,
+          exitDate,
+          exitRemarks: exitRemarks || '',
           exitReason,
           pendingDues,
           status: newStatus,
+          tcIssueDate: exitDate,
+          tcNumber: generatedTcNumber,
         });
       } catch (err: any) {
         console.error(`Failed to exit student ${studentId}:`, err);

@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PDFGenerator } from '@/utils/pdfGenerator';
+import { useSchoolDetails } from '@/contexts/SchoolConfigContext';
+import { generateTcNumber } from '@/lib/tcNumber';
 
 interface ExitStudent {
   id: string;
@@ -42,10 +45,12 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
   const [exitReason, setExitReason] = useState('graduated');
   const [exitDate, setExitDate] = useState(new Date().toISOString().split('T')[0]);
   const [tcNumber, setTcNumber] = useState('');
+  const [tcNumberMode, setTcNumberMode] = useState<'auto' | 'manual'>('auto');
   const [exitRemarks, setExitRemarks] = useState('');
   const [feeAction, setFeeAction] = useState('carry_forward');
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const schoolDetails = useSchoolDetails();
 
   const isDark = theme === 'dark';
   const card = isDark ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200';
@@ -53,11 +58,64 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
   const subText = isDark ? 'text-gray-400' : 'text-gray-500';
   const inputClass = `w-full px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`;
 
+  const formatValue = (value?: string | null) => {
+    const trimmed = value?.toString().trim();
+    return trimmed ? trimmed : '—';
+  };
+
+  const formatDateValue = (value?: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  const formatStudentAddress = (student: any) => {
+    const parts = [student.address, student.city, student.state, student.pinCode || student.pincode]
+      .map((part) => formatValue(part))
+      .filter((part) => part !== '—');
+    return parts.length > 0 ? parts.join(', ') : '—';
+  };
+
+  const getStudentContact = (student: any) => {
+    return student.parentPhone || student.fatherPhone || student.motherPhone || student.phone || '—';
+  };
+
+  const getStudentEmail = (student: any) => {
+    return student.parentEmail || student.fatherEmail || student.motherEmail || student.email || '—';
+  };
+
+  const getSchoolAddress = () => {
+    const parts = [schoolDetails.address, schoolDetails.city, schoolDetails.state, schoolDetails.pincode]
+      .map((part) => formatValue(part))
+      .filter((part) => part !== '—');
+    return parts.length > 0 ? parts.join(', ') : '—';
+  };
+
   useEffect(() => {
     if (isOpen && studentIds.length > 0) {
       loadPreview();
     }
   }, [isOpen, studentIds]);
+
+  useEffect(() => {
+    if (!isOpen || previewStudents.length === 0 || tcNumberMode !== 'auto') {
+      return;
+    }
+
+    const primaryStudent = previewStudents[0];
+    setTcNumber(generateTcNumber({
+      schoolName: schoolDetails.name || 'School',
+      admissionNo: primaryStudent.admissionNo,
+      studentName: primaryStudent.name,
+      studentId: primaryStudent.id,
+      exitDate,
+    }));
+  }, [isOpen, previewStudents, exitDate, tcNumberMode, schoolDetails.name]);
 
   const loadPreview = async () => {
     setLoadingPreview(true);
@@ -80,6 +138,7 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
     setExitReason('graduated');
     setExitDate(new Date().toISOString().split('T')[0]);
     setTcNumber('');
+    setTcNumberMode('auto');
     setExitRemarks('');
     setFeeAction('carry_forward');
     setResult(null);
@@ -88,6 +147,12 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
 
   const totalDues = previewStudents.reduce((sum, s) => sum + s.pendingDues, 0);
   const studentsWithDues = previewStudents.filter(s => s.pendingDues > 0).length;
+
+  const handleDownloadCertificate = async (student: any) => {
+    const certificateId = `tc-certificate-${student.studentId}`;
+    const filename = `TC_${(student.tcNumber || student.studentId || student.studentName || 'student').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    await PDFGenerator.generateFromElement(certificateId, filename);
+  };
 
   const handleProcess = async () => {
     setIsProcessing(true);
@@ -306,7 +371,30 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
                   </div>
                   <div>
                     <label className={`block text-sm font-medium mb-1 ${text}`}>TC Number <span className={subText}>(optional)</span></label>
-                    <input type="text" placeholder="Transfer Certificate Number" value={tcNumber} onChange={e => setTcNumber(e.target.value)} className={inputClass} />
+                    <input
+                      type="text"
+                      placeholder="Transfer Certificate Number"
+                      value={tcNumber}
+                      onChange={e => {
+                        setTcNumber(e.target.value);
+                        setTcNumberMode('manual');
+                      }}
+                      className={inputClass}
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                      <span className={subText}>
+                        Leave it blank to auto-generate, or type your own TC number.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setTcNumberMode('auto')}
+                        className={`px-3 py-1 rounded-full border transition-colors ${
+                          isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        Use Auto Number
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className={`block text-sm font-medium mb-1 ${text}`}>Remarks <span className={subText}>(optional)</span></label>
@@ -378,6 +466,180 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
                         <div className="text-2xl font-bold text-blue-500">{result.data.totalRequested}</div>
                         <div className={`text-xs ${subText}`}>Total</div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {result.success && Array.isArray(result.data?.processedStudents) && result.data.processedStudents.length > 0 && (
+                  <div className={`text-left p-4 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} mb-4`}>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div>
+                        <h4 className={`font-semibold ${text}`}>Transfer Certificate</h4>
+                        <p className={`text-xs ${subText}`}>Download a formal, school-branded certificate for each exited student.</p>
+                      </div>
+                      {result.data.processedStudents.length > 1 && (
+                        <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                          {result.data.processedStudents.length} certificates ready
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {result.data.processedStudents.map((student: any) => {
+                        const certificateId = `tc-certificate-${student.studentId}`;
+                        return (
+                          <div key={student.studentId} className={`rounded-2xl border overflow-hidden ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                            <div className="p-4 flex items-center justify-between gap-3 border-b border-gray-200/60 dark:border-gray-700/60">
+                              <div>
+                                <div className={`font-semibold ${text}`}>{student.studentName}</div>
+                                <div className={`text-xs ${subText}`}>TC Number: {student.tcNumber}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadCertificate(student)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                              >
+                                ⬇ Download Certificate
+                              </button>
+                            </div>
+
+                            <div className="p-4">
+                              <div
+                                id={certificateId}
+                                className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-8"
+                                style={{ minHeight: '1320px', width: '100%' }}
+                              >
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-[0.06]">
+                                  {schoolDetails.logo_url ? (
+                                    <img src={schoolDetails.logo_url} alt="Watermark" className="w-96 h-96 object-contain" />
+                                  ) : (
+                                    <div className="text-[10rem] font-black text-gray-400">{(schoolDetails.name || 'School').charAt(0)}</div>
+                                  )}
+                                </div>
+
+                                <div className="relative z-10 flex h-full flex-col">
+                                  <div className="flex items-start justify-between gap-4 pb-5 border-b-4 border-blue-600">
+                                    <div className="flex items-start gap-4">
+                                      {schoolDetails.logo_url && (
+                                        <img src={schoolDetails.logo_url} alt={schoolDetails.name || 'School'} className="w-20 h-20 object-contain rounded-2xl border border-gray-200 bg-white p-2" crossOrigin="anonymous" />
+                                      )}
+                                      <div>
+                                        <div className="text-xs uppercase tracking-[0.35em] text-blue-700 font-bold">Transfer / Leaving Certificate</div>
+                                        <h2 className="text-2xl font-black text-gray-900 mt-1">{schoolDetails.name || 'School Name'}</h2>
+                                        <p className="text-sm text-gray-600 max-w-2xl">{getSchoolAddress()}</p>
+                                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                                          {schoolDetails.phone && <span>Phone: {schoolDetails.phone}</span>}
+                                          {schoolDetails.email && <span>Email: {schoolDetails.email}</span>}
+                                          {schoolDetails.website && <span>Website: {schoolDetails.website}</span>}
+                                          {schoolDetails.principal && <span>Principal: {schoolDetails.principal}</span>}
+                                          {schoolDetails.affiliation_no && <span>Affiliation No: {schoolDetails.affiliation_no}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right min-w-[180px]">
+                                      <div className="text-sm font-semibold text-gray-700">Certificate No.</div>
+                                      <div className="text-xl font-black text-blue-700 break-words">{student.tcNumber}</div>
+                                      <div className="text-xs text-gray-500 mt-2">Issue Date: {formatDateValue(student.tcIssueDate || exitDate)}</div>
+                                      <div className="text-xs text-gray-500 mt-1">Academic Year: {formatValue(student.academicYear)}</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-6 text-center">
+                                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold tracking-[0.2em] uppercase">
+                                      Student Record Summary
+                                    </div>
+                                    <p className="mt-3 text-sm leading-7 text-gray-700 max-w-4xl mx-auto">
+                                      This is to certify that the particulars shown below are recorded in the school register and that the student has been formally relieved from the institution as per the selected exit process.
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                      <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-gray-500 mb-4">Student Details</h3>
+                                      <div className="space-y-3">
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Name</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.studentName)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Admission No.</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.admissionNo)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Roll No.</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.rollNo)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Class / Section</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.class)} {student.section ? `/ ${student.section}` : ''}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Gender</span><span className="font-semibold text-gray-900 text-right capitalize">{formatValue(student.gender)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Date of Birth</span><span className="font-semibold text-gray-900 text-right">{formatDateValue(student.dateOfBirth)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Date of Admission</span><span className="font-semibold text-gray-900 text-right">{formatDateValue(student.admissionDate)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Category / Blood Group</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.category)}{student.bloodGroup ? ` / ${student.bloodGroup}` : ''}</span></div>
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                      <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-gray-500 mb-4">Parent / Contact Details</h3>
+                                      <div className="space-y-3">
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Father's Name</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.fatherName || student.parentName)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Mother's Name</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.motherName)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Contact No.</span><span className="font-semibold text-gray-900 text-right">{formatValue(getStudentContact(student))}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-words">{formatValue(getStudentEmail(student))}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Residential Address</span><span className="font-semibold text-gray-900 text-right">{formatStudentAddress(student)}</span></div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-6 rounded-2xl bg-gradient-to-r from-blue-50 via-white to-indigo-50 border border-blue-100 p-5">
+                                    <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-blue-700 mb-3">Certificate Narrative</h3>
+                                    <p className="text-sm leading-7 text-gray-700">
+                                      This is to certify that <span className="font-bold text-gray-900">{formatValue(student.studentName)}</span>, admission number <span className="font-bold text-gray-900">{formatValue(student.admissionNo)}</span>, was enrolled in <span className="font-bold text-gray-900">{formatValue(student.class)}{student.section ? `-${student.section}` : ''}</span> during the academic year <span className="font-bold text-gray-900">{formatValue(student.academicYear)}</span>.
+                                      The student has been relieved from the school records on <span className="font-bold text-gray-900">{formatDateValue(student.exitDate || exitDate)}</span> with exit reason <span className="font-bold capitalize text-gray-900">{formatValue(student.exitReason || exitReason)}</span>.
+                                    </p>
+                                    {student.exitRemarks && (
+                                      <div className="mt-4 rounded-xl border border-blue-100 bg-white/80 p-4">
+                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Remarks</div>
+                                        <p className="text-sm text-gray-700 leading-6">{student.exitRemarks}</p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                                    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                                      <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-gray-500 mb-3">Official Record</h3>
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Status</span><span className="font-semibold text-gray-900 capitalize">{formatValue(student.status)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">TC Number</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.tcNumber)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Issue Date</span><span className="font-semibold text-gray-900 text-right">{formatDateValue(student.tcIssueDate || exitDate)}</span></div>
+                                      </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                                      <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-gray-500 mb-3">Reference Details</h3>
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Academic Year</span><span className="font-semibold text-gray-900 text-right">{formatValue(student.academicYear)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">School Principal</span><span className="font-semibold text-gray-900 text-right">{formatValue(schoolDetails.principal)}</span></div>
+                                        <div className="flex justify-between gap-4"><span className="text-gray-500">Generated On</span><span className="font-semibold text-gray-900 text-right">{formatDateValue(new Date().toISOString())}</span></div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-auto pt-8 grid grid-cols-3 gap-6 text-sm text-gray-700">
+                                    <div className="text-center">
+                                      <div className="h-16 border-b border-gray-400"></div>
+                                      <div className="mt-2 font-semibold">Class Teacher</div>
+                                      <div className="text-xs text-gray-500 mt-1">Record Verification</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="h-16 border-b border-gray-400"></div>
+                                      <div className="mt-2 font-semibold">Principal</div>
+                                      <div className="text-xs text-gray-500 mt-1">Approved by School</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="h-16 border-b border-gray-400"></div>
+                                      <div className="mt-2 font-semibold">Office Seal</div>
+                                      <div className="text-xs text-gray-500 mt-1">Official Use Only</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-6 text-center text-xs text-gray-500">
+                                    Generated automatically by the school ERP. This certificate contains only academic and identity details and excludes fee information.
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

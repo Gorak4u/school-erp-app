@@ -17,7 +17,34 @@ interface Teacher {
   employeeId: string;
   department?: string;
   subject?: string;
+  designation?: string;
   schoolId: string;
+}
+
+async function buildTeacherIdCardAttachment(user: TeacherUser, teacher: Teacher, school: any): Promise<Buffer> {
+  // Import the server-side ID card generator that matches staff page design
+  const { generateTeacherIdCardPDFServer } = await import('./teacherIdCardServer');
+  
+  // Create the same schoolConfig structure as used in staff page
+  const schoolConfig = {
+    school: {
+      name: school?.name || 'School'
+    },
+    schoolDetails: {
+      logo_url: school?.logo
+    }
+  };
+
+  // Generate the same ID card PDF as staff page (server-compatible version)
+  const pdfBuffer = await generateTeacherIdCardPDFServer(teacher, schoolConfig);
+  
+  return pdfBuffer;
+}
+
+function resolveAbsoluteUrl(baseUrl: string, url?: string | null): string | null {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
 }
 
 export async function sendTeacherWelcomeEmail(
@@ -41,12 +68,15 @@ export async function sendTeacherWelcomeEmail(
       where: { id: schoolId },
       select: {
         name: true,
+        slug: true,
         domain: true,
         email: true,
         phone: true,
+        address: true,
         city: true,
         state: true,
-        subdomain: true,
+        pinCode: true,
+        logo: true,
       }
     });
 
@@ -64,9 +94,22 @@ export async function sendTeacherWelcomeEmail(
       loginUrl = `${schoolUrl}/school-login`;
       dashboardUrl = `${schoolUrl}/dashboard`;
     } else {
-      loginUrl = `${baseUrl}/login`;
+      loginUrl = `${baseUrl}/school-login`;
       dashboardUrl = `${baseUrl}/dashboard`;
     }
+
+    const schoolAddress = [school.address, school.city, school.state, school.pinCode]
+      .filter(Boolean)
+      .join(', ');
+
+    let teacherIdCardPdf: Buffer | null = null;
+    try {
+      teacherIdCardPdf = await buildTeacherIdCardAttachment(user, teacher, school);
+    } catch (attachmentError) {
+      console.error('Failed to generate teacher ID card attachment:', attachmentError);
+    }
+
+    const schoolLogoUrl = resolveAbsoluteUrl(baseUrl, school.logo);
 
     // Generate email content
     const subject = `Welcome to ${school.name} - Your Teacher Account`;
@@ -79,26 +122,39 @@ export async function sendTeacherWelcomeEmail(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Welcome to ${school.name}</title>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .credentials { background: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #667eea; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 14px; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-          .info-item { background: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 640px; margin: 0 auto; padding: 20px; background: #f3f4f6; }
+          .shell { background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 12px 40px rgba(15, 23, 42, 0.10); }
+          .header { background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #7c3aed 100%); color: white; padding: 28px; text-align: center; }
+          .brand { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 14px; }
+          .logo { width: 54px; height: 54px; object-fit: contain; border-radius: 14px; background: rgba(255,255,255,0.16); padding: 6px; border: 1px solid rgba(255,255,255,0.18); }
+          .content { background: #ffffff; padding: 28px; }
+          .button { display: inline-block; background: #2563eb; color: white; padding: 12px 28px; text-decoration: none; border-radius: 12px; margin: 18px 0; font-weight: 700; }
+          .credentials { background: #eff6ff; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #bfdbfe; }
+          .credentials code { background: #dbeafe; padding: 2px 8px; border-radius: 999px; }
+          .footer { text-align: center; margin-top: 26px; padding-top: 18px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 13px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+          .info-item { background: #f9fafb; padding: 15px; border-radius: 14px; border: 1px solid #e5e7eb; }
+          .badge { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #dcfce7; color: #166534; }
         </style>
       </head>
       <body>
+        <div class="shell">
         <div class="header">
-          <h1>🎓 Welcome to ${school.name}!</h1>
-          <p>Your teacher account has been created</p>
+          <div class="brand">
+            ${schoolLogoUrl ? `<img src="${schoolLogoUrl}" alt="${school.name}" class="logo" />` : ''}
+            <div>
+              <div style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.9;">Staff Welcome</div>
+              <h1 style="margin: 4px 0 0; font-size: 28px;">${school.name}</h1>
+            </div>
+          </div>
+          <p style="margin: 0; opacity: 0.95;">Your teacher account has been created successfully</p>
         </div>
-        
+
         <div class="content">
           <p>Dear ${user.firstName} ${user.lastName},</p>
           
           <p>We're excited to have you join our teaching team at ${school.name}. Your teacher account has been successfully created and you can now access our school management system.</p>
+          ${schoolAddress ? `<p style="margin-top: -4px; color: #6b7280; font-size: 13px;">${schoolAddress}</p>` : ''}
           
           <div class="credentials">
             <h3>🔐 Your Login Credentials</h3>
@@ -111,8 +167,12 @@ export async function sendTeacherWelcomeEmail(
             <p><strong>⚠️ Important:</strong> Please change your password after your first login for security.</p>
           </div>
           
+          <div class="badge">✅ Teacher ID card attached</div>
+          
           <div style="text-align: center;">
             <a href="${loginUrl}" class="button">🚀 Login to Your Account</a>
+            <div style="height: 8px;"></div>
+            <a href="${dashboardUrl}" class="button" style="background:#7c3aed;">📊 Open Dashboard</a>
           </div>
           
           <div class="info-grid">
@@ -129,6 +189,7 @@ export async function sendTeacherWelcomeEmail(
               <p><strong>School:</strong> ${school.name}</p>
               ${school.city ? `<p><strong>City:</strong> ${school.city}</p>` : ''}
               ${school.state ? `<p><strong>State:</strong> ${school.state}</p>` : ''}
+              ${school.pinCode ? `<p><strong>PIN:</strong> ${school.pinCode}</p>` : ''}
               ${school.phone ? `<p><strong>Phone:</strong> ${school.phone}</p>` : ''}
             </div>
           </div>
@@ -161,49 +222,10 @@ export async function sendTeacherWelcomeEmail(
             </p>
           </div>
         </div>
+        </div>
       </body>
       </html>
     `;
-
-    const textContent = `
-Welcome to ${school.name}!
-
-Dear ${user.firstName} ${user.lastName},
-
-We're excited to have you join our teaching team at ${school.name}. Your teacher account has been successfully created.
-
-LOGIN CREDENTIALS:
-Email: ${user.email}
-Temporary Password: ${temporaryPassword}
-
-Please login at: ${loginUrl}
-After logging in, please change your password for security.
-
-YOUR DETAILS:
-Name: ${teacher.name}
-Employee ID: ${teacher.employeeId}
-${teacher.department ? `Department: ${teacher.department}` : ''}
-${teacher.subject ? `Subject: ${teacher.subject}` : ''}
-
-SCHOOL INFORMATION:
-School: ${school.name}
-${school.city ? `City: ${school.city}` : ''}
-${school.state ? `State: ${school.state}` : ''}
-${school.phone ? `Phone: ${school.phone}` : ''}
-
-WHAT YOU CAN DO:
-- Manage your class schedule and timetable
-- Mark student attendance
-- Create and manage lesson plans
-- Create assignments and grade submissions
-- View analytics and performance reports
-- Apply for leave and manage your profile
-
-If you need assistance, please contact your school administrator.
-
-Best regards,
-The ${school.name} Team
-`;
 
     // Send email using school SMTP
     const emailResult = await sendSchoolEmail({
@@ -211,13 +233,21 @@ The ${school.name} Team
       subject,
       html: htmlContent,
       schoolId,
+      attachments: teacherIdCardPdf ? [
+        {
+          filename: `Teacher_ID_Card_${teacher.employeeId}.pdf`,
+          content: teacherIdCardPdf,
+          contentType: 'application/pdf',
+        },
+      ] : undefined,
     });
 
     if (emailResult.success) {
       console.log(`✅ Teacher welcome email sent successfully to ${user.email}`);
       return { success: true };
     } else {
-      throw new Error(emailResult.error || 'Failed to send email');
+      console.error('Teacher welcome email send failed:', emailResult.error || 'Failed to send email');
+      return { success: false, error: emailResult.error || 'Failed to send email' };
     }
 
   } catch (error) {

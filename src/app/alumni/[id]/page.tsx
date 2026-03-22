@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import DiscountRequestForm from '@/app/fees/components/discount/DiscountRequestForm';
 
 interface AlumniDetail {
   id: string;
@@ -76,6 +77,7 @@ export default function AlumniProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   const [editForm, setEditForm] = useState<any>({
     higherEducation: {},
@@ -344,6 +346,29 @@ export default function AlumniProfilePage() {
               )}
             </div>
 
+            {/* Quick actions */}
+            {canManageFees && (
+              <div className={sectionClass}>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h3 className={`font-semibold ${text}`}>Quick Actions</h3>
+                    <p className={`text-sm ${subText}`}>Manage this alumnus financial records</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setShowDiscountModal(true)}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                    >
+                      🎁 Apply Discount
+                    </button>
+                    <Link href={`/fee-collection?studentId=${alumni.id}`} className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white transition-colors">
+                      💰 Collect Fee
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Exit details */}
             {alumni.exitRemarks && (
               <div className={sectionClass}>
@@ -423,7 +448,7 @@ export default function AlumniProfilePage() {
                           <td className={`px-4 py-2 ${text}`}>{fee.description || '—'}</td>
                           <td className={`px-4 py-2 text-right ${text}`}>₹{(fee.amount || 0).toLocaleString()}</td>
                           <td className={`px-4 py-2 text-right text-green-500`}>₹{(fee.paidAmount || 0).toLocaleString()}</td>
-                          <td className={`px-4 py-2 text-right ${Math.max(0, fee.amount - fee.paidAmount) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                          <td className={`px-4 py-2 text-right ${(fee.amount || 0) - (fee.paidAmount || 0) > 0 ? 'text-red-500' : 'text-green-500'}`}>
                             ₹{Math.max(0, (fee.amount || 0) - (fee.paidAmount || 0) - (fee.discount || 0)).toLocaleString()}
                           </td>
                           <td className="px-4 py-2 text-center">
@@ -570,6 +595,40 @@ export default function AlumniProfilePage() {
               ) : (
                 <p className={`text-sm ${subText}`}>No promotion history recorded.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {showDiscountModal && canManageFees && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+            <div className={`w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col ${card}`}>
+              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>🎁 Apply Discount to {alumni.name}</h2>
+                <button
+                  onClick={() => setShowDiscountModal(false)}
+                  className={`p-3 rounded-xl transition-all hover:scale-105 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
+                <DiscountRequestForm
+                  theme={theme}
+                  initialScope="student"
+                  initialStudent={{
+                    id: alumni.id,
+                    name: alumni.name,
+                    admissionNo: alumni.admissionNo,
+                    class: `${alumni.class}${alumni.section ? ` ${alumni.section}` : ''}`,
+                    status: alumni.status,
+                  }}
+                  onClose={() => setShowDiscountModal(false)}
+                  onSuccess={() => {
+                    setShowDiscountModal(false);
+                    loadAlumni();
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

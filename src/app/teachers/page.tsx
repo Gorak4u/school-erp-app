@@ -8,6 +8,7 @@ import { teachersApi } from '@/lib/apiClient';
 import { createTeacherSearchHandlers } from './handlers/searchHandlers';
 import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 import StaffForm, { StaffFormData } from './components/StaffForm';
+import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -19,8 +20,9 @@ export default function StaffPage() {
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [downloadingIdCard, setDownloadingIdCard] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
-  const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [schoolData, setSchoolData] = useState<any>(null);
@@ -66,7 +68,7 @@ export default function StaffPage() {
   }, []);
 
   const mapTeacherToFormData = (teacher: any): StaffFormData => {
-    if (!teacher) return { firstName: '', lastName: '', email: '', phone: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', gender: '', dateOfBirth: '', address: '', designation: '', salary: '', bankName: '', bankAccountNo: '', bankIfsc: '', emergencyName: '', emergencyPhone: '', remarks: '', photo: '', aadharNumber: '', bloodGroup: '', isClassTeacher: false, classTeacherAssignments: [] };
+    if (!teacher) return { firstName: '', lastName: '', email: '', phone: '', role: 'teacher', customRoleId: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', gender: '', dateOfBirth: '', address: '', designation: '', salary: '', bankName: '', bankAccountNo: '', bankIfsc: '', emergencyName: '', emergencyPhone: '', remarks: '', photo: '', aadharNumber: '', bloodGroup: '', isClassTeacher: false, classTeacherAssignments: [] };
     const nameParts = (teacher.name || '').trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ');
@@ -75,6 +77,8 @@ export default function StaffPage() {
       lastName,
       email: teacher.email || '',
       phone: teacher.phone || '',
+      role: teacher.role || 'teacher',
+      customRoleId: teacher.customRoleId || '',
       department: teacher.department || '',
       subject: teacher.subject || '',
       qualification: teacher.qualification || '',
@@ -106,6 +110,14 @@ export default function StaffPage() {
       setFormError('First name is required');
       return;
     }
+    if (!data.lastName?.trim()) {
+      setFormError('Last name is required');
+      return;
+    }
+    if (!data.email?.trim()) {
+      setFormError('Email is required to create the linked staff user');
+      return;
+    }
     setSaving(true);
     setFormError('');
     try {
@@ -113,6 +125,8 @@ export default function StaffPage() {
         name: `${data.firstName} ${data.lastName}`.trim(),
         email: data.email,
         phone: data.phone,
+        role: data.role || 'teacher',
+        customRoleId: data.customRoleId || null,
         gender: data.gender,
         dateOfBirth: data.dateOfBirth,
         subject: data.subject,
@@ -213,36 +227,27 @@ export default function StaffPage() {
           (ea: any) => !newAssignments.find((na: any) => na.id === ea.id)
         );
 
-        try {
-          // Delete removed assignments
-          await Promise.all(
-            assignmentsToDelete.map((assignment: any) =>
-              fetch(`/api/teachers/${editingTeacher.id}/class-assignments?assignmentId=${assignment.id}`, {
-                method: 'DELETE',
-              })
-            )
-          );
+        const assignmentsToCreate = newAssignments.filter((na: any) => !na.id);
 
-          // Upsert current assignments
-          await Promise.all(
-            newAssignments.map((assignment: any) =>
-              fetch(`/api/teachers/${editingTeacher.id}/class-assignments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  classId: assignment.classId,
-                  sectionId: assignment.sectionId,
-                  boardId: assignment.boardId,
-                  mediumId: assignment.mediumId,
-                  academicYearId: assignment.academicYearId,
-                  assignedDate: assignment.assignedDate || new Date().toISOString(),
-                }),
-              })
-            )
-          );
-        } catch (assignmentError) {
-          console.error('Failed to update class teacher assignments:', assignmentError);
-        }
+        await Promise.all([
+          ...assignmentsToDelete.map((a: any) =>
+            fetch(`/api/teachers/${editingTeacher.id}/class-assignments/${a.id}`, { method: 'DELETE' })
+          ),
+          ...assignmentsToCreate.map((assignment: any) =>
+            fetch(`/api/teachers/${editingTeacher.id}/class-assignments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                classId: assignment.classId,
+                sectionId: assignment.sectionId,
+                boardId: assignment.boardId,
+                mediumId: assignment.mediumId,
+                academicYearId: assignment.academicYearId,
+                assignedDate: new Date().toISOString(),
+              }),
+            })
+          ),
+        ]);
       } else if (!data.isClassTeacher && editingTeacher.isClassTeacher) {
         // Unchecked isClassTeacher - delete all assignments
         try {
@@ -269,6 +274,71 @@ export default function StaffPage() {
     }
   };
 
+  const handleDownloadIdCard = async (teacher: any) => {
+    if (!teacher || !schoolData) return;
+    
+    setDownloadingIdCard(teacher.id);
+    try {
+      // Create a compatible schoolConfig object for the utility
+      const config = {
+        school: {
+          name: schoolData.settings?.school_details?.name || 'School'
+        },
+        schoolDetails: {
+          logo_url: schoolData.settings?.school_details?.logo_url
+        }
+      };
+      await downloadTeacherIdCard(teacher, config);
+    } catch (error) {
+      console.error('Error downloading ID card:', error);
+      alert('Failed to download ID card. Please try again.');
+    } finally {
+      setDownloadingIdCard(null);
+    }
+  };
+
+  const handleBulkDownloadIdCards = async () => {
+    if (selectedTeachers.length === 0 || !schoolData) return;
+    
+    setDownloadingIdCard('bulk');
+    try {
+      const selectedStaffData = teachers.filter((t: any) => selectedTeachers.includes(t.id));
+      
+      const { generateBulkTeacherIdCards, downloadBulkIdCards } = await import('@/lib/bulkIdCards');
+      
+      const config = {
+        school: {
+          name: schoolData.settings?.school_details?.name || 'School'
+        },
+        schoolDetails: {
+          logo_url: schoolData.settings?.school_details?.logo_url
+        }
+      };
+
+      const result = await generateBulkTeacherIdCards(selectedStaffData, {
+        outputFormat: 'pdf',
+        layout: 'grid',
+        includeBothSides: true
+      }, config);
+
+      downloadBulkIdCards(result, selectedStaffData);
+      
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Bulk Download Ready',
+          message: `Generated unified PDF for ${selectedTeachers.length} staff members.`,
+          duration: 3000
+        });
+      }
+    } catch (error) {
+      console.error('Error in bulk ID card download:', error);
+      alert('Failed to download ID cards. Please try again.');
+    } finally {
+      setDownloadingIdCard(null);
+    }
+  };
+
   // Search handlers
   const searchHandlers = createTeacherSearchHandlers({ teachers, refresh });
   const { teacherSearch, setTeacherSearch, performTeacherSearch, toggleTeacherSearch, clearSearchHistory } = searchHandlers;
@@ -287,13 +357,41 @@ export default function StaffPage() {
 
   const activeCount = teachers.filter((t: any) => t.status === 'active').length;
 
-  const handleDeleteTeacher = async (teacherId: number) => {
+  const handleDeleteTeacher = async (teacherId: string) => {
     try {
-      await teachersApi.delete(teacherId.toString());
+      await teachersApi.delete(teacherId);
       setDeleteConfirm(null);
-      refresh();
+      // Force immediate refresh with cache busting
+      setTimeout(() => {
+        refresh();
+        // Also trigger a new fetch to bypass any remaining cache
+        window.location.reload();
+      }, 100);
     } catch (err: any) {
       alert('Failed to delete teacher: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleToggleActivation = async (teacher: any) => {
+    try {
+      const action = teacher.status === 'active' ? 'deactivate' : 'activate';
+      const response = await teachersApi.update(teacher.id, { action });
+      
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: `Teacher ${action === 'activate' ? 'Activated' : 'Deactivated'}`,
+          message: `${teacher.name} has been ${action === 'activate' ? 'activated' : 'deactivated'} successfully.`,
+          duration: 3000
+        });
+      }
+      
+      // Force immediate refresh with cache busting
+      setTimeout(() => {
+        refresh();
+      }, 100);
+    } catch (err: any) {
+      alert(`Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + (err.message || 'Unknown error'));
     }
   };
 
@@ -305,7 +403,7 @@ export default function StaffPage() {
     }
   };
 
-  const toggleTeacherSelection = (teacherId: number) => {
+  const toggleTeacherSelection = (teacherId: string) => {
     setSelectedTeachers(prev =>
       prev.includes(teacherId)
         ? prev.filter(id => id !== teacherId)
@@ -547,11 +645,31 @@ export default function StaffPage() {
               <div className="flex items-center gap-4">
                 <h3 className={`text-lg font-semibold ${txt}`}>Staff Directory</h3>
                 {selectedTeachers.length > 0 && (
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    isDark ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {selectedTeachers.length} selected
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      isDark ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {selectedTeachers.length} selected
+                    </span>
+                    <button
+                      onClick={handleBulkDownloadIdCards}
+                      disabled={!!downloadingIdCard}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                        isDark 
+                          ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30' 
+                          : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
+                      }`}
+                    >
+                      {downloadingIdCard === 'bulk' ? (
+                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      )}
+                      Bulk ID Cards
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -580,7 +698,7 @@ export default function StaffPage() {
                     { label: 'Experience', field: 'experience', width: 'min-w-[80px]' },
                     { label: 'Status', field: 'status', width: 'min-w-[100px]' },
                     { label: 'Joined', field: 'joiningDate', width: 'min-w-[100px]' },
-                    { label: 'Actions', field: 'actions', width: 'w-24' },
+                    { label: 'Actions', field: 'actions', width: 'w-40' },
                   ].map(col => (
                     <th key={col.field} className={`${thCls} ${col.width || ''} px-4 py-3`} onClick={() => col.field !== 'checkbox' && col.field !== 'actions' && toggleSort(col.field)}>
                       {col.field === 'checkbox' ? (
@@ -685,6 +803,39 @@ export default function StaffPage() {
                           }`}
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => handleDownloadIdCard(teacher)}
+                          disabled={!!downloadingIdCard}
+                          className={`px-2 py-1 text-xs rounded border transition-all flex items-center gap-1 ${
+                            isDark 
+                              ? 'border-green-600 text-green-400 hover:bg-green-600/20' 
+                              : 'border-green-500 text-green-600 hover:bg-green-50'
+                          } ${downloadingIdCard === teacher.id ? 'opacity-50 cursor-wait' : ''}`}
+                          title="Download Staff ID Card"
+                        >
+                          {downloadingIdCard === teacher.id ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          )}
+                          <span>ID Card</span>
+                        </button>
+                        <button
+                          onClick={() => handleToggleActivation(teacher)}
+                          className={`px-2 py-1 text-xs rounded border transition-colors ${
+                            teacher.status === 'active'
+                              ? isDark 
+                                ? 'border-orange-600 text-orange-400 hover:bg-orange-600/20' 
+                                : 'border-orange-500 text-orange-600 hover:bg-orange-50'
+                              : isDark 
+                                ? 'border-green-600 text-green-400 hover:bg-green-600/20' 
+                                : 'border-green-500 text-green-600 hover:bg-green-50'
+                          }`}
+                        >
+                          {teacher.status === 'active' ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(teacher)}
@@ -820,11 +971,11 @@ export default function StaffPage() {
                 </div>
                 <div>
                   <h3 className={`text-lg font-semibold ${txt}`}>Delete Staff Member</h3>
-                  <p className={`text-sm ${sub}`}>This action cannot be undone.</p>
+                  <p className={`text-sm ${sub}`}>This will permanently delete the teacher and their associated user account. This action cannot be undone.</p>
                 </div>
               </div>
               <p className={`${sub} mb-6`}>
-                Are you sure you want to delete <span className={`font-medium ${txt}`}>{deleteConfirm.name}</span>?
+                Are you sure you want to permanently delete <span className={`font-medium ${txt}`}>{deleteConfirm.name}</span> and their user account?
               </p>
               <div className="flex justify-end gap-3">
                 <button

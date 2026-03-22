@@ -7,6 +7,8 @@ export type StaffFormData = {
   lastName: string;
   email: string;
   phone: string;
+  role: string;
+  customRoleId: string;
   department: string;
   subject: string;
   qualification: string;
@@ -37,6 +39,8 @@ const EMPTY_FORM: StaffFormData = {
   lastName: "",
   email: "",
   phone: "",
+  role: "teacher",
+  customRoleId: "",
   department: "",
   subject: "",
   qualification: "",
@@ -90,11 +94,37 @@ export default function StaffForm({
   onCancel,
 }: StaffFormProps) {
   const [formData, setFormData] = useState<StaffFormData>({ ...EMPTY_FORM, ...initialData });
+  const [customRoles, setCustomRoles] = useState<any[]>([]);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
     setFormData({ ...EMPTY_FORM, ...initialData });
   }, [JSON.stringify(initialData)]);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch('/api/roles?cache=true');
+        if (!response.ok) return;
+        const data = await response.json();
+        const roles = data.roles || [];
+        setCustomRoles(roles);
+
+        if (mode === 'add') {
+          const defaultRole = roles.find((r: any) => r.isDefault);
+          setFormData(prev => ({
+            ...prev,
+            customRoleId: prev.customRoleId || defaultRole?.id || roles[0]?.id || '',
+            role: prev.role || 'teacher',
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load roles for staff form:', err);
+      }
+    };
+
+    fetchRoles();
+  }, [mode]);
 
   const isDark = theme === "dark";
   const txt = isDark ? "text-white" : "text-gray-900";
@@ -108,6 +138,7 @@ export default function StaffForm({
       }`,
     [isDark]
   );
+  const helperTextCls = `text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`;
 
   const handleChange = (field: keyof StaffFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -117,6 +148,18 @@ export default function StaffForm({
     e.preventDefault();
     if (!formData.firstName?.trim()) {
       setError("First name is required");
+      return;
+    }
+    if (!formData.lastName?.trim()) {
+      setError("Last name is required");
+      return;
+    }
+    if (mode === 'add' && !formData.email?.trim()) {
+      setError('Email is required to create the linked staff user');
+      return;
+    }
+    if (mode === 'add' && customRoles.length > 0 && !formData.customRoleId) {
+      setError('Please select a role from settings');
       return;
     }
     setError("");
@@ -204,6 +247,52 @@ export default function StaffForm({
           </div>
         </div>
       </section>
+
+      {mode === 'add' && (
+        <section className={`p-4 rounded-xl border ${isDark ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+          <h4 className={`text-sm font-semibold mb-3 ${txt}`}>Access Role</h4>
+          {customRoles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${sub}`}>Role from Settings *</label>
+                <select
+                  className={inputCls}
+                  value={formData.customRoleId}
+                  onChange={(e) => handleChange("customRoleId", e.target.value)}
+                >
+                  <option value="">Select a role from settings</option>
+                  {customRoles.map((role: any) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+                <p className={helperTextCls}>This role comes from Settings → Roles</p>
+              </div>
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${sub}`}>Fallback Base Role</label>
+                <select
+                  className={inputCls}
+                  value={formData.role}
+                  onChange={(e) => handleChange("role", e.target.value)}
+                >
+                  <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
+                  <option value="parent">Parent</option>
+                  <option value="student">Student</option>
+                </select>
+                <p className={helperTextCls}>Used when the custom role is linked to the staff account</p>
+              </div>
+            </div>
+          ) : (
+            <div className={`rounded-xl border p-4 ${isDark ? "border-gray-700 bg-gray-900/40" : "border-gray-200 bg-white"}`}>
+              <p className={`text-sm font-medium ${txt}`}>No roles are defined in Settings yet.</p>
+              <p className={helperTextCls}>The linked user account will be created with the default base role: <span className="font-semibold">Teacher</span>.</p>
+              <input type="hidden" value={formData.role} readOnly />
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Job Details */}
       <section className={`p-4 rounded-xl border ${isDark ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
