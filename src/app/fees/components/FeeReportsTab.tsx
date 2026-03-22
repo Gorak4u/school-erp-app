@@ -144,7 +144,15 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose, inc
             students: item.studentCount
           };
           return acc;
-        }, {}) || {}
+        }, {}) || {},
+        // Alumni statistics
+        alumniStats: reportsData.alumniStatistics ? {
+          totalAlumni: reportsData.alumniStatistics.totalAlumni,
+          alumniTotalFees: reportsData.alumniStatistics.totalFees,
+          alumniTotalCollected: reportsData.alumniStatistics.totalCollected,
+          alumniTotalPending: reportsData.alumniStatistics.totalPending,
+          alumniCollectionRate: reportsData.alumniStatistics.collectionRate
+        } : null
       };
     }
 
@@ -188,6 +196,110 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose, inc
       classwiseData
     };
   }, [reportsData, studentFeeSummaries, includeArchivedStudents]);
+
+  // Alumni monthly trend data
+  const alumniMonthlyTrendData = useMemo(() => {
+    if (reportsData?.alumniMonthlyTrend) {
+      const monthlyData = reportsData.alumniMonthlyTrend.map((item: any) => item.amount || 0);
+      
+      return {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [
+          {
+            label: 'Alumni Collections',
+            data: monthlyData,
+            borderColor: 'rgb(147, 51, 234)',
+            backgroundColor: 'rgba(147, 51, 234, 0.1)',
+            tension: 0.4,
+            fill: true
+          }
+        ]
+      };
+    }
+    
+    // Fallback empty data
+    return {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      datasets: [
+        {
+          label: 'Alumni Collections',
+          data: Array(12).fill(0),
+          borderColor: 'rgb(147, 51, 234)',
+          backgroundColor: 'rgba(147, 51, 234, 0.1)',
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    };
+  }, [reportsData]);
+  
+  // Alumni vs Active Students comparison data
+  const alumniComparisonData = useMemo(() => {
+    if (stats.alumniStats) {
+      return {
+        labels: ['Active Students', 'Alumni Students'],
+        datasets: [{
+          data: [stats.totalStudents, stats.alumniStats.totalAlumni],
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(147, 51, 234, 0.8)'
+          ],
+          borderColor: [
+            'rgb(59, 130, 246)',
+            'rgb(147, 51, 234)'
+          ],
+          borderWidth: 2
+        }]
+      };
+    }
+    return {
+      labels: ['Active Students', 'Alumni Students'],
+      datasets: [{
+        data: [stats.totalStudents, 0],
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(147, 51, 234, 0.8)'
+          
+        ],
+        borderColor: [
+          'rgb(59, 130, 246)',
+          'rgb(147, 51, 234)'
+        ],
+        borderWidth: 2
+      }]
+    };
+  }, [stats, stats.alumniStats]);
+  
+  // Alumni class-wise distribution data
+  const alumniClassChartData = useMemo(() => {
+    if (reportsData?.alumniClassBreakdown) {
+      const alumniClasses = reportsData.alumniClassBreakdown.map((item: any) => item.class || 'Unknown');
+      const alumniCounts = reportsData.alumniClassBreakdown.map((item: any) => item.alumniCount || 0);
+      
+      return {
+        labels: alumniClasses,
+        datasets: [
+          {
+            label: 'Alumni Count',
+            data: alumniCounts,
+            backgroundColor: 'rgba(147, 51, 234, 0.8)',
+          }
+        ]
+      };
+    }
+    
+    // Fallback empty data
+    return {
+      labels: ['No Data'],
+      datasets: [
+        {
+          label: 'Alumni Count',
+          data: [0],
+          backgroundColor: 'rgba(147, 51, 234, 0.8)',
+        }
+      ]
+    };
+  }, [reportsData]);
 
   // Monthly collection trend (API data with fallback)
   const monthlyTrendData = useMemo(() => {
@@ -421,123 +533,256 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose, inc
           </div>
         </div>
 
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className={`p-4 rounded-lg border ${
-            isDark ? 'bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
-                  Total Revenue
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ₹{stats.totalFees.toLocaleString()}
-                </p>
-                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {stats.totalStudents} students
-                </p>
+        {/* Key Metrics Grid - Active Students */}
+        <div className="mb-6">
+          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            🎓 Active Students Statistics
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`p-4 rounded-lg border ${
+              isDark ? 'bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                    Total Revenue
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    ₹{stats.totalFees.toLocaleString()}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {stats.totalStudents} students
+                  </p>
+                </div>
+                <div className="text-4xl">💰</div>
               </div>
-              <div className="text-4xl">💰</div>
             </div>
-          </div>
 
-          <div className={`p-4 rounded-lg border ${
-            isDark ? 'bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-700' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-600'}`}>
-                  Total Collected
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ₹{stats.totalCollected.toLocaleString()}
-                </p>
-                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {stats.collectionRate.toFixed(1)}% collection rate
-                </p>
+            <div className={`p-4 rounded-lg border ${
+              isDark ? 'bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-700' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-600'}`}>
+                    Total Collected
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    ₹{stats.totalCollected.toLocaleString()}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {stats.collectionRate.toFixed(1)}% collection rate
+                  </p>
+                </div>
+                <div className="text-4xl">✅</div>
               </div>
-              <div className="text-4xl">✅</div>
             </div>
-          </div>
 
-          <div className={`p-4 rounded-lg border ${
-            isDark ? 'bg-gradient-to-br from-orange-900/50 to-orange-800/30 border-orange-700' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
-                  Total Pending
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ₹{stats.totalPending.toLocaleString()}
-                </p>
-                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {((stats.totalPending / stats.totalFees) * 100).toFixed(1)}% pending
-                </p>
+            <div className={`p-4 rounded-lg border ${
+              isDark ? 'bg-gradient-to-br from-orange-900/50 to-orange-800/30 border-orange-700' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
+                    Total Pending
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    ₹{stats.totalPending.toLocaleString()}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {((stats.totalPending / stats.totalFees) * 100).toFixed(1)}% pending
+                  </p>
+                </div>
+                <div className="text-4xl">⏳</div>
               </div>
-              <div className="text-4xl">⏳</div>
             </div>
-          </div>
 
-          <div className={`p-4 rounded-lg border ${
-            isDark ? 'bg-gradient-to-br from-red-900/50 to-red-800/30 border-red-700' : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-600'}`}>
-                  Total Overdue
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ₹{stats.totalOverdue.toLocaleString()}
-                </p>
-                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {stats.overdue} students
-                </p>
+            <div className={`p-4 rounded-lg border ${
+              isDark ? 'bg-gradient-to-br from-red-900/50 to-red-800/30 border-red-700' : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-600'}`}>
+                    Total Overdue
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    ₹{stats.totalOverdue.toLocaleString()}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {stats.overdue} students
+                  </p>
+                </div>
+                <div className="text-4xl">⚠️</div>
               </div>
-              <div className="text-4xl">⚠️</div>
             </div>
           </div>
         </div>
+
+        {/* Alumni Statistics Grid */}
+        {stats.alumniStats && (
+          <div className="mb-6">
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              🎓 Alumni Students Statistics
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className={`p-4 rounded-lg border ${
+                isDark ? 'bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-700' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
+                      Total Alumni
+                    </p>
+                    <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {stats.alumniStats.totalAlumni.toLocaleString()}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Former students
+                    </p>
+                  </div>
+                  <div className="text-4xl">👥</div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg border ${
+                isDark ? 'bg-gradient-to-br from-indigo-900/50 to-indigo-800/30 border-indigo-700' : 'bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>
+                      Alumni Revenue
+                    </p>
+                    <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      ₹{stats.alumniStats.alumniTotalFees.toLocaleString()}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Historical fees
+                    </p>
+                  </div>
+                  <div className="text-4xl">💵</div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg border ${
+                isDark ? 'bg-gradient-to-br from-teal-900/50 to-teal-800/30 border-teal-700' : 'bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-teal-300' : 'text-teal-600'}`}>
+                      Alumni Collected
+                    </p>
+                    <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      ₹{stats.alumniStats.alumniTotalCollected.toLocaleString()}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {stats.alumniStats.alumniCollectionRate.toFixed(1)}% rate
+                    </p>
+                  </div>
+                  <div className="text-4xl">✅</div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg border ${
+                isDark ? 'bg-gradient-to-br from-pink-900/50 to-pink-800/30 border-pink-700' : 'bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-pink-300' : 'text-pink-600'}`}>
+                      Alumni Pending
+                    </p>
+                    <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      ₹{stats.alumniStats.alumniTotalPending.toLocaleString()}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Outstanding dues
+                    </p>
+                  </div>
+                  <div className="text-4xl">📋</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Collection Trend */}
+        {/* Monthly Collection Trend - Active Students */}
         <div className={`rounded-xl border p-6 ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}>
           <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            📊 Monthly Collection Trend
+            📊 Active Students - Monthly Trend
           </h3>
           <div style={{ height: '300px' }}>
             <Line data={monthlyTrendData} options={chartOptions} />
           </div>
         </div>
 
-        {/* Payment Status Distribution */}
+        {/* Alumni Monthly Collection Trend */}
+        {stats.alumniStats && reportsData?.alumniMonthlyTrend && (
+          <div className={`rounded-xl border p-6 ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              🎓 Alumni - Monthly Trend
+            </h3>
+            <div style={{ height: '300px' }}>
+              <Line data={alumniMonthlyTrendData} options={chartOptions} />
+            </div>
+          </div>
+        )}
+
+        {/* Payment Status Distribution - Active Students */}
         <div className={`rounded-xl border p-6 ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}>
           <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            🎯 Payment Status Distribution
+            🎯 Active Students - Payment Status
           </h3>
           <div style={{ height: '300px' }}>
             <Doughnut data={paymentStatusData} options={pieChartOptions} />
           </div>
         </div>
 
-        {/* Class-wise Collection */}
+        {/* Alumni vs Active Students Comparison */}
+        {stats.alumniStats && (
+          <div className={`rounded-xl border p-6 ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              📊 Alumni vs Active Students
+            </h3>
+            <div style={{ height: '300px' }}>
+              <Doughnut data={alumniComparisonData} options={pieChartOptions} />
+            </div>
+          </div>
+        )}
+
+        {/* Class-wise Collection - Active Students */}
         <div className={`rounded-xl border p-6 ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}>
           <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            🏫 Class-wise Collection Analysis
+            🏫 Active Students - Class-wise Collection
           </h3>
           <div style={{ height: '300px' }}>
             <Bar data={classwiseChartData} options={chartOptions} />
           </div>
         </div>
+
+        {/* Alumni Class-wise Distribution */}
+        {stats.alumniStats && reportsData?.alumniClassBreakdown && (
+          <div className={`rounded-xl border p-6 ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              🎓 Alumni - Class-wise Distribution
+            </h3>
+            <div style={{ height: '300px' }}>
+              <Bar data={alumniClassChartData} options={chartOptions} />
+            </div>
+          </div>
+        )}
 
         {/* Collection vs Target */}
         <div className={`rounded-xl border p-6 ${

@@ -188,6 +188,18 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
     }
     return '0';
   }, [totalBilled, totalCollected]);
+  
+  // Alumni statistics
+  const alumniTotalBilled = useMemo(() => statisticsData?.alumniStatistics?.totalFees || 0, [statisticsData]);
+  const alumniTotalCollected = useMemo(() => statisticsData?.alumniStatistics?.totalCollected || 0, [statisticsData]);
+  const alumniTotalPending = useMemo(() => statisticsData?.alumniStatistics?.totalPending || 0, [statisticsData]);
+  const alumniCollectionRate = useMemo(() => {
+    if (alumniTotalBilled > 0) {
+      return ((alumniTotalCollected / alumniTotalBilled) * 100).toFixed(1);
+    }
+    return '0';
+  }, [alumniTotalBilled, alumniTotalCollected]);
+  const totalAlumni = useMemo(() => statisticsData?.alumniStatistics?.totalAlumni || 0, [statisticsData]);
 
   // Dynamic chart data based on selected period
   const chartData = useMemo(() => {
@@ -267,6 +279,113 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
       ]
     };
   }, [statisticsData, selectedPeriod]);
+
+  // Alumni chart data
+  const alumniChartData = useMemo(() => {
+    if (!statisticsData?.alumniStatistics) {
+      return { labels: [], datasets: [{ data: [] }] };
+    }
+
+    const today = new Date();
+    let labels: string[] = [];
+    let data: number[] = [];
+
+    if (selectedPeriod === 'daily') {
+      labels = ['Today'];
+      data = [statisticsData.alumniStatistics.totalCollected || 0];
+    } else if (selectedPeriod === 'weekly') {
+      const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const weeklyTotal = statisticsData.alumniStatistics.totalCollected || 0;
+      const dailyAverage = weeklyTotal / 7;
+      labels = weekDays;
+      data = Array(7).fill(dailyAverage);
+    } else if (selectedPeriod === 'monthly') {
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthlyTotal = statisticsData.alumniStatistics.totalCollected || 0;
+      const dailyAverage = monthlyTotal / daysInMonth;
+      labels = Array.from({ length: Math.min(daysInMonth, 30) }, (_, i) => `${i + 1}`);
+      data = Array(Math.min(daysInMonth, 30)).fill(dailyAverage);
+    } else if (selectedPeriod === 'quarterly') {
+      const quarter = Math.floor(today.getMonth() / 3);
+      const quarterMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const quarterLabels = quarterMonths.slice(quarter * 3, quarter * 3 + 3);
+      const quarterlyTotal = statisticsData.alumniStatistics.totalCollected || 0;
+      data = Array(3).fill(quarterlyTotal / 3);
+      labels = quarterLabels;
+    } else {
+      const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const yearlyTotal = statisticsData.alumniStatistics.totalCollected || 0;
+      data = Array(12).fill(yearlyTotal / 12);
+      labels = monthLabels;
+    }
+
+    return {
+      labels,
+      datasets: [
+        { 
+          label: 'Alumni Collections', 
+          data, 
+          borderColor: 'rgb(147, 51, 234)', 
+          backgroundColor: 'rgba(147, 51, 234, 0.1)', 
+          tension: 0.4 
+        },
+      ]
+    };
+  }, [statisticsData, selectedPeriod]);
+  
+  // Student comparison data
+  const studentComparisonData = useMemo(() => {
+    if (!statisticsData?.alumniStatistics) {
+      return {
+        labels: ['Active Students'],
+        datasets: [{
+          data: [statisticsData?.totalStudents || 0],
+          backgroundColor: ['rgba(59, 130, 246, 0.8)']
+        }]
+      };
+    }
+    
+    return {
+      labels: ['Active Students', 'Alumni'],
+      datasets: [{
+        data: [statisticsData.totalStudents || 0, statisticsData.alumniStatistics.totalAlumni || 0],
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(147, 51, 234, 0.8)'
+        ]
+      }]
+    };
+  }, [statisticsData]);
+  
+  // Revenue comparison data
+  const revenueComparisonData = useMemo(() => {
+    if (!statisticsData?.alumniStatistics) {
+      return {
+        labels: ['Active Students'],
+        datasets: [{
+          label: 'Total Collected',
+          data: [statisticsData?.totalCollected || 0],
+          backgroundColor: 'rgba(34, 197, 94, 0.8)'
+        }]
+      };
+    }
+    
+    return {
+      labels: ['Active Students', 'Alumni'],
+      datasets: [
+        {
+          label: 'Total Collected',
+          data: [statisticsData.totalCollected || 0, statisticsData.alumniStatistics.totalCollected || 0],
+          backgroundColor: 'rgba(34, 197, 94, 0.8)'
+        },
+        {
+          label: 'Total Pending',
+          data: [statisticsData.totalPending || 0, statisticsData.alumniStatistics.totalPending || 0],
+          backgroundColor: 'rgba(239, 68, 68, 0.8)'
+        }
+      ]
+    };
+  }, [statisticsData]);
 
   // Collection by payment method from API data
   const methodCounts = useMemo(() => {
@@ -451,30 +570,64 @@ export default function FeeFinancialAnalytics({ theme, onClose }: FeeFinancialAn
         </div>
       </div>
 
-      {/* Metric Cards */}
+      {/* Metric Cards - Active Students */}
       {loading ? (
         <div className={`text-center py-8 ${textSecondary}`}>Loading analytics...</div>
       ) : (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="Total Billed" value={`Rs.${(totalBilled / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
-        <MetricCard title="Collected" value={`Rs.${(totalCollected / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
-        <MetricCard title="Pending" value={`Rs.${(totalPending / 1000).toFixed(0)}K`} subtitle="Billed - Collected" color="text-red-400" />
-        <MetricCard title="Collection Rate" value={`${collectionRate}%`} subtitle="Fees collected vs billed" color="text-purple-400" />
+      <div>
+        <div className="mb-6">
+          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>🎓 Active Students Financial Metrics</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard title="Total Billed" value={`Rs.${(totalBilled / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
+            <MetricCard title="Collected" value={`Rs.${(totalCollected / 1000).toFixed(0)}K`} subtitle="Current academic year" color="text-green-400" />
+            <MetricCard title="Pending" value={`Rs.${(totalPending / 1000).toFixed(0)}K`} subtitle="Billed - Collected" color="text-red-400" />
+            <MetricCard title="Collection Rate" value={`${collectionRate}%`} subtitle="Fees collected vs billed" color="text-purple-400" />
+          </div>
+        </div>
+        
+        {/* Alumni Metric Cards */}
+        {totalAlumni > 0 && (
+          <div className="mb-6">
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>🎓 Alumni Financial Metrics</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricCard title="Total Alumni" value={totalAlumni.toString()} subtitle="Former students" color="text-purple-400" />
+              <MetricCard title="Alumni Billed" value={`Rs.${(alumniTotalBilled / 1000).toFixed(0)}K`} subtitle="Historical fees" color="text-indigo-400" />
+              <MetricCard title="Alumni Collected" value={`Rs.${(alumniTotalCollected / 1000).toFixed(0)}K`} subtitle="Historical collections" color="text-teal-400" />
+              <MetricCard title="Alumni Rate" value={`${alumniCollectionRate}%`} subtitle="Alumni collection rate" color="text-pink-400" />
+            </div>
+          </div>
+        )}
       </div>
       )}
 
       {/* Revenue vs Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`p-6 rounded-xl border ${cardCls}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Collection Trend ({selectedPeriod})</h3>
+          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Active Students - Collection Trend ({selectedPeriod})</h3>
           <div className="h-64"><Line data={chartData} options={chartOptions} /></div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`p-6 rounded-xl border ${cardCls}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Collection by Payment Method</h3>
-          <div className="h-64"><Doughnut data={collectionByMethod} options={pieOptions} /></div>
-        </motion.div>
+        {totalAlumni > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`p-6 rounded-xl border ${cardCls}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Alumni - Collection Trend ({selectedPeriod})</h3>
+            <div className="h-64"><Line data={alumniChartData} options={chartOptions} /></div>
+          </motion.div>
+        )}
       </div>
+
+      {totalAlumni > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={`p-6 rounded-xl border ${cardCls}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Active vs Alumni Students</h3>
+            <div className="h-64"><Doughnut data={studentComparisonData} options={pieOptions} /></div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`p-6 rounded-xl border ${cardCls}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Revenue Comparison</h3>
+            <div className="h-64"><Bar data={revenueComparisonData} options={chartOptions} /></div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Collection by Grade & Expense Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
