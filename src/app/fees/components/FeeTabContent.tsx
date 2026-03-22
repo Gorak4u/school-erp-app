@@ -13,7 +13,9 @@ import { PDFGenerator } from '@/utils/pdfGenerator';
 
 export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; onOpenFeeCollection?: (studentId: string) => void }) {
   const { dropdowns } = useSchoolConfig();
-  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
+  const { activeTab, advancedFilters, allIds, amountMax, amountMin, averageResults, cls, collectedBy, currentPage, setCurrentPage, delay, discountApplied, dueDateFrom, dueDateTo, duration, feeType, filteredStudentSummaries, filters, height, hover, isMobile, mobileView, opacity, overdueDaysMax, overdueDaysMin, pageSize, paidDateFrom, paidDateTo, paymentMethod, paymentStatus, query, recentSearches, rollNo, row, searchAnalytics, searchTerm, selectedClass, selectedStatus, selectedStudents, selectedFeeRecord, selectedColumns, columnSettings, setAdvancedFilters, setMobileView, setPageSize, setSearchAnalytics, setSearchTerm, setSelectedClass, setSelectedStatus, setSelectedFeeRecord, setSelectedStudents, setShowAdvancedFilters, setShowBulkCollectionModal, setShowBulkDiscountModal, setShowColumnSettings, setShowReceiptModal, showAdvancedFilters, showReceiptModal, studentFeeSummaries, visibleStudentFeeSummaries, includeArchivedStudents, studentName, theme, totalSearches, setActiveTab, feeCollections, canManageFees = true } = ctx;
+
+  const visibleStudents = visibleStudentFeeSummaries || studentFeeSummaries || [];
 
   // State for date range filtering
   const [fromDate, setFromDate] = useState('');
@@ -478,7 +480,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      {studentFeeSummaries.length}
+                      {visibleStudents.length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Total Students
@@ -490,7 +492,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-green-500`}>
-                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'fully_paid').length}
+                      {visibleStudents.filter(s => s.calculatedPaymentStatus === 'fully_paid').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Fully Paid
@@ -502,7 +504,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-yellow-500`}>
-                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'partially_paid').length}
+                      {visibleStudents.filter(s => s.calculatedPaymentStatus === 'partially_paid').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Partially Paid
@@ -514,7 +516,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                 }`}>
                   <div className="text-center">
                     <div className={`text-2xl font-bold text-red-500`}>
-                      {studentFeeSummaries.filter(s => s.calculatedPaymentStatus === 'overdue').length}
+                      {visibleStudents.filter(s => s.calculatedPaymentStatus === 'overdue').length}
                     </div>
                     <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Overdue
@@ -1035,7 +1037,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                       Showing <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {filteredStudentSummaries.length}
                       </span> of <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                        {studentFeeSummaries.length}
+                        {visibleStudents.length}
                       </span> students
                     </div>
                     {selectedStudents.length > 0 && (
@@ -1445,8 +1447,9 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
               exit={{ opacity: 0, y: -10 }}
             >
               <FeeReportsTab 
-                studentFeeSummaries={studentFeeSummaries}
+                studentFeeSummaries={visibleStudents}
                 theme={theme}
+                includeArchivedStudents={includeArchivedStudents}
               />
             </motion.div>
           )}
@@ -1664,7 +1667,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                       {(() => {
                         // Calculate actual filtered results
                         const groupedByCollectorAndMethod = {};
-                        studentFeeSummaries?.forEach(student => {
+                        visibleStudents?.forEach(student => {
                           student.feeRecords?.forEach(record => {
                             record.payments?.forEach(payment => {
                               // Apply same date filtering

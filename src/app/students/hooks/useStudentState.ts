@@ -7,6 +7,7 @@ import { useMotionValue, useSpring } from 'framer-motion';
 import { Student } from '../types';
 import { useDomainState } from './useDomainState';
 import { studentsApi } from '@/lib/apiClient';
+import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 export function useStudentState() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function useStudentState() {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedGender, setSelectedGender] = useState('all');
+  const [includeArchivedStudents, setIncludeArchivedStudents] = useState(false);
   
   // Advanced Search State
   const [advancedSearch, setAdvancedSearch] = useState({
@@ -286,6 +288,7 @@ export function useStudentState() {
     cls = selectedClass,
     status = selectedStatus,
     gender = selectedGender,
+    includeArchived = includeArchivedStudents,
   ) => {
     try {
       setLoading(true);
@@ -294,6 +297,7 @@ export function useStudentState() {
       if (cls && cls !== 'all') params.class = cls;
       if (status && status !== 'all') params.status = status;
       if (gender && gender !== 'all') params.gender = gender;
+      params.includeArchived = includeArchived ? 'true' : 'false';
 
       const data = await studentsApi.list(params);
       setStudents(data.students || []);
@@ -307,18 +311,24 @@ export function useStudentState() {
   };
 
   // Initial load
-  useEffect(() => { loadStudents(); }, []);
+  useEffect(() => { 
+    loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents); 
+  }, []);
+
+  useEffect(() => {
+    loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
+  }, [includeArchivedStudents]);
 
   // Reload when filters change (debounced)
   useEffect(() => {
-    const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender), 300);
+    const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents), 300);
     return () => clearTimeout(t);
-  }, [searchTerm, selectedClass, selectedStatus, selectedGender]);
+  }, [searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents]);
 
   // Reload when page or pageSize changes
   useEffect(() => {
-    loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender);
-  }, [currentPage, pageSize]);
+    loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
+  }, [currentPage, pageSize, includeArchivedStudents]);
 
   // Persist visibleColumns to user-specific localStorage
   useEffect(() => {
@@ -341,6 +351,7 @@ export function useStudentState() {
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,
     selectedGender, setSelectedGender,
+    includeArchivedStudents, setIncludeArchivedStudents,
     advancedSearch, setAdvancedSearch,
     bulkOperations, setBulkOperations,
     showDashboard, setShowDashboard,

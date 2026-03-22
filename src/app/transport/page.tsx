@@ -152,7 +152,7 @@ export default function TransportPage() {
     if (q.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
-      const res = await fetch(`/api/students?search=${encodeURIComponent(q)}&pageSize=10`);
+      const res = await fetch(`/api/students?search=${encodeURIComponent(q)}&pageSize=10&includeArchived=false`);
       if (res.ok) { const data = await res.json(); setSearchResults(data.students || []); }
     } finally { setSearchLoading(false); }
   };

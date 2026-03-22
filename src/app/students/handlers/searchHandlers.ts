@@ -1,10 +1,11 @@
 // @ts-nocheck
 import React, { useState, useCallback, useEffect } from 'react';
 import { Student } from '../types';
+import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 export function createSearchHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, selectedClass, selectedGender, selectedLanguage, selectedStatus, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students, searchTerm } = ctx;
+  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, includeArchivedStudents = false, selectedClass, selectedGender, selectedLanguage, selectedStatus, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students, searchTerm } = ctx;
 
   // Fuzzy matching function
   const fuzzyMatch = (text: string, query: string, threshold: number = 0.7): boolean => {
@@ -60,18 +61,15 @@ export function createSearchHandlers(ctx: any) {
       if (students.length > 0) {
         const { StudentSearchEngine } = await import('../search/StudentSearchEngine');
         const searchEngine = StudentSearchEngine.getInstance();
-        
-        // Build index if not already built or if data changed
-        const metrics = searchEngine.getMetrics();
-        if (metrics.totalRecords === 0 || metrics.totalRecords !== students.length) {
-          searchEngine.buildIndex(students);
-          console.log(`Student search engine initialized with ${students.length} records`);
-        }
+
+        // Rebuild index whenever the visible student set changes
+        searchEngine.buildIndex(students);
+        console.log(`Student search engine initialized with ${students.length} records`);
       }
     };
     
     initializeSearchEngine();
-  }, [students.length]);
+  }, [students, includeArchivedStudents]);
 
   // AI-powered search with SmartSearchEngine
   const performAdvancedSearch = async (query: string) => {
@@ -107,7 +105,8 @@ export function createSearchHandlers(ctx: any) {
     const searchResult = searchEngine.searchStudents({
       text: query,
       includeInactive: false,
-      includeGraduated: false,
+      includeGraduated: includeArchivedStudents,
+      includeArchived: includeArchivedStudents,
       sortBy: 'name',
       sortOrder: 'asc'
     });
@@ -415,7 +414,9 @@ export function createSearchHandlers(ctx: any) {
       matchesAttendance = student.attendance.percentage >= 90;
     }
     
-    return matchesSearch && matchesClass && matchesStatus && matchesGender && matchesLanguage && matchesAttendance;
+    const matchesArchived = includeArchivedStudents || !isArchivedStudentStatus(student.status);
+
+    return matchesSearch && matchesClass && matchesStatus && matchesGender && matchesLanguage && matchesAttendance && matchesArchived;
   });
 
 

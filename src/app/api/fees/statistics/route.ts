@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { parseDateParam } from '@/lib/parseDateParam';
+import { ARCHIVED_STUDENT_STATUSES } from '@/lib/studentStatus';
 
 // GET /api/fees/statistics - Optimized reports data with date range filtering
 export async function GET(request: NextRequest) {
@@ -12,16 +13,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const academicYear = searchParams.get('academicYear');
     const studentClass = searchParams.get('class');
+    const includeArchived = searchParams.get('includeArchived') === 'true';
     const fromDate = parseDateParam(searchParams.get('fromDate'));
     const toDate = parseDateParam(searchParams.get('toDate'), { endOfDay: true });
 
     // Build WHERE conditions for students with tenant filtering
     const studentWhereConditions: any = { ...tenantWhere(ctx) };
+    const studentAndConditions: any[] = [];
     if (academicYear && academicYear !== 'all') {
       studentWhereConditions.academicYear = academicYear;
     }
     if (studentClass && studentClass !== 'all') {
       studentWhereConditions.class = studentClass;
+    }
+    if (!includeArchived) {
+      studentAndConditions.push({ NOT: { status: { in: ARCHIVED_STUDENT_STATUSES as unknown as string[] } } });
+    }
+    if (studentAndConditions.length > 0) {
+      studentWhereConditions.AND = studentAndConditions;
     }
 
     // Build WHERE conditions for payments (with date filtering)
@@ -242,6 +251,7 @@ export async function GET(request: NextRequest) {
         filters: {
           academicYear,
           studentClass,
+          includeArchived,
           fromDate,
           toDate
         }

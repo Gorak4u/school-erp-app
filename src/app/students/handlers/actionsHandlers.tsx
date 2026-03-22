@@ -4,7 +4,7 @@ import { generateBulkIdCards, downloadBulkIdCards } from '@/lib/bulkIdCards';
 
 export function createActionsHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students, getSetting } = ctx;
+  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students, getSetting, includeArchivedStudents = false } = ctx;
 
   // Quick Action Functions (Legacy - replaced by bulk operations)
   const exportStudentsLegacy = () => {
@@ -728,6 +728,9 @@ export function createActionsHandlers(ctx: any) {
     try {
       for (let i = 0; i < selectedStudentsData.length; i++) {
         const student = selectedStudentsData[i];
+        
+        // Refresh students with the archived toggle preserved
+        const updatedResult = await studentsApi.list({ page: '1', pageSize: '50', includeArchived: includeArchivedStudents ? 'true' : 'false' });
         
         switch (bulkOperationType) {
           case 'promote':

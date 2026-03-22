@@ -28,6 +28,7 @@ interface StudentProfileModalProps {
   setSelectedStudent: any;
   theme: any;
   students?: Student[];
+  includeArchivedStudents?: boolean;
   feeManagement?: any;
   attendanceTracking?: any;
   communicationCenter?: any;
@@ -39,7 +40,7 @@ interface StudentProfileModalProps {
   isAdmin?: boolean;
 }
 
-export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], feeManagement, attendanceTracking, communicationCenter, parentPortal, canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
+export default function StudentProfileModal({ activeTab, printStudentProfile, selectedStudent, sendStudentSMS, setAcademicPerformance, setActiveTab, setAttendanceTracking, setCommunicationCenter, setEditingStudent, setFeeManagement, setParentPortal, setSelectedStudent, theme, students = [], includeArchivedStudents = false, feeManagement, attendanceTracking, communicationCenter, parentPortal, canEditStudents = true, canPromoteStudents = true, onPromoteSingle, onMarkExit, isAdmin = false }: StudentProfileModalProps) {
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
   const [feeData, setFeeData] = useState(null);
@@ -60,7 +61,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
     
     setLoadingFeeData(true);
     try {
-      const response = await fetch('/api/fees/students');
+      const params = new URLSearchParams({ includeArchived: includeArchivedStudents ? 'true' : 'false' });
+      const response = await fetch(`/api/fees/students?${params}`);
       const data = await response.json();
       if (data.success && data.data?.students) {
         const studentFeeData = data.data.students.find(s => s.studentId === feeManagement.selectedStudent.id);

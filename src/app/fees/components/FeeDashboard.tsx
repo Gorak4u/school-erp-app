@@ -8,13 +8,15 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
   const {
     theme, showDashboard, setShowDashboard,
     calculateStatistics, setShowFeeStructureModal,     setShowBulkOperations, setShowImportModal, selectedStudents,
-    studentFeeSummaries, filteredStudentSummaries, recentActivities, canManageFees,
+    studentFeeSummaries, visibleStudentFeeSummaries, filteredStudentSummaries, recentActivities, canManageFees,
   } = ctx;
 
   const stats = calculateStatistics ? calculateStatistics() : { totalFees: 0, collectedFees: 0, pendingFees: 0, overdueFees: 0, collectionRate: 0 };
+
+  const dashboardStudents = visibleStudentFeeSummaries || studentFeeSummaries || [];
   
   // Calculate total discount from all student fee summaries
-  const totalDiscount = studentFeeSummaries?.reduce((sum: number, student: any) => {
+  const totalDiscount = dashboardStudents?.reduce((sum: number, student: any) => {
     // Calculate discount from student's fee records
     const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => discountSum + (record.discount || 0), 0) || 0;
     return sum + studentDiscount;
@@ -22,9 +24,9 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
 
   const statCards = [
     { label: 'Total Fees', value: `₹${(stats.totalFees / 1000).toFixed(0)}K`, icon: '💰', color: 'blue', trend: `${stats.collectionRate?.toFixed(1) || 0}% collected` },
-    { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0} fully paid` },
-    { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${studentFeeSummaries?.filter(s => s.totalPending > 0).length || 0} students` },
-    { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${studentFeeSummaries?.filter(s => s.totalOverdue > 0).length || 0} students` },
+    { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${dashboardStudents?.filter(s => s.paymentStatus === 'fully_paid').length || 0} fully paid` },
+    { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${dashboardStudents?.filter(s => s.totalPending > 0).length || 0} students` },
+    { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${dashboardStudents?.filter(s => s.totalOverdue > 0).length || 0} students` },
   ];
 
   const colorMap: Record<string, string> = {
@@ -34,8 +36,8 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
     red: 'from-red-500 to-red-700',
   };
 
-  const overdueCount = studentFeeSummaries?.filter(s => s.totalOverdue > 0).length || 0;
-  const partialCount = studentFeeSummaries?.filter(s => s.paymentStatus === 'partially_paid').length || 0;
+  const overdueCount = dashboardStudents?.filter(s => s.totalOverdue > 0).length || 0;
+  const partialCount = dashboardStudents?.filter(s => s.paymentStatus === 'partially_paid').length || 0;
 
   const activities = recentActivities || [];
 
@@ -141,11 +143,11 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: 'Fully Paid', value: studentFeeSummaries?.filter(s => s.paymentStatus === 'fully_paid').length || 0, color: 'bg-green-500' },
+                    { label: 'Fully Paid', value: dashboardStudents?.filter(s => s.paymentStatus === 'fully_paid').length || 0, color: 'bg-green-500' },
                     { label: 'Partially Paid', value: partialCount, color: 'bg-yellow-500' },
                     { label: 'Overdue', value: overdueCount, color: 'bg-red-500' },
                   ].map(g => {
-                    const total = studentFeeSummaries?.length || 1;
+                    const total = dashboardStudents?.length || 1;
                     const pct = total > 0 ? (g.value / total) * 100 : 0;
                     return (
                       <div key={g.label}>
@@ -224,7 +226,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
             <div className={`flex items-center justify-between px-4 py-2 rounded-lg text-sm ${
               theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-600'
             }`}>
-              <span>Showing {filteredStudentSummaries?.length || 0} of {studentFeeSummaries?.length || 0} records</span>
+              <span>Showing {filteredStudentSummaries?.length || 0} of {dashboardStudents?.length || 0} records</span>
               {selectedStudents?.length > 0 && (
                 <span className="text-blue-500 font-medium">{selectedStudents.length} selected</span>
               )}

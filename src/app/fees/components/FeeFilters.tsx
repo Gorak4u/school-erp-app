@@ -12,6 +12,7 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
     currentPage, setCurrentPage, showAdvancedFilters, setShowAdvancedFilters,
     showColumnSettings, setShowColumnSettings, advancedFilters, setAdvancedFilters,
     filteredStudentSummaries, studentFeeSummaries, selectedStudents, setSelectedStudents,
+    includeArchivedStudents, setIncludeArchivedStudents,
     setShowBulkOperations, setShowExportModal, showAISuggestions, setShowAISuggestions, handleAISearch,
     feeSuggestions, canManageFees = true,
   } = ctx;
@@ -144,6 +145,18 @@ export default function FeeFilters({ ctx }: { ctx: any }) {
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission Number</label>
                   <input type="text" value={advancedFilters?.admissionNumber || ''} onChange={e => setAdvancedFilters(p => ({ ...p, admissionNumber: e.target.value }))} placeholder="Admission number..." className={inputClass} />
+                </div>
+                <div className="flex items-center space-x-2 pt-6 lg:col-span-2">
+                  <input
+                    type="checkbox"
+                    id="includeArchivedStudents"
+                    checked={includeArchivedStudents}
+                    onChange={e => setIncludeArchivedStudents(e.target.checked)}
+                    className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : ''}`}
+                  />
+                  <label htmlFor="includeArchivedStudents" className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Include Exited/Graduated Students
+                  </label>
                 </div>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { ARCHIVED_STUDENT_STATUSES, normalizeStudentStatus } from '@/lib/studentStatus';
 
 // GET /api/fees/students - Optimized students data with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -16,11 +17,13 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const academicYear = searchParams.get('academicYear');
     const paymentStatus = searchParams.get('paymentStatus');
+    const includeArchived = searchParams.get('includeArchived') === 'true';
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
 
     // Build WHERE conditions
     const whereConditions: any = {};
+    const andConditions: any[] = [];
     
     // Tenant isolation - strict: null schoolId only visible to super admins
     if (!ctx.isSuperAdmin) {
@@ -38,7 +41,15 @@ export async function GET(request: NextRequest) {
     }
     
     if (status && status !== 'all') {
-      whereConditions.status = status;
+      andConditions.push(
+        status === 'exited' || status === 'exit'
+          ? { status: { in: ['exit', 'exited'] } }
+          : { status }
+      );
+    }
+
+    if (!includeArchived) {
+      andConditions.push({ NOT: { status: { in: ARCHIVED_STUDENT_STATUSES as unknown as string[] } } });
     }
     
     if (academicYear && academicYear !== 'all') {
@@ -63,6 +74,10 @@ export async function GET(request: NextRequest) {
         { parentName: { contains: search, mode: 'insensitive' } },
         { parentPhone: { contains: search, mode: 'insensitive' } }
       ];
+    }
+
+    if (andConditions.length > 0) {
+      whereConditions.AND = andConditions;
     }
 
     // Build order by clause
@@ -142,7 +157,7 @@ export async function GET(request: NextRequest) {
         studentId: student.id,
         studentName: student.name,
         studentClass: student.class,
-        studentStatus: student.status === 'exit' ? 'exited' : (student.status || 'active'),
+        studentStatus: normalizeStudentStatus(student.status),
         section: student.section || '',
         rollNo: student.rollNo || '',
         admissionNo: student.admissionNo || '',

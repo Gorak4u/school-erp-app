@@ -27,6 +27,7 @@ interface StudentFiltersProps {
   selectedLanguage: string;
   selectedStatus: string;
   selectedStudents: number[];
+  includeArchivedStudents: boolean;
   setAdvancedFilters: (v: any) => void;
   setAdvancedSearch: (v: any) => void;
   setAttendanceFilter: (v: string) => void;
@@ -39,6 +40,7 @@ interface StudentFiltersProps {
   setSelectedLanguage: (v: string) => void;
   setSelectedStatus: (v: string) => void;
   setSelectedStudents: (v: number[]) => void;
+  setIncludeArchivedStudents: (v: boolean) => void;
   setShowAdvancedFilters: (v: boolean) => void;
   setShowBulkOperationModal: (v: boolean) => void;
   setShowColumnSettings: (v: boolean) => void;
@@ -62,7 +64,7 @@ export default function StudentFilters({
   canPromoteStudents = true,
   canManageStudentBulk = true,
   setPageSize, setSearchTerm, setSelectedClass, setSelectedGender,
-  setSelectedLanguage, setSelectedStatus, setSelectedStudents,
+  setSelectedLanguage, setSelectedStatus, setSelectedStudents, includeArchivedStudents, setIncludeArchivedStudents,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowColumnSettings,
   setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme,
   onPromoteBulk, onPromoteClass
@@ -192,6 +194,18 @@ export default function StudentFilters({
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission To</label>
                   <input type="date" value={advancedFilters.admissionDateTo} onChange={e => setAdvancedFilters(prev => ({ ...prev, admissionDateTo: e.target.value }))} className={inputClass} />
+                </div>
+                <div className="flex items-center space-x-2 pt-6 lg:col-span-2">
+                  <input
+                    type="checkbox"
+                    id="includeArchivedStudents"
+                    checked={includeArchivedStudents}
+                    onChange={e => setIncludeArchivedStudents(e.target.checked)}
+                    className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : ''}`}
+                  />
+                  <label htmlFor="includeArchivedStudents" className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Include Exited/Graduated Students
+                  </label>
                 </div>
               </div>
 

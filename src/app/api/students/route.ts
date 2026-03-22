@@ -9,6 +9,7 @@ import { logAuditAction } from '@/lib/auditLog';
 import { enqueueEmailBatch } from '@/lib/queues/emailQueue';
 import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 import { canCreateStudentsAccess, canViewStudentsAccess } from '@/lib/permissions';
+import { ARCHIVED_STUDENT_STATUSES } from '@/lib/studentStatus';
 import {
   isValidEmail,
   isValidPhone,
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
     const cls = searchParams.get('class') || '';
     const status = searchParams.get('status') || '';
     const gender = searchParams.get('gender') || '';
+    const includeArchived = searchParams.get('includeArchived') === 'true';
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
     const needsPromotion = searchParams.get('needsPromotion') || '';
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
     );
 
     const where: any = { ...tenantWhere(ctx) };
+    const andConditions: any[] = [];
     
     if (search) {
       // Use startsWith for better performance on 10M+ records
@@ -68,20 +71,28 @@ export async function GET(request: NextRequest) {
     }
     if (cls) where.class = cls;
     if (status) {
-      if (status === 'exited' || status === 'exit') {
-        where.status = { in: ['exit', 'exited'] };
-      } else {
-        where.status = status;
-      }
+      andConditions.push(
+        status === 'exited' || status === 'exit'
+          ? { status: { in: ['exit', 'exited'] } }
+          : { status }
+      );
+    }
+    
+    if (!includeArchived) {
+      andConditions.push({ NOT: { status: { in: ARCHIVED_STUDENT_STATUSES as unknown as string[] } } });
     }
     if (gender) where.gender = gender;
     // Filter for students who need promotion: have academicYearId set but it differs from active AY
     if (needsPromotion === 'true') {
       const activeAY = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma);
       if (activeAY) {
-        where.academicYearId = { not: activeAY.id };
-        where.status = 'active';
+        andConditions.push({ academicYearId: { not: activeAY.id } });
+        andConditions.push({ status: 'active' });
       }
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const allowedSortFields: Record<string, boolean> = {

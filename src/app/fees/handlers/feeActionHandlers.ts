@@ -2,7 +2,7 @@
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from '../types';
 
 export function createFeeActionHandlers(ctx: any) {
-  const { feeRecords, feeStructureForm, feeStructures, isClient, searchTerm, selectedClass, selectedStatus, setFeeRecords, setFeeStructureForm, setFeeStructures, setShowFeeStructureModal, studentFeeSummaries } = ctx;
+  const { feeRecords, feeStructureForm, feeStructures, isClient, searchTerm, selectedClass, selectedStatus, setFeeRecords, setFeeStructureForm, setFeeStructures, setShowFeeStructureModal, studentFeeSummaries, visibleStudentFeeSummaries } = ctx;
 
   // Filter functions
   const filteredFeeRecords = feeRecords.filter(record => {
@@ -17,7 +17,7 @@ export function createFeeActionHandlers(ctx: any) {
     return matchesClass && matchesStatus && matchesSearch;
   });
 
-  const filteredStudentSummaries = studentFeeSummaries.filter((student: StudentFeeSummary) => {
+  const filteredStudentSummaries = (visibleStudentFeeSummaries || studentFeeSummaries).filter((student: StudentFeeSummary) => {
     const studentName = student.studentName || '';
     const rollNo = student.rollNo || '';
     const studentClass = student.studentClass || '';

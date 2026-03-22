@@ -26,8 +26,20 @@ export default function FeeCollectionPage() {
   useEffect(() => {
     setIsClient(true);
     feeState.setIsClient(true);
-    // Real data loaded in fees page - no need for mock data
+    // Load all students including archived ones for fee collection
+    console.log('Fee collection: Loading all students including archived...');
+    feeState.loadAllStudentsData(1, 100, true);
   }, []);
+
+  // Ensure fee collection always includes archived students (they might have outstanding fees)
+  useEffect(() => {
+    if (isClient && feeState.studentFeeSummaries.length === 0) {
+      console.log('Fee collection: No students found, reloading with archived=true...');
+      feeState.loadAllStudentsData(1, 100, true);
+    } else if (isClient) {
+      console.log(`Fee collection: Loaded ${feeState.studentFeeSummaries.length} students`);
+    }
+  }, [isClient, feeState.studentFeeSummaries.length]);
 
   useEffect(() => {
     if (!isClient) return;

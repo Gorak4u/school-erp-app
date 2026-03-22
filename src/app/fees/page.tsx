@@ -69,7 +69,7 @@ export default function FeesPage() {
     setFeeCollectionModal(prev => ({ ...prev, show: true, selectedStudent: { studentId }, loading: true }));
     
     try {
-      const response = await fetch('/api/fees/students');
+      const response = await fetch(`/api/fees/students?includeArchived=${includeArchivedStudents}`);
       const data = await response.json();
       if (data.success && data.data?.students) {
         const studentFeeData = data.data.students.find(s => s.studentId === studentId);
@@ -90,7 +90,7 @@ export default function FeesPage() {
   const handleRefreshFeeData = async () => {
     if (feeCollectionModal.selectedStudent?.studentId) {
       try {
-        const response = await fetch('/api/fees/students');
+        const response = await fetch(`/api/fees/students?includeArchived=${includeArchivedStudents}`);
         const data = await response.json();
         if (data.success && data.data?.students) {
           const studentFeeData = data.data.students.find(s => s.studentId === feeCollectionModal.selectedStudent.studentId);
@@ -166,6 +166,7 @@ export default function FeesPage() {
     setIsClient,
     selectedStudents,
     studentFeeSummaries,
+    includeArchivedStudents,
   } = ctx;
 
   // Initialize client-side rendering

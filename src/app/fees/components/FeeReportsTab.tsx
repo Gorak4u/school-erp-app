@@ -10,9 +10,10 @@ interface FeeReportsTabProps {
   studentFeeSummaries: any[];
   theme: 'dark' | 'light';
   onClose: () => void;
+  includeArchivedStudents?: boolean;
 }
 
-export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: FeeReportsTabProps) {
+export default function FeeReportsTab({ studentFeeSummaries, theme, onClose, includeArchivedStudents = false }: FeeReportsTabProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [reportsData, setReportsData] = useState<any>(null);
@@ -86,6 +87,9 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: F
         if (studentClass !== 'all') {
           params.append('class', studentClass);
         }
+        if (includeArchivedStudents) {
+          params.append('includeArchived', 'true');
+        }
         
         // Use calculated date range from period/year selectors
         const dateRange = calculateDateRange();
@@ -116,7 +120,7 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: F
     };
 
     loadReportsData();
-  }, [academicYear, studentClass, fromDate, toDate, selectedPeriod, selectedYear, calculateDateRange]);
+  }, [academicYear, studentClass, fromDate, toDate, selectedPeriod, selectedYear, calculateDateRange, includeArchivedStudents]);
 
   // Use API data or fall back to client-side calculations for compatibility
   const stats = useMemo(() => {
@@ -183,7 +187,7 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: F
       overdue,
       classwiseData
     };
-  }, [reportsData, studentFeeSummaries]);
+  }, [reportsData, studentFeeSummaries, includeArchivedStudents]);
 
   // Monthly collection trend (API data with fallback)
   const monthlyTrendData = useMemo(() => {
@@ -255,7 +259,7 @@ export default function FeeReportsTab({ studentFeeSummaries, theme, onClose }: F
         }
       ]
     };
-  }, [reportsData, studentFeeSummaries, stats.totalFees]);
+  }, [reportsData, studentFeeSummaries, stats.totalFees, includeArchivedStudents]);
 
   if (isLoading) {
     return (

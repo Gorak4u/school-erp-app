@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from '../types';
 import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi } from '@/lib/apiClient';
+import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 export function useFeeState() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export function useFeeState() {
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [studentFeeSummaries, setStudentFeeSummaries] = useState<StudentFeeSummary[]>([]);
+  const [includeArchivedStudents, setIncludeArchivedStudents] = useState(false);
 
   // Advanced filtering states
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -187,24 +189,25 @@ export function useFeeState() {
     recentSearches: [] as string[]
   });
 
+  const visibleStudentFeeSummaries = useMemo(() => {
+    if (includeArchivedStudents) return studentFeeSummaries;
+    return studentFeeSummaries.filter(student => !isArchivedStudentStatus(student.studentStatus || student.status));
+  }, [studentFeeSummaries, includeArchivedStudents]);
+
   // Initialize search engine when data loads
   useEffect(() => {
     const initializeSearchEngine = async () => {
-      if (studentFeeSummaries.length > 0) {
+      if (visibleStudentFeeSummaries.length > 0) {
         const { FeeSearchEngine } = await import('../search/FeeSearchEngine');
         const searchEngine = FeeSearchEngine.getInstance();
         
-        // Build index if not already built or if data changed
-        const metrics = searchEngine.getMetrics();
-        if (metrics.totalRecords === 0 || metrics.totalRecords !== studentFeeSummaries.length) {
-          searchEngine.buildIndex(studentFeeSummaries);
-          console.log(`Fee search engine initialized with ${studentFeeSummaries.length} records`);
-        }
+        // Build index using the visible student list so archived students stay hidden by default
+        searchEngine.buildIndex(visibleStudentFeeSummaries);
       }
     };
     
     initializeSearchEngine();
-  }, [studentFeeSummaries.length]);
+  }, [visibleStudentFeeSummaries, includeArchivedStudents]);
 
   // AI Search Handler with SmartSearchEngine
   const handleAISearch = async (query: string) => {
@@ -221,7 +224,7 @@ export function useFeeState() {
     
     // Ensure index is built
     if (searchEngine.getMetrics().totalRecords === 0) {
-      searchEngine.buildIndex(studentFeeSummaries);
+      searchEngine.buildIndex(visibleStudentFeeSummaries);
     }
     
     // Execute smart fee search
@@ -258,12 +261,12 @@ export function useFeeState() {
     }
   }, [selectedColumns]);
 
-  // Live statistics derived from studentFeeSummaries (always fresh)
+  // Live statistics derived from visibleStudentFeeSummaries (always fresh)
   const calculateStatistics = () => {
-    const totalFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0);
-    const collectedFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
-    const pendingFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0);
-    const overdueFees = studentFeeSummaries.reduce((sum, s) => sum + (s.totalOverdue || 0), 0);
+    const totalFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalFees || 0), 0);
+    const collectedFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
+    const pendingFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalPending || 0), 0);
+    const overdueFees = visibleStudentFeeSummaries.reduce((sum, s) => sum + (s.totalOverdue || 0), 0);
     return {
       totalFees,
       collectedFees,
@@ -284,7 +287,8 @@ export function useFeeState() {
   }, [feeRecords, selectedClass, selectedStatus, debouncedSearchTerm]);
 
   // Enhanced filtering with AI search capabilities
-  const filteredStudentSummaries = studentFeeSummaries.filter(student => {
+  const filteredStudentSummaries = React.useMemo(() => {
+    return visibleStudentFeeSummaries.filter(student => {
     let matchesSearch = true;
     
     if (debouncedSearchTerm) {
@@ -353,8 +357,9 @@ export function useFeeState() {
     const matchesStatus = selectedStatus === 'all' ||
       (student.calculatedPaymentStatus || student.paymentStatus || '') === selectedStatus;
     
-    return matchesSearch && matchesClass && matchesStatus;
-  });
+      return matchesSearch && matchesClass && matchesStatus;
+    });
+  }, [visibleStudentFeeSummaries, debouncedSearchTerm, selectedClass, selectedStatus]);
 
   // Bulk operations
   const [bulkOperationType, setBulkOperationType] = useState<'collect' | 'discount' | 'reminder' | 'export' | 'delete'>('collect');
@@ -388,12 +393,13 @@ export function useFeeState() {
   }, []);
 
   // Tab-specific API loaders with DB aggregation
-  const loadAllStudentsData = async (page = 1, limit = 100) => {
+  const loadAllStudentsData = async (page = 1, limit = 100, includeArchived = includeArchivedStudents) => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString()
+        limit: limit.toString(),
+        includeArchived: includeArchived ? 'true' : 'false'
       });
       
       const response = await fetch(`/api/fees/students?${params}`);
@@ -559,6 +565,11 @@ export function useFeeState() {
     loadTabData();
   }, [activeTab]); // Reload data when tab changes
 
+  // Keep the fee student cache in sync with the archived-student toggle
+  useEffect(() => {
+    loadAllStudentsData(1, 100, includeArchivedStudents);
+  }, [includeArchivedStudents]);
+
   // Legacy data loading (DISABLED - using new tab-specific loaders)
   // useEffect(() => {
   //   const loadFeeData = async () => {
@@ -597,6 +608,8 @@ export function useFeeState() {
     discounts, setDiscounts,
     selectedStudents, setSelectedStudents,
     studentFeeSummaries, setStudentFeeSummaries,
+    visibleStudentFeeSummaries,
+    includeArchivedStudents, setIncludeArchivedStudents,
     filteredStudentSummaries,
     filteredFeeRecords,
     calculateStatistics,

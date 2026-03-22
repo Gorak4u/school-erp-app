@@ -101,12 +101,12 @@ export async function POST(request: NextRequest) {
     const statusMapping: Record<string, string> = {
       graduated: 'graduated',
       transferred: 'transferred',
-      withdrawn: 'exited',
-      expelled: 'exited',
+      withdrawn: 'exit',
+      expelled: 'exit',
       suspended: 'suspended',
     };
 
-    const newStatus = statusMapping[exitReason] || 'exited';
+    const newStatus = statusMapping[exitReason] || 'exit';
     const processed: any[] = [];
     const failed: any[] = [];
 

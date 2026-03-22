@@ -4,6 +4,7 @@
 import SmartSearchEngine, { SearchQuery, SearchPattern } from '../../shared/search/SmartSearchEngine';
 import QueryParser, { ParsedQuery } from '../../shared/search/QueryParser';
 import { Student } from '../types';
+import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 /**
  * Student-Specific Search Engine
@@ -13,6 +14,7 @@ import { Student } from '../types';
 export interface StudentSearchQuery extends SearchQuery {
   includeInactive?: boolean;
   includeGraduated?: boolean;
+  includeArchived?: boolean;
   academicYear?: string;
 }
 
@@ -138,6 +140,10 @@ export class StudentSearchEngine extends SmartSearchEngine<Student> {
     
     if (query.includeGraduated === false) {
       filteredStudents = filteredStudents.filter(s => s.status !== 'graduated');
+    }
+
+    if (query.includeArchived === false) {
+      filteredStudents = filteredStudents.filter(s => !isArchivedStudentStatus(s.status));
     }
     
     if (query.academicYear) {
