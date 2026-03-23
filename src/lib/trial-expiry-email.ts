@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import { logger } from './logger';
 import { School, Subscription, User } from '@prisma/client';
 
 export interface TrialExpiryEmailData {
@@ -123,10 +124,13 @@ export async function sendTrialExpiryEmail(
       html,
     });
 
-    console.log(`Trial expiry email sent to ${user.email} (${daysRemaining} days remaining)`);
+    logger.info('Trial expiry email sent', {
+      userEmail: user.email,
+      daysRemaining
+    });
     return result;
   } catch (error) {
-    console.error('Failed to send trial expiry email:', error);
+    logger.error('Failed to send trial expiry email', { error, userEmail: user.email });
     throw error;
   }
 }

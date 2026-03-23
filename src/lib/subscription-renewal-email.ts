@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import { logger } from './logger';
 import { School, Subscription, User } from '@prisma/client';
 
 export interface SubscriptionRenewalEmailData {
@@ -140,10 +141,15 @@ export async function sendSubscriptionRenewalEmail(
       html,
     });
 
-    console.log(`Subscription renewal email sent to ${user.email} (${daysRemaining} days until renewal)`);
+    logger.info('Subscription renewal email sent', {
+      userEmail: user.email,
+      daysRemaining,
+      amount,
+      billingCycle
+    });
     return result;
   } catch (error) {
-    console.error('Failed to send subscription renewal email:', error);
+    logger.error('Failed to send subscription renewal email', { error, userEmail: user.email });
     throw error;
   }
 }

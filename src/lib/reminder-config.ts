@@ -1,4 +1,5 @@
 import { saasPrisma } from '@/lib/prisma';
+import { logger } from './logger';
 
 export interface ReminderConfig {
   enabled: boolean;
@@ -87,7 +88,7 @@ export async function getReminderConfig(): Promise<ReminderSchedule> {
       quotaLimitExceeded: { ...DEFAULT_REMINDER_CONFIG.quotaLimitExceeded, ...config.quotaLimitExceeded },
     };
   } catch (error) {
-    console.error('Failed to fetch reminder config, using defaults:', error);
+    logger.error('Failed to fetch reminder config, using defaults', { error });
     return DEFAULT_REMINDER_CONFIG;
   }
 }
@@ -118,9 +119,9 @@ export async function updateReminderConfig(config: Partial<ReminderSchedule>): P
       }
     }
     
-    console.log('Reminder configuration updated successfully');
+    logger.info('Reminder configuration updated successfully');
   } catch (error) {
-    console.error('Failed to update reminder config:', error);
+    logger.error('Failed to update reminder config', { error });
     throw error;
   }
 }

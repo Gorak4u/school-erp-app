@@ -19,6 +19,75 @@ import DashboardQuickActions from './components/DashboardQuickActions';
 import DashboardAlerts from './components/DashboardAlerts';
 import { dashboardApi } from '@/lib/apiClient';
 
+// Type definitions for dashboard data
+interface DashboardData {
+  students?: {
+    total?: number;
+    active?: number;
+    inactive?: number;
+    [key: string]: unknown;
+  };
+  teachers?: {
+    total?: number;
+    active?: number;
+    inactive?: number;
+    [key: string]: unknown;
+  };
+  classes?: {
+    total?: number;
+    [key: string]: unknown;
+  };
+  fees?: {
+    totalCollected?: number;
+    pending?: number;
+    [key: string]: unknown;
+  };
+  stats?: {
+    totalStudents?: number;
+    totalTeachers?: number;
+    totalClasses?: number;
+    totalFeeCollected?: number;
+    [key: string]: unknown;
+  };
+  charts?: {
+    enrollmentData?: unknown[];
+    feeCollectionData?: unknown[];
+    attendanceData?: unknown[];
+    feeCollection?: {
+      labels?: unknown[];
+      collected?: unknown[];
+      pending?: unknown[];
+      [key: string]: unknown;
+    };
+    classDistribution?: {
+      labels?: unknown[];
+      data?: unknown[];
+      [key: string]: unknown;
+    };
+    attendanceTrends?: {
+      labels?: unknown[];
+      present?: unknown[];
+      absent?: unknown[];
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+  upcomingExams?: {
+    subject?: string;
+    name?: string;
+    totalMarks?: number;
+    [key: string]: unknown;
+  }[];
+  attendance?: {
+    present?: number;
+    absent?: number;
+    late?: number;
+    total?: number;
+    [key: string]: unknown;
+  };
+}
+
 export default function DashboardPage() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
@@ -29,7 +98,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isClient, setIsClient] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSetupAlert, setShowSetupAlert] = useState(false);
   const [setupDismissed, setSetupDismissed] = useState(false);
@@ -68,8 +137,8 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await dashboardApi.stats();
-      setDashboardData(data);
+      const response = await dashboardApi.stats();
+      setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -107,18 +176,18 @@ export default function DashboardPage() {
         }]
       },
       feeCollection: {
-        labels: dashboardData?.charts?.feeCollection?.labels || ['No data'],
+        labels: (dashboardData?.charts?.feeCollection?.labels as string[]) || ['No data'],
         datasets: [{
           label: 'Fees Collected',
-          data: dashboardData?.charts?.feeCollection?.collected || [0],
+          data: (dashboardData?.charts?.feeCollection?.collected as number[]) || [0],
           backgroundColor: 'rgba(34, 197, 94, 0.8)',
         }]
       },
       classDistribution: {
-        labels: dashboardData?.charts?.classDistribution?.labels || ['No data'],
+        labels: (dashboardData?.charts?.classDistribution?.labels as string[]) || ['No data'],
         datasets: [{
           label: 'Students per Class',
-          data: dashboardData?.charts?.classDistribution?.data || [0],
+          data: (dashboardData?.charts?.classDistribution?.data as number[]) || [0],
           backgroundColor: [
             'rgba(59, 130, 246, 0.8)',
             'rgba(34, 197, 94, 0.8)',
@@ -130,16 +199,16 @@ export default function DashboardPage() {
         }]
       },
       subjectPerformance: {
-        labels: (dashboardData?.upcomingExams || []).map((e: any) => e.subject || e.name),
+        labels: (dashboardData?.upcomingExams || []).map((e: { subject?: string; name?: string }) => e.subject || e.name || ''),
         datasets: [{
           label: 'Upcoming Exams (Total Marks)',
-          data: (dashboardData?.upcomingExams || []).map((e: any) => e.totalMarks || 0),
+          data: (dashboardData?.upcomingExams || []).map((e: { totalMarks?: number }) => e.totalMarks || 0),
           backgroundColor: 'rgba(59, 130, 246, 0.8)',
           borderColor: 'rgb(59, 130, 246)',
         }]
       },
       attendanceTrend: {
-        labels: ['Present', 'Absent', 'Late'],
+        labels: (dashboardData?.charts?.attendanceTrends?.labels as string[]) || ['Present', 'Absent', 'Late'],
         datasets: [{
           label: 'Today\'s Attendance',
           data: [
@@ -160,15 +229,15 @@ export default function DashboardPage() {
     academic: {
       totalStudents: dashboardData.students?.total || 0,
       activeStudents: dashboardData.students?.active || 0,
-      averageAttendance: dashboardData.attendance?.total ? 
+      averageAttendance: dashboardData.attendance?.total && dashboardData.attendance.present ? 
         Math.round((dashboardData.attendance.present / dashboardData.attendance.total) * 100) : 0,
       passRate: 0 // Will be calculated when exam results are available
     },
     financial: {
-      totalRevenue: dashboardData.fees?.totalAmount || 0,
+      totalRevenue: (dashboardData.fees?.totalAmount as number) || 0,
       feesCollected: dashboardData.fees?.totalCollected || 0,
-      pendingFees: dashboardData.fees?.totalPending || 0,
-      collectionRate: dashboardData.fees?.collectionRate || 0
+      pendingFees: (dashboardData.fees?.totalPending as number) || 0,
+      collectionRate: (dashboardData.fees?.collectionRate as number) || 0
     },
     operational: {
       totalTeachers: dashboardData.teachers?.total || 0,

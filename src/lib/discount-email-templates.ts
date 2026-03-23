@@ -1,24 +1,24 @@
 import { DiscountRequest } from '@prisma/client';
 
 // Helper function to get user display name
-function getUserDisplayName(user: any): string {
-  if (user.firstName && user.lastName) {
-    return `${user.firstName} ${user.lastName}`;
+function getUserDisplayName(user: Record<string, unknown>): string {
+  if ((user as Record<string, unknown>).firstName && (user as Record<string, unknown>).lastName) {
+    return `${(user as Record<string, unknown>).firstName} ${(user as Record<string, unknown>).lastName}`;
   }
-  return user.name || user.email || 'Unknown User';
+  return (user as Record<string, unknown>).name as string || (user as Record<string, unknown>).email as string || 'Unknown User';
 }
 
 export interface DiscountPendingEmailData {
   discountRequest: DiscountRequest;
-  submitter: any; // User type from database
-  approver: any; // User type from database
+  submitter: Record<string, unknown>; // User type from database
+  approver: Record<string, unknown>; // User type from database
   schoolName: string;
 }
 
 export interface DiscountApprovedEmailData {
   discountRequest: DiscountRequest;
-  submitter: any; // User type from database
-  approver: any; // User type from database
+  submitter: Record<string, unknown>; // User type from database
+  approver: Record<string, unknown>; // User type from database
   schoolName: string;
 }
 

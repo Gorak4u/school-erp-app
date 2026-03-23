@@ -1828,11 +1828,11 @@ export default function StaffPage() {
                         (window as any).toast({
                           type: 'success',
                           title: 'Staff Created Successfully',
-                          message: `${generatedEmployeeId ? `Employee ID: ${generatedEmployeeId}. ` : ''}Login account created! Welcome email sent to ${response.user.email}. Admin notification sent.`,
+                          message: `${generatedEmployeeId ? `Employee ID: ${generatedEmployeeId}. ` : ''}Login account created! Welcome email sent to ${response.user?.email}. Admin notification sent.`,
                           duration: 8000,
                         });
                       } else {
-                        alert(`Staff created! ${generatedEmployeeId ? `\nEmployee ID: ${generatedEmployeeId}` : ''}\nLogin account created for ${response.user.email}\nWelcome email and admin notification sent.`);
+                        alert(`Staff created! ${generatedEmployeeId ? `\nEmployee ID: ${generatedEmployeeId}` : ''}\nLogin account created for ${response.user?.email}\nWelcome email and admin notification sent.`);
                       }
                     } else {
                       if ((window as any).toast) {

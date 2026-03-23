@@ -1,4 +1,5 @@
 import { saasPrisma } from './prisma';
+import { logger } from './logger';
 
 export async function logAuditAction({
   actorEmail,
@@ -27,6 +28,6 @@ export async function logAuditAction({
       },
     });
   } catch (err) {
-    console.error('Audit log error:', err);
+    logger.error('Audit log error', { error: err, actorEmail, action, target });
   }
 }

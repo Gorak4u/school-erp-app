@@ -291,11 +291,11 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
         <div className="text-center py-12 text-gray-500">Loading roles...</div>
       ) : (
         <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-          <div className="min-w-[800px]">
+          <div className="min-w-[900px]">
             <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <thead>
               <tr>
-                <th className={`px-4 py-3 text-left font-semibold border min-w-[200px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[2px_0_0_0_#374151]' : ''}`}>
+                <th className={`px-4 py-3 text-left font-semibold border min-w-[300px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[2px_0_0_0_#374151]' : ''}`}>
                   Role Name
                 </th>
                 {/* Individual Permission Columns */}
@@ -321,7 +321,8 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                       value={draft.name}
                       onChange={(e) => handleNameChange(id, e.target.value)}
                       placeholder="Role Name"
-                      className={`w-full h-full min-h-[48px] px-4 py-3 bg-transparent outline-none ${isDark ? 'text-gray-200 placeholder-gray-600 focus:bg-gray-800' : 'text-gray-900 placeholder-gray-400 focus:bg-blue-50'} transition-colors font-medium`}
+                      className={`w-full h-full min-h-[48px] px-4 py-3 bg-transparent outline-none text-ellipsis ${isDark ? 'text-gray-200 placeholder-gray-600 focus:bg-gray-800' : 'text-gray-900 placeholder-gray-400 focus:bg-blue-50'} transition-colors font-medium`}
+                      title={draft.name || 'Role Name'}
                     />
                   </td>
                   {/* Individual Permission Checkboxes */}

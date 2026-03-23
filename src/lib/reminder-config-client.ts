@@ -72,7 +72,7 @@ export async function getReminderConfigClient(): Promise<ReminderSchedule> {
     const data = await response.json();
     return data.config || DEFAULT_REMINDER_CONFIG;
   } catch (error) {
-    console.error('Failed to fetch reminder config, using defaults:', error);
+    console.error('Failed to fetch reminder config, using defaults', error);
     return DEFAULT_REMINDER_CONFIG;
   }
 }
@@ -89,7 +89,7 @@ export async function updateReminderConfigClient(config: Partial<ReminderSchedul
       throw new Error('Failed to update reminder configuration');
     }
   } catch (error) {
-    console.error('Failed to update reminder config:', error);
+    console.error('Failed to update reminder config', error);
     throw error;
   }
 }

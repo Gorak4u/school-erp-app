@@ -1,8 +1,34 @@
-// @ts-nocheck
 import { buildStudentIdCardDocument, StudentIdCardData } from './idCard';
 import { buildTeacherIdCardDocument, TeacherIdCardData } from './teacherIdCard';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+
+interface StudentData {
+  id: string;
+  name: string;
+  email: string;
+  rollNumber?: string;
+  class?: string;
+  section?: string;
+  photo?: string;
+  admissionNo?: string;
+  dateOfBirth?: string;
+  academicYear?: string;
+  bloodGroup?: string;
+  fatherName?: string;
+  motherName?: string;
+  transportRoute?: string;
+  phone?: string;
+  [key: string]: unknown; // Allow additional properties
+}
+
+interface SchoolConfig {
+  name: string;
+  address?: string;
+  logo?: string;
+  getSetting: (group: string, key: string, defaultValue?: string) => string;
+  [key: string]: unknown; // Allow additional properties
+}
 
 export interface BulkIdCardOptions {
   outputFormat: 'pdf' | 'image' | 'both';
@@ -22,14 +48,14 @@ export interface BulkIdCardResult {
 }
 
 export async function generateBulkIdCards(
-  students: any[],
+  students: StudentData[],
   options: BulkIdCardOptions,
-  schoolConfig: any
+  schoolConfig: SchoolConfig
 ): Promise<BulkIdCardResult> {
   const { outputFormat, layout, includeBothSides } = options;
   
   // Generate ID card data for all students
-  const idCards: StudentIdCardData[] = students.map(student => ({
+  const idCards: StudentIdCardData[] = (students as any).map((student: any) => ({
     name: student.name,
     admissionNo: student.admissionNo,
     className: `${student.class}${student.section ? ` - ${student.section}` : ''}`,
@@ -794,7 +820,8 @@ export function downloadBulkIdCards(result: BulkIdCardResult, students: any[]): 
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
   
   if (result.pdf) {
-    const pdfBlob = new Blob([result.pdf], { type: 'application/pdf' });
+    const arrayBuffer = result.pdf instanceof Uint8Array ? result.pdf.buffer : new Uint8Array(result.pdf).buffer;
+    const pdfBlob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
     const pdfUrl = URL.createObjectURL(pdfBlob);
     const pdfLink = document.createElement('a');
     pdfLink.href = pdfUrl;
@@ -809,7 +836,8 @@ export function downloadBulkIdCards(result: BulkIdCardResult, students: any[]): 
     // Create a zip file with all images
     // For now, download them individually
     Object.entries(result.images).forEach(([filename, imageData]) => {
-      const blob = new Blob([imageData], { type: 'image/png' });
+      const imageBuffer = imageData instanceof Uint8Array ? imageData.buffer : new Uint8Array(imageData).buffer;
+      const blob = new Blob([imageBuffer as ArrayBuffer], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

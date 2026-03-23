@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { headers } from 'next/headers';
 import { schoolPrisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * Production-ready Razorpay webhook handler
@@ -202,20 +204,22 @@ async function handleOrderPaid(order: any) {
  */
 async function updatePaymentStatus(paymentId: string, status: string, metadata: any) {
   try {
-    console.log('📝 Updating payment status:', { paymentId, status, metadata });
+    logger.info('Updating payment status', { paymentId, status, metadata });
     
-    // TODO: Implement database update
-    // await schoolPrisma.paymentRecord.update({
-    //   where: { paymentId },
-    //   data: {
-    //     status,
-    //     metadata,
-    //     updatedAt: new Date(),
-    //   }
-    // });
+    // Update payment status in database
+    await (schoolPrisma as any).paymentRecord.update({
+      where: { paymentId },
+      data: {
+        status,
+        metadata,
+        updatedAt: new Date(),
+      }
+    });
+    
+    logger.info('Payment status updated successfully', { paymentId, status });
     
   } catch (error) {
-    console.error('Error updating payment status:', error);
+    logger.error('Error updating payment status', { error, paymentId });
   }
 }
 
@@ -224,20 +228,22 @@ async function updatePaymentStatus(paymentId: string, status: string, metadata: 
  */
 async function updateOrderStatus(orderId: string, status: string, metadata: any) {
   try {
-    console.log('📝 Updating order status:', { orderId, status, metadata });
+    logger.info('Updating order status', { orderId, status, metadata });
     
-    // TODO: Implement database update
-    // await schoolPrisma.paymentOrder.update({
-    //   where: { orderId },
-    //   data: {
-    //     status,
-    //     metadata,
-    //     updatedAt: new Date(),
-    //   }
-    // });
+    // Update order status in database
+    await (schoolPrisma as any).paymentOrder.update({
+      where: { orderId },
+      data: {
+        status,
+        metadata,
+        updatedAt: new Date(),
+      }
+    });
+    
+    logger.info('Order status updated successfully', { orderId, status });
     
   } catch (error) {
-    console.error('Error updating order status:', error);
+    logger.error('Error updating order status', { error, orderId });
   }
 }
 
@@ -246,14 +252,35 @@ async function updateOrderStatus(orderId: string, status: string, metadata: any)
  */
 async function sendPaymentNotification(payment: any, status: string) {
   try {
-    // TODO: Implement notification sending
-    console.log('📧 Sending payment notification:', { paymentId: payment.id, status });
+    logger.info('Sending payment notification', { paymentId: payment.id, status });
     
-    // You could send emails, SMS, or push notifications here
+    // Send payment notification email/SMS
+    const { sendEmail } = await import('@/lib/email');
+    
+    if (payment.userEmail) {
+      const subject = `Payment ${status === 'completed' ? 'Successful' : 'Failed'} - School ERP`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">Payment ${status === 'completed' ? 'Successful' : 'Failed'}</h2>
+          <p>Payment ID: ${payment.id}</p>
+          <p>Amount: ₹${payment.amount}</p>
+          <p>Status: ${status}</p>
+          <p>Date: ${new Date().toLocaleDateString()}</p>
+        </div>
+      `;
+      
+      await sendEmail({
+        to: payment.userEmail,
+        subject,
+        html
+      });
+      
+      logger.info('Payment notification sent successfully', { paymentId: payment.id, userEmail: payment.userEmail });
+    }
     // based on the payment status and user preferences
     
   } catch (error) {
-    console.error('Error sending payment notification:', error);
+    logger.error('Error sending payment notification', { error, paymentId: payment.id });
   }
 }
 

@@ -1,4 +1,5 @@
 import { sendSchoolEmail } from '@/lib/email';
+import { logger } from '@/lib/logger';
 
 export interface EmailJob {
   to: string;
@@ -17,7 +18,7 @@ export function enqueueEmail(job: EmailJob) {
     try {
       await sendSchoolEmail(job);
     } catch (error) {
-      console.error('Failed to process email job:', { job, error });
+      logger.error('Failed to process email job', { error, job: { to: job.to, subject: job.subject, schoolId: job.schoolId } });
     }
   });
 }

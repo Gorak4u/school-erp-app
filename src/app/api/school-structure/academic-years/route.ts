@@ -19,10 +19,11 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ academicYears });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching academic years:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch academic years';
     return NextResponse.json(
-      { error: 'Failed to fetch academic years', details: error.message },
+      { error: 'Failed to fetch academic years', details: errorMessage },
       { status: 500 }
     );
   }
@@ -67,19 +68,20 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ academicYear }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating academic year:', error);
     
     // Handle Prisma unique constraint error
-    if (error.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Academic year already exists', details: 'This academic year is already in the system' },
         { status: 409 }
       );
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create academic year';
     return NextResponse.json(
-      { error: 'Failed to create academic year', details: error.message },
+      { error: 'Failed to create academic year', details: errorMessage },
       { status: 500 }
     );
   }
@@ -134,10 +136,11 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ academicYear });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating academic year:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update academic year';
     return NextResponse.json(
-      { error: 'Failed to update academic year', details: error.message },
+      { error: 'Failed to update academic year', details: errorMessage },
       { status: 500 }
     );
   }
@@ -180,9 +183,9 @@ export async function DELETE(request: NextRequest) {
 
     // Calculate other counts for information
     const mediumCount = existing.mediums.length;
-    const classCount = existing.mediums.reduce((sum: number, m: any) => sum + m.classes.length, 0);
-    const sectionCount = existing.mediums.reduce((sum: number, m: any) => 
-      sum + m.classes.reduce((s: number, c: any) => s + c.sections.length, 0), 0);
+    const classCount = existing.mediums.reduce((sum: number, m: { classes: unknown[] }) => sum + m.classes.length, 0);
+    const sectionCount = existing.mediums.reduce((sum: number, m: { classes: { sections: unknown[] }[] }) => 
+      sum + m.classes.reduce((s: number, c: { sections: unknown[] }) => s + c.sections.length, 0), 0);
 
     if (!cascade) {
       if (studentCount > 0) {
@@ -219,9 +222,9 @@ export async function DELETE(request: NextRequest) {
 
       await (schoolPrisma as any).feeStructure.deleteMany({ where: { ...schoolFilter, academicYearId: id } });
 
-      const mediumIds = existing.mediums.map((m: any) => m.id);
+      const mediumIds = existing.mediums.map((m: { id: string }) => m.id);
       const classIds: string[] = [];
-      existing.mediums.forEach((m: any) => m.classes.forEach((c: any) => classIds.push(c.id)));
+      existing.mediums.forEach((m: { classes: { id: string }[] }) => m.classes.forEach((c: { id: string }) => classIds.push(c.id)));
 
       if (classIds.length > 0) {
         await (schoolPrisma as any).section.deleteMany({ where: { ...schoolFilter, classId: { in: classIds } } });
@@ -245,14 +248,16 @@ export async function DELETE(request: NextRequest) {
         feeStructures: feeStructureCount
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting academic year:', error);
-    if (error.code === 'P2025') return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
-    if (error.code === 'P2003') return NextResponse.json({ 
-      error: 'Cannot delete academic year', 
-      details: 'This academic year is referenced by other records. Please delete those records first.',
-      code: 'FOREIGN_KEY_CONSTRAINT'
-    }, { status: 400 });
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'P2025') return NextResponse.json({ error: 'Academic year not found' }, { status: 404 });
+      if (error.code === 'P2003') return NextResponse.json({ 
+        error: 'Cannot delete academic year', 
+        details: 'This academic year is referenced by other records. Please delete those records first.',
+        code: 'FOREIGN_KEY_CONSTRAINT'
+      }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Failed to delete academic year' }, { status: 500 });
   }
 }

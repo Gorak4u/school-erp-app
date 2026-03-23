@@ -1,4 +1,5 @@
 import { isEmailNotificationEnabled, sendEmail } from './email';
+import { logger } from './logger';
 
 export async function sendLeaveStatusEmail(
   to: string,
@@ -11,7 +12,7 @@ export async function sendLeaveStatusEmail(
   try {
     const isEnabled = await isEmailNotificationEnabled(schoolId);
     if (!isEnabled) {
-      console.log(`[Leave Email] Notification disabled for school ${schoolId}`);
+      logger.info(`Leave email notifications disabled for school ${schoolId}`);
       return { success: false, error: 'Notifications disabled' };
     }
 
@@ -36,8 +37,9 @@ export async function sendLeaveStatusEmail(
     `;
 
     return await sendEmail({ to, subject, html });
-  } catch (error: any) {
-    console.error('[Leave Email] Failed to send leave status email:', error);
-    return { success: false, error: error?.message || 'Failed to send leave status email' };
+  } catch (error: Error | unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to send leave status email', { error: errorMessage, to, staffName, status, schoolId });
+    return { success: false, error: errorMessage || 'Failed to send leave status email' };
   }
 }

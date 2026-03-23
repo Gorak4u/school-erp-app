@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
@@ -19,6 +18,47 @@ import {
   isValidDate,
   isValidGender,
 } from '@/lib/validation';
+
+// Type definitions for the API
+type StudentWhereClause = {
+  schoolId?: string;
+  isActive?: boolean;
+  status?: string | { in: string[] };
+  OR?: Array<{
+    name?: { startsWith: string; mode: 'insensitive' };
+    email?: { startsWith: string; mode: 'insensitive' };
+    rollNumber?: { startsWith: string; mode: 'insensitive' };
+    phone?: { startsWith: string; mode: 'insensitive' };
+    admissionNo?: { startsWith: string; mode: 'insensitive' };
+    rollNo?: { startsWith: string; mode: 'insensitive' };
+    parentName?: { startsWith: string; mode: 'insensitive' };
+  }>;
+  [key: string]: any; // Allow additional properties from tenantWhere
+};
+
+interface StudentCreateData {
+  name: string;
+  email: string;
+  rollNumber?: string;
+  phone?: string;
+  address?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  classId?: string;
+  sectionId?: string;
+  aadharNumber?: string;
+  religion?: string;
+  caste?: string;
+  bloodGroup?: string;
+  motherName?: string;
+  fatherName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  emergencyContact?: string;
+  emergencyContactRelation?: string;
+  admissionDate?: string;
+  [key: string]: any; // Allow additional fields
+}
 
 const STUDENT_LIST_RATE_LIMIT = Number(process.env.STUDENT_LIST_RATE_LIMIT_PER_MINUTE || '200');
 const STUDENT_CREATE_RATE_LIMIT = Number(process.env.STUDENT_CREATE_RATE_LIMIT_PER_MINUTE || '5');
@@ -55,8 +95,8 @@ export async function GET(request: NextRequest) {
       searchParams.get('pageSize')
     );
 
-    const where: any = { ...tenantWhere(ctx) };
-    const andConditions: any[] = [];
+    const where: StudentWhereClause = { ...tenantWhere(ctx) };
+    const andConditions: StudentWhereClause[] = [];
     
     if (search) {
       // Use startsWith for better performance on 10M+ records
@@ -175,7 +215,7 @@ export async function GET(request: NextRequest) {
     // 3. Build lookup maps
     const feeMap = new Map(feeAgg.map(f => [f.studentId, f._sum]));
     const lastPayMap = new Map(
-      feeLastPayment.map(p => [p.studentId, p.paidDate ? (typeof p.paidDate === 'string' ? p.paidDate.split('T')[0] : p.paidDate.toISOString().split('T')[0]) : ''])
+      feeLastPayment.map(p => [p.studentId, p.paidDate ? (typeof p.paidDate === 'string' ? p.paidDate.split('T')[0] : (p.paidDate as Date).toISOString().split('T')[0]) : ''])
     );
     const attMap = new Map();
     attendanceAgg.forEach(att => {
@@ -186,7 +226,7 @@ export async function GET(request: NextRequest) {
 
     // Build transport lookup maps
     const transportMap = new Map();
-    transportStudents.forEach(ts => {
+    transportStudents.forEach((ts: { id: string; studentId: string; routeId: string; isActive: boolean }) => {
       transportMap.set(ts.studentId, {
         id: ts.id,
         routeId: ts.routeId,
@@ -218,8 +258,8 @@ export async function GET(request: NextRequest) {
         fees: {
           total: fees.amount || 0,
           paid: fees.paidAmount || 0,
-          discount: fees.discount || 0,
-          pending: (fees.amount || 0) - (fees.paidAmount || 0) - (fees.discount || 0),
+          discount: (fees as any).discount || 0,
+          pending: (fees.amount || 0) - (fees.paidAmount || 0) - ((fees as any).discount || 0),
           lastPaymentDate: lastPayMap.get(s.id) || '',
         },
         attendance: {
@@ -269,7 +309,7 @@ export async function POST(request: NextRequest) {
       return apiError(429, {
         message: 'Too many student creation requests. Please wait before creating another student.',
         code: 'RATE_LIMITED',
-        retryAfter: rateLimitResult.retryAfter,
+        retryAfter: (rateLimitResult as any).retryAfter,
       });
     }
 
@@ -564,7 +604,7 @@ async function getSchoolDisplayName(schoolId: string | null): Promise<string> {
       where: { schoolId, group: 'school_details', key: { in: ['name', 'school_name'] } },
     });
     const byKey = new Map(settings.map((setting: any) => [setting.key, setting.value]));
-    return byKey.get('name') || byKey.get('school_name') || 'Our School';
+    return (byKey.get('name') as string | undefined) || (byKey.get('school_name') as string | undefined) || 'Our School';
   } catch (error) {
     console.error('Failed to fetch school name:', error);
     return 'Our School';

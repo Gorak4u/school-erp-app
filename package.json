@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start",
+    "dev": "tsx scripts/startup-init.ts && next dev",
+    "build": "tsx scripts/startup-init.ts && prisma generate && next build",
+    "start": "tsx scripts/startup-init.ts && next start",
     "lint": "eslint",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
@@ -19,7 +19,8 @@
     "clear-sessions": "tsx scripts/clear-sessions.ts",
     "force-logout-all": "tsx scripts/force-logout-all.ts",
     "pre-deploy": "./scripts/pre-deploy-check.sh",
-    "send-reminders": "tsx scripts/send-reminders.ts"
+    "send-reminders": "tsx scripts/send-reminders.ts",
+    "startup-init": "tsx scripts/startup-init.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -79,6 +80,7 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

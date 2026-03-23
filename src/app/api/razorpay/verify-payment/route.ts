@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { schoolPrisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { paymentsApi } from '@/lib/apiClient';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 /**
  * Production-ready Razorpay payment verification endpoint
@@ -286,20 +288,22 @@ async function getFeeDetails(feeId: string) {
  */
 async function updatePaymentOrderStatus(orderId: string, status: string, metadata: any) {
   try {
-    console.log('📝 Updating payment order status:', { orderId, status, metadata });
+    logger.info('Updating payment order status', { orderId, status, metadata });
     
-    // TODO: Implement database update
-    // await schoolPrisma.paymentOrder.update({
-    //   where: { orderId },
-    //   data: {
-    //     status,
-    //     metadata,
-    //     updatedAt: new Date(),
-    //   }
-    // });
+    // Update payment order status in database
+    await (schoolPrisma as any).paymentOrder.update({
+      where: { orderId },
+      data: {
+        status,
+        metadata,
+        updatedAt: new Date(),
+      }
+    });
+    
+    logger.info('Payment order status updated successfully', { orderId, status });
     
   } catch (error) {
-    console.error('Error updating payment order status:', error);
+    logger.error('Error updating payment order status', { error, orderId });
     // Don't throw error here to avoid breaking the flow
   }
 }

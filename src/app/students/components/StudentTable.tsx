@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +19,7 @@ interface StudentTableProps {
   setEditingStudent: (v: Student | null) => void;
   setSelectedStudent: (v: Student | null) => void;
   sortConfig: { key: string; direction: 'asc' | 'desc' } | null;
-  setSortConfig: (v: any) => void;
+  setSortConfig: (v: { key: string; direction: 'asc' | 'desc' } | null) => void;
   theme: 'dark' | 'light';
   toggleAllStudentsSelection: () => void;
   toggleStudentSelection: (id: number) => void;
@@ -51,20 +50,19 @@ export default function StudentTable({
   }, []);
 
   const handleSort = (key: string) => {
-    setSortConfig(prev => {
-      if (prev?.key === key) {
-        return prev.direction === 'asc' ? { key, direction: 'desc' } : null;
-      }
-      return { key, direction: 'asc' };
-    });
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   // Sort students
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
-    let aVal = a[key];
-    let bVal = b[key];
+    let aVal = (a as any)[key];
+    let bVal = (b as any)[key];
     if (typeof aVal === 'string') aVal = aVal.toLowerCase();
     if (typeof bVal === 'string') bVal = bVal.toLowerCase();
     if (aVal < bVal) return direction === 'asc' ? -1 : 1;
@@ -136,7 +134,10 @@ export default function StudentTable({
                   onError={(e) => {
                     // Fallback to initials if image fails to load
                     e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling.style.display = 'flex';
+                    const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (nextElement) {
+                      nextElement.style.display = 'flex';
+                    }
                   }}
                 />
               ) : null}
@@ -402,7 +403,7 @@ export default function StudentTable({
                   {student.attendance.percentage || 0}%
                 </div>
                 <div className="text-xs opacity-70">
-                  {student.attendance.presentDays || 0}/{student.attendance.totalDays || 0} days
+                  {student.attendance.present || 0}/{(student.attendance.present || 0) + (student.attendance.absent || 0)} days
                 </div>
               </div>
             ) : (
@@ -439,14 +440,14 @@ export default function StudentTable({
       case 'grade':
         return (
           <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.grade ? (
+            {student.gpa ? (
               <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                student.grade.includes('A') ? 'bg-green-100 text-green-700' :
-                student.grade.includes('B') ? 'bg-blue-100 text-blue-700' :
-                student.grade.includes('C') ? 'bg-yellow-100 text-yellow-700' :
+                student.gpa >= 3.5 ? 'bg-green-100 text-green-700' :
+                student.gpa >= 2.5 ? 'bg-blue-100 text-blue-700' :
+                student.gpa >= 1.5 ? 'bg-yellow-100 text-yellow-700' :
                 'bg-red-100 text-red-700'
               }`}>
-                {student.grade}
+                {student.gpa.toFixed(2)}
               </span>
             ) : (
               <span className="text-gray-500">N/A</span>
@@ -605,7 +606,10 @@ export default function StudentTable({
                         onError={(e) => {
                           // Fallback to initials if image fails to load
                           e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                          const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (nextElement) {
+                            nextElement.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}
@@ -675,7 +679,7 @@ export default function StudentTable({
               <thead>
                 <tr className={theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}>
                   {visibleColumns.map(columnKey => {
-                    const column = columnHeaders.find(c => c.key === columnKey);
+                    const column = columnHeaders.find((c: any) => c.key === columnKey);
                     if (!column) return null;
                     
                     return (
@@ -697,7 +701,7 @@ export default function StudentTable({
                           ) : (
                             <>
                               {column.label}
-                              {sortConfig?.key === column.key && !column.fixed && (
+                              {sortConfig?.key === column.key && !column.fixed && sortConfig && (
                                 <span className="text-blue-500">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                               )}
                             </>

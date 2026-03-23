@@ -1,4 +1,5 @@
 import { schoolPrisma } from './prisma';
+import { logger } from './logger';
 
 /**
  * Generates school abbreviation from school name
@@ -82,10 +83,15 @@ export async function generateEmployeeId(schoolId: string, schoolName?: string):
     // Format as SVSN0001, DPS0001, etc.
     const employeeId = `${schoolAbbrev}${String(nextSequence).padStart(4, '0')}`;
     
-    console.log(`✅ Generated Employee ID: ${employeeId} for school ${school?.name} (${schoolAbbrev})`);
+    logger.info('Generated Employee ID', {
+      employeeId,
+      schoolName: school?.name,
+      schoolAbbrev,
+      sequence: nextSequence
+    });
     return employeeId;
   } catch (error) {
-    console.error('Failed to generate employee ID:', error);
+    logger.error('Failed to generate employee ID', { error, schoolId });
     throw new Error('Failed to generate employee ID');
   }
 }

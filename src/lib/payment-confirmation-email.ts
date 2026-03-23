@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import { logger } from './logger';
 import { School, Subscription, User } from '@prisma/client';
 
 export interface PaymentConfirmationEmailData {
@@ -140,10 +141,10 @@ export async function sendPaymentConfirmationEmail(
       html,
     });
 
-    console.log('Payment confirmation email sent successfully to:', user.email);
+    logger.info('Payment confirmation email sent successfully', { userEmail: user.email });
     return result;
   } catch (error) {
-    console.error('Failed to send payment confirmation email:', error);
+    logger.error('Failed to send payment confirmation email', { error, userEmail: user.email });
     throw error;
   }
 }

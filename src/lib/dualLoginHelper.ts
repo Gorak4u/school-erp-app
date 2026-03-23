@@ -1,4 +1,5 @@
 import { schoolPrisma } from './prisma';
+import { logger } from './logger';
 
 /**
  * Find a user by email OR employeeId
@@ -32,7 +33,7 @@ export async function findUserByEmailOrEmployeeId(identifier: string, schoolId?:
       return user;
     }
   } catch (error) {
-    console.error('Error finding user by email or employeeId:', error);
+    logger.error('Error finding user by email or employeeId', { error, identifier, schoolId });
     return null;
   }
 }

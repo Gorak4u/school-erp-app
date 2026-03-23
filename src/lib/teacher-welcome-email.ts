@@ -1,4 +1,5 @@
 import { sendSchoolEmail } from './email';
+import { logger } from './logger';
 import { schoolPrisma } from './prisma';
 import { getSubdomainUrl } from './subdomain';
 
@@ -21,7 +22,20 @@ interface Teacher {
   schoolId: string;
 }
 
-async function buildTeacherIdCardAttachment(user: TeacherUser, teacher: Teacher, school: any): Promise<Buffer> {
+interface School {
+  id: string;
+  name: string;
+  domain?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  logo?: string;
+  theme?: string;
+}
+
+async function buildTeacherIdCardAttachment(user: TeacherUser, teacher: Teacher, school: School): Promise<Buffer> {
   // Import the server-side ID card generator that matches staff page design
   const { generateTeacherIdCardPDFServer } = await import('./teacherIdCardServer');
   
@@ -59,7 +73,10 @@ export async function sendTeacherWelcomeEmail(
     const emailNotificationsEnabled = await isEmailNotificationEnabled(schoolId);
     
     if (!emailNotificationsEnabled) {
-      console.log(`📧 Email notifications are DISABLED for school ${schoolId}. Skipping teacher welcome email to ${user.email}.`);
+      logger.info(`Email notifications disabled for school ${schoolId}`, {
+        userEmail: user.email,
+        reason: 'Email notifications disabled'
+      });
       return { success: true, skipped: true, reason: 'Email notifications disabled' };
     }
 
@@ -106,7 +123,7 @@ export async function sendTeacherWelcomeEmail(
     try {
       teacherIdCardPdf = await buildTeacherIdCardAttachment(user, teacher, school);
     } catch (attachmentError) {
-      console.error('Failed to generate teacher ID card attachment:', attachmentError);
+      logger.error('Failed to generate teacher ID card attachment', { error: attachmentError, userId: user.id, schoolId });
     }
 
     const schoolLogoUrl = resolveAbsoluteUrl(baseUrl, school.logo);
@@ -243,15 +260,15 @@ export async function sendTeacherWelcomeEmail(
     });
 
     if (emailResult.success) {
-      console.log(`✅ Teacher welcome email sent successfully to ${user.email}`);
+      logger.info('Teacher welcome email sent successfully', { userEmail: user.email, schoolId });
       return { success: true };
     } else {
-      console.error('Teacher welcome email send failed:', emailResult.error || 'Failed to send email');
+      logger.error('Teacher welcome email send failed', { error: emailResult.error, userEmail: user.email, schoolId });
       return { success: false, error: emailResult.error || 'Failed to send email' };
     }
 
   } catch (error) {
-    console.error('Failed to send teacher welcome email:', error);
+    logger.error('Failed to send teacher welcome email', { error, userEmail: user.email, schoolId });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 

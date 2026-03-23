@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import { logger } from './logger';
 import { School, Subscription, User } from '@prisma/client';
 
 export interface PaymentFailedEmailData {
@@ -149,10 +150,14 @@ export async function sendPaymentFailedEmail(
       html,
     });
 
-    console.log(`Payment failed email sent to ${user.email} (${daysSinceFailure} days since failure)`);
+    logger.info('Payment failed email sent', {
+      userEmail: user.email,
+      daysSinceFailure,
+      amount
+    });
     return result;
   } catch (error) {
-    console.error('Failed to send payment failed email:', error);
+    logger.error('Failed to send payment failed email', { error, userEmail: user.email });
     throw error;
   }
 }

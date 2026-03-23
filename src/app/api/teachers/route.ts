@@ -8,6 +8,81 @@ import { sendTeacherWelcomeEmail } from '@/lib/teacher-welcome-email';
 import { sendTeacherAdminNotificationEmail } from '@/lib/teacher-admin-notification-email';
 import { generateEmployeeId, isValidEmployeeIdFormat } from '@/lib/employeeIdGenerator';
 
+// Type definitions for the API
+type TeacherWhereClause = {
+  schoolId?: string;
+  isActive?: boolean;
+  OR?: Array<{
+    name?: { startsWith: string; mode: 'insensitive' };
+    email?: { startsWith: string; mode: 'insensitive' };
+    employeeId?: { startsWith: string; mode: 'insensitive' };
+    phone?: { startsWith: string; mode: 'insensitive' };
+    subject?: { startsWith: string; mode: 'insensitive' };
+    department?: { startsWith: string; mode: 'insensitive' };
+  }>;
+  status?: string;
+  department?: string;
+  designation?: string;
+  [key: string]: any; // Allow additional properties from tenantWhere
+};
+
+interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+  employeeId: string;
+  classTeacherAssignments?: Array<{
+    classId?: string;
+    sectionId?: string;
+    className?: string;
+    sectionName?: string;
+    [key: string]: any; // Allow additional properties
+  }>;
+}
+
+interface ClassInfo {
+  id: string;
+  name: string;
+}
+
+interface SectionInfo {
+  id: string;
+  name: string;
+}
+
+interface TeacherCreateData {
+  name: string;
+  email: string;
+  employeeId: string;
+  phone?: string;
+  address?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  department?: string;
+  designation?: string;
+  subject?: string;
+  qualification?: string;
+  experience?: number | null;
+  joiningDate?: string;
+  salary?: number | null;
+  bloodGroup?: string;
+  aadharNumber?: string;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  panNumber?: string;
+  emergencyContact?: string;
+  emergencyContactRelation?: string;
+  emergencyName?: string;
+  emergencyPhone?: string;
+  remarks?: string;
+  isClassTeacher?: boolean;
+  role?: string;
+  customRoleId?: string;
+  permissions?: string[];
+  [key: string]: any; // Allow dynamic access
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
@@ -22,7 +97,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50')));
 
-    const where: any = { ...tenantWhere(ctx) };
+    const where: TeacherWhereClause = { ...tenantWhere(ctx) };
     if (search) {
       // Use startsWith for better performance on large datasets
       where.OR = [
@@ -63,8 +138,8 @@ export async function GET(request: NextRequest) {
     const classIds = new Set<string>();
     const sectionIds = new Set<string>();
     
-    teachers.forEach((teacher: any) => {
-      teacher.classTeacherAssignments?.forEach((assignment: any) => {
+    teachers.forEach((teacher: Teacher) => {
+      teacher.classTeacherAssignments?.forEach((assignment) => {
         if (assignment.classId) classIds.add(assignment.classId);
         if (assignment.sectionId) sectionIds.add(assignment.sectionId);
       });
@@ -82,15 +157,15 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Create lookup maps
-    const classMap = new Map(classes.map((c: any) => [c.id, c.name]));
-    const sectionMap = new Map(sections.map((s: any) => [s.id, s.name]));
+    const classMap = new Map(classes.map((c: ClassInfo) => [c.id, c.name]));
+    const sectionMap = new Map(sections.map((s: SectionInfo) => [s.id, s.name]));
 
     // Attach class and section names to assignments
-    teachers.forEach((teacher: any) => {
+    teachers.forEach((teacher: Teacher) => {
       if (teacher.classTeacherAssignments) {
-        teacher.classTeacherAssignments.forEach((assignment: any) => {
-          assignment.className = classMap.get(assignment.classId) || 'Unknown';
-          assignment.sectionName = sectionMap.get(assignment.sectionId) || '';
+        teacher.classTeacherAssignments.forEach((assignment) => {
+          assignment.className = (classMap.get(assignment.classId!) as string | undefined) || 'Unknown';
+          assignment.sectionName = (sectionMap.get(assignment.sectionId!) as string | undefined) || '';
         });
       }
     });
@@ -123,7 +198,15 @@ export async function POST(request: NextRequest) {
     const limitError = await checkSubscriptionLimit(ctx, 'teachers', schoolPrisma);
     if (limitError) return limitError;
 
-    const body = await request.json();
+    const body: TeacherCreateData & {
+      email: string;
+      password?: string;
+      firstName?: string;
+      lastName?: string;
+      role?: string;
+      customRoleId?: string;
+      employeeId?: string;
+    } = await request.json();
     const {
       email,
       password,
@@ -175,7 +258,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedBaseRoles = new Set(BASE_ROLE_OPTIONS.map((option: { value: string }) => option.value));
-    const finalRole = allowedBaseRoles.has(role) ? role : 'teacher';
+    const finalRole = allowedBaseRoles.has(role || '') ? role : 'teacher';
 
     let validatedCustomRoleId: string | null = null;
     if (customRoleId) {

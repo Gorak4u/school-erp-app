@@ -1,9 +1,11 @@
 import { saasPrisma } from '@/lib/prisma';
+import { sendEmail } from './email';
+import { logger } from './logger';
 
 export interface QuotaLimitExceededEmailData {
-  adminUser: any;
-  school: any;
-  subscription: any;
+  adminUser: Record<string, unknown>;
+  school: Record<string, unknown>;
+  subscription: Record<string, unknown>;
   studentsUsed: number;
   teachersUsed: number;
   studentsLimit: number;
@@ -57,7 +59,7 @@ export function generateQuotaLimitExceededEmail(data: QuotaLimitExceededEmailDat
             
             <div class="alert">
                 <h3>🚨 Immediate Action Required</h3>
-                <p>Your school has exceeded one or more quota limits for your <strong>${subscription.plan.toUpperCase()}</strong> plan. This may affect your ability to add new students or teachers.</p>
+                <p>Your school has exceeded one or more quota limits for your <strong>${(subscription.plan as any).toUpperCase()}</strong> plan. This may affect your ability to add new students or teachers.</p>
             </div>
 
             <h3>📊 Current Usage Overview</h3>
@@ -151,9 +153,9 @@ export function generateQuotaLimitExceededEmail(data: QuotaLimitExceededEmailDat
 }
 
 export async function sendQuotaLimitExceededEmail(
-  adminUser: any,
-  school: any,
-  subscription: any,
+  adminUser: Record<string, unknown>,
+  school: Record<string, unknown>,
+  subscription: Record<string, unknown>,
   studentsUsed: number,
   teachersUsed: number,
   studentsLimit: number,
@@ -176,27 +178,38 @@ export async function sendQuotaLimitExceededEmail(
 
     const htmlContent = generateQuotaLimitExceededEmail(emailData);
 
-    // In production, integrate with your email service (SendGrid, AWS SES, etc.)
-    // For now, we'll log the email content
-    console.log('📧 QUOTA LIMIT EXCEEDED EMAIL:');
-    console.log(`To: ${adminUser.email}`);
-    console.log(`Subject: ⚠️ Quota Limit Exceeded - Action Required - ${school.name}`);
-    console.log(`School: ${school.name}`);
-    console.log(`Plan: ${subscription.plan}`);
-    console.log(`Students: ${studentsUsed}/${studentsLimit} (${Math.round((studentsUsed/studentsLimit)*100)}%)`);
-    console.log(`Teachers: ${teachersUsed}/${teachersLimit} (${Math.round((teachersUsed/teachersLimit)*100)}%)`);
-    console.log(`Exceeded: ${exceededResources.join(', ')}`);
+    // Log email details for debugging
+    logger.info('Quota limit exceeded email details', {
+      to: (adminUser as Record<string, unknown>).email,
+      school: (school as Record<string, unknown>).name,
+      plan: (subscription as Record<string, unknown>).plan,
+      studentsUsage: `${studentsUsed}/${studentsLimit} (${Math.round((studentsUsed/studentsLimit)*100)}%)`,
+      teachersUsage: `${teachersUsed}/${teachersLimit} (${Math.round((teachersUsed/teachersLimit)*100)}%)`,
+      exceededResources: exceededResources.join(', ')
+    });
     
-    // TODO: Implement actual email sending
-    // await emailService.send({
-    //   to: adminUser.email,
-    //   subject: `⚠️ Quota Limit Exceeded - Action Required - ${school.name}`,
-    //   html: htmlContent
-    // });
+    // Send email using existing email service
+    try {
+      const result = await sendEmail({
+        to: (adminUser as Record<string, unknown>).email as string,
+        subject: `⚠️ Quota Limit Exceeded - Action Required - ${(school as Record<string, unknown>).name as string}`,
+        html: htmlContent
+      });
+      
+      if (!result.success) {
+        logger.error('Failed to send quota limit exceeded email', { error: result.error, adminEmail: (adminUser as Record<string, unknown>).email });
+        return false;
+      }
+      
+      logger.info('Quota limit exceeded email sent successfully', { adminEmail: (adminUser as Record<string, unknown>).email });
+    } catch (error) {
+      logger.error('Exception sending quota limit exceeded email', { error, adminEmail: (adminUser as Record<string, unknown>).email });
+      return false;
+    }
 
     return true;
   } catch (error) {
-    console.error('Failed to send quota limit exceeded email:', error);
+    logger.error('Failed to send quota limit exceeded email', { error, adminEmail: (adminUser as Record<string, unknown>).email });
     return false;
   }
 }

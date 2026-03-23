@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
@@ -137,15 +138,48 @@ export async function POST(
       },
     });
 
-    // TODO: Send notification to staff member
-    // This would involve integrating with the notification system
+    // Send notification to staff member
+    try {
+      if (application.staff?.id) {
+        // Create notification directly in database
+        await (schoolPrisma as any).notification.create({
+          data: {
+            userId: application.staff.id,
+            type: 'leave_approved',
+            title: 'Leave Application Approved',
+            message: `Your leave application has been approved for ${application.totalDays} day(s)`,
+            priority: 'medium',
+            metadata: JSON.stringify({ 
+              leaveApplicationId: application.id,
+              totalDays: application.totalDays,
+              startDate: application.startDate,
+              endDate: application.endDate
+            }),
+            schoolId: application.schoolId,
+            isRead: false,
+            createdAt: new Date()
+          }
+        });
+        
+        logger.info('Leave approval notification sent', { 
+          leaveApplicationId: application.id,
+          userId: application.staff.id 
+        });
+      }
+    } catch (notificationError) {
+      logger.error('Failed to send leave approval notification', { 
+        error: notificationError,
+        leaveApplicationId: application.id 
+      });
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ 
       application: updatedApplication,
       message: 'Leave application approved successfully'
     });
   } catch (error) {
-    console.error('Error approving leave application:', error);
+    logger.error('Error approving leave application', { error, leaveApplicationId: id });
     return NextResponse.json({ error: 'Failed to approve leave application' }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import { logger } from './logger';
 import { School, Subscription, User } from '@prisma/client';
 
 export interface ServiceSuspensionEmailData {
@@ -164,10 +165,13 @@ export async function sendServiceSuspensionEmail(
       html,
     });
 
-    console.log(`Service suspension email sent to ${user.email} (${daysSinceSuspension} days since suspension)`);
+    logger.info('Service suspension email sent', {
+      userEmail: user.email,
+      daysSinceSuspension
+    });
     return result;
   } catch (error) {
-    console.error('Failed to send service suspension email:', error);
+    logger.error('Failed to send service suspension email', { error, userEmail: user.email });
     throw error;
   }
 }

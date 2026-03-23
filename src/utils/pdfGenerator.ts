@@ -5,8 +5,8 @@ export interface ReceiptData {
   receiptNumber: string;
   paymentDate: string;
   paymentMethod: string;
-  studentData: any;
-  paymentData: any;
+  studentData: Record<string, unknown>;
+  paymentData: Record<string, unknown>;
 }
 
 export class PDFGenerator {
@@ -65,9 +65,9 @@ export class PDFGenerator {
     }
   }
 
-  private static extractReceiptData(element: HTMLElement): any {
+  private static extractReceiptData(element: HTMLElement): Record<string, unknown> {
     // Extract data from the original receipt element
-    const data: any = {
+    const data: Record<string, unknown> = {
       schoolName: '',
       receiptNumber: '',
       paymentDate: '',
@@ -112,7 +112,7 @@ export class PDFGenerator {
       
       const cells = row.querySelectorAll('td, .fee-cell, .payment-cell');
       if (cells.length >= 2) {
-        data.feeItems.push({
+        (data.feeItems as any).push({
           description: cells[0].textContent || 'Fee Payment',
           amount: this.extractAmount(cells[1].textContent),
           paid: this.extractAmount(cells[2]?.textContent || cells[1].textContent),
@@ -122,7 +122,7 @@ export class PDFGenerator {
     });
 
     // Calculate total
-    data.totalAmount = data.feeItems.reduce((sum: number, item: any) => sum + (item.paid || 0), 0);
+    data.totalAmount = (data.feeItems as any).reduce((sum: number, item: Record<string, unknown>) => sum + ((item.paid as number) || 0), 0);
 
     return data;
   }
@@ -133,7 +133,7 @@ export class PDFGenerator {
     return match ? parseInt(match[0].replace(/,/g, '')) : 0;
   }
 
-  private static createPureReceiptHTML(data: any): string {
+  private static createPureReceiptHTML(data: Record<string, unknown>): string {
     // Create PURE HTML with inline styles (exactly like ID cards)
     return `
       <div style="width: 800px; background: #ffffff; color: #000000; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
@@ -199,7 +199,7 @@ export class PDFGenerator {
             </tr>
           </thead>
           <tbody>
-            ${data.feeItems?.map((item: any) => `
+            ${(data.feeItems as any)?.map((item: Record<string, unknown>) => `
               <tr>
                 <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">${item.description || 'Fee Payment'}</td>
                 <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
@@ -306,8 +306,8 @@ export class PDFGenerator {
   private static createReceiptHTML(receiptData: ReceiptData): string {
     const { receiptNumber, paymentDate, paymentMethod, studentData, paymentData } = receiptData;
     
-    const totalAmount = paymentData?.currentYearFees?.reduce((sum: number, item: any) => 
-      sum + Number(item.amountPaid || item.paidAmount || 0), 0) || 0;
+    const totalAmount = (paymentData.currentYearFees as any)?.reduce((sum: number, item: Record<string, unknown>) => 
+      sum + Number((item.amountPaid as unknown) || (item.paidAmount as unknown) || 0), 0) || 0;
 
     return `
       <div style="width: 100%; padding: 20px; font-family: Arial, sans-serif;">
@@ -340,7 +340,7 @@ export class PDFGenerator {
               </tr>
             </thead>
             <tbody>
-              ${paymentData?.currentYearFees?.map((fee: any) => `
+              ${(paymentData.currentYearFees as any)?.map((fee: Record<string, unknown>) => `
                 <tr>
                   <td style="padding: 8px; border: 1px solid #d1d5db; color: #4b5563;">${fee.feeName || fee.name || 'Fee'}</td>
                   <td style="padding: 8px; text-align: right; border: 1px solid #d1d5db; color: #4b5563;">₹${Number(fee.amountPaid || fee.paidAmount || 0).toLocaleString()}</td>
@@ -464,13 +464,13 @@ export class PDFGenerator {
       }
 
       const file = new File([blob], options.fileName, { type: 'image/png' });
-      const shareNavigator = navigator as Navigator & { canShare?: (data: any) => boolean };
+      const shareNavigator = navigator as Navigator & { canShare?: (data: Record<string, unknown>) => boolean };
       const shareDataWithFile = { title: options.title, text: options.text, files: [file] };
       const shareData = shareNavigator.canShare?.(shareDataWithFile)
         ? shareDataWithFile
         : { title: options.title, text: options.text };
 
-      await navigator.share(shareData as any);
+      await navigator.share(shareData as Record<string, unknown>);
 
       this.showToast({
         type: 'success',
@@ -544,7 +544,7 @@ export class PDFGenerator {
       let yPosition = 130;
       
       if (data.paymentData?.currentYearFees) {
-        data.paymentData.currentYearFees.forEach((fee: any, index: number) => {
+        (data.paymentData.currentYearFees as any).forEach((fee: any, index: number) => {
           pdf.setFontSize(9);
           pdf.text(`${fee.name} - ${fee.category}`, 20, yPosition);
           pdf.text(`₹${fee.totalAmount.toLocaleString()}`, 120, yPosition);
@@ -572,8 +572,8 @@ export class PDFGenerator {
       pdf.line(20, yPosition + 5, 190, yPosition + 5);
       pdf.setFontSize(11);
       pdf.text('Total Amount:', 120, yPosition + 15);
-      const totalAmount = data.paymentData?.currentYearFees?.reduce((sum: number, fee: any) => sum + (fee.totalAmount || 0), 0) || 0;
-      const totalDiscount = data.paymentData?.currentYearFees?.reduce((sum: number, fee: any) => sum + (fee.discount || 0), 0) || 0;
+      const totalAmount = (data.paymentData.currentYearFees as any)?.reduce((sum: number, fee: any) => sum + (fee.totalAmount || 0), 0) || 0;
+      const totalDiscount = (data.paymentData.currentYearFees as any)?.reduce((sum: number, fee: any) => sum + (fee.discount || 0), 0) || 0;
       const netAmount = totalAmount - totalDiscount;
       
       pdf.setFontSize(12);

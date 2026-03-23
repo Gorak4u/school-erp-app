@@ -74,7 +74,7 @@ export interface LeaveSettings {
 // Raw SQL helpers for leave management
 export const leavePrisma = {
   // Leave Types
-  async findLeaveTypes(where: any = {}, orderBy: any = {}) {
+  async findLeaveTypes(where: Record<string, unknown> = {}, orderBy: Record<string, unknown> = {}) {
     const sql = `SELECT * FROM "LeaveType" WHERE 1=1 ORDER BY name ASC`;
     const result = await schoolPrisma.$queryRawUnsafe(sql);
     return result as LeaveType[];
@@ -91,7 +91,7 @@ export const leavePrisma = {
   },
 
   // Leave Applications
-  async findLeaveApplications(where: any = {}, orderBy: any = {}, include: any = {}) {
+  async findLeaveApplications(where: Record<string, unknown> = {}, orderBy: Record<string, unknown> = {}, include: Record<string, unknown> = {}) {
     let sql = `SELECT la.*, lt.name as leaveTypeName, lt.code as leaveTypeCode, t.name as staffName, t.email as staffEmail FROM "LeaveApplication" la`;
     sql += ` LEFT JOIN "LeaveType" lt ON la."leaveTypeId" = lt.id`;
     sql += ` LEFT JOIN "Teacher" t ON la."staffId" = t.id`;
@@ -99,7 +99,7 @@ export const leavePrisma = {
     sql += ` ORDER BY la."appliedAt" DESC`;
     
     const result = await schoolPrisma.$queryRawUnsafe(sql);
-    return result as any[];
+    return result as unknown[];
   },
 
   async createLeaveApplication(data: Partial<LeaveApplication>) {
@@ -113,7 +113,7 @@ export const leavePrisma = {
   },
 
   // Leave Balance
-  async findLeaveBalance(where: any = {}) {
+  async findLeaveBalance(where: Record<string, unknown> = {}) {
     let sql = `SELECT lb.*, lt.name as leaveTypeName, lt.code as leaveTypeCode FROM "LeaveBalance" lb`;
     sql += ` LEFT JOIN "LeaveType" lt ON lb."leaveTypeId" = lt.id`;
     sql += ` WHERE 1=1`;
@@ -124,11 +124,11 @@ export const leavePrisma = {
     if (where.schoolId) sql += ` AND lb."schoolId" = '${where.schoolId}'`;
     
     const result = await schoolPrisma.$queryRawUnsafe(sql);
-    return result as any[];
+    return result as unknown[];
   },
 
   // Leave Settings
-  async findLeaveSettings(where: any = {}) {
+  async findLeaveSettings(where: Record<string, unknown> = {}) {
     let sql = `SELECT * FROM "LeaveSettings" WHERE 1=1`;
     
     if (where.schoolId) sql += ` AND "schoolId" = '${where.schoolId}'`;

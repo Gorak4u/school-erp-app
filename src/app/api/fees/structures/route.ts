@@ -1,8 +1,19 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 import { ctxSchoolWhere, validateSchoolScopedRefs } from '@/lib/schoolScope';
+
+// Type definitions for the API
+type FeeStructureWhereClause = {
+  schoolId?: string;
+  academicYearId?: string;
+  boardId?: string;
+  mediumId?: string;
+  classId?: string;
+  isActive?: boolean;
+  category?: string;
+  [key: string]: unknown; // Allow additional properties
+};
 
 const INCLUDE_RELATIONS = {
   academicYear: { select: { id: true, name: true, year: true } },
@@ -25,7 +36,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
-    const where: any = { ...schoolFilter };
+    const where: FeeStructureWhereClause = { ...schoolFilter };
     if (academicYearId) where.academicYearId = academicYearId;
     if (boardId) where.boardId = boardId;
     if (isActive !== null && isActive !== '') where.isActive = isActive === 'true';
@@ -110,7 +121,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Target academic year not found for this school' }, { status: 400 });
       }
 
-      const sourceWhere: any = { ...schoolFilter, academicYearId: sourceAcademicYearId, isActive: true };
+      const sourceWhere: FeeStructureWhereClause = { ...schoolFilter, academicYearId: sourceAcademicYearId, isActive: true };
       const sourceStructures = await (schoolPrisma as any).feeStructure.findMany({
         where: sourceWhere,
         include: {
@@ -132,11 +143,11 @@ export async function POST(request: NextRequest) {
           select: { id: true, code: true }
         }),
       ]);
-      const mediumMap = new Map(targetMediums.map((medium: any) => [medium.code, medium.id]));
-      const classMap = new Map(targetClasses.map((cls: any) => [cls.code, cls.id]));
+      const mediumMap = new Map(targetMediums.map((medium: { id: string; code: string }) => [medium.code, medium.id]));
+      const classMap = new Map(targetClasses.map((cls: { id: string; code: string }) => [cls.code, cls.id]));
 
       const created = await (schoolPrisma as any).feeStructure.createMany({
-        data: sourceStructures.map(s => ({
+        data: sourceStructures.map((s: Record<string, unknown>) => ({
           name: s.name,
           category: s.category,
           amount: s.amount,
@@ -149,8 +160,8 @@ export async function POST(request: NextRequest) {
           schoolId: ctx.schoolId,
           academicYearId: targetAcademicYearId,
           boardId: s.boardId,
-          mediumId: s.medium?.code ? (mediumMap.get(s.medium.code) ?? null) : null,
-          classId: s.class?.code ? (classMap.get(s.class.code) ?? null) : null,
+          mediumId: (s.medium as { code?: string })?.code ? (mediumMap.get((s.medium as { code: string }).code) ?? null) : null,
+          classId: (s.class as { code?: string })?.code ? (classMap.get((s.class as { code: string }).code) ?? null) : null,
         })),
       });
       return NextResponse.json({ cloned: created.count, message: `${created.count} fee structures cloned` }, { status: 201 });
@@ -177,8 +188,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ structure }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('POST /api/fees/structures:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create fee structure' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create fee structure';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

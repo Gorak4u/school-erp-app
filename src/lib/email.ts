@@ -1,10 +1,15 @@
 import nodemailer from 'nodemailer';
+import { logger } from './logger';
 import { saasPrisma, schoolPrisma } from './prisma';
 
 // Check if email notifications are enabled for a school
 export async function isEmailNotificationEnabled(schoolId?: string): Promise<boolean> {
   try {
-    let whereClause: any = { group: 'app_config', key: 'email_notifications' };
+    let whereClause: {
+      group: string;
+      key: string;
+      schoolId: string;
+    } = { group: 'app_config', key: 'email_notifications', schoolId: 'default' };
     
     if (schoolId) {
       whereClause.schoolId = schoolId;
@@ -18,15 +23,15 @@ export async function isEmailNotificationEnabled(schoolId?: string): Promise<boo
     
     // Default to true if setting is not found (backward compatibility)
     if (!setting) {
-      console.log('📧 Email notifications setting not found, defaulting to enabled');
+      logger.info('Email notifications setting not found, defaulting to enabled', { schoolId });
       return true;
     }
     
     const isEnabled = setting.value === 'true';
-    console.log(`📧 Email notifications ${isEnabled ? 'ENABLED' : 'DISABLED'} for school ${schoolId || 'default'}`);
+    logger.info(`Email notifications ${isEnabled ? 'ENABLED' : 'DISABLED'}`, { schoolId, enabled: isEnabled });
     return isEnabled;
   } catch (error) {
-    console.error('Error checking email notification setting:', error);
+    logger.error('Error checking email notification setting', { error, schoolId });
     // Default to enabled on error to avoid breaking existing functionality
     return true;
   }
@@ -53,7 +58,7 @@ export async function getSaasSmtpConfig() {
     if (envValue) {
       config[key] = envValue;
     } else {
-      const dbSetting = settings.find((s: any) => s.key === key);
+      const dbSetting = settings.find((s: { key: string; value: string }) => s.key === key);
       if (dbSetting) {
         config[key] = dbSetting.value;
       }
@@ -66,7 +71,10 @@ export async function getSaasSmtpConfig() {
 // Reads school-level SMTP from SchoolSetting (group: smtp)
 // Used for: fee receipts, school notifications, admissions, reminders
 export async function getSchoolSmtpConfig(schoolId?: string) {
-  let whereClause: any = { group: 'smtp' };
+  let whereClause: {
+    group: string;
+    schoolId?: string;
+  } = { group: 'smtp' };
   
   if (schoolId) {
     whereClause.schoolId = schoolId;
@@ -102,37 +110,38 @@ export async function sendEmail({
 
   // Check if SaaS SMTP is enabled
   if (enabled === false) {
-    console.log('\n📧 [EMAIL - SaaS SMTP disabled]');
-    console.log('SMTP is explicitly disabled in configuration');
-    console.log('To enable: Set SMTP_ENABLED=true in .env or via admin panel');
-    console.log('--- END ---\n');
+    logger.info('SaaS SMTP disabled', {
+      message: 'SMTP is explicitly disabled in configuration',
+      solution: 'Set SMTP_ENABLED=true in .env or via admin panel'
+    });
     return { success: false, error: 'SaaS SMTP disabled' };
   }
 
   // Check if SaaS SMTP is properly configured
   if (!host || !user || !pass) {
-    console.log('\n📧 [EMAIL - SaaS SMTP not configured]');
-    console.log('Missing settings:');
-    console.log('- smtp_host:', host ? '✓' : '✗ Missing');
-    console.log('- smtp_username:', user ? '✓' : '✗ Missing');
-    console.log('- smtp_password:', pass ? '✓' : '✗ Missing');
-    
-    // Show source information for debugging
-    console.log('\n📋 Configuration Sources:');
-    console.log('- SMTP_HOST:', process.env.SMTP_HOST ? '✓ From .env' : '✗ Not in .env');
-    console.log('- SMTP_USERNAME:', process.env.SMTP_USERNAME ? '✓ From .env' : '✗ Not in .env');
-    console.log('- SMTP_PASSWORD:', process.env.SMTP_PASSWORD ? '✓ From .env' : '✗ Not in .env');
-    console.log('--- END ---\n');
+    logger.warn('SaaS SMTP not configured', {
+      missing_settings: {
+        smtp_host: host ? 'configured' : 'missing',
+        smtp_username: user ? 'configured' : 'missing',
+        smtp_password: pass ? 'configured' : 'missing'
+      },
+      env_sources: {
+        SMTP_HOST: process.env.SMTP_HOST ? 'from_env' : 'not_in_env',
+        SMTP_USERNAME: process.env.SMTP_USERNAME ? 'from_env' : 'not_in_env',
+        SMTP_PASSWORD: process.env.SMTP_PASSWORD ? 'from_env' : 'not_in_env'
+      }
+    });
     
     return { success: false, error: 'SaaS SMTP not configured' };
   }
 
-  console.log('\n📧 [EMAIL - Sending via SaaS SMTP]');
-  console.log(`Host: ${host}:${port}`);
-  console.log(`User: ${user}`);
-  console.log(`From: ${from}`);
-  console.log(`To: ${to}`);
-  console.log(`Subject: ${subject}`);
+  logger.info('Sending email via SaaS SMTP', {
+    host: `${host}:${port}`,
+    user,
+    from,
+    to,
+    subject
+  });
 
   const transporter = nodemailer.createTransport({
     host,
@@ -148,12 +157,13 @@ export async function sendEmail({
       subject,
       html,
     });
-    console.log('✅ Email sent successfully via SaaS SMTP\n');
+    logger.info('Email sent successfully via SaaS SMTP');
     return { success: true };
-  } catch (error: any) {
-    console.error('❌ SaaS SMTP send error:', error.message);
-    console.log('--- END ---\n');
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('SaaS SMTP send error', { error: errorMessage, stack: errorStack });
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -176,20 +186,23 @@ export async function sendSchoolEmail({
     contentType?: string;
   }>;
 }) {
-  console.log('sendSchoolEmail called with:', { to, subject, schoolId });
+  logger.debug('sendSchoolEmail called', { to, subject, schoolId });
   
   // Check if email notifications are enabled for this school
   const emailNotificationsEnabled = await isEmailNotificationEnabled(schoolId);
   if (!emailNotificationsEnabled) {
-    console.log(`📧 Email notifications are DISABLED for school ${schoolId || 'default'}. Skipping email send.`);
-    console.log(`📧 Email details (not sent): To: ${to}, Subject: ${subject}`);
+    logger.info(`Email notifications disabled for school ${schoolId || 'default'}`, {
+      to,
+      subject,
+      reason: 'Email notifications disabled'
+    });
     return { success: true, skipped: true, reason: 'Email notifications disabled' };
   }
   
   const smtp = await getSchoolSmtpConfig(schoolId);
-  console.log('SMTP config retrieved:', { 
-    hasHost: !!smtp.smtp_host, 
-    hasUser: !!smtp.smtp_username, 
+  logger.debug('School SMTP config retrieved', {
+    hasHost: !!smtp.smtp_host,
+    hasUser: !!smtp.smtp_username,
     hasPass: !!smtp.smtp_password,
     configKeys: Object.keys(smtp)
   });
@@ -209,15 +222,15 @@ export async function sendSchoolEmail({
   if ((host?.includes('gmail.com') || host?.includes('smtp.gmail.com')) && from !== user) {
     // For Gmail with custom from address, we need to ensure it's set up as "Send As"
     // If it fails, Gmail will give us an error and we can handle it
-    console.log('📧 Gmail: Attempting to send from custom address:', from, 'authenticated as:', user);
+    logger.debug('Gmail: Attempting to send from custom address', { from, authenticatedAs: user });
     finalFrom = from;
   } else {
     finalFrom = from;
   }
 
-  console.log('Final SMTP settings:', { 
-    host: host ? 'SET' : 'NOT SET', 
-    port, 
+  logger.debug('Final SMTP settings', {
+    host: host ? 'SET' : 'NOT SET',
+    port,
     user: user ? 'SET' : 'NOT SET',
     pass: pass ? 'SET' : 'NOT SET',
     from,
@@ -226,12 +239,12 @@ export async function sendSchoolEmail({
 
   if (!host || !user || !pass) {
     // No SMTP configured — log the email for development
-    console.log('\n📧 [SCHOOL EMAIL - No SMTP configured]');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('--- HTML ---');
-    console.log(html);
-    console.log('--- END ---\n');
+    logger.warn('School email - No SMTP configured, logging for development', {
+      to,
+      subject,
+      html_length: html.length,
+      schoolId
+    });
     return { success: true, devMode: true };
   }
 
@@ -251,9 +264,11 @@ export async function sendSchoolEmail({
       attachments,
     });
     return { success: true };
-  } catch (error: any) {
-    console.error('School email send error:', error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('School email send error', { error: errorMessage, stack: errorStack, to, subject });
+    return { success: false, error: errorMessage };
   }
 }
 

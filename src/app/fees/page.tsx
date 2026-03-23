@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -15,6 +14,20 @@ ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
   BarElement, Title, Tooltip, Legend, ArcElement
 );
+
+// Type definitions for fee context
+interface FeeContext {
+  // State properties from useFeeState
+  getSetting?: (group: string, key: string, defaultValue?: string) => string;
+  theme?: string;
+  feeCollections?: unknown;
+  canManageFees?: boolean;
+  // Handler methods
+  data?: unknown;
+  actions?: unknown;
+  // Allow additional properties
+  [key: string]: unknown;
+}
 
 import { FeeStructure, FeeRecord, StudentFeeSummary, FeeCollection, Discount } from './types';
 import { feeStructuresApi, feeRecordsApi, paymentsApi, discountsApi, studentsApi } from '@/lib/apiClient';
@@ -47,7 +60,12 @@ export default function FeesPage() {
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
   
   // Fee Collection Modal State
-  const [feeCollectionModal, setFeeCollectionModal] = useState({
+  const [feeCollectionModal, setFeeCollectionModal] = useState<{
+    show: boolean;
+    selectedStudent: { studentId: string; studentName?: string; name?: string; studentClass?: string; class?: string; [key: string]: unknown } | null;
+    feeData: unknown | null;
+    loading: boolean;
+  }>({
     show: false,
     selectedStudent: null,
     feeData: null,
@@ -76,7 +94,7 @@ export default function FeesPage() {
       const response = await fetch(`/api/fees/students?${params.toString()}`);
       const data = await response.json();
       if (data.success && data.data?.students) {
-        const studentFeeData = data.data.students[0] || data.data.students.find((s: any) => s.studentId === studentId);
+        const studentFeeData = data.data.students[0] || data.data.students.find((s: { studentId?: string }) => s.studentId === studentId);
         setFeeCollectionModal(prev => ({ 
           ...prev, 
           feeData: studentFeeData,
@@ -101,7 +119,7 @@ export default function FeesPage() {
         const response = await fetch(`/api/fees/students?${params.toString()}`);
         const data = await response.json();
         if (data.success && data.data?.students) {
-          const studentFeeData = data.data.students[0] || data.data.students.find((s: any) => s.studentId === feeCollectionModal.selectedStudent.studentId);
+          const studentFeeData = data.data.students[0] || data.data.students.find((s: { studentId?: string }) => s.studentId === feeCollectionModal.selectedStudent?.studentId);
           setFeeCollectionModal(prev => ({ 
             ...prev, 
             feeData: studentFeeData,
@@ -124,7 +142,11 @@ export default function FeesPage() {
   };
 
   // Teachers see only All Students view; manage_fees unlocks everything else
-  const availableTabs = [
+  const availableTabs: Array<{
+    id: string;
+    label: string;
+    permission: string | null;
+  }> = [
     { id: 'all-students', label: '👥 All Students', permission: null },
     { id: 'fee-records', label: '📋 Fee Records', permission: 'manage_fees' },
     { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
@@ -137,11 +159,11 @@ export default function FeesPage() {
     { id: 'student-profile', label: '👤 Student Profile', permission: 'view_fees' },
   ].filter(tab => {
     if (!tab.permission) return true;
-    return hasPermission(tab.permission);
+    return hasPermission(tab.permission as any);
   });
 
   // Build handler context incrementally
-  const ctx: any = { ...state, theme, feeCollections: state.feeCollections, canManageFees };
+  const ctx: FeeContext = { ...state, theme, feeCollections: state.feeCollections, canManageFees };
   Object.assign(ctx, createFeeDataHandlers(ctx));
   Object.assign(ctx, createFeeActionHandlers(ctx));
 
@@ -152,12 +174,6 @@ export default function FeesPage() {
     feeStructureForm,
     feeStructures,
     setFeeStructures,
-    setFeeRecords,
-    setDiscounts,
-    setFeeCollections,
-    feeCollections,
-    setStudentFeeSummaries,
-    calculateStudentFeeSummaries,
     handleCreateFeeStructure,
     setFeeStructureForm,
     setShowFeeStructureModal,
@@ -171,15 +187,25 @@ export default function FeesPage() {
     setShowColumnSettings,
     reorderColumns,
     isClient,
-    setIsClient,
+    setIsClient: setIsClientTyped,
     selectedStudents,
     studentFeeSummaries,
     includeArchivedStudents,
-  } = ctx;
+  } = ctx as typeof ctx & {
+    setIsClient: (value: boolean) => void;
+    isClient: boolean;
+    setActiveTab: (value: string) => void;
+    activeTab: string;
+    toggleColumn: (key: string, direction: 'up' | 'down') => void;
+    moveColumn: (key: string, direction: 'up' | 'down') => void;
+    reorderColumns: (newOrder: string[]) => void;
+    selectedStudents: string[];
+    studentFeeSummaries: unknown[];
+  };
 
   // Initialize client-side rendering
   useEffect(() => {
-    setIsClient(true);
+    setIsClientTyped(true);
   }, []);
 
   if (!isClient) {
@@ -200,7 +226,7 @@ export default function FeesPage() {
           {availableTabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => ctx.setActiveTab(tab.id)}
+              onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -293,7 +319,7 @@ export default function FeesPage() {
               <StudentFinancialProfile 
                 theme={theme} 
                 studentId={selectedStudents[0]}
-                studentData={studentFeeSummaries.find(s => s.studentId === selectedStudents[0])}
+                studentData={(studentFeeSummaries as { studentId?: string }[]).find(s => s.studentId === selectedStudents[0])}
                 onClose={() => setActiveTab('all-students')}
               />
             </div>
@@ -338,7 +364,7 @@ export default function FeesPage() {
                     </p>
                   </div>
                 </div>
-              ) : feeCollectionModal.feeData ? (
+              ) : feeCollectionModal.feeData && feeCollectionModal.selectedStudent ? (
                 <EnhancedFeeCollection
                   theme={theme}
                   studentId={feeCollectionModal.selectedStudent.studentId}

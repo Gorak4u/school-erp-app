@@ -1,8 +1,99 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+
+// Interfaces
+interface AcademicYear {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface Board {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+}
+
+interface Medium {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  academicYearId: string;
+  classes?: any[];
+}
+
+interface Class {
+  id: string;
+  name: string;
+  code: string;
+  level: string;
+  isActive: boolean;
+  academicYearId: string;
+  mediumId: string;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  classId: string;
+  isActive: boolean;
+}
+
+interface Timing {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  breakTime: string;
+  isActive: boolean;
+}
+
+interface FeeStructure {
+  id: string;
+  name: string;
+  category?: string;
+  amount: number;
+  frequency?: string;
+  dueDate?: number;
+  lateFee?: number;
+  description?: string;
+  applicableCategories?: string;
+  isActive: boolean;
+  academicYearId: string;
+  mediumId?: string;
+  classId?: string;
+}
+
+interface ModalData {
+  type: string;
+  title: string;
+  message: string;
+}
+
+interface LockDialogData {
+  ay: AcademicYear;
+  count: number;
+  byAY: AcademicYear[];
+  entity?: string;
+  id?: string;
+  name?: string;
+  classCount?: number;
+  feeStructureCount?: number;
+  sectionCount?: number;
+  mediumCount?: number;
+  affectedClasses?: any[];
+  affectedSections?: number;
+  affectedFeeStructures?: number;
+  deleting?: boolean;
+}
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -63,30 +154,30 @@ export default function SettingsPage() {
   }, []);
 
   // ─── Data state ────────────────────────────────────────────────────────────
-  const [academicYears, setAcademicYears] = useState<any[]>([]);
-  const [boards, setBoards] = useState<any[]>([]);
-  const [mediums, setMediums] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  const [timings, setTimings] = useState<any[]>([]);
-  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [mediums, setMediums] = useState<Medium[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [timings, setTimings] = useState<Timing[]>([]);
+  const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [settingsMap, setSettingsMap] = useState<Record<string, Record<string, string>>>({});
 
   // ─── Modal / form state ────────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
   const [modalEntity, setModalEntity] = useState('');
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({});
-  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<AcademicYear | Board | Medium | Class | Section | Timing | FeeStructure | null>(null);
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState<LockDialogData | null>(null);
   
   // ─── Copy confirmation modal state ───────────────────────────────────────────
   const [showCopyModal, setShowCopyModal] = useState(false);
-  const [previousYearForCopy, setPreviousYearForCopy] = useState<any>(null);
-  const [pendingAcademicYear, setPendingAcademicYear] = useState<any>(null);
+  const [previousYearForCopy, setPreviousYearForCopy] = useState<AcademicYear | null>(null);
+  const [pendingAcademicYear, setPendingAcademicYear] = useState<AcademicYear | null>(null);
 
   // ─── Student lock dialog (shown when activating a new AY) ────────────────────
   const [showLockDialog, setShowLockDialog] = useState(false);
-  const [lockDialogData, setLockDialogData] = useState<{ ay: any; count: number; byAY: any[] } | null>(null);
+  const [lockDialogData, setLockDialogData] = useState<LockDialogData | null>(null);
   const [lockingSaving, setLockingSaving] = useState(false);
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -120,15 +211,15 @@ export default function SettingsPage() {
       console.log('📅 Active Academic Year:', activeAcademicYear?.name, '(ID:', activeAYId, ')');
       
       // Step 2: Fetch other entities filtered by active academic year and isActive=true
-      const timestamp = Date.now(); // Cache-busting
+      const timestamp = Date.now().toString(); // Cache-busting
       const [bRes, mRes, cRes, secRes, tRes, sRes, fsRes] = await Promise.allSettled([
         boardsApi.list(),
-        mediumsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
-        classesApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
-        sectionsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
+        mediumsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } as Record<string, string> : { isActive: 'true', _t: timestamp } as Record<string, string>),
+        classesApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } as Record<string, string> : { isActive: 'true', _t: timestamp } as Record<string, string>),
+        sectionsApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } as Record<string, string> : { isActive: 'true', _t: timestamp } as Record<string, string>),
         schoolTimingsApi.list(),
         schoolSettingsApi.getAll(),
-        feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } : { isActive: 'true', _t: timestamp }),
+        feeStructuresApi.list(activeAYId ? { academicYearId: activeAYId, isActive: 'true', _t: timestamp } as Record<string, string> : { isActive: 'true', _t: timestamp } as Record<string, string>),
       ]);
       
       // Log any rejected promises for debugging
@@ -141,20 +232,20 @@ export default function SettingsPage() {
         }
       });
       
-      if (bRes.status === 'fulfilled') setBoards(bRes.value.boards || []);
-      if (mRes.status === 'fulfilled') setMediums(mRes.value.mediums || []);
-      if (cRes.status === 'fulfilled') setClasses(cRes.value.classes || []);
-      if (secRes.status === 'fulfilled') setSections(secRes.value.sections || []);
-      if (tRes.status === 'fulfilled') setTimings(tRes.value.timings || []);
-      if (sRes.status === 'fulfilled') setSettingsMap(sRes.value.settings || {});
-      if (fsRes.status === 'fulfilled') setFeeStructures(fsRes.value.feeStructures || []);
+      if (bRes.status === 'fulfilled') setBoards((bRes.value as any)?.boards || []);
+      if (mRes.status === 'fulfilled') setMediums((mRes.value as any)?.mediums || []);
+      if (cRes.status === 'fulfilled') setClasses((cRes.value as any)?.classes || []);
+      if (secRes.status === 'fulfilled') setSections((secRes.value as any)?.sections || []);
+      if (tRes.status === 'fulfilled') setTimings((tRes.value as any)?.timings || []);
+      if (sRes.status === 'fulfilled') setSettingsMap((sRes.value as any)?.settings || {});
+      if (fsRes.status === 'fulfilled') setFeeStructures((fsRes.value as any)?.feeStructures || []);
       
       console.log('✅ Loaded data for active AY:', {
-        boards: bRes.status === 'fulfilled' ? bRes.value.boards?.length : 0,
-        mediums: mRes.status === 'fulfilled' ? mRes.value.mediums?.length : 0,
-        classes: cRes.status === 'fulfilled' ? cRes.value.classes?.length : 0,
-        sections: secRes.status === 'fulfilled' ? secRes.value.sections?.length : 0,
-        feeStructures: fsRes.status === 'fulfilled' ? fsRes.value.feeStructures?.length : 0,
+        boards: bRes.status === 'fulfilled' ? (bRes.value as any)?.boards?.length : 0,
+        mediums: mRes.status === 'fulfilled' ? (mRes.value as any)?.mediums?.length : 0,
+        classes: cRes.status === 'fulfilled' ? (cRes.value as any)?.classes?.length : 0,
+        sections: secRes.status === 'fulfilled' ? (secRes.value as any)?.sections?.length : 0,
+        feeStructures: fsRes.status === 'fulfilled' ? (fsRes.value as any)?.feeStructures?.length : 0,
       });
     } catch (e: any) {
       showToast({ type: 'error', title: 'Failed to load data', message: e.message });
@@ -175,7 +266,7 @@ export default function SettingsPage() {
     try {
       await schoolSettingsApi.upsertBatch({ group, settings });
       setSettingsMap(prev => ({ ...prev, [group]: { ...(prev[group] || {}), ...settings } }));
-      showToast({ type: 'success', title: 'Settings saved' });
+      showToast({ type: 'success', title: 'Settings saved', message: 'Settings have been successfully saved' });
       refreshSchoolConfig();
     } catch (e: any) {
       showToast({ type: 'error', title: 'Failed to save', message: e.message });
@@ -207,7 +298,7 @@ export default function SettingsPage() {
       
       if (editingItem) {
         await api.update({ id: editingItem.id, ...formData });
-        showToast({ type: 'success', title: `${modalEntity} updated` });
+        showToast({ type: 'success', title: `${modalEntity} updated`, message: `${modalEntity} has been successfully updated` });
       } else {
         // Special handling for academic year creation
         if (modalEntity === 'academicYear') {
@@ -226,17 +317,17 @@ export default function SettingsPage() {
             // Store data for modal and show copy confirmation modal
             console.log('✅ Showing copy modal for previous year:', previousYears[0].name);
             setPreviousYearForCopy(previousYears[0]);
-            setPendingAcademicYear(formData);
+            setPendingAcademicYear(formData as AcademicYear);
             setShowCopyModal(true);
             return; // Don't close the main modal yet
           } else {
             console.log('ℹ️ No previous years found, creating fresh academic year');
             await api.create(formData);
-            showToast({ type: 'success', title: 'Academic Year created' });
+            showToast({ type: 'success', title: 'Academic Year created', message: 'Academic Year has been successfully created' });
           }
         } else {
           await api.create(formData);
-          showToast({ type: 'success', title: `${modalEntity} created` });
+          showToast({ type: 'success', title: `${modalEntity} created`, message: `${modalEntity} has been successfully created` });
         }
       }
       setShowModal(false);
@@ -278,10 +369,10 @@ export default function SettingsPage() {
         throw error;
       }
       
-      const mediums = mediumsResponse.mediums || [];
-      const classes = classesResponse.classes || [];
-      const sections = sectionsResponse.sections || [];
-      const feeStructures = feeStructuresResponse.feeStructures || [];
+      const mediums = (mediumsResponse as any).mediums || [];
+      const classes = (classesResponse as any).classes || [];
+      const sections = (sectionsResponse as any).sections || [];
+      const feeStructures = (feeStructuresResponse as any).feeStructures || [];
       
       console.log(`  📊 Data validation results:`);
       console.log(`    - Mediums: ${mediums.length}`);
@@ -320,7 +411,7 @@ export default function SettingsPage() {
           });
           
           // Extract medium from response object
-          const newMedium = mediumResponse.medium || mediumResponse;
+          const newMedium = (mediumResponse as any).medium || mediumResponse;
           mediumMapping[medium.id] = newMedium.id;
           console.log(`  ✅ Copied medium: ${medium.name} (ID: ${newMedium.id})`);
           
@@ -371,7 +462,7 @@ export default function SettingsPage() {
           const classResponse = await classesApi.create(classData);
           
           // Extract class from response object
-          const newClass = classResponse.class || classResponse;
+          const newClass = (classResponse as any).class || classResponse;
           classMapping[cls.id] = newClass.id;
           console.log(`  ✅ Copied class: ${cls.name} (ID: ${newClass.id})`);
           
@@ -415,7 +506,7 @@ export default function SettingsPage() {
           });
           
           // Extract section from response object
-          const newSection = sectionResponse.section || sectionResponse;
+          const newSection = (sectionResponse as any).section || sectionResponse;
           console.log(`  ✅ Copied section: ${section.name} (ID: ${newSection.id})`);
           
           if (!newSection.id) {
@@ -452,8 +543,8 @@ export default function SettingsPage() {
             boardId: fee.boardId,
             mediumId: newMediumId,
             classId: newClassId
-          });
-          console.log(`  ✅ Copied fee structure: ${fee.name} (ID: ${newFee.id})`);
+          } as any);
+          console.log(`  ✅ Copied fee structure: ${fee.name} (ID: ${(newFee as any).id})`);
         } catch (error) {
           console.error(`  ❌ Failed to copy fee structure ${fee.name}:`, error);
           throw error;
@@ -483,7 +574,7 @@ export default function SettingsPage() {
           };
           console.log(`  📝 Update data:`, updateData);
           
-          await classesApi.update(updateData);
+          await classesApi.update(cls.id, updateData);
           console.log(`  ✅ Marked class as inactive: ${cls.name}`);
         } catch (error) {
           console.error(`  ❌ Failed to mark class ${cls.name} as inactive:`, error);
@@ -530,12 +621,12 @@ export default function SettingsPage() {
       setSaving(true);
       
       // Create academic year first
-      const response = await academicYearsApi.create(pendingAcademicYear);
+      const response = await academicYearsApi.create(pendingAcademicYear as any);
       
       console.log('🔍 Academic Year API Response:', response);
       
       // Extract academicYear from the response object
-      const newAcademicYear = response.academicYear || response;
+      const newAcademicYear = (response as any).academicYear || response;
       
       if (!newAcademicYear?.id) {
         console.error('❌ Academic Year response structure:', response);
@@ -545,7 +636,9 @@ export default function SettingsPage() {
       console.log('✅ Extracted academic year:', newAcademicYear);
       
       // Then copy data from previous year
-      await copyDataFromPreviousYear(previousYearForCopy.id, newAcademicYear.id);
+      if (previousYearForCopy) {
+        await copyDataFromPreviousYear(previousYearForCopy.id, newAcademicYear.id);
+      }
       
       showToast({ 
         type: 'success', 
@@ -572,9 +665,9 @@ export default function SettingsPage() {
       setSaving(true);
       
       // Create academic year without copying
-      await academicYearsApi.create(pendingAcademicYear);
+      await academicYearsApi.create(pendingAcademicYear as any);
       
-      showToast({ type: 'success', title: 'Academic Year created' });
+      showToast({ type: 'success', title: 'Academic Year created', message: 'Academic Year has been successfully created' });
       
       // Reset modal state
       setShowCopyModal(false);
@@ -602,7 +695,7 @@ export default function SettingsPage() {
     try {
       const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi, section: sectionsApi, timing: schoolTimingsApi };
       await apiMap[entity].delete(id);
-      showToast({ type: 'success', title: `${name} deleted` });
+      showToast({ type: 'success', title: `${name} deleted`, message: `${name} has been successfully deleted` });
       fetchAll();
       refreshSchoolConfig();
     } catch (e: any) {
@@ -678,7 +771,7 @@ export default function SettingsPage() {
             affectedSections: sectionCount,
             affectedFeeStructures: feeStructureCount,
             deleting: false
-          });
+          } as any);
           return;
         }
       }
@@ -701,7 +794,7 @@ export default function SettingsPage() {
       await academicYearsApi.update({ id: ay.id, isActive: true });
       fetchAll();
       refreshSchoolConfig();
-      showToast({ type: 'success', title: `${ay.name} is now the active academic year` });
+      showToast({ type: 'success', title: `${ay.name} is now the active academic year`, message: `${ay.name} has been successfully activated as the active academic year` });
 
       // 3. If there are students to lock, show the lock dialog
       if (data.count > 0) {
@@ -769,7 +862,7 @@ export default function SettingsPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setLocal({ ...local, logo_url: data.url });
-        showToast({ type: 'success', title: 'Logo uploaded' });
+        showToast({ type: 'success', title: 'Logo uploaded', message: 'Logo has been successfully uploaded' });
       } catch (err: any) {
         showToast({ type: 'error', title: 'Upload failed', message: err.message });
       } finally {
@@ -1097,12 +1190,12 @@ export default function SettingsPage() {
             capacity: 40,
             roomNumber: '',
             isActive: true,
-            academicYear: activeAY?.year || '2024-25'
+            academicYear: activeAY?.name || '2024-25'
           });
         });
 
         await Promise.all(promises);
-        showToast({ type: 'success', title: 'Sections created successfully' });
+        showToast({ type: 'success', title: 'Sections created successfully', message: 'Sections have been successfully created' });
         await fetchAll();
         
         // Remove saved row
@@ -1139,9 +1232,9 @@ export default function SettingsPage() {
         }));
         await fetchAll();
         setEditingSectionRow(null);
-        showToast({ type: 'success', title: 'Section row updated' });
+        showToast({ type: 'success', title: 'Section row updated', message: 'Section row has been successfully updated' });
       } catch {
-        showToast({ type: 'error', title: 'Failed to update section row' });
+        showToast({ type: 'error', title: 'Failed to update section row', message: 'Failed to update section row' });
       } finally {
         setSavingSections(false);
       }
@@ -1154,9 +1247,9 @@ export default function SettingsPage() {
       try {
         await Promise.all(toDelete.map((s: any) => sectionsApi.delete(s.id)));
         await fetchAll();
-        showToast({ type: 'success', title: 'Section row deleted' });
+        showToast({ type: 'success', title: 'Section row deleted', message: 'Section row has been successfully deleted' });
       } catch {
-        showToast({ type: 'error', title: 'Failed to delete section row' });
+        showToast({ type: 'error', title: 'Failed to delete section row', message: 'Failed to delete section row' });
       } finally {
         setSavingSections(false);
       }
@@ -1206,7 +1299,7 @@ export default function SettingsPage() {
 
         if (promises.length > 0) {
           await Promise.all(promises);
-          showToast({ type: 'success', title: 'Mediums saved successfully' });
+          showToast({ type: 'success', title: 'Mediums saved successfully', message: 'Mediums have been successfully saved' });
           await fetchAll();
         }
         
@@ -1265,7 +1358,7 @@ export default function SettingsPage() {
           isActive: true
         });
         await fetchAll();
-        showToast({ type: 'success', title: 'Class added' });
+        showToast({ type: 'success', title: 'Class added', message: 'Class has been successfully added' });
       } catch (e: any) {
         showToast({ type: 'error', title: 'Failed to add class', message: e.message });
       }
@@ -1278,8 +1371,7 @@ export default function SettingsPage() {
       try {
         await Promise.all(rowClasses.map(c => {
           const med = mediums.find((m) => m.id === c.mediumId);
-          return classesApi.update({ 
-            id: c.id,
+          return classesApi.update(c.id, { 
             name: editingClassRow.name.trim(),
             code: autoCode(editingClassRow.name.trim(), med?.code || ''),
             level: autoLevel(editingClassRow.name.trim()),
@@ -1290,9 +1382,9 @@ export default function SettingsPage() {
         }));
         await fetchAll();
         setEditingClassRow(null);
-        showToast({ type: 'success', title: 'Class row updated' });
+        showToast({ type: 'success', title: 'Class row updated', message: 'Class row has been successfully updated' });
       } catch {
-        showToast({ type: 'error', title: 'Failed to update class row' });
+        showToast({ type: 'error', title: 'Failed to update class row', message: 'Failed to update class row' });
       } finally {
         setSavingClasses(false);
       }
@@ -1305,9 +1397,9 @@ export default function SettingsPage() {
       try {
         await Promise.all(rowClasses.map(c => classesApi.delete(c.id)));
         await fetchAll();
-        showToast({ type: 'success', title: 'Class row deleted' });
+        showToast({ type: 'success', title: 'Class row deleted', message: 'Class row has been successfully deleted' });
       } catch {
-        showToast({ type: 'error', title: 'Failed to delete class row' });
+        showToast({ type: 'error', title: 'Failed to delete class row', message: 'Failed to delete class row' });
       } finally {
         setSavingClasses(false);
       }
@@ -1338,7 +1430,7 @@ export default function SettingsPage() {
 
         if (promises.length > 0) {
           await Promise.all(promises);
-          showToast({ type: 'success', title: 'Classes saved successfully' });
+          showToast({ type: 'success', title: 'Classes saved successfully', message: 'Classes have been successfully saved' });
           await fetchAll();
           setNewRows([]);
         }
@@ -1421,7 +1513,7 @@ export default function SettingsPage() {
                   <td className={`px-3 py-2 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                     <input
                       type="text"
-                      value={mediumDrafts[medium.id]?.name || medium.name}
+                      value={(mediumDrafts as any)[medium.id]?.name || medium.name}
                       onChange={(e) => handleMediumChange(medium.id, 'name', e.target.value)}
                       className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-gray-600 focus:border-blue-500 text-white' : 'border-gray-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
                     />
@@ -1429,7 +1521,7 @@ export default function SettingsPage() {
                   <td className={`px-3 py-2 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                     <input
                       type="text"
-                      value={mediumDrafts[medium.id]?.code || medium.code}
+                      value={(mediumDrafts as any)[medium.id]?.code || medium.code}
                       onChange={(e) => handleMediumChange(medium.id, 'code', e.target.value)}
                       className={`w-full px-2 py-1 rounded bg-transparent border ${isDark ? 'border-gray-600 focus:border-blue-500 text-white' : 'border-gray-300 focus:border-blue-400 text-gray-900'} focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase`}
                     />
@@ -1451,7 +1543,7 @@ export default function SettingsPage() {
 
               {/* New Draft Rows */}
               {mediumRows.map((row: any) => {
-                const draft: any = mediumDrafts[row.id];
+                const draft: any = (mediumDrafts as any)[row.id];
                 return (
                   <tr key={row.id} className={`${isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}`}>
                     <td className={`px-3 py-2 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
@@ -1618,14 +1710,14 @@ export default function SettingsPage() {
               })}
 
               {/* New inline rows */}
-              {newRows.map((nr) => (
+              {(newRows as any).map((nr: any) => (
                 <tr key={nr.id} className={isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}>
                   <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
                     <input
                       autoFocus
                       value={nr.name}
-                      onChange={e => setNewRows(prev => prev.map(r => r.id === nr.id ? { ...r, name: e.target.value } : r))}
-                      onKeyDown={e => { if (e.key === 'Enter') saveRow(nr.id); if (e.key === 'Escape') setNewRows(prev => prev.filter(r => r.id !== nr.id)); }}
+                      onChange={e => setNewRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, name: e.target.value } : r))}
+                      onKeyDown={e => { if (e.key === 'Enter') saveRow(nr.id); if (e.key === 'Escape') setNewRows((prev: any) => (prev as any).filter((r: any) => r.id !== nr.id)); }}
                       placeholder="e.g. Class 1"
                       className={`w-full px-2 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                     />
@@ -1635,7 +1727,7 @@ export default function SettingsPage() {
                       <input
                         type="checkbox"
                         checked={nr.selectedMediums.has(m.id)}
-                        onChange={e => setNewRows(prev => prev.map(r => {
+                        onChange={e => setNewRows((prev: any) => (prev as any).map((r: any) => {
                           if (r.id !== nr.id) return r;
                           const s = new Set(r.selectedMediums);
                           e.target.checked ? s.add(m.id) : s.delete(m.id);
@@ -1654,7 +1746,7 @@ export default function SettingsPage() {
                         className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
                       >{nr.saving ? '…' : '✓'}</button>
                       <button
-                        onClick={() => setNewRows(prev => prev.filter(r => r.id !== nr.id))}
+                        onClick={() => setNewRows((prev: any) => (prev as any).filter((r: any) => r.id !== nr.id))}
                         title="Cancel (Esc)"
                         className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
                       >✕</button>
@@ -1735,8 +1827,8 @@ export default function SettingsPage() {
                     {isEditingRow ? (
                       <input
                         autoFocus
-                        value={editingSectionRow.name}
-                        onChange={e => setEditingSectionRow({ ...editingSectionRow, name: e.target.value })}
+                        value={editingSectionRow?.name || ''}
+                        onChange={e => editingSectionRow && setEditingSectionRow({ ...editingSectionRow, name: e.target.value })}
                         className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       />
                     ) : (
@@ -1763,7 +1855,7 @@ export default function SettingsPage() {
                                 capacity: 40,
                                 roomNumber: '',
                                 isActive: true,
-                                academicYear: activeAY?.year || '2024-25'
+                                academicYear: activeAY?.name || '2024-25'
                               }).then(() => fetchAll()).catch((e: any) => showToast({ type: 'error', title: 'Failed to add section', message: e.message }));
                             }}
                             title={`Add ${sectionName} to ${cls.name}`}
@@ -1776,7 +1868,7 @@ export default function SettingsPage() {
                   <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                     {isEditingRow ? (
                       <div className="flex items-center justify-center gap-0.5">
-                        <button onClick={() => saveSectionRowEdit(sectionName)} disabled={!editingSectionRow.name.trim() || savingSections} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
+                        <button onClick={() => saveSectionRowEdit(sectionName)} disabled={!editingSectionRow?.name?.trim() || savingSections} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
                         <button onClick={() => setEditingSectionRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
                       </div>
                     ) : (
@@ -1792,7 +1884,7 @@ export default function SettingsPage() {
 
               {/* New Draft Rows */}
               {sectionRows.map((row: any) => {
-                const draft: any = sectionDrafts[row.id];
+                const draft: any = (sectionDrafts as any)[row.id];
                 return (
                   <tr key={row.id} className={isDark ? 'bg-green-900/15' : 'bg-green-50/80'}>
                     <td className={`px-1 py-1 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
@@ -1897,8 +1989,8 @@ export default function SettingsPage() {
         mediumsApi.list({ academicYearId: feeForm.academicYearId, isActive: 'true' }),
         classesApi.list({ academicYearId: feeForm.academicYearId, isActive: 'true' }),
       ]).then(([mRes, cRes]) => {
-        setModalMediums(mRes.mediums || []);
-        setModalClasses(cRes.classes || []);
+        setModalMediums((mRes as any).mediums || []);
+        setModalClasses((cRes as any).classes || []);
       }).catch(() => {
         setModalMediums([]);
         setModalClasses([]);
@@ -1940,7 +2032,7 @@ export default function SettingsPage() {
           name: editingFeeRow.name.trim(),
           category: editingFeeRow.category,
           frequency: editingFeeRow.frequency
-        })));
+        } as any)));
         await fetchAll();
         setEditingFeeRow(null);
         showToast({ type: 'success', title: 'Fee row updated' });
@@ -1967,17 +2059,17 @@ export default function SettingsPage() {
     };
 
     const saveAddingCell = async (feeName: string, cls: any) => {
-      if (!addingCell?.amount) { setAddingCell(null); return; }
+      if (!(addingCell as any)?.amount) { setAddingCell(null); return; }
       const first = feeStructures.find(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
       try {
         await feeStructuresApi.create({
           name: feeName, category: first?.category || 'tuition',
-          amount: parseFloat(addingCell.amount) || 0,
+          amount: parseFloat((addingCell as any).amount) || 0,
           frequency: first?.frequency || 'monthly', dueDate: first?.dueDate || 1,
           lateFee: first?.lateFee || 0, applicableCategories: first?.applicableCategories || 'all',
           isActive: true, academicYearId: filterAY || activeAY?.id || '',
           mediumId: cls.mediumId, classId: cls.id,
-        });
+        } as any);
         await fetchAll();
       } catch { showToast({ type: 'error', title: 'Add failed' }); }
       setAddingCell(null);
@@ -1992,7 +2084,7 @@ export default function SettingsPage() {
         return a.name.localeCompare(b.name);
       });
 
-    const mediumGroups = gridClsForFee.reduce((acc, cls) => {
+    const mediumGroups = gridClsForFee.reduce((acc: any, cls) => {
       if (!acc[cls.mediumId]) {
         const med = mediums.find(m => m.id === cls.mediumId);
         acc[cls.mediumId] = { name: med?.name || '?', classes: [] };
@@ -2006,12 +2098,12 @@ export default function SettingsPage() {
       feeStructures.filter(fs => !filterAY || fs.academicYearId === filterAY).map(fs => fs.name)
     )].sort();
 
-    const saveFeeRow = async (rowId) => {
-      const nr = newFeeRows.find(r => r.id === rowId);
+    const saveFeeRow = async (rowId: any) => {
+      const nr = (newFeeRows as any).find((r: any) => r.id === rowId);
       if (!nr || !nr.name.trim()) return;
       const toCreate = gridClsForFee.filter(cls => parseFloat(nr.amounts[cls.id] || '0') > 0);
       if (toCreate.length === 0) return;
-      setNewFeeRows(prev => prev.map(r => r.id === rowId ? { ...r, saving: true } : r));
+      setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === rowId ? { ...r, saving: true } : r));
       try {
         await Promise.all(toCreate.map(cls => feeStructuresApi.create({
           name: nr.name.trim(), category: nr.category, amount: parseFloat(nr.amounts[cls.id]),
@@ -2019,16 +2111,16 @@ export default function SettingsPage() {
           applicableCategories: 'all', isActive: true,
           academicYearId: filterAY || activeAY?.id || '',
           mediumId: cls.mediumId, classId: cls.id,
-        })));
+        } as any)));
         await fetchAll();
-        setNewFeeRows(prev => prev.filter(r => r.id !== rowId));
-      } catch { setNewFeeRows(prev => prev.map(r => r.id === rowId ? { ...r, saving: false } : r)); }
+        setNewFeeRows((prev: any) => (prev as any).filter((r: any) => r.id !== rowId));
+      } catch { setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === rowId ? { ...r, saving: false } : r)); }
     };
 
-    const saveCellEdit = async (fs) => {
-      if (!editingCell || editingCell.fsId !== fs.id) return;
+    const saveCellEdit = async (fs: any) => {
+      if (!(editingCell as any) || (editingCell as any).fsId !== fs.id) return;
       try {
-        await feeStructuresApi.update(fs.id, { ...fs, amount: parseFloat(editingCell.amount) || 0 });
+        await feeStructuresApi.update(fs.id, { ...fs, amount: parseFloat((editingCell as any).amount) || 0 });
         await fetchAll();
       } catch { showToast({ type: 'error', title: 'Update failed' }); }
       setEditingCell(null);
@@ -2057,7 +2149,7 @@ export default function SettingsPage() {
                 academicYearId: filterAY || activeAY?.id || '',
                 mediumId: cls.mediumId,
                 classId: cls.id,
-              }));
+              } as any));
             }
           }
         }
@@ -2125,7 +2217,7 @@ export default function SettingsPage() {
       setSaving(true);
       try {
         const res = await feeStructuresApi.clone(cloneSource, cloneTarget);
-        showToast({ type: 'success', title: `${res.cloned} fee structures cloned` });
+        showToast({ type: 'success', title: `${(res as any).cloned} fee structures cloned` });
         setShowCloneModal(false);
         fetchAll();
       } catch (e: any) {
@@ -2196,7 +2288,7 @@ export default function SettingsPage() {
                   <th rowSpan={2} className={`px-2 py-1.5 text-center border font-semibold w-16 ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>Category</th>
                   <th rowSpan={2} className={`px-2 py-1.5 text-center border font-semibold w-16 ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>Freq</th>
                   {gridClsForFee.length === 0 && <th rowSpan={2} className={`px-3 py-1.5 text-center border ${isDark ? 'border-gray-500 bg-gray-700 text-gray-500' : 'border-gray-400 bg-gray-50 text-gray-400'}`}>← Select AY &amp; configure classes</th>}
-                  {medGroupList.map(([medId, med]) => (
+                  {medGroupList.map(([medId, med]: any) => (
                     <th key={medId} colSpan={med.classes.length} className={`px-2 py-1.5 text-center border font-semibold ${isDark ? 'border-gray-500 bg-gray-700 text-blue-300' : 'border-gray-400 bg-blue-100 text-blue-800'}`}>
                       {med.name}
                     </th>
@@ -2264,11 +2356,11 @@ export default function SettingsPage() {
                         return (
                           <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                             {fs ? (
-                              editingCell?.fsId === fs.id ? (
+                              (editingCell as any)?.fsId === fs.id ? (
                                 <input
                                   autoFocus type="number"
-                                  value={editingCell.amount}
-                                  onChange={e => setEditingCell({ ...editingCell, amount: e.target.value })}
+                                  value={(editingCell as any).amount}
+                                  onChange={e => setEditingCell({ ...(editingCell as any), amount: e.target.value })}
                                   onBlur={() => saveCellEdit(fs)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(fs); if (e.key === 'Escape') setEditingCell(null); }}
                                   className={`w-16 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
@@ -2276,7 +2368,7 @@ export default function SettingsPage() {
                               ) : (
                                 <div className="group flex items-center justify-center gap-1">
                                   <button
-                                    onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) })}
+                                    onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) } as any)}
                                     className={`text-xs font-semibold hover:underline ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-700 hover:text-green-800'}`}
                                     title="Edit cell amount"
                                   >₹{fs.amount?.toLocaleString()}</button>
@@ -2284,11 +2376,11 @@ export default function SettingsPage() {
                                 </div>
                               )
                             ) : (
-                              addingCell?.feeName === feeName && addingCell?.classId === cls.id ? (
+                              (addingCell as any)?.feeName === feeName && (addingCell as any)?.classId === cls.id ? (
                                 <input
                                   autoFocus type="number"
-                                  value={addingCell.amount}
-                                  onChange={e => setAddingCell({ ...addingCell, amount: e.target.value })}
+                                  value={(addingCell as any).amount}
+                                  onChange={e => setAddingCell({ ...(addingCell as any), amount: e.target.value })}
                                   onBlur={() => saveAddingCell(feeName, cls)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveAddingCell(feeName, cls); if (e.key === 'Escape') setAddingCell(null); }}
                                   placeholder="₹"
@@ -2296,7 +2388,7 @@ export default function SettingsPage() {
                                 />
                               ) : (
                                 <button
-                                  onClick={() => setAddingCell({ feeName, classId: cls.id, amount: '' })}
+                                  onClick={() => setAddingCell({ feeName, classId: cls.id, amount: '' } as any)}
                                   title={`Add ${feeName} for ${cls.name}`}
                                   className={`text-xs px-1 rounded border border-dashed transition-all ${isDark ? 'border-gray-700 text-gray-700 hover:border-blue-600 hover:text-blue-500' : 'border-gray-300 text-gray-300 hover:border-blue-400 hover:text-blue-500'}`}
                                 >+</button>
@@ -2323,23 +2415,23 @@ export default function SettingsPage() {
                 })}
 
                 {/* New inline rows */}
-                {newFeeRows.map(nr => (
+                {(newFeeRows as any).map((nr: any) => (
                   <tr key={nr.id} className={isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}>
                     <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
                       <input autoFocus value={nr.name}
-                        onChange={e => setNewFeeRows(prev => prev.map(r => r.id === nr.id ? { ...r, name: e.target.value } : r))}
+                        onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, name: e.target.value } : r))}
                         placeholder="Fee name…"
                         className={`w-full px-1.5 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                       />
                     </td>
                     <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                      <select value={nr.category} onChange={e => setNewFeeRows(prev => prev.map(r => r.id === nr.id ? { ...r, category: e.target.value } : r))}
+                      <select value={nr.category} onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, category: e.target.value } : r))}
                         className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
                         {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                       </select>
                     </td>
                     <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                      <select value={nr.frequency} onChange={e => setNewFeeRows(prev => prev.map(r => r.id === nr.id ? { ...r, frequency: e.target.value } : r))}
+                      <select value={nr.frequency} onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, frequency: e.target.value } : r))}
                         className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
                         {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                       </select>
@@ -2348,7 +2440,7 @@ export default function SettingsPage() {
                       <td key={cls.id} className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
                         <input type="number" min="0"
                           value={nr.amounts[cls.id] || ''}
-                          onChange={e => setNewFeeRows(prev => prev.map(r => r.id === nr.id ? { ...r, amounts: { ...r.amounts, [cls.id]: e.target.value } } : r))}
+                          onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, amounts: { ...r.amounts, [cls.id]: e.target.value } } : r))}
                           placeholder="₹"
                           className={`w-16 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-600' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-300'}`}
                         />
@@ -2356,11 +2448,11 @@ export default function SettingsPage() {
                     ))}
                     <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
                       <div className="flex items-center justify-center gap-0.5">
-                        <button disabled={!nr.name.trim() || Object.values(nr.amounts).every(a => !parseFloat(a)) || nr.saving}
+                        <button disabled={!nr.name.trim() || Object.values(nr.amounts).every((a: any) => !parseFloat(a)) || nr.saving}
                           onClick={() => saveFeeRow(nr.id)} title="Save"
                           className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
                         >{nr.saving ? '…' : '✓'}</button>
-                        <button onClick={() => setNewFeeRows(prev => prev.filter(r => r.id !== nr.id))} title="Cancel"
+                        <button onClick={() => setNewFeeRows((prev: any) => (prev as any).filter((r: any) => r.id !== nr.id))} title="Cancel"
                           className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
                         >✕</button>
                       </div>
@@ -2373,7 +2465,7 @@ export default function SettingsPage() {
                   <td colSpan={3 + gridClsForFee.length + 1} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
                     <div className="flex items-center justify-between gap-4">
                       <button disabled={!canManageSettings}
-                        onClick={() => setNewFeeRows(prev => [...prev, { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
+                        onClick={() => (setNewFeeRows as any)((prev: any) => [...(prev as any), { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
                         className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
                       >
                         <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
@@ -2440,7 +2532,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex gap-3 mt-6">
                   <button className={btnSecondary} onClick={() => setShowCloneModal(false)}>Cancel</button>
-                  <button className={btnPrimary} disabled={!cloneSource || !cloneTarget || cloning} onClick={handleClone}>{cloning ? 'Cloning...' : 'Clone'}</button>
+                  <button className={btnPrimary} disabled={!cloneSource || !cloneTarget || saving} onClick={handleClone}>{saving ? 'Cloning...' : 'Clone'}</button>
                 </div>
               </motion.div>
             </motion.div>
@@ -2575,8 +2667,8 @@ export default function SettingsPage() {
                       <div className="flex flex-col gap-1">
                         <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{periodName}</span>
                         <div className="flex items-center gap-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${firstTiming.type === 'period' ? 'bg-blue-100 text-blue-700' : firstTiming.type === 'break' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}`}>
-                            {firstTiming.type}
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${(firstTiming as any).type === 'period' ? 'bg-blue-100 text-blue-700' : (firstTiming as any).type === 'break' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {(firstTiming as any).type}
                           </span>
                           <span className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {firstTiming.startTime} - {firstTiming.endTime}
@@ -2599,13 +2691,13 @@ export default function SettingsPage() {
                               onClick={() => {
                                 schoolTimingsApi.create({
                                   name: periodName,
-                                  type: firstTiming.type,
-                                  startTime: firstTiming.startTime,
-                                  endTime: firstTiming.endTime,
+                                  type: (firstTiming as any).type,
+                                  startTime: (firstTiming as any).startTime,
+                                  endTime: (firstTiming as any).endTime,
                                   dayOfWeek: day,
-                                  sortOrder: timings.length,
-                                  isActive: true
-                                }).then(() => fetchAll()).catch((e: any) => showToast({ type: 'error', title: 'Failed to add timing', message: e.message }));
+                                  academicYearId: activeAY?.id || '',
+                                  isActive: true,
+                                } as any).then(() => fetchAll()).catch((e: any) => showToast({ type: 'error', title: 'Failed to add timing', message: e.message }));
                               }}
                               title={`Add ${periodName} for ${day}`}
                               className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-purple-500 hover:text-purple-400' : 'border-gray-300 text-gray-400 hover:border-purple-400 hover:text-purple-500'}`}
@@ -2621,7 +2713,7 @@ export default function SettingsPage() {
 
               {/* New Draft Rows */}
               {timingRows.map((row: any) => {
-                const draft: any = timingDrafts[row.id];
+                const draft: any = (timingDrafts as any)[row.id];
                 return (
                   <tr key={row.id} className={`${isDark ? 'bg-purple-900/10' : 'bg-purple-50'}`}>
                     <td className={`p-2 border ${isDark ? 'border-purple-700/50' : 'border-purple-300'} border-l-2 ${isDark ? 'border-l-purple-500' : 'border-l-purple-400'}`}>
@@ -2855,7 +2947,7 @@ export default function SettingsPage() {
         }
         
         // Update custom role
-        setCustomRoles(prev => prev.map((r: any) => {
+        setCustomRoles((prev: any) => (prev as any).map((r: any) => {
           if (r.id !== roleId) return r;
           const newSet = new Set(r.modules);
           if (newSet.has(module)) newSet.delete(module);
@@ -2876,7 +2968,7 @@ export default function SettingsPage() {
 
     const deleteCustomRole = (roleId: string, roleName: string) => {
       if (!confirm(`Delete custom role "${roleName}"?`)) return;
-      setCustomRoles(prev => prev.filter((r: any) => r.id !== roleId));
+      setCustomRoles((prev: any) => (prev as any).filter((r: any) => r.id !== roleId));
     };
 
     const bulkSaveRoles = async () => {
@@ -2901,8 +2993,11 @@ export default function SettingsPage() {
           modules: Array.from(r.modules)
         }));
 
-        await schoolSettingsApi.saveBatch('access_rights', {
-          custom_roles: JSON.stringify(rolesToSave)
+        await schoolSettingsApi.upsertBatch({
+          group: 'access_rights',
+          settings: {
+            custom_roles: JSON.stringify(rolesToSave)
+          }
         });
 
         showToast({ type: 'success', title: 'Roles saved successfully' });
@@ -2992,7 +3087,7 @@ export default function SettingsPage() {
 
               {/* New Draft Rows */}
               {roleRows.map((row: any) => {
-                const draft: any = roleDrafts[row.id];
+                const draft: any = (roleDrafts as any)[row.id];
                 return (
                   <tr key={row.id} className={`${isDark ? 'bg-blue-900/10' : 'bg-blue-50'}`}>
                     <td className={`p-0 border ${isDark ? 'border-blue-700/50' : 'border-blue-300'} border-l-2 ${isDark ? 'border-l-blue-500' : 'border-l-blue-400'}`}>
@@ -3469,7 +3564,7 @@ export default function SettingsPage() {
                   </div>
                 )}
                 <p className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Locking prevents any edits or new fee assignments until they are promoted to <strong>{lockDialogData.ay.year}</strong> or marked as exit.
+                  Locking prevents any edits or new fee assignments until they are promoted to <strong>{lockDialogData.ay.name}</strong> or marked as exit.
                 </p>
               </div>
               <div className="flex gap-3">
@@ -3508,13 +3603,13 @@ export default function SettingsPage() {
                 Deleting {showCascadeDeleteModal.entity} <strong>"{showCascadeDeleteModal.name}"</strong> will also permanently delete:
               </p>
               <div className={`space-y-3 mb-6`}>
-                {showCascadeDeleteModal.mediumCount > 0 && (
+                {showCascadeDeleteModal.mediumCount && showCascadeDeleteModal.mediumCount > 0 && (
                   <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}`}>
                     <span className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Mediums</span>
                     <span className={`font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{showCascadeDeleteModal.mediumCount}</span>
                   </div>
                 )}
-                {(showCascadeDeleteModal.classCount > 0 || showCascadeDeleteModal.entity === 'class') && (
+                {((showCascadeDeleteModal.classCount && showCascadeDeleteModal.classCount > 0) || showCascadeDeleteModal.entity === 'class') && (
                   <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700/30' : 'bg-red-50 border border-red-200'}`}>
                     <span className={`font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Classes</span>
                     <span className={`font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{showCascadeDeleteModal.entity === 'class' ? 1 : showCascadeDeleteModal.classCount}</span>
@@ -3529,7 +3624,7 @@ export default function SettingsPage() {
                   <span className={`font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{showCascadeDeleteModal.affectedFeeStructures || 0}</span>
                 </div>
               </div>
-              {showCascadeDeleteModal.affectedClasses?.length > 0 && (
+              {showCascadeDeleteModal.affectedClasses && showCascadeDeleteModal.affectedClasses.length > 0 && (
                 <div className={`p-3 rounded-lg mb-6 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
                   <h4 className={`font-semibold mb-2 text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Classes to be deleted:</h4>
                   <div className="flex flex-wrap gap-2">
@@ -3555,10 +3650,10 @@ export default function SettingsPage() {
                     setShowCascadeDeleteModal({ ...showCascadeDeleteModal, deleting: true });
                     try {
                       const apiMap: any = { academicYear: academicYearsApi, board: boardsApi, medium: mediumsApi, class: classesApi };
-                      const result = await apiMap[showCascadeDeleteModal.entity].delete(showCascadeDeleteModal.id, true);
+                      const result = await apiMap[(showCascadeDeleteModal as any).entity].delete(showCascadeDeleteModal.id, true);
                       showToast({ 
                         type: 'success', 
-                        title: `${showCascadeDeleteModal.entity.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} "${showCascadeDeleteModal.name}" deleted`,
+                        title: `${(showCascadeDeleteModal as any).entity.replace(/([A-Z])/g, ' $1').replace(/^./, (str: any) => str.toUpperCase())} "${showCascadeDeleteModal.name}" deleted`,
                         message: `Also deleted: ${result.deleted?.mediums ? result.deleted.mediums + ' mediums, ' : ''}${result.deleted?.classes || 0} classes, ${result.deleted?.sections || 0} sections, ${result.deleted?.feeStructures || 0} fee structures`
                       });
                       await fetchAll();

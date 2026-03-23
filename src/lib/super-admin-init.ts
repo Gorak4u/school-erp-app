@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import { saasPrisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -16,7 +17,7 @@ let isInitialized = false;
 export async function ensureSuperAdmin() {
   // Prevent multiple initializations in the same process
   if (isInitialized) {
-    console.log('ℹ️ [SUPER ADMIN] Already initialized in this process');
+    logger.info('Super admin already initialized in this process');
     return;
   }
 
@@ -24,24 +25,29 @@ export async function ensureSuperAdmin() {
     const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
     const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
 
-    console.log('🔧 [SUPER ADMIN] Starting super admin verification...');
-    console.log(`📧 [SUPER ADMIN] Configured email: ${superAdminEmail || 'NOT_SET'}`);
-    console.log(`🔑 [SUPER ADMIN] Password configured: ${superAdminPassword ? 'YES' : 'NO'}`);
+    logger.info('Starting super admin verification', {
+      emailConfigured: !!superAdminEmail,
+      passwordConfigured: !!superAdminPassword,
+      email: superAdminEmail || 'NOT_SET'
+    });
 
     // Case 1: No credentials in .env
     if (!superAdminEmail || !superAdminPassword) {
-      console.log('⚠️ [SUPER ADMIN] No credentials found in .env file');
-      console.log('📝 [SUPER ADMIN] Please set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in .env');
+      logger.warn('No super admin credentials found in .env', {
+        emailConfigured: !!superAdminEmail,
+        passwordConfigured: !!superAdminPassword,
+        solution: 'Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in .env'
+      });
       isInitialized = true;
       return;
     }
 
     // Hash the password first
     const hashedPassword = await bcrypt.hash(superAdminPassword, 12);
-    console.log('🔐 [SUPER ADMIN] Password hashed successfully');
+    logger.info('Super admin password hashed successfully');
 
     // Use upsert to handle concurrent creation gracefully
-    console.log('🔍 [SUPER ADMIN] Creating or updating super admin in SaaS User table...');
+    logger.info('Creating or updating super admin in SaaS User table');
     try {
       const superAdmin = await (saasPrisma as any).user.upsert({
         where: { email: superAdminEmail },
@@ -63,10 +69,11 @@ export async function ensureSuperAdmin() {
         },
       });
 
-      console.log('✅ [SUPER ADMIN] Super admin ready in SaaS User table');
-      console.log(`📧 [SUPER ADMIN] Email: ${superAdmin.email}`);
-      console.log(`🆔 [SUPER ADMIN] ID: ${superAdmin.id}`);
-      console.log(`� [SUPER ADMIN] Role: ${superAdmin.role}`);
+      logger.info('Super admin ready in SaaS User table', {
+        email: superAdmin.email,
+        id: superAdmin.id,
+        role: superAdmin.role
+      });
 
       // Try to create or update in school_User table
       try {
@@ -90,28 +97,32 @@ export async function ensureSuperAdmin() {
             updatedAt: new Date(),
           },
         });
-        console.log('✅ [SUPER ADMIN] Super admin ready in school_User table');
+        logger.info('Super admin ready in school_User table');
       } catch (schoolError: any) {
-        console.warn('⚠️ [SUPER ADMIN] Could not sync to school_User table:', schoolError.message);
+        logger.warn('Could not sync super admin to school_User table', { error: schoolError.message });
       }
 
-      console.log('🎉 [SUPER ADMIN] Super admin initialization complete!');
-      console.log('✅ [SUPER ADMIN] Ready for login');
+      logger.info('Super admin initialization complete');
+      logger.info('Super admin ready for login');
     } catch (createError: any) {
-      console.error('❌ [SUPER ADMIN] Error during super admin initialization:', createError);
-      console.error('❌ [SUPER ADMIN] Error code:', createError.code);
-      console.error('❌ [SUPER ADMIN] Error details:', createError.message);
-      console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
+      logger.error('Error during super admin initialization', {
+        error: createError,
+        code: createError.code,
+        message: createError.message
+      });
+      logger.warn('Application will continue without super admin');
     }
     
     isInitialized = true;
     await prisma.$disconnect();
   } catch (error: any) {
-    console.error('❌ [SUPER ADMIN] Error during super admin creation:', error);
-    console.error('❌ [SUPER ADMIN] Error details:', error.message);
+    logger.error('Error during super admin creation', {
+      error,
+      message: error.message
+    });
     
     // Don't throw error, allow app to continue
-    console.log('⚠️ [SUPER ADMIN] Application will continue without super admin');
+    logger.warn('Application will continue without super admin');
     isInitialized = true;
   }
 }

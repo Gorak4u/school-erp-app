@@ -1,19 +1,9 @@
-// @ts-nocheck
 import { schoolPrisma } from './prisma';
 import { routeChangeNotificationTemplate, routeChangeNotificationText } from './emails/transport/routeChangeNotification';
 import { assignmentConfirmationTemplate, assignmentConfirmationText } from './emails/transport/assignmentConfirmation';
-import { transportFeeReminderTemplate, transportFeeReminderText } from './emails/transport/feeReminder';
-
-// Email sending function (integrate with your existing email service)
-async function sendEmail(to: string, subject: string, html: string, text: string) {
-  // TODO: Integrate with your email service (Nodemailer, SendGrid, etc.)
-  console.log('📧 Email sent to:', to, '| Subject:', subject);
-  
-  // For now, just log. Replace with actual email service
-  // Example with Nodemailer:
-  // const transporter = nodemailer.createTransport({ ... });
-  // await transporter.sendMail({ from: 'noreply@school.com', to, subject, html, text });
-}
+import { transportFeeReminderTemplate } from './emails/transport/feeReminder';
+import { sendEmail } from './email';
+import { logger } from './logger';
 
 // Create notification in database
 async function createNotification(data: {
@@ -40,7 +30,7 @@ async function createNotification(data: {
       }
     });
   } catch (error) {
-    console.error('Failed to create notification:', error);
+    logger.error('Failed to create notification', { error, userId: data.userId, type: data.type });
   }
 }
 
@@ -80,7 +70,12 @@ export async function sendRouteChangeNotification(params: {
     ]);
 
     if (!student || !newRoute || !school) {
-      console.error('Missing data for route change notification');
+      logger.error('Missing data for route change notification', {
+        studentId: params.studentId,
+        oldRouteId: params.oldRouteId,
+        newRouteId: params.newRouteId,
+        schoolId: params.schoolId
+      });
       return;
     }
 
@@ -104,12 +99,22 @@ export async function sendRouteChangeNotification(params: {
 
     // Send email to parent
     if (student.parentEmail) {
-      await sendEmail(
-        student.parentEmail,
-        `Transport Route ${oldRoute ? 'Change' : 'Assignment'} - ${student.name}`,
-        routeChangeNotificationTemplate(emailData),
-        routeChangeNotificationText(emailData)
-      );
+      try {
+        const result = await sendEmail({
+          to: student.parentEmail,
+          subject: `Transport Route ${oldRoute ? 'Change' : 'Assignment'} - ${student.name}`,
+          html: routeChangeNotificationTemplate(emailData)
+        });
+        
+        if (!result.success) {
+          logger.error('Failed to send transport route change email', {
+            to: student.parentEmail,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        logger.error('Exception sending transport route change email', error as any);
+      }
     }
 
     // Create bell notification for parent
@@ -127,7 +132,7 @@ export async function sendRouteChangeNotification(params: {
 
     return { success: true, message: 'Route change notification sent' };
   } catch (error) {
-    console.error('Error sending route change notification:', error);
+    logger.error('Error sending route change notification', { error, params });
     return { success: false, error };
   }
 }
@@ -166,7 +171,11 @@ export async function sendAssignmentConfirmation(params: {
     ]);
 
     if (!student || !route || !assignment || !school) {
-      console.error('Missing data for assignment confirmation');
+      logger.error('Missing data for assignment confirmation', {
+        studentId: params.studentId,
+        routeId: params.routeId,
+        schoolId: params.schoolId
+      });
       return;
     }
 
@@ -183,12 +192,11 @@ export async function sendAssignmentConfirmation(params: {
 
     // Send email
     if (student.parentEmail) {
-      await sendEmail(
-        student.parentEmail,
-        `Transport Assignment Confirmed - ${student.name}`,
-        assignmentConfirmationTemplate(emailData),
-        assignmentConfirmationText(emailData)
-      );
+      await sendEmail({
+        to: student.parentEmail,
+        subject: `Transport Assignment Confirmed - ${student.name}`,
+        html: assignmentConfirmationTemplate(emailData)
+      });
     }
 
     // Create bell notification
@@ -206,7 +214,7 @@ export async function sendAssignmentConfirmation(params: {
 
     return { success: true, message: 'Assignment confirmation sent' };
   } catch (error) {
-    console.error('Error sending assignment confirmation:', error);
+    logger.error('Error sending assignment confirmation', { error, params });
     return { success: false, error };
   }
 }
@@ -240,7 +248,11 @@ export async function sendTransportFeeReminder(params: {
     ]);
 
     if (!student || !feeRecord || !school) {
-      console.error('Missing data for fee reminder');
+      logger.error('Missing data for fee reminder', {
+        studentId: params.studentId,
+        feeRecordId: params.feeRecordId,
+        schoolId: params.schoolId
+      });
       return;
     }
 
@@ -251,7 +263,7 @@ export async function sendTransportFeeReminder(params: {
     });
 
     if (!assignment) {
-      console.error('No active transport assignment found');
+      logger.error('No active transport assignment found', { studentId: params.studentId });
       return;
     }
 
@@ -269,12 +281,11 @@ export async function sendTransportFeeReminder(params: {
 
     // Send email
     if (student.parentEmail) {
-      await sendEmail(
-        student.parentEmail,
-        `Transport Fee ${params.isOverdue ? 'Overdue' : 'Reminder'} - ${student.name}`,
-        transportFeeReminderTemplate(emailData),
-        transportFeeReminderText(emailData)
-      );
+      await sendEmail({
+        to: student.parentEmail,
+        subject: `Transport Fee ${params.isOverdue ? 'Overdue' : 'Reminder'} - ${student.name}`,
+        html: transportFeeReminderTemplate(emailData)
+      });
     }
 
     // Create bell notification
@@ -292,7 +303,7 @@ export async function sendTransportFeeReminder(params: {
 
     return { success: true, message: 'Fee reminder sent' };
   } catch (error) {
-    console.error('Error sending fee reminder:', error);
+    logger.error('Error sending fee reminder', { error, params });
     return { success: false, error };
   }
 }
@@ -336,7 +347,7 @@ export async function sendCapacityWarning(params: {
 
     return { success: true, message: 'Capacity warning sent to transport managers' };
   } catch (error) {
-    console.error('Error sending capacity warning:', error);
+    logger.error('Error sending capacity warning', { error, params });
     return { success: false, error };
   }
 }
@@ -376,7 +387,7 @@ export async function sendBulkTransportNotification(params: {
 
     return { success: true, message: 'Bulk notification sent' };
   } catch (error) {
-    console.error('Error sending bulk notification:', error);
+    logger.error('Error sending bulk notification', { error, params });
     return { success: false, error };
   }
 }

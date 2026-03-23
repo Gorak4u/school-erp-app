@@ -1,19 +1,49 @@
 import { schoolPrisma } from '@/lib/prisma';
 import type { SessionContext } from '@/lib/apiAuth';
 
-type PrismaLike = any;
+type PrismaLike = typeof schoolPrisma;
 
 type ScopedRefKey = 'academicYearId' | 'boardId' | 'mediumId' | 'classId' | 'sectionId';
 type ScopedModelKey = 'academicYear' | 'board' | 'medium' | 'class' | 'section';
 
 type ScopedRefs = Partial<Record<ScopedRefKey, string | null | undefined>>;
 
+// Base interfaces for scoped records
+interface BaseRecord {
+  id: string;
+  name: string;
+  schoolId: string | null;
+  isActive?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface AcademicYear extends BaseRecord {
+  startDate: Date;
+  endDate: Date;
+  isCurrent?: boolean;
+}
+
+interface Board extends BaseRecord {}
+interface Medium extends BaseRecord {
+  academicYearId?: string;
+}
+interface Class extends BaseRecord {
+  boardId?: string;
+  mediumId?: string;
+  academicYearId?: string;
+}
+interface Section extends BaseRecord {
+  classId?: string;
+  academicYearId?: string;
+}
+
 type ScopedRecords = {
-  academicYear?: any | null;
-  board?: any | null;
-  medium?: any | null;
-  class?: any | null;
-  section?: any | null;
+  academicYear?: AcademicYear | null;
+  board?: Board | null;
+  medium?: Medium | null;
+  class?: Class | null;
+  section?: Section | null;
 };
 
 const MODEL_BY_REF: Record<ScopedRefKey, ScopedModelKey> = {
@@ -73,12 +103,31 @@ export async function findOwnedRecord(
   schoolId?: string | null,
   prisma: PrismaLike = schoolPrisma,
 ) {
-  return prisma[model].findFirst({
-    where: {
-      id,
-      ...schoolWhere(schoolId),
-    },
-  });
+  // Use proper typed access instead of dynamic property access
+  switch (model) {
+    case 'academicYear':
+      return prisma.academicYear.findFirst({
+        where: { id, ...schoolWhere(schoolId) },
+      });
+    case 'board':
+      return prisma.board.findFirst({
+        where: { id, ...schoolWhere(schoolId) },
+      });
+    case 'medium':
+      return prisma.medium.findFirst({
+        where: { id, ...schoolWhere(schoolId) },
+      });
+    case 'class':
+      return prisma.class.findFirst({
+        where: { id, ...schoolWhere(schoolId) },
+      });
+    case 'section':
+      return prisma.section.findFirst({
+        where: { id, ...schoolWhere(schoolId) },
+      });
+    default:
+      throw new Error(`Unknown model: ${model}`);
+  }
 }
 
 export async function validateSchoolScopedRefs(
@@ -95,7 +144,7 @@ export async function validateSchoolScopedRefs(
     if (!record) {
       return { records, error: `${LABEL_BY_REF[refKey]} not found for this school` };
     }
-    records[model] = record;
+    records[model] = record as any;
   }
 
   if (records.medium && records.academicYear && records.medium.academicYearId !== records.academicYear.id) {

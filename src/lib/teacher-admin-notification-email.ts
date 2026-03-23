@@ -1,5 +1,6 @@
 import { sendSchoolEmail } from './email';
 import { schoolPrisma } from './prisma';
+import { logger } from './logger';
 import { getSubdomainUrl } from './subdomain';
 
 interface TeacherUser {
@@ -35,7 +36,10 @@ export async function sendTeacherAdminNotificationEmail(
     const emailNotificationsEnabled = await isEmailNotificationEnabled(schoolId);
     
     if (!emailNotificationsEnabled) {
-      console.log(`📧 Email notifications are DISABLED for school ${schoolId}. Skipping admin notification email to ${adminEmail}.`);
+      logger.info(`Email notifications disabled for school ${schoolId}`, {
+        adminEmail,
+        reason: 'Email notifications disabled'
+      });
       return { success: true, skipped: true, reason: 'Email notifications disabled' };
     }
 
@@ -246,14 +250,14 @@ The ${school.name} System
     });
 
     if (emailResult.success) {
-      console.log(`✅ Teacher admin notification email sent successfully to ${adminEmail}`);
+      logger.info('Teacher admin notification email sent successfully', { adminEmail, schoolId });
       return { success: true };
     } else {
       throw new Error(emailResult.error || 'Failed to send email');
     }
 
   } catch (error) {
-    console.error('Failed to send teacher admin notification email:', error);
+    logger.error('Failed to send teacher admin notification email', { error, adminEmail, schoolId });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 

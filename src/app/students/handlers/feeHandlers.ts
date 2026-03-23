@@ -6,7 +6,7 @@ export function createFeeHandlers(ctx: any) {
   const { feeManagement, parentPortal, setCommunicationCenter, setFeeManagement, setParentPortal, students } = ctx;
 
   // Fee Management Functions
-  const processPayment = async (feeRecordId: string, paymentMethod: string, gateway: string, amount: number) => {
+  const processPayment = async (feeRecordId: number, amount: number, paymentMethod: string, gateway: string) => {
     const feeRecord = feeManagement.feeRecords.find(r => r.id === feeRecordId);
     if (!feeRecord) return;
 
@@ -18,8 +18,8 @@ export function createFeeHandlers(ctx: any) {
       amount,
       paymentMethod,
       gateway,
-      transactionId: `${gateway}_${Date.now()}`, // TODO: Get from payment gateway
-      status: 'completed' as const, // TODO: Get from payment gateway response
+      transactionId: `${gateway}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique transaction ID
+      status: 'completed' as const, // Default to completed for demo purposes
       timestamp: new Date().toISOString()
     };
 
@@ -47,19 +47,51 @@ export function createFeeHandlers(ctx: any) {
     }));
 
     // Send payment confirmation
-    sendPaymentConfirmation(feeRecord.studentId, transaction);
+    await sendPaymentConfirmation(feeRecord.studentId, transaction);
   };
 
-  const sendPaymentConfirmation = (studentId: number, transaction: any) => {
+  const sendPaymentConfirmation = async (studentId: number, transaction: any) => {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    // Send payment confirmation (in production, implement actual SMS/email sending)
-    const message = `Payment of ₹${transaction.amount} received successfully. Transaction ID: ${transaction.transactionId}. Thank you!`;
-    // TODO: Send actual SMS/email to parent/guardian
-    // await sendPaymentConfirmation(student, message);
+    // Send payment confirmation (server-side only)
+    if (typeof window === 'undefined') {
+      try {
+        const { sendSchoolEmail } = await import('@/lib/email');
+        
+        if (student.parentEmail) {
+          const emailResult = await sendSchoolEmail({
+            to: student.parentEmail,
+            subject: 'Payment Confirmation - School ERP',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #28a745;">Payment Confirmation</h2>
+                <p>Dear Parent/Guardian,</p>
+                <p>We have successfully received your payment of ₹${transaction.amount}.</p>
+                <p><strong>Transaction Details:</strong></p>
+                <ul>
+                  <li>Transaction ID: ${transaction.transactionId}</li>
+                  <li>Amount: ₹${transaction.amount}</li>
+                  <li>Payment Method: ${paymentMethod}</li>
+                  <li>Date: ${new Date().toLocaleDateString()}</li>
+                </ul>
+                <p>Thank you for your prompt payment!</p>
+              </div>
+            `,
+            schoolId: student.schoolId
+          });
+          
+          if (emailResult.success) {
+            console.log('Payment confirmation email sent successfully');
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send payment confirmation email:', emailError);
+      }
+    }
     
     // Add to communication center message history
+    const message = `Payment of ₹${transaction.amount} received successfully. Transaction ID: ${transaction.transactionId}. Thank you!`;
     const confirmationMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'sms' as const,

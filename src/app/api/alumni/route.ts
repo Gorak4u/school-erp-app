@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
@@ -70,9 +69,9 @@ export async function GET(request: NextRequest) {
     const shaped = alumni.map(a => {
       const feeRecords = Array.isArray((a as any).feeRecords) ? (a as any).feeRecords : [];
       const arrears = Array.isArray((a as any).arrears) ? (a as any).arrears : [];
-      const feeTotal = feeRecords.reduce((sum, f) => sum + (f.amount || 0), 0);
-      const feePaid = feeRecords.reduce((sum, f) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
-      const arrearsTotal = arrears.reduce((sum, arr) => sum + (arr.amount || 0) - (arr.paidAmount || 0), 0);
+      const feeTotal = feeRecords.reduce((sum: number, f: any) => sum + (f.amount || 0), 0);
+      const feePaid = feeRecords.reduce((sum: number, f: any) => sum + (f.paidAmount || 0) + (f.discount || 0), 0);
+      const arrearsTotal = arrears.reduce((sum: number, arr: any) => sum + (arr.amount || 0) - (arr.paidAmount || 0), 0);
       const pendingDues = canViewDues ? Math.max(0, feeTotal - feePaid) + Math.max(0, arrearsTotal) : 0;
 
       return {

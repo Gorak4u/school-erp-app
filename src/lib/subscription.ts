@@ -1,4 +1,5 @@
 import { saasPrisma, schoolPrisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export type PlanName = string; // Dynamic from database
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'expired' | 'cancelled';
@@ -93,7 +94,7 @@ export async function validatePromoCode(code: string, plan: string): Promise<{ v
       }
     };
   } catch (error) {
-    console.error('Promo validation error:', error);
+    logger.error('Promo validation error', { error, promoCode: code });
     return { valid: false, error: 'Failed to validate promo code' };
   }
 }
@@ -150,7 +151,7 @@ export async function applyPromoToSubscription(
 
     return { success: true };
   } catch (error) {
-    console.error('Apply promo error:', error);
+    logger.error('Apply promo error', { error, subscriptionId, promoCode });
     return { success: false, error: 'Failed to apply promo code' };
   }
 }
@@ -276,7 +277,7 @@ export async function getSubscriptionInfo(userId: string): Promise<SubscriptionI
       schoolName: user.school.name,
     };
   } catch (error) {
-    console.error('Error getting subscription info:', error);
+    logger.error('Error getting subscription info', { error, userId });
     return null;
   }
 }

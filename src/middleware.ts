@@ -101,19 +101,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // Check super admin on every app restart (first request)
-  // This ensures super admin always exists based on .env configuration
-  if (!superAdminChecked && !pathname.startsWith('/api/')) {
-    try {
-      console.log('🔧 [STARTUP] Checking super admin configuration...');
-      await ensureSuperAdmin();
-      superAdminChecked = true;
-      console.log('✅ [STARTUP] Super admin check completed');
-    } catch (error) {
-      console.error('❌ [STARTUP] Super admin check failed:', error);
-      // Continue operation even if super admin creation fails
-    }
-  }
+  // Skip super admin check in middleware - it should run at startup only
+  // This prevents potential security issues and performance impact
 
   // Allow public routes
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {

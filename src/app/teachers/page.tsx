@@ -10,6 +10,67 @@ import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 import StaffForm, { StaffFormData } from './components/StaffForm';
 import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
 
+// Type definitions for teacher data
+interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  employeeId?: string;
+  department?: string;
+  subject?: string;
+  designation?: string;
+  [key: string]: unknown;
+}
+
+interface DeleteConfirmation {
+  teacher: Teacher;
+  index: number;
+}
+
+interface SchoolData {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface Board {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+interface Medium {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+interface Class {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+interface AcademicYear {
+  id: string;
+  name: string;
+  year: string;
+  [key: string]: unknown;
+}
+
+type QueryParams = Record<string, unknown>;
+
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 export default function StaffPage() {
@@ -17,22 +78,22 @@ export default function StaffPage() {
   const isDark = theme === 'dark';
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingTeacher, setEditingTeacher] = useState<any>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [downloadingIdCard, setDownloadingIdCard] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmation | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [schoolData, setSchoolData] = useState<any>(null);
-  const [boards, setBoards] = useState<any[]>([]);
-  const [mediums, setMediums] = useState<any[]>([]);
-  const [dbClasses, setDbClasses] = useState<any[]>([]);
-  const [dbSections, setDbSections] = useState<any[]>([]);
-  const [academicYears, setAcademicYears] = useState<any[]>([]);
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [mediums, setMediums] = useState<Medium[]>([]);
+  const [dbClasses, setDbClasses] = useState<Class[]>([]);
+  const [dbSections, setDbSections] = useState<Section[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
 
-  const fetcher = useCallback((p: any) => teachersApi.list(p), []);
+  const fetcher = useCallback((p: QueryParams) => teachersApi.list(p as any), []);
   const {
     data: teachers, total, page, pageSize, totalPages, loading, error,
     filters, setFilter, resetFilters, setPage, setPageSize, toggleSort, sortBy, sortOrder, refresh,
@@ -67,7 +128,7 @@ export default function StaffPage() {
     loadSchoolData();
   }, []);
 
-  const mapTeacherToFormData = (teacher: any): StaffFormData => {
+  const mapTeacherToFormData = (teacher: Teacher): StaffFormData => {
     if (!teacher) return { firstName: '', lastName: '', email: '', phone: '', role: 'teacher', customRoleId: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', gender: '', dateOfBirth: '', address: '', designation: '', salary: '', bankName: '', bankAccountNo: '', bankIfsc: '', emergencyName: '', emergencyPhone: '', remarks: '', photo: '', aadharNumber: '', bloodGroup: '', isClassTeacher: false, classTeacherAssignments: [] };
     const nameParts = (teacher.name || '').trim().split(/\s+/);
     const firstName = nameParts[0] || '';
@@ -77,31 +138,31 @@ export default function StaffPage() {
       lastName,
       email: teacher.email || '',
       phone: teacher.phone || '',
-      role: teacher.role || 'teacher',
-      customRoleId: teacher.customRoleId || '',
+      role: (teacher.role as any) || 'teacher',
+      customRoleId: (teacher.customRoleId as any) || '',
       department: teacher.department || '',
       subject: teacher.subject || '',
-      qualification: teacher.qualification || '',
+      qualification: (teacher.qualification as any) || '',
       experience: teacher.experience?.toString() || '',
       employeeId: teacher.employeeId || '',
-      status: teacher.status || 'active',
-      joiningDate: teacher.joiningDate || '',
-      gender: teacher.gender || '',
-      dateOfBirth: teacher.dateOfBirth || '',
-      address: teacher.address || '',
+      status: (teacher.status as any) || 'active',
+      joiningDate: (teacher.joiningDate as any) || '',
+      gender: (teacher.gender as any) || '',
+      dateOfBirth: (teacher.dateOfBirth as any) || '',
+      address: (teacher.address as any) || '',
       designation: teacher.designation || '',
       salary: teacher.salary?.toString() || '',
-      bankName: teacher.bankName || '',
-      bankAccountNo: teacher.bankAccountNo || '',
-      bankIfsc: teacher.bankIfsc || '',
-      emergencyName: teacher.emergencyName || '',
-      emergencyPhone: teacher.emergencyPhone || '',
-      remarks: teacher.remarks || '',
-      photo: teacher.photo || '',
-      aadharNumber: teacher.aadharNumber || '',
-      bloodGroup: teacher.bloodGroup || '',
-      isClassTeacher: teacher.isClassTeacher || false,
-      classTeacherAssignments: teacher.classTeacherAssignments || [],
+      bankName: (teacher.bankName as any) || '',
+      bankAccountNo: (teacher.bankAccountNo as any) || '',
+      bankIfsc: (teacher.bankIfsc as any) || '',
+      emergencyName: (teacher.emergencyName as any) || '',
+      emergencyPhone: (teacher.emergencyPhone as any) || '',
+      remarks: (teacher.remarks as any) || '',
+      photo: (teacher.photo as any) || '',
+      aadharNumber: (teacher.aadharNumber as any) || '',
+      bloodGroup: (teacher.bloodGroup as any) || '',
+      isClassTeacher: (teacher.isClassTeacher as any) || false,
+      classTeacherAssignments: (teacher.classTeacherAssignments as any) || [],
     };
   };
 
@@ -148,13 +209,13 @@ export default function StaffPage() {
         emergencyPhone: data.emergencyPhone,
         remarks: data.remarks,
         employeeId: data.employeeId,
-      });
+      } as any);
 
       if (data.isClassTeacher && data.classTeacherAssignments?.length) {
         try {
           await Promise.all(
             data.classTeacherAssignments.map((assignment) =>
-              fetch(`/api/teachers/${response.teacher.id}/class-assignments`, {
+              fetch(`/api/teachers/${response.teacher?.id}/class-assignments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -223,7 +284,7 @@ export default function StaffPage() {
         const existingAssignments = editingTeacher.classTeacherAssignments || [];
         const newAssignments = data.classTeacherAssignments || [];
         
-        const assignmentsToDelete = existingAssignments.filter(
+        const assignmentsToDelete = (existingAssignments as any).filter(
           (ea: any) => !newAssignments.find((na: any) => na.id === ea.id)
         );
 
@@ -253,7 +314,7 @@ export default function StaffPage() {
         try {
           const existingAssignments = editingTeacher.classTeacherAssignments || [];
           await Promise.all(
-            existingAssignments.map((assignment: any) =>
+            (existingAssignments as any).map((assignment: any) =>
               fetch(`/api/teachers/${editingTeacher.id}/class-assignments?assignmentId=${assignment.id}`, {
                 method: 'DELETE',
               })
@@ -267,14 +328,15 @@ export default function StaffPage() {
       setShowEditModal(false);
       setEditingTeacher(null);
       refresh();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to update staff');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update staff';
+      setFormError(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDownloadIdCard = async (teacher: any) => {
+  const handleDownloadIdCard = async (teacher: Teacher) => {
     if (!teacher || !schoolData) return;
     
     setDownloadingIdCard(teacher.id);
@@ -282,10 +344,10 @@ export default function StaffPage() {
       // Create a compatible schoolConfig object for the utility
       const config = {
         school: {
-          name: schoolData.settings?.school_details?.name || 'School'
+          name: (schoolData.settings as any)?.school_details?.name || 'School'
         },
         schoolDetails: {
-          logo_url: schoolData.settings?.school_details?.logo_url
+          logo_url: (schoolData.settings as any)?.school_details?.logo_url
         }
       };
       await downloadTeacherIdCard(teacher, config);
@@ -308,10 +370,10 @@ export default function StaffPage() {
       
       const config = {
         school: {
-          name: schoolData.settings?.school_details?.name || 'School'
+          name: (schoolData.settings as any)?.school_details?.name || 'School'
         },
         schoolDetails: {
-          logo_url: schoolData.settings?.school_details?.logo_url
+          logo_url: (schoolData.settings as any)?.school_details?.logo_url
         }
       };
 
@@ -375,7 +437,7 @@ export default function StaffPage() {
   const handleToggleActivation = async (teacher: any) => {
     try {
       const action = teacher.status === 'active' ? 'deactivate' : 'activate';
-      const response = await teachersApi.update(teacher.id, { action });
+      const response = await teachersApi.update(teacher.id, { action } as any);
       
       if ((window as any).toast) {
         (window as any).toast({
@@ -390,8 +452,9 @@ export default function StaffPage() {
       setTimeout(() => {
         refresh();
       }, 100);
-    } catch (err: any) {
-      alert(`Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + (err.message || 'Unknown error'));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + errorMessage);
     }
   };
 
@@ -399,7 +462,7 @@ export default function StaffPage() {
     if (selectedTeachers.length === teachers.length) {
       setSelectedTeachers([]);
     } else {
-      setSelectedTeachers(teachers.map((t: any) => t.id));
+      setSelectedTeachers((teachers as any).map((t: any) => t.id));
     }
   };
 
@@ -975,7 +1038,7 @@ export default function StaffPage() {
                 </div>
               </div>
               <p className={`${sub} mb-6`}>
-                Are you sure you want to permanently delete <span className={`font-medium ${txt}`}>{deleteConfirm.name}</span> and their user account?
+                Are you sure you want to permanently delete <span className={`font-medium ${txt}`}>{(deleteConfirm as any).name}</span> and their user account?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -985,7 +1048,7 @@ export default function StaffPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDeleteTeacher(deleteConfirm.id)}
+                  onClick={() => handleDeleteTeacher((deleteConfirm as any).id)}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
                 >
                   Delete

@@ -2,6 +2,7 @@ import { sendEmail } from './email';
 import { generateWelcomeEmail, WelcomeEmailData } from './email-templates';
 import { School, Subscription, User } from '@prisma/client';
 import { getSubdomainUrl } from './subdomain';
+import { logger } from './logger';
 
 export async function sendWelcomeEmail(
   user: User,
@@ -17,7 +18,10 @@ export async function sendWelcomeEmail(
     const emailNotificationsEnabled = await isEmailNotificationEnabled(school.id);
     
     if (!emailNotificationsEnabled) {
-      console.log(`📧 Email notifications are DISABLED for school ${school.id}. Skipping welcome email to ${user.email}.`);
+      logger.info(`Email notifications disabled for school ${school.id}`, {
+        userEmail: user.email,
+        reason: 'Email notifications disabled'
+      });
       return { success: true, skipped: true, reason: 'Email notifications disabled' };
     }
     
@@ -59,10 +63,10 @@ export async function sendWelcomeEmail(
       html,
     });
 
-    console.log(`Welcome email sent to ${user.email}`);
+    logger.info('Welcome email sent successfully', { userEmail: user.email, schoolId: school.id });
     return { success: true, result };
   } catch (error: any) {
-    console.error('Failed to send welcome email:', error);
+    logger.error('Failed to send welcome email', { error, userEmail: user.email, schoolId: school.id });
     return { success: false, error: error.message };
   }
 }
