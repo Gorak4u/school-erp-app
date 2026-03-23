@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
     const academicYearId = searchParams.get('academicYearId');
     const approverId = searchParams.get('approverId');
     const search = searchParams.get('search') || '';
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
@@ -63,6 +65,17 @@ export async function GET(request: NextRequest) {
     if (leaveTypeId) where.leaveTypeId = leaveTypeId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (approverId) where.approverId = approverId;
+    if (startDate || endDate) {
+      where.appliedAt = {};
+
+      if (startDate) {
+        where.appliedAt.gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        where.appliedAt.lte = new Date(endDate);
+      }
+    }
 
     // Add search
     if (search) {
@@ -298,7 +311,18 @@ export async function POST(request: NextRequest) {
       };
 
       approverCandidates = await findApprovers(primaryWorkflow?.roleId || null);
-      approverId = approverCandidates[0]?.id || null;
+
+      if (approverCandidates.length > 0) {
+        const approverTeacher = await schoolPrisma.teacher.findFirst({
+          where: {
+            userId: approverCandidates[0].id,
+            schoolId: session.user.schoolId,
+          },
+          select: { id: true },
+        });
+
+        approverId = approverTeacher?.id || null;
+      }
     }
 
     // Create leave application

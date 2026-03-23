@@ -23,6 +23,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
+    const userPermissions = ((session.user as any)?.permissions || []) as string[];
+    const canApproveLeave =
+      session.user.role === 'admin' ||
+      session.user.role === 'super_admin' ||
+      userPermissions.includes('approve_department_leave') ||
+      userPermissions.includes('approve_all_leave') ||
+      userPermissions.includes('override_leave_approval');
+
+    if (!canApproveLeave) {
+      return NextResponse.json({ error: 'You do not have permission to update leave applications' }, { status: 403 });
+    }
+
     await schoolPrisma.$connect();
 
     // Get the application with related data
@@ -59,93 +71,135 @@ export async function PUT(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    // Update the application status
-    // Find the teacher record for the current user (approver) - but allow admins without teacher records
+    if (application.status !== 'pending') {
+      return NextResponse.json(
+        { error: 'Application is not in pending status', currentStatus: application.status },
+        { status: 400 }
+      );
+    }
+
+    const school = await schoolPrisma.school.findUnique({
+      where: { id: session.user.schoolId },
+      select: { name: true },
+    });
+
+    // Find the teacher record for the current user (approver) when available.
     let approverTeacherId: string | null = null;
-    
     if (session.user.role !== 'super_admin' && session.user.role !== 'admin') {
-      // For teachers, find their teacher record
       const approverTeacher = await schoolPrisma.teacher.findFirst({
         where: {
           userId: session.user.id,
           schoolId: session.user.schoolId,
         },
-        select: { id: true }
+        select: { id: true },
       });
 
-      if (!approverTeacher) {
-        return NextResponse.json({ error: 'Approver teacher record not found' }, { status: 400 });
-      }
-      
-      approverTeacherId = approverTeacher.id;
+      approverTeacherId = approverTeacher?.id || null;
     }
-    // For admins, approverId can be null (they don't need a teacher record)
 
-    const updatedApplication = await schoolPrisma.leaveApplication.update({
-      where: { id },
-      data: {
-        status,
-        approverId: approverTeacherId, // Can be null for admins
-        approvedAt: status === 'approved' ? new Date() : null,
-        approvalComments: comments || null,
-      },
-      include: {
-        staff: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            employeeId: true,
+    const updatedApplication = await schoolPrisma.$transaction(async (tx) => {
+      if (status === 'approved') {
+        const leaveBalance = await tx.leaveBalance.findFirst({
+          where: {
+            staffId: application.staffId,
+            leaveTypeId: application.leaveTypeId,
+            academicYearId: application.academicYearId,
           },
-        },
-        leaveType: {
-          select: {
-            name: true,
-            code: true,
-          },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+        });
 
-    // Update leave balance if approved
-    if (status === 'approved') {
-      const leaveBalance = await schoolPrisma.leaveBalance.findFirst({
+        if (!leaveBalance) {
+          throw new Error('Leave balance not found');
+        }
+
+        const balanceValue = Number(leaveBalance.balance);
+        if (balanceValue < Number(application.totalDays)) {
+          throw new Error('Insufficient leave balance');
+        }
+      }
+
+      const updateResult = await tx.leaveApplication.updateMany({
         where: {
-          staffId: application.staffId,
-          leaveTypeId: application.leaveTypeId,
-          academicYearId: application.academicYearId,
+          id,
+          schoolId: session.user.schoolId,
+          status: 'pending',
+        },
+        data: {
+          status,
+          approverId: approverTeacherId,
+          approvedAt: status === 'approved' ? new Date() : null,
+          approvalComments: comments || null,
+          rejectionReason: status === 'rejected' ? (comments || null) : null,
         },
       });
 
-      if (leaveBalance) {
-        const newUsed = parseFloat(leaveBalance.used.toString()) + application.totalDays;
-        const newBalance = parseFloat(leaveBalance.balance.toString()) - application.totalDays;
+      if (updateResult.count === 0) {
+        throw new Error('Application is not in pending status');
+      }
 
-        await schoolPrisma.leaveBalance.update({
-          where: { id: leaveBalance.id },
+      if (approverTeacherId) {
+        await tx.leaveApprovalHistory.create({
           data: {
-            used: newUsed,
-            balance: newBalance,
+            leaveApplicationId: application.id,
+            approverId: approverTeacherId,
+            action: status,
+            comments: comments || null,
+            approverRole: session.user.role,
+            previousStatus: 'pending',
+            newStatus: status,
           },
         });
       }
+
+      if (status === 'approved') {
+        await tx.leaveBalance.update({
+          where: {
+            staffId_leaveTypeId_academicYearId: {
+              staffId: application.staffId,
+              leaveTypeId: application.leaveTypeId,
+              academicYearId: application.academicYearId,
+            },
+          },
+          data: {
+            used: { increment: application.totalDays },
+            balance: { decrement: application.totalDays },
+          },
+        });
+      }
+
+      return tx.leaveApplication.findUnique({
+        where: { id },
+        include: {
+          staff: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              employeeId: true,
+            },
+          },
+          leaveType: {
+            select: {
+              name: true,
+              code: true,
+            },
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+    });
+
+    if (!updatedApplication) {
+      return NextResponse.json({ error: 'Failed to update application' }, { status: 500 });
     }
 
     // Send email notifications
     try {
-      // Get school name for emails
-      const school = await schoolPrisma.school.findUnique({
-        where: { id: session.user.schoolId },
-        select: { name: true },
-      });
-
       // Send email to the applicant about status change
       if (application.staff.email && school?.name) {
         await sendLeaveStatusUpdateEmail({
@@ -189,14 +243,22 @@ export async function PUT(
       // Don't fail the request if email fails
     }
 
-    console.log(`Leave application ${id} ${status} by ${session.user.name}`);
-
     return NextResponse.json({
       application: updatedApplication,
       message: `Leave application ${status} successfully`,
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    const message = error?.message || '';
+
+    if (
+      message === 'Leave balance not found' ||
+      message === 'Insufficient leave balance' ||
+      message === 'Application is not in pending status'
+    ) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     console.error('Error updating leave application status:', error);
     return NextResponse.json({ error: 'Failed to update application status' }, { status: 500 });
   } finally {

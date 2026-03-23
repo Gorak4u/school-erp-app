@@ -5,7 +5,6 @@ import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useSession } from 'next-auth/react';
 
 interface LeaveBalance {
   id: string;
@@ -103,8 +102,7 @@ interface AcademicYear {
 
 export default function LeavePage() {
   const { theme } = useTheme();
-  const { hasPermission, permissions } = usePermissions();
-  const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const isDark = theme === 'dark';
   
   const [loading, setLoading] = useState(true);
@@ -146,12 +144,19 @@ export default function LeavePage() {
   });
 
   // CSS Variables
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
+  const card = `rounded-3xl border shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl ${isDark ? 'bg-gradient-to-br from-gray-800/90 via-gray-900 to-gray-950 border-gray-700/80' : 'bg-gradient-to-br from-white/90 via-gray-50 to-white border-gray-200/80'}`;
+  const input = `w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 ${isDark ? 'bg-gray-700/60 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500/50' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-400'}`;
+  const label = `block text-[11px] font-semibold uppercase tracking-[0.18em] mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`;
+  const btnPrimary = `px-5 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(37,99,235,0.28)] ${isDark ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 text-white shadow-lg shadow-blue-950/30' : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 text-white shadow-lg shadow-blue-500/20'}`;
+  const btnSecondary = `px-4 py-3 rounded-2xl text-sm font-semibold border backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 ${isDark ? 'border-gray-600/80 bg-white/5 text-gray-200 hover:bg-white/10 hover:border-gray-500' : 'border-gray-200 bg-white/70 text-gray-700 hover:bg-white hover:border-gray-300'}`;
+  const tabButtonClass = (active: boolean) => `px-4 py-3 rounded-full text-sm font-semibold transition-all border backdrop-blur-sm whitespace-nowrap ${active
+    ? isDark
+      ? 'bg-blue-500/15 text-blue-200 border-blue-400/30 shadow-lg shadow-blue-950/20'
+      : 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+    : isDark
+      ? 'border-gray-700/80 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-gray-600'
+      : 'border-gray-200 bg-white/70 text-gray-700 hover:bg-white hover:border-gray-300'
+  }`;
 
   const canApplyLeave = hasPermission('apply_leave');
   const canViewBalance = hasPermission('view_leave_balance');
@@ -176,7 +181,7 @@ export default function LeavePage() {
     } else if (activeTab === 'history') {
       fetchLeaveHistory(1);
     }
-  }, [activeTab, selectedAcademicYear, historyFilters]);
+  }, [activeTab, selectedAcademicYear]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -351,15 +356,11 @@ export default function LeavePage() {
       // Add filters
       if (historyFilters.status) params.append('status', historyFilters.status);
       if (historyFilters.leaveType) params.append('leaveTypeId', historyFilters.leaveType);
-      
-      // For admins, show all applications; for staff, show only their own
-      if (!canApproveLeave) {
-        // Staff can only see their own history
-        const teacher = await fetch('/api/debug/leave-data').then(res => res.json());
-        const currentTeacher = teacher.allStaff.find((staff: any) => staff.userId === session?.user?.id);
-        if (currentTeacher) {
-          params.append('staffId', currentTeacher.id);
-        }
+
+      const range = getHistoryDateRange(historyFilters.dateRange);
+      if (range) {
+        params.append('startDate', range.startDate.toISOString());
+        params.append('endDate', range.endDate.toISOString());
       }
       
       const response = await fetch(`/api/leave-applications?${params}`);
@@ -446,6 +447,44 @@ export default function LeavePage() {
     return leaveBalances.reduce((total, balance) => total + balance.totalAllocated, 0);
   };
 
+  const getHistoryDateRange = (range: string) => {
+    const now = new Date();
+
+    if (range === 'thisMonth') {
+      return {
+        startDate: new Date(now.getFullYear(), now.getMonth(), 1),
+        endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+      };
+    }
+
+    if (range === 'lastMonth') {
+      return {
+        startDate: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        endDate: new Date(now.getFullYear(), now.getMonth(), 0),
+      };
+    }
+
+    if (range === 'thisYear') {
+      return {
+        startDate: new Date(now.getFullYear(), 0, 1),
+        endDate: now,
+      };
+    }
+
+    return null;
+  };
+
+  const selectedAcademicYearInfo = academicYears.find((year) => year.id === selectedAcademicYear);
+  const recentPendingCount = recentApplications.filter((application) => application.status === 'pending').length;
+  const recentApprovedCount = recentApplications.filter((application) => application.status === 'approved').length;
+  const recentRejectedCount = recentApplications.filter((application) => application.status === 'rejected').length;
+  const recentCancelledCount = recentApplications.filter((application) => application.status === 'cancelled').length;
+  const visibleStaffLeaveBalances = allStaffLeaveBalances.filter((balance) => !selectedStaff || balance.staffId === selectedStaff);
+  const pendingApprovalCount = allLeaveApplications.filter((application) => application.status === 'pending').length;
+  const historyPendingCount = leaveHistory.filter((application) => application.status === 'pending').length;
+  const historyApprovedCount = leaveHistory.filter((application) => application.status === 'approved').length;
+  const historyRejectedCount = leaveHistory.filter((application) => application.status === 'rejected').length;
+
   if (loading) {
     return (
       <AppLayout currentPage="leave" title="Leave Management" theme={theme}>
@@ -461,94 +500,131 @@ export default function LeavePage() {
 
   return (
     <AppLayout currentPage="leave" title="Leave Management" theme={theme}>
-      <div className="min-h-screen p-4 md:p-6">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className={card}>
-            <div className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div>
-                  <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Leave Management
-                  </h1>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                    Manage your leave applications and track your leave balance
-                  </p>
+      <div className="relative min-h-screen overflow-hidden p-4 md:p-6">
+        <div className={`pointer-events-none absolute -top-24 right-[-8rem] h-72 w-72 rounded-full blur-3xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-200/40'}`} />
+        <div className={`pointer-events-none absolute top-72 left-[-6rem] h-64 w-64 rounded-full blur-3xl ${isDark ? 'bg-indigo-500/10' : 'bg-indigo-200/40'}`} />
+        <div className="relative z-10 mx-auto max-w-7xl space-y-6">
+          {/* Hero */}
+          <div className={`${card} overflow-hidden relative`}>
+            <div className={`absolute inset-0 opacity-60 ${isDark ? 'bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(99,102,241,0.14),_transparent_35%)]' : 'bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.10),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(99,102,241,0.08),_transparent_35%)]'}`} />
+            <div className={`p-6 md:p-8 ${isDark ? 'bg-gradient-to-br from-blue-950/40 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-blue-50 via-white to-indigo-50'}`}>
+              <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl space-y-4">
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium shadow-sm ${isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-white/80 text-blue-700'}`}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Leave Hub
+                    {selectedAcademicYearInfo ? ` • ${selectedAcademicYearInfo.name}` : ' • Select academic year'}
+                  </div>
+                  <div>
+                    <h1 className={`text-3xl md:text-4xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Leave Management
+                    </h1>
+                    <p className={`mt-2 text-sm md:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Apply for leave, review approvals, and track balances in one polished workspace.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className={`rounded-full border px-3 py-1 ${isDark ? 'border-gray-700 bg-white/5 text-gray-300' : 'border-gray-200 bg-white/80 text-gray-600'}`}>
+                      Smart approvals
+                    </span>
+                    <span className={`rounded-full border px-3 py-1 ${isDark ? 'border-gray-700 bg-white/5 text-gray-300' : 'border-gray-200 bg-white/80 text-gray-600'}`}>
+                      Balance-aware workflow
+                    </span>
+                    <span className={`rounded-full border px-3 py-1 ${isDark ? 'border-gray-700 bg-white/5 text-gray-300' : 'border-gray-200 bg-white/80 text-gray-600'}`}>
+                      History & audit trail
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button onClick={() => setActiveTab('dashboard')} className={tabButtonClass(activeTab === 'dashboard')}>
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h3m10-11v10a1 1 0 01-1 1h-3m-4 0h4" />
+                        </svg>
+                        Dashboard
+                      </span>
+                    </button>
+                    {canApplyLeave && (
+                      <button onClick={() => setShowApplicationForm(true)} className={btnPrimary}>
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Apply for Leave
+                        </span>
+                      </button>
+                    )}
+                    {(canViewHistory || canApproveLeave) && (
+                      <button onClick={() => setActiveTab('history')} className={tabButtonClass(activeTab === 'history')}>
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Leave History
+                        </span>
+                      </button>
+                    )}
+                    {canApproveLeave && (
+                      <button onClick={() => setActiveTab('approvals')} className={tabButtonClass(activeTab === 'approvals')}>
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Pending Approvals
+                        </span>
+                      </button>
+                    )}
+                    {canApproveLeave && (
+                      <button onClick={() => setActiveTab('management')} className={tabButtonClass(activeTab === 'management')}>
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Staff Management
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  {canApplyLeave && (
-                    <button
-                      onClick={() => setShowApplicationForm(true)}
-                      className={btnPrimary}
+
+                <div className="w-full lg:w-[360px] space-y-4">
+                  <div className={`rounded-3xl border p-4 shadow-lg backdrop-blur-xl ${isDark ? 'bg-gray-900/70 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
+                    <label className={label}>Academic Year</label>
+                    <select
+                      value={selectedAcademicYear}
+                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                      className={input}
                     >
-                      <span className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Apply for Leave
-                      </span>
-                    </button>
-                  )}
-                  {canViewHistory && (
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={btnSecondary}
-                    >
-                      <span className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Leave History
-                      </span>
-                    </button>
-                  )}
-                  {canApproveLeave && (
-                    <button
-                      onClick={() => setActiveTab('management')}
-                      className={btnSecondary}
-                    >
-                      <span className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        Staff Management
-                      </span>
-                    </button>
-                  )}
-                  {canApproveLeave && (
-                    <button
-                      onClick={() => setActiveTab('approvals')}
-                      className={btnSecondary}
-                    >
-                      <span className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Pending Approvals
-                      </span>
-                    </button>
-                  )}
+                      <option value="">Select Academic Year</option>
+                      {academicYears.map((year) => (
+                        <option key={year.id} value={year.id}>
+                          {year.name} ({year.year})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'bg-blue-600/10 border-blue-500/20' : 'bg-blue-50 border-blue-100'}`}>
+                      <div className={`text-xs uppercase tracking-wide ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Available</div>
+                      <div className={`mt-2 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{calculateTotalBalance()}</div>
+                    </div>
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'bg-amber-600/10 border-amber-500/20' : 'bg-amber-50 border-amber-100'}`}>
+                      <div className={`text-xs uppercase tracking-wide ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>Pending</div>
+                      <div className={`mt-2 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{recentPendingCount}</div>
+                    </div>
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'bg-emerald-600/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <div className={`text-xs uppercase tracking-wide ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Approved</div>
+                      <div className={`mt-2 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{recentApprovedCount}</div>
+                    </div>
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'bg-rose-600/10 border-rose-500/20' : 'bg-rose-50 border-rose-100'}`}>
+                      <div className={`text-xs uppercase tracking-wide ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>Rejected</div>
+                      <div className={`mt-2 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{recentRejectedCount + recentCancelledCount}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Academic Year Selector */}
-          <div className={card}>
-            <div className="p-4">
-              <label className={label}>Academic Year</label>
-              <select
-                value={selectedAcademicYear}
-                onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                className={input}
-              >
-                <option value="">Select Academic Year</option>
-                {academicYears.map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.name} ({year.year})
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -572,17 +648,19 @@ export default function LeavePage() {
             >
               {/* Leave Balance Summary */}
               {canViewBalance && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className={card}>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400" />
                     <div className="p-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Allocated</p>
-                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Total Allocated</p>
+                          <p className={`mt-2 text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {calculateTotalAllocated()}
                           </p>
+                          <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Across all leave types this year</p>
                         </div>
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
                           <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                           </svg>
@@ -590,16 +668,18 @@ export default function LeavePage() {
                       </div>
                     </div>
                   </div>
-                  <div className={card}>
+                  <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400" />
                     <div className="p-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Used</p>
-                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>Used</p>
+                          <p className={`mt-2 text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {calculateTotalUsed()}
                           </p>
+                          <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Days already consumed</p>
                         </div>
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
                           <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
@@ -607,16 +687,18 @@ export default function LeavePage() {
                       </div>
                     </div>
                   </div>
-                  <div className={card}>
+                  <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-green-500 to-lime-400" />
                     <div className="p-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Available</p>
-                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>Available</p>
+                          <p className={`mt-2 text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {calculateTotalBalance()}
                           </p>
+                          <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Remaining for the current year</p>
                         </div>
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-600/20' : 'bg-green-100'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-green-600/20' : 'bg-green-100'}`}>
                           <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
@@ -624,16 +706,18 @@ export default function LeavePage() {
                       </div>
                     </div>
                   </div>
-                  <div className={card}>
+                  <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-400" />
                     <div className="p-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Carried Forward</p>
-                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-violet-300' : 'text-violet-600'}`}>Carried Forward</p>
+                          <p className={`mt-2 text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {leaveBalances.reduce((total, balance) => total + balance.carriedForward, 0)}
                           </p>
+                          <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Transferred from the previous cycle</p>
                         </div>
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-600/20' : 'bg-purple-100'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-purple-600/20' : 'bg-purple-100'}`}>
                           <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                           </svg>
@@ -648,12 +732,21 @@ export default function LeavePage() {
               {canViewBalance && leaveBalances.length > 0 && (
                 <div className={card}>
                   <div className="p-6">
-                    <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Leave Balance Details
-                    </h3>
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Balances</p>
+                        <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          Leave Balance Details
+                        </h3>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                        {leaveBalances.length} balance types
+                      </span>
+                    </div>
                     <div className="space-y-3">
                       {leaveBalances.map((balance) => (
-                        <div key={balance.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div key={balance.id} className={`group relative overflow-hidden p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${isDark ? 'border-gray-700/80 bg-gray-800/55' : 'border-gray-200 bg-white/80'}`}>
+                          <div className={`absolute inset-y-0 left-0 w-1.5 ${balance.balance > 5 ? 'bg-gradient-to-b from-emerald-500 to-green-400' : balance.balance > 2 ? 'bg-gradient-to-b from-amber-500 to-yellow-400' : 'bg-gradient-to-b from-rose-500 to-red-400'}`} />
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -673,9 +766,9 @@ export default function LeavePage() {
                             </div>
                           </div>
                           <div className="mt-2">
-                            <div className={`w-full h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                               <div
-                                className={`h-2 rounded-full ${
+                                className={`h-2 rounded-full shadow-sm ${
                                   balance.balance > 5 ? 'bg-green-500' : balance.balance > 2 ? 'bg-yellow-500' : 'bg-red-500'
                                 }`}
                                 style={{ width: `${(balance.balance / balance.totalAllocated) * 100}%` }}
@@ -690,15 +783,24 @@ export default function LeavePage() {
               )}
 
               {/* Recent Applications */}
-              {canViewHistory && recentApplications.length > 0 && (
+              {(canViewHistory || canApproveLeave) && recentApplications.length > 0 && (
                 <div className={card}>
                   <div className="p-6">
-                    <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Recent Applications
-                    </h3>
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Activity</p>
+                        <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          Recent Applications
+                        </h3>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                        {recentApplications.length} recent items
+                      </span>
+                    </div>
                     <div className="space-y-3">
                       {recentApplications.map((application) => (
-                        <div key={application.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div key={application.id} className={`group relative overflow-hidden p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${isDark ? 'border-gray-700/80 bg-gray-800/55' : 'border-gray-200 bg-white/80'}`}>
+                          <div className={`absolute inset-y-0 left-0 w-1.5 ${application.status === 'approved' ? 'bg-gradient-to-b from-emerald-500 to-green-400' : application.status === 'pending' ? 'bg-gradient-to-b from-amber-500 to-yellow-400' : application.status === 'rejected' ? 'bg-gradient-to-b from-rose-500 to-red-400' : 'bg-gradient-to-b from-gray-400 to-gray-500'}`} />
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -754,6 +856,24 @@ export default function LeavePage() {
                   <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Leave History
                   </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className={`rounded-xl border p-3 ${isDark ? 'border-gray-700 bg-gray-800/60' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total on page</div>
+                      <div className={`mt-1 text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{leaveHistory.length}</div>
+                    </div>
+                    <div className={`rounded-xl border p-3 ${isDark ? 'border-yellow-500/20 bg-yellow-500/10' : 'border-yellow-200 bg-yellow-50'}`}>
+                      <div className={`text-xs ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>Pending</div>
+                      <div className={`mt-1 text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{historyPendingCount}</div>
+                    </div>
+                    <div className={`rounded-xl border p-3 ${isDark ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-emerald-200 bg-emerald-50'}`}>
+                      <div className={`text-xs ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Approved</div>
+                      <div className={`mt-1 text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{historyApprovedCount}</div>
+                    </div>
+                    <div className={`rounded-xl border p-3 ${isDark ? 'border-rose-500/20 bg-rose-500/10' : 'border-rose-200 bg-rose-50'}`}>
+                      <div className={`text-xs ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>Rejected</div>
+                      <div className={`mt-1 text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{historyRejectedCount}</div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className={label}>Status</label>
@@ -981,9 +1101,31 @@ export default function LeavePage() {
               {/* Staff Filter */}
               <div className={card}>
                 <div className="p-6">
-                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Staff Leave Management
-                  </h3>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Operations</p>
+                      <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Staff Leave Management
+                      </h3>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                      Live overview
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'border-gray-700/80 bg-gray-800/60' : 'border-gray-200 bg-white/80'}`}>
+                      <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Staff shown</div>
+                      <div className={`mt-1 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{visibleStaffLeaveBalances.length}</div>
+                    </div>
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'border-blue-500/20 bg-blue-500/10' : 'border-blue-100 bg-blue-50'}`}>
+                      <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Pending approvals</div>
+                      <div className={`mt-1 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{pendingApprovalCount}</div>
+                    </div>
+                    <div className={`rounded-3xl border p-4 shadow-sm ${isDark ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-emerald-100 bg-emerald-50'}`}>
+                      <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Academic year</div>
+                      <div className={`mt-1 text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedAcademicYearInfo?.year || '—'}</div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className={label}>Filter by Staff</label>
@@ -1007,14 +1149,23 @@ export default function LeavePage() {
               {/* All Staff Leave Balances */}
               <div className={card}>
                 <div className="p-6">
-                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    All Staff Leave Balances
-                  </h3>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Balances</p>
+                      <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        All Staff Leave Balances
+                      </h3>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                      {visibleStaffLeaveBalances.length} visible
+                    </span>
+                  </div>
                   <div className="space-y-4">
                     {allStaffLeaveBalances
                       .filter(balance => !selectedStaff || balance.staffId === selectedStaff)
                       .map((balance) => (
-                        <div key={balance.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div key={balance.id} className={`group relative overflow-hidden p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${isDark ? 'border-gray-700/80 bg-gray-800/55' : 'border-gray-200 bg-white/80'}`}>
+                          <div className={`absolute inset-y-0 left-0 w-1.5 ${balance.balance > 5 ? 'bg-gradient-to-b from-emerald-500 to-green-400' : balance.balance > 2 ? 'bg-gradient-to-b from-amber-500 to-yellow-400' : 'bg-gradient-to-b from-rose-500 to-red-400'}`} />
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -1037,9 +1188,9 @@ export default function LeavePage() {
                             </div>
                           </div>
                           <div className="mt-2">
-                            <div className={`w-full h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                               <div
-                                className={`h-2 rounded-full ${
+                                className={`h-2 rounded-full shadow-sm ${
                                   balance.balance > 5 ? 'bg-green-500' : balance.balance > 2 ? 'bg-yellow-500' : 'bg-red-500'
                                 }`}
                                 style={{ width: `${(balance.balance / balance.totalAllocated) * 100}%` }}
@@ -1068,14 +1219,26 @@ export default function LeavePage() {
             >
               <div className={card}>
                 <div className="p-6">
-                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Pending Leave Approvals
-                  </h3>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Approvals</p>
+                      <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Pending Leave Approvals
+                      </h3>
+                    </div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                      {pendingApprovalCount} pending
+                    </div>
+                  </div>
+                  <p className={`text-sm mb-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Review, approve, or reject leave requests in one place.
+                  </p>
                   <div className="space-y-4">
                     {allLeaveApplications
                       .filter(app => app.status === 'pending')
                       .map((application) => (
-                        <div key={application.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div key={application.id} className={`group relative overflow-hidden p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${isDark ? 'border-gray-700/80 bg-gray-800/55' : 'border-gray-200 bg-white/80'}`}>
+                          <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-amber-500 to-yellow-400" />
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -1092,14 +1255,19 @@ export default function LeavePage() {
                                   Reason: {application.reason}
                                 </p>
                               )}
-                              <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
-                                Applied: {new Date(application.appliedAt).toLocaleDateString()}
+                              <div className="flex flex-wrap gap-2 mt-3 text-xs">
+                                <span className={`rounded-full px-2.5 py-1 ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                                  Applied: {new Date(application.appliedAt).toLocaleDateString()}
+                                </span>
+                                <span className={`rounded-full px-2.5 py-1 ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                                  Days: {application.totalDays}
+                                </span>
                               </div>
                             </div>
-                            <div className="flex gap-2 ml-4">
+                            <div className="flex gap-2 ml-4 flex-wrap justify-end">
                               <button
                                 onClick={() => updateApplicationStatus(application.id, 'approved')}
-                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
                                   isDark ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30' : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
                                 }`}
                               >
@@ -1107,7 +1275,7 @@ export default function LeavePage() {
                               </button>
                               <button
                                 onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
                                   isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
                                 }`}
                               >
