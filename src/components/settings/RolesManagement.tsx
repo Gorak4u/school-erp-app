@@ -291,7 +291,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
         <div className="text-center py-12 text-gray-500">Loading roles...</div>
       ) : (
         <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-          <div className="min-w-[900px]">
+          <div className="min-w-[1500px]">
             <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <thead>
               <tr>
@@ -300,8 +300,8 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                 </th>
                 {/* Individual Permission Columns */}
                 {Object.values(PERMISSION_LABELS).map((label) => (
-                  <th key={label} className={`px-2 py-2 text-center font-semibold border w-24 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
-                    <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-6 mt-6 mb-2 text-xs">
+                  <th key={label} className={`px-4 py-6 text-center font-semibold border w-40 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                    <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-10 mt-10 mb-6 text-xs leading-relaxed">
                       {label}
                     </div>
                   </th>
