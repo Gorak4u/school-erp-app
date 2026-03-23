@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface StudentProfileTabsProps {
   activeTab: string;
@@ -63,6 +64,8 @@ export default function StudentProfileTabs({
   activeTab, selectedStudent, setFeeManagement, setAttendanceTracking,
   setParentPortal, setCommunicationCenter, theme, setShowCalendarModal, setCalendarStudent
 }: StudentProfileTabsProps) {
+  const { isAdmin, hasPermission } = usePermissions();
+  const canManageFees = isAdmin || hasPermission('manage_fees');
   const [feeRecords, setFeeRecords] = useState<any[]>([]);
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeError, setFeeError] = useState('');
@@ -94,14 +97,16 @@ export default function StudentProfileTabs({
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <h3 className={heading(theme)}>Fee Overview</h3>
-            <button
-              onClick={() => setFeeManagement((prev: any) => ({ ...prev, showFeeModal: true, selectedStudent }))}
-              className={`px-4 py-2 text-sm rounded-lg font-medium ${
-                theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
-            >
-              💰 Manage Fees
-            </button>
+            {canManageFees && (
+              <button
+                onClick={() => setFeeManagement((prev: any) => ({ ...prev, showFeeModal: true, selectedStudent }))}
+                className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                  theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
+              >
+                💰 Manage Fees
+              </button>
+            )}
           </div>
 
           {/* Summary from student object — always present */}

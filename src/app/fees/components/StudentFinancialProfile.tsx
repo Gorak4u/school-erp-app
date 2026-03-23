@@ -7,6 +7,7 @@ import PaymentReceipt from './PaymentReceipt';
 import StudentDiscountForm from './StudentDiscountForm';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 import { studentsApi } from '@/lib/apiClient';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -30,7 +31,10 @@ interface StudentFinancialProfileProps {
   canManageFees?: boolean;
 }
 
-export default function StudentFinancialProfile({ theme, onClose, studentId, studentData, canManageFees = true }: StudentFinancialProfileProps) {
+export default function StudentFinancialProfile({ theme, onClose, studentId, studentData, canManageFees: canManageFeesProp }: StudentFinancialProfileProps) {
+  const { isAdmin, hasPermission } = usePermissions();
+  const canManageFees = canManageFeesProp ?? (isAdmin || hasPermission('manage_fees'));
+  const canApplyDiscounts = isAdmin || hasPermission('manage_fees');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId);
   const [activeTab, setActiveTab] = useState<'overview' | 'fee-details' | 'payment-history'>('overview');
@@ -432,15 +436,19 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
           <div className={`p-6 rounded-xl border ${cardCls}`}>
             <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Quick Actions</h3>
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowDiscountModal(true)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                🎁 Apply Discount
-              </button>
-              <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                💳 Collect Payment
-              </button>
+              {canApplyDiscounts && (
+                <button
+                  onClick={() => setShowDiscountModal(true)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  🎁 Apply Discount
+                </button>
+              )}
+              {canManageFees && (
+                <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                  💳 Collect Payment
+                </button>
+              )}
               <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
                 📧 Send Reminder
               </button>
@@ -833,21 +841,23 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
             >
               Send Reminder
             </button>
-            <button 
-              onClick={() => {
-                if ((window as any).toast) {
-                  (window as any).toast({
-                    type: 'info',
-                    title: 'Apply Discount',
-                    message: 'Opening discount application form',
-                    duration: 2000
-                  });
-                }
-              }}
-              className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              Apply Discount
-            </button>
+            {canApplyDiscounts && (
+              <button 
+                onClick={() => {
+                  if ((window as any).toast) {
+                    (window as any).toast({
+                      type: 'info',
+                      title: 'Apply Discount',
+                      message: 'Opening discount application form',
+                      duration: 2000
+                    });
+                  }
+                }}
+                className={`px-4 py-2 text-sm rounded-lg ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                Apply Discount
+              </button>
+            )}
             <button 
               onClick={() => {
                 window.print();
@@ -912,7 +922,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
       )}
 
       {/* Discount Modal */}
-      {showDiscountModal && (
+      {canApplyDiscounts && showDiscountModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className={`w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
             <div className={`flex justify-between items-center p-6 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
