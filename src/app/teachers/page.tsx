@@ -317,13 +317,9 @@ export default function StaffPage() {
     setFormError('');
     try {
       await teachersApi.update(editingTeacher.id, {
-        firstName: data.firstName,
-        lastName: data.lastName,
         name: `${data.firstName} ${data.lastName}`.trim(),
         email: data.email,
         phone: data.phone,
-        role: data.role || 'teacher',
-        customRoleId: data.customRoleId || null,
         gender: data.gender,
         dateOfBirth: data.dateOfBirth,
         subject: data.subject,

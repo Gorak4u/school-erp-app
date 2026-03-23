@@ -331,7 +331,7 @@ export default function StudentFilters({
           <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
             <option value="all">All Classes</option>
             {dbClasses.map(cls => (
-              <option key={cls.value} value={cls.label}>{cls.label}</option>
+              <option key={cls.value} value={cls.label}>{cls.label}{cls.mediumName ? ` (${cls.mediumName})` : ''}</option>
             ))}
           </select>
 

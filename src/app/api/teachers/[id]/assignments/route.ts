@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { queueAssignmentPublishNotifications, shouldDispatchAssignmentPublish } from '@/lib/assignmentLifecycle';
+import { materializeAssignmentRecipients, parseDateStartOfDay } from '@/lib/assignmentMaterialization';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -65,9 +67,56 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
     const body = await request.json();
+    const normalizedPublishAt = body.publishAt ? new Date(body.publishAt) : null;
+    const normalizedDueAt = body.dueAt ? new Date(body.dueAt) : parseDateStartOfDay(body.dueDate);
+    const normalizedCloseAt = body.closeAt ? new Date(body.closeAt) : null;
+
     const assignment = await (schoolPrisma as any).assignment.create({
-      data: { ...body, teacherId: id, schoolId: ctx.schoolId },
+      data: {
+        ...body,
+        teacherId: id,
+        schoolId: ctx.schoolId,
+        publishAt: normalizedPublishAt,
+        dueAt: normalizedDueAt,
+        closeAt: normalizedCloseAt,
+        audienceType: body.audienceType || (body.sectionId ? 'section' : 'class'),
+        gradingMode: body.gradingMode || 'points',
+        latePolicy: body.latePolicy || 'allow_with_flag',
+        visibilityScope: body.visibilityScope || 'students_and_staff',
+        publishedBy: body.publishedBy || ctx.userId,
+        isScheduled: Boolean(body.isScheduled || normalizedPublishAt),
+        templateId: body.templateId || null,
+      },
     });
+
+    await materializeAssignmentRecipients({
+      assignmentId: assignment.id,
+      schoolId: ctx.schoolId,
+      classId: body.classId,
+      sectionId: body.sectionId || null,
+      dueAt: normalizedDueAt,
+      publishedAt: normalizedPublishAt || new Date(),
+      actorUserId: ctx.userId,
+      actorTeacherId: id,
+      activityType: body.status === 'draft' ? 'created' : 'published',
+    });
+
+    if (shouldDispatchAssignmentPublish({
+      status: assignment.status,
+      publishAt: normalizedPublishAt,
+      isScheduled: assignment.isScheduled,
+    })) {
+      await queueAssignmentPublishNotifications({
+        id: assignment.id,
+        schoolId: assignment.schoolId,
+        title: assignment.title,
+        dueDate: assignment.dueDate,
+        status: assignment.status,
+        publishAt: normalizedPublishAt,
+        isScheduled: assignment.isScheduled,
+      });
+    }
+
     return NextResponse.json({ assignment }, { status: 201 });
   } catch (err) {
     console.error('POST /api/teachers/[id]/assignments:', err);

@@ -324,6 +324,7 @@ model Student {
   socialLinks           String?
   tcNumber              String?
   assignmentSubmissions AssignmentSubmission[]
+  assignmentRecipients  AssignmentRecipient[]
   attendanceRecords     AttendanceRecord[]
   examResults           ExamResult[]
   arrears               FeeArrears[]
@@ -530,9 +531,21 @@ model Assignment {
   status         String                 @default("active")
   academicYearId String?
   schoolId       String?
+  publishAt      DateTime?
+  dueAt          DateTime?
+  closeAt        DateTime?
+  audienceType   String?
+  gradingMode    String?
+  latePolicy     String?
+  visibilityScope String?
+  publishedBy    String?
+  isScheduled    Boolean                @default(false)
+  templateId     String?
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
   teacher        Teacher                @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  recipients     AssignmentRecipient[]
+  activities     AssignmentActivity[]
   submissions    AssignmentSubmission[]
 
   @@index([teacherId])
@@ -540,6 +553,9 @@ model Assignment {
   @@index([dueDate])
   @@index([status])
   @@index([schoolId])
+  @@index([schoolId, status, dueAt(sort: Desc)])
+  @@index([schoolId, teacherId, createdAt(sort: Desc)])
+  @@index([schoolId, classId, sectionId, dueAt(sort: Desc)])
   @@schema("school")
 }
 
@@ -554,6 +570,17 @@ model AssignmentSubmission {
   grade        String?
   feedback     String?
   status       String     @default("pending")
+  schoolId     String?
+  submittedAtTs DateTime?
+  attemptNo    Int        @default(1)
+  submissionType String?
+  storagePath  String?
+  isLate       Boolean    @default(false)
+  plagiarismScore Float?
+  gradedBy     String?
+  gradedAt     DateTime?
+  score        Float?
+  feedbackJson String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -563,6 +590,48 @@ model AssignmentSubmission {
   @@index([assignmentId])
   @@index([studentId])
   @@index([status])
+  @@index([schoolId, assignmentId, submittedAtTs(sort: Desc)])
+  @@index([schoolId, studentId, submittedAtTs(sort: Desc)])
+  @@index([schoolId, status, submittedAtTs(sort: Desc)])
+  @@schema("school")
+}
+
+model AssignmentRecipient {
+  id              String     @id @default(cuid())
+  schoolId        String?
+  assignmentId    String
+  studentId       String
+  recipientStatus String     @default("assigned")
+  dueAt           DateTime?
+  publishedAt     DateTime?
+  lastNotifiedAt  DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  assignment      Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student         Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([schoolId, studentId, dueAt(sort: Desc)])
+  @@index([schoolId, recipientStatus, dueAt(sort: Desc)])
+  @@schema("school")
+}
+
+model AssignmentActivity {
+  id            String     @id @default(cuid())
+  schoolId      String?
+  assignmentId  String
+  actorUserId   String?
+  actorTeacherId String?
+  activityType  String
+  metadata      String?
+  occurredAt    DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId, occurredAt(sort: Desc)])
+  @@index([schoolId, activityType, occurredAt(sort: Desc)])
   @@schema("school")
 }
 
@@ -756,6 +825,16 @@ model AttendanceRecord {
   class     String?
   section   String?
   remarks   String?
+  schoolId   String?
+  attendanceDate DateTime?
+  domain     String?
+  source     String?
+  derivedFromLeave Boolean @default(false)
+  firstInAt  DateTime?
+  lastOutAt  DateTime?
+  workMinutes Int?
+  attendanceSessionKey String?
+  regularizationStatus String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -767,6 +846,61 @@ model AttendanceRecord {
   @@index([studentId])
   @@index([class, date])
   @@index([status])
+  @@index([schoolId])
+  @@index([attendanceDate])
+  @@index([schoolId, attendanceDate])
+  @@index([schoolId, studentId, attendanceDate(sort: Desc)])
+  @@index([schoolId, class, attendanceDate(sort: Desc)])
+  @@schema("school")
+}
+
+model StaffAttendanceDailySummary {
+  id               String   @id @default(cuid())
+  schoolId         String?
+  teacherId        String
+  attendanceDate   DateTime
+  status           String   @default("awaiting_activity")
+  derivedFromLeave Boolean  @default(false)
+  source           String   @default("system")
+  firstInAt        DateTime?
+  lastOutAt        DateTime?
+  workMinutes      Int?
+  leaveApplicationId String?
+  metadata         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([teacherId, attendanceDate])
+  @@index([schoolId, attendanceDate])
+  @@index([schoolId, teacherId, attendanceDate(sort: Desc)])
+  @@index([schoolId, status, attendanceDate(sort: Desc)])
+  @@schema("school")
+}
+
+model StaffAttendanceRecord {
+  id               String   @id @default(cuid())
+  schoolId         String?
+  teacherId        String
+  attendanceDate   DateTime
+  status           String   // present, absent, late, half_day, on_leave
+  checkInAt        DateTime?
+  checkOutAt       DateTime?
+  workMinutes      Int?
+  remarks          String?
+  domain           String   @default("staff")
+  source           String   @default("manual") // manual, system, biometric
+  attendanceSessionKey String?
+  markedBy         String?  // User ID who marked the attendance
+  markedByRole     String?  // Role of the person who marked
+  metadata         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([teacherId, attendanceDate])
+  @@index([schoolId, attendanceDate])
+  @@index([schoolId, teacherId, attendanceDate(sort: Desc)])
+  @@index([schoolId, status, attendanceDate(sort: Desc)])
+  @@index([attendanceSessionKey])
   @@schema("school")
 }
 
@@ -1463,6 +1597,15 @@ model Notification {
   priority  String    @default("medium")
   metadata  String?
   schoolId  String?
+  channel   String?
+  entityType String?
+  entityId  String?
+  deliveryStatus String?
+  templateKey String?
+  dedupeKey String?
+  scheduledAt DateTime?
+  deliveredAt DateTime?
+  failedAt  DateTime?
   isRead    Boolean   @default(false)
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -1471,6 +1614,30 @@ model Notification {
   @@index([userId, isRead])
   @@index([schoolId])
   @@index([createdAt(sort: Desc)])
+  @@index([schoolId, channel, deliveryStatus])
+  @@index([dedupeKey])
+  @@schema("school")
+}
+
+model CommunicationOutbox {
+  id               String   @id @default(cuid())
+  schoolId         String?
+  channel          String
+  templateKey      String?
+  recipientUserId  String?
+  recipientAddress String?
+  payloadJson      String
+  dedupeKey        String?
+  status           String   @default("pending")
+  attemptCount     Int      @default(0)
+  nextAttemptAt    DateTime?
+  lastError        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([channel, dedupeKey])
+  @@index([status, nextAttemptAt])
+  @@index([schoolId, status, nextAttemptAt])
   @@schema("school")
 }
 

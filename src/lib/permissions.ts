@@ -19,6 +19,14 @@ export const ALL_PERMISSIONS = {
   // Attendance
   VIEW_ATTENDANCE: 'view_attendance',
   MANAGE_ATTENDANCE: 'manage_attendance',
+  VIEW_STAFF_ATTENDANCE: 'view_staff_attendance',
+  MANAGE_STAFF_ATTENDANCE: 'manage_staff_attendance',
+
+  // Assignments
+  VIEW_ASSIGNMENTS: 'view_assignments',
+  CREATE_ASSIGNMENTS: 'create_assignments',
+  GRADE_ASSIGNMENTS: 'grade_assignments',
+  VIEW_ASSIGNMENT_ANALYTICS: 'view_assignment_analytics',
 
   // Fees
   VIEW_FEES: 'view_fees',
@@ -93,6 +101,11 @@ export const PERMISSION_LABELS: Record<string, string> = {
   delete_teachers: 'Delete Teachers',
   view_attendance: 'View Attendance',
   manage_attendance: 'Manage Attendance',
+  view_staff_attendance: 'View Staff Attendance',
+  view_assignments: 'View Assignments',
+  create_assignments: 'Create Assignments',
+  grade_assignments: 'Grade Assignments',
+  view_assignment_analytics: 'View Assignment Analytics',
   view_fees: 'View Fees',
   manage_fees: 'Manage Fees',
   view_exams: 'View Exams',
@@ -146,7 +159,11 @@ export const PERMISSION_GROUPS = [
   },
   {
     label: 'Attendance',
-    permissions: ['view_attendance', 'manage_attendance'] as Permission[],
+    permissions: ['view_attendance', 'manage_attendance', 'view_staff_attendance'] as Permission[],
+  },
+  {
+    label: 'Assignments',
+    permissions: ['view_assignments', 'create_assignments', 'grade_assignments', 'view_assignment_analytics'] as Permission[],
   },
   {
     label: 'Fees',
@@ -190,7 +207,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_dashboard',
     'view_students',
     'view_teachers',
-    'view_attendance', 'manage_attendance',
+    'view_attendance', 'manage_attendance', 'view_staff_attendance',
+    'view_assignments', 'create_assignments', 'grade_assignments', 'view_assignment_analytics',
     'view_exams',
     'view_fees',
     'view_reports',
@@ -214,6 +232,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_dashboard',
     'view_students',
     'view_attendance',
+    'view_assignments',
     'view_fees',
     'view_expenses',
     'view_reports',
@@ -222,6 +241,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
   student: [
     'view_dashboard',
     'view_attendance',
+    'view_assignments',
     'view_exams',
     'view_reports',
     'view_announcements',
@@ -643,4 +663,60 @@ export function canReverseDiscountsAccess(input: {
   permissions?: readonly string[] | null;
 }): boolean {
   return canApproveDiscountsAccess(input);
+}
+
+export function canViewAssignmentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasAnyPermissionByName(input.permissions, [
+      ALL_PERMISSIONS.VIEW_ASSIGNMENTS,
+      ALL_PERMISSIONS.CREATE_ASSIGNMENTS,
+      ALL_PERMISSIONS.GRADE_ASSIGNMENTS,
+      ALL_PERMISSIONS.VIEW_ASSIGNMENT_ANALYTICS,
+    ]);
+}
+
+export function canCreateAssignmentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.CREATE_ASSIGNMENTS);
+}
+
+export function canGradeAssignmentsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.GRADE_ASSIGNMENTS);
+}
+
+export function canViewStaffAttendanceAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasAnyPermissionByName(input.permissions, [
+      ALL_PERMISSIONS.VIEW_STAFF_ATTENDANCE,
+      ALL_PERMISSIONS.MANAGE_ATTENDANCE,
+    ]);
+}
+
+export function canManageStaffAttendanceAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return isAdminLikeAccess(input)
+    || hasAnyPermissionByName(input.permissions, [
+      ALL_PERMISSIONS.MANAGE_STAFF_ATTENDANCE,
+      ALL_PERMISSIONS.MANAGE_ATTENDANCE,
+    ]);
 }

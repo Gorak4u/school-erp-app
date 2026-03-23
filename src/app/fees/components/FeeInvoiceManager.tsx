@@ -408,7 +408,7 @@ export default function FeeInvoiceManager({ theme, onClose }: FeeInvoiceManagerP
                   <select className={`w-full px-3 py-2 rounded-lg border text-sm ${inputCls}`}>
                     <option value="">All Classes</option>
                     {dropdowns.classes.map(cls => (
-                      <option key={cls.value} value={cls.label}>{cls.label}</option>
+                      <option key={cls.value} value={cls.label}>{cls.label}{cls.mediumName ? ` (${cls.mediumName})` : ''}</option>
                     ))}
                   </select>
                 </div>

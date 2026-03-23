@@ -266,7 +266,7 @@ export default function TeacherForm({
       const teacherData = await onSubmit(formData);
       
       // If teacher was created successfully and we have leave balances to allocate
-      if (teacherData?.id && formData.leaveBalances.length > 0 && selectedAcademicYear) {
+      if ((teacherData as any)?.id && formData.leaveBalances.length > 0 && selectedAcademicYear) {
         const leaveBalancePromises = formData.leaveBalances
           .filter((balance: any) => balance.leaveTypeId && balance.totalAllocated)
           .map((balance: any) => 
@@ -274,7 +274,7 @@ export default function TeacherForm({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                staffId: teacherData.id, // Use teacher ID as staffId
+                staffId: (teacherData as any).id, // Use teacher ID as staffId
                 leaveTypeId: balance.leaveTypeId,
                 academicYearId: selectedAcademicYear,
                 totalAllocated: parseFloat(balance.totalAllocated),

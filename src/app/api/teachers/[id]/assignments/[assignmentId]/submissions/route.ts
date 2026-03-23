@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { appendAssignmentActivity } from '@/lib/assignmentLifecycle';
+import { queueAssignmentRecipientNotifications } from '@/lib/studentCommunicationTargets';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
   try {
@@ -48,16 +50,77 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const teacher = await (schoolPrisma as any).teacher.findFirst({ where: { id, ...tenantWhere(ctx) } });
     if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
+    const assignment = await (schoolPrisma as any).assignment.findFirst({
+      where: {
+        id: assignmentId,
+        teacherId: id,
+        schoolId: ctx.schoolId,
+      },
+      select: {
+        id: true,
+        schoolId: true,
+        title: true,
+        dueDate: true,
+      },
+    });
+
+    if (!assignment) {
+      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { submissionId, marks, grade, feedback, status } = body;
+    const numericMarks = marks !== undefined && marks !== null ? Number(marks) : null;
 
     const submission = await (schoolPrisma as any).assignmentSubmission.update({
       where: { id: submissionId },
-      data: { marks, grade, feedback, status: status || 'graded' },
+      data: {
+        marks: numericMarks,
+        score: numericMarks,
+        grade,
+        feedback,
+        feedbackJson: feedback ? JSON.stringify({ text: feedback }) : null,
+        gradedBy: ctx.userId,
+        gradedAt: new Date(),
+        status: status || 'graded',
+      },
       include: {
-        student: { select: { id: true, name: true, admissionNo: true } },
+        student: { select: { id: true, name: true, admissionNo: true, class: true, section: true } },
       },
     });
+
+    await Promise.allSettled([
+      (schoolPrisma as any).assignmentRecipient.updateMany({
+        where: { assignmentId, studentId: submission.student.id },
+        data: {
+          recipientStatus: 'graded',
+          lastNotifiedAt: new Date(),
+        },
+      }),
+      appendAssignmentActivity({
+        assignmentId,
+        schoolId: assignment.schoolId,
+        actorUserId: ctx.userId,
+        actorTeacherId: id,
+        activityType: 'graded',
+        metadata: {
+          submissionId: submission.id,
+          studentId: submission.student.id,
+          marks: numericMarks,
+          grade: grade || null,
+        },
+      }),
+      queueAssignmentRecipientNotifications({
+        schoolId: assignment.schoolId,
+        assignmentId: assignment.id,
+        assignmentTitle: assignment.title,
+        dueDate: assignment.dueDate,
+        eventType: 'graded',
+        studentIds: [submission.student.id],
+        grade: grade || null,
+        marks: numericMarks,
+      }),
+    ]);
 
     return NextResponse.json({ submission });
   } catch (err: any) {

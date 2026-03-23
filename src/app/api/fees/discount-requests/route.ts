@@ -535,7 +535,7 @@ export async function POST(request: NextRequest) {
         
         // Get approvers and submitter details
         const [approvers, submitter] = await Promise.all([
-          (schoolPrisma as any).user.findMany({
+          (schoolPrisma as any).User.findMany({
             where: { 
               schoolId: ctx.schoolId,
               isActive: true,
@@ -543,7 +543,7 @@ export async function POST(request: NextRequest) {
             },
             select: { id: true, email: true, name: true, role: true }
           }),
-          (schoolPrisma as any).user.findUnique({
+          (schoolPrisma as any).User.findUnique({
             where: { id: ctx.userId },
             select: { id: true, email: true, name: true, role: true }
           })

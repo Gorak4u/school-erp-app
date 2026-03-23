@@ -69,6 +69,34 @@ export async function POST(
       return NextResponse.json({ error: 'Approver profile not found' }, { status: 404 });
     }
 
+    // Check if staff attendance is already marked for any day in the leave period
+    const attendanceConflicts = await (schoolPrisma as any).staffAttendanceRecord.findMany({
+      where: {
+        teacherId: application.staffId,
+        attendanceDate: {
+          gte: new Date(application.startDate),
+          lte: new Date(application.endDate),
+        },
+      },
+      select: {
+        attendanceDate: true,
+        status: true,
+        source: true,
+      },
+    });
+
+    if (attendanceConflicts.length > 0) {
+      const conflictDates = attendanceConflicts.map(conflict => 
+        new Date(conflict.attendanceDate).toISOString().split('T')[0]
+      ).join(', ');
+      
+      return NextResponse.json({ 
+        error: 'Cannot approve leave - staff attendance already marked', 
+        message: `Attendance is already recorded for: ${conflictDates}. Please delete attendance records first or adjust leave dates.`,
+        conflicts: attendanceConflicts
+      }, { status: 409 });
+    }
+
     // Check if approver has permission to approve
     // This would involve checking the workflow and permissions
     // For now, we'll proceed with basic approval

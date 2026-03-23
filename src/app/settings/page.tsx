@@ -199,7 +199,7 @@ export default function SettingsPage() {
     try {
       // Step 1: Fetch academic years first to find the active one
       const ayRes = await academicYearsApi.list();
-      const academicYearsList = ayRes.academicYears || [];
+      const academicYearsList = (ayRes as any)?.academicYears || [];
       setAcademicYears(academicYearsList);
       
       // Use the NEWEST active academic year (guard against multiple active years)
@@ -2549,7 +2549,12 @@ export default function SettingsPage() {
     const [timingDrafts, setTimingDrafts] = useState({}); // { id: { name, type, startTime, endTime, selectedDays: Set() } }
     const [savingTimings, setSavingTimings] = useState(false);
 
-    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // ─── Weekly Holidays State ───────────────────────────────────────────────
+    const [weeklyHolidays, setWeeklyHolidays] = useState<number[]>([]);
+    const [savingHolidays, setSavingHolidays] = useState(false);
+
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const TIMING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // Exclude Sunday for school timings
     const uniquePeriods = [...new Set(timings.map((t: any) => t.name))].sort();
 
     const addTimingRow = () => {
@@ -2630,6 +2635,55 @@ export default function SettingsPage() {
         setSavingTimings(false);
       }
     };
+
+    // ─── Weekly Holidays Functions ───────────────────────────────────────────
+    const loadWeeklyHolidays = useCallback(() => {
+      const holidaysSetting = settingsMap?.timings?.weekly_holidays;
+      if (holidaysSetting) {
+        try {
+          setWeeklyHolidays(JSON.parse(holidaysSetting));
+        } catch (e) {
+          console.error('Failed to parse weekly holidays:', e);
+          setWeeklyHolidays([]);
+        }
+      } else {
+        // Default to Saturday as holiday
+        setWeeklyHolidays([6]);
+      }
+    }, [settingsMap]);
+
+    const toggleWeeklyHoliday = (dayIndex: number) => {
+      if (!canManageSettings) return;
+      
+      setWeeklyHolidays(prev => {
+        const newHolidays = [...prev];
+        const index = newHolidays.indexOf(dayIndex);
+        if (index > -1) {
+          newHolidays.splice(index, 1); // Remove holiday
+        } else {
+          newHolidays.push(dayIndex); // Add holiday
+        }
+        return newHolidays.sort();
+      });
+    };
+
+    const saveWeeklyHolidays = async () => {
+      if (!canManageSettings) return;
+      setSavingHolidays(true);
+      try {
+        await schoolSettingsApi.update('timings', 'weekly_holidays', JSON.stringify(weeklyHolidays));
+        showToast({ type: 'success', title: 'Weekly holidays updated', message: 'Holiday configuration saved successfully' });
+      } catch (e: any) {
+        showToast({ type: 'error', title: 'Failed to save weekly holidays', message: e.message });
+      } finally {
+        setSavingHolidays(false);
+      }
+    };
+
+    // Load weekly holidays when settings change
+    useEffect(() => {
+      loadWeeklyHolidays();
+    }, [loadWeeklyHolidays]);
 
     return (
       <div className={card}>

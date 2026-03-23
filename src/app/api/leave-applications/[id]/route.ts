@@ -70,8 +70,8 @@ export async function DELETE(
       });
 
       if (leaveBalance) {
-        const newUsed = parseFloat(leaveBalance.used.toString()) - application.totalDays;
-        const newBalance = parseFloat(leaveBalance.balance.toString()) + application.totalDays;
+        const newUsed = parseFloat(leaveBalance.used.toString()) - Number(application.totalDays);
+        const newBalance = parseFloat(leaveBalance.balance.toString()) + Number(application.totalDays);
 
         await schoolPrisma.leaveBalance.update({
           where: { id: leaveBalance.id },
@@ -120,9 +120,9 @@ export async function DELETE(
           to: application.staff.email,
           staffName: application.staff.name,
           leaveType: application.leaveType.name,
-          startDate: application.startDate,
-          endDate: application.endDate,
-          totalDays: application.totalDays,
+          startDate: application.startDate.toISOString(),
+          endDate: application.endDate.toISOString(),
+          totalDays: Number(application.totalDays),
           reason: application.reason || undefined,
           schoolName: school.name,
           applicationId: application.id,

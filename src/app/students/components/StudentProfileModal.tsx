@@ -8,6 +8,7 @@ import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
 import EnhancedFeeCollection from '../../fees/components/EnhancedFeeCollection';
+import AttendanceCalendar from '../../attendance/components/AttendanceCalendar';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import jsPDF from 'jspdf';
@@ -45,6 +46,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
   const [showCardBack, setShowCardBack] = useState(false);
   const [feeData, setFeeData] = useState(null);
   const [loadingFeeData, setLoadingFeeData] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarStudent, setCalendarStudent] = useState(null);
   const { getSetting } = useSchoolConfig();
   const idCardRef = useRef<HTMLDivElement>(null);
   const idCardContainerRef = useRef<HTMLDivElement>(null);
@@ -874,6 +877,8 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     setParentPortal={setParentPortal}
                     setCommunicationCenter={setCommunicationCenter}
                     theme={theme}
+                    setShowCalendarModal={setShowCalendarModal}
+                    setCalendarStudent={setCalendarStudent}
                   />
 
                   {/* Analytics Tab */}
@@ -1204,6 +1209,50 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                 <p className={`text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   Parent portal functionality would be implemented here. This modal is triggered from the profile view.
                 </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Attendance Calendar Modal */}
+      <AnimatePresence>
+        {showCalendarModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]"
+            onClick={() => setShowCalendarModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`w-full max-w-6xl mx-4 rounded-2xl border shadow-2xl ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  📅 Attendance Calendar - {calendarStudent?.name}
+                </h3>
+                <button
+                  onClick={() => setShowCalendarModal(false)}
+                  className={`absolute top-6 right-6 p-2 rounded-lg transition-colors ${
+                    theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  ✖️ Close
+                </button>
+              </div>
+              <div className="max-h-[80vh] overflow-y-auto">
+                <AttendanceCalendar 
+                  type="student"
+                  personId={calendarStudent?.id || ''}
+                  isDark={theme === 'dark'}
+                />
               </div>
             </motion.div>
           </motion.div>

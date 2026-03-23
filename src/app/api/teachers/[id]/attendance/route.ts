@@ -2,6 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { queueAttendanceAbsenceNotifications } from '@/lib/studentCommunicationTargets';
+
+function parseAttendanceDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -81,7 +87,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       records.map((r: any) =>
         (schoolPrisma as any).attendanceRecord.upsert({
           where: { studentId_date_subject: { studentId: r.studentId, date, subject: subject || 'General' } },
-          update: { status: r.status, remarks: r.remarks, teacherId: id, class: classRef, section },
+          update: {
+            status: r.status,
+            remarks: r.remarks,
+            teacherId: id,
+            class: classRef,
+            section,
+            schoolId: ctx.schoolId || undefined,
+            attendanceDate: parseAttendanceDate(date),
+            domain: 'student',
+            source: 'manual',
+            attendanceSessionKey: [ctx.schoolId || 'school', classRef || 'class', section || 'section', date, subject || 'General'].join(':'),
+          },
           create: {
             studentId: r.studentId,
             teacherId: id,
@@ -91,10 +108,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             class: classRef,
             section,
             remarks: r.remarks,
+            schoolId: ctx.schoolId || undefined,
+            attendanceDate: parseAttendanceDate(date),
+            domain: 'student',
+            source: 'manual',
+            attendanceSessionKey: [ctx.schoolId || 'school', classRef || 'class', section || 'section', date, subject || 'General'].join(':'),
           },
         })
       )
     );
+
+    await queueAttendanceAbsenceNotifications({
+      schoolId: ctx.schoolId,
+      date,
+      subject: subject || 'General',
+      absences: records.map((r: any) => ({
+        studentId: r.studentId,
+        status: r.status,
+      })),
+    });
 
     return NextResponse.json({ saved: results.length, records: results }, { status: 201 });
   } catch (err) {

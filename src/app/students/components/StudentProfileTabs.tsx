@@ -11,6 +11,8 @@ interface StudentProfileTabsProps {
   setParentPortal: any;
   setCommunicationCenter: any;
   theme: 'dark' | 'light';
+  setShowCalendarModal?: (show: boolean) => void;
+  setCalendarStudent?: (student: any) => void;
 }
 
 const card = (theme: string) =>
@@ -59,7 +61,7 @@ function StatusBadge({ status, theme }: { status: string; theme: string }) {
 
 export default function StudentProfileTabs({
   activeTab, selectedStudent, setFeeManagement, setAttendanceTracking,
-  setParentPortal, setCommunicationCenter, theme
+  setParentPortal, setCommunicationCenter, theme, setShowCalendarModal, setCalendarStudent
 }: StudentProfileTabsProps) {
   const [feeRecords, setFeeRecords] = useState<any[]>([]);
   const [feeLoading, setFeeLoading] = useState(false);
@@ -181,12 +183,18 @@ export default function StudentProfileTabs({
           <div className="flex items-center justify-between">
             <h3 className={heading(theme)}>Attendance Summary</h3>
             <button
-              onClick={() => setAttendanceTracking((prev: any) => ({ ...prev, showAttendanceModal: true, selectedStudent }))}
-              className={`px-4 py-2 text-sm rounded-lg font-medium ${
-                theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'
+              onClick={() => {
+                // Open calendar modal with selected student
+                if (setShowCalendarModal && setCalendarStudent) {
+                  setCalendarStudent(selectedStudent);
+                  setShowCalendarModal(true);
+                }
+              }}
+              className={`px-4 py-2 text-sm rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg ${
+                theme === 'dark' ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
               }`}
             >
-              📊 View Detailed Attendance
+              📅 View Detailed Attendance
             </button>
           </div>
 

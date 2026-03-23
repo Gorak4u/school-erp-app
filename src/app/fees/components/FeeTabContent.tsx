@@ -658,7 +658,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                     >
                       <option value="all">All Classes</option>
                       {dropdowns.classes.map(cls => (
-                        <option key={cls.value} value={cls.label}>{cls.label}</option>
+                        <option key={cls.value} value={cls.label}>{cls.label}{cls.mediumName ? ` (${cls.mediumName})` : ''}</option>
                       ))}
                     </select>
 
