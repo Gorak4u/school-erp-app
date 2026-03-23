@@ -86,7 +86,7 @@ export async function POST(
     });
 
     if (attendanceConflicts.length > 0) {
-      const conflictDates = attendanceConflicts.map(conflict => 
+      const conflictDates = attendanceConflicts.map((conflict: any) => 
         new Date(conflict.attendanceDate).toISOString().split('T')[0]
       ).join(', ');
       

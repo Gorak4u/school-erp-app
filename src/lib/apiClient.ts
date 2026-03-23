@@ -346,6 +346,8 @@ export const sectionsApi = {
 export const schoolSettingsApi = {
   getByGroup: (group: string) => request<ApiResponse<any>>(`/api/school-structure/settings?group=${group}`),
   getAll: () => request<ApiResponse<any>>('/api/school-structure/settings'),
+  update: (group: string, key: string, value: string) =>
+    request<ApiResponse<any>>('/api/school-structure/settings', { method: 'POST', body: JSON.stringify({ group, key, value }) }),
   upsert: (data: { group: string; key: string; value: string }) =>
     request<ApiResponse<any>>('/api/school-structure/settings', { method: 'POST', body: JSON.stringify(data) }),
   upsertBatch: (data: { group: string; settings: Record<string, string> }) =>

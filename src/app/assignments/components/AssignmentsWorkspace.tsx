@@ -119,7 +119,7 @@ export default function AssignmentsWorkspace() {
       if (!response.ok) throw new Error(data.error || 'Failed to create assignment');
       showSuccessToast('Assignment created', `${form.title} created successfully.`);
       setShowCreateModal(false);
-      setForm({ title: '', subject: '', classId: '', dueDate: TODAY, description: '', type: 'homework', teacherId: '' });
+      setForm({ title: '', subject: '', classId: '', mediumId: '', dueDate: TODAY, description: '', type: 'homework', teacherId: '' });
       loadAssignments();
     } catch (e: any) {
       showErrorToast('Assignment creation', e.message || 'Failed to create assignment');

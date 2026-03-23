@@ -192,7 +192,7 @@ export async function GET(
       }
 
       // Combine and sort records
-      records = [...attendanceRecords.map(r => ({
+      records = [...attendanceRecords.map((r: any) => ({
         date: r.attendanceDate,
         status: r.status,
         remarks: r.remarks,
@@ -222,7 +222,7 @@ export async function GET(
       const isWeeklyHoliday = weeklyHolidays.includes(dayOfWeek);
       
       // Find attendance record for this date
-      const record = records.find(r => {
+      const record = records.find((r: any) => {
         const recordDate = type === 'student' 
           ? r.date 
           : new Date(r.date).toISOString().split('T')[0];
