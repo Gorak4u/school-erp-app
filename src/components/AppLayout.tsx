@@ -224,6 +224,11 @@ export default function AppLayout({
                     globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     Welcome back, <span className="font-medium">{user.firstName} {user.lastName}</span>
+                    {user.employeeId && (
+                      <span className="ml-2 text-xs font-mono ${
+                        globalTheme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                      }">(EMP ID: {user.employeeId})</span>
+                    )}
                     <span className="ml-2 px-2 py-0.5 rounded-full text-xs ${
                       globalTheme === 'dark' ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-700'
                     }">{user.role}</span>

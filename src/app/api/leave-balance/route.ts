@@ -7,20 +7,42 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.schoolId) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const staffId = searchParams.get('staffId');
-    const academicYearId = searchParams.get('academicYearId');
     const leaveTypeId = searchParams.get('leaveTypeId');
+    const academicYearId = searchParams.get('academicYearId');
+
+    await schoolPrisma.$connect();
 
     const where: any = {
       schoolId: session.user.schoolId,
     };
 
-    if (staffId) where.staffId = staffId;
+    // If no staffId provided, show only current user's leave balance (for teachers)
+    if (!staffId && session.user.role !== 'admin' && session.user.role !== 'super_admin') {
+      // Find the teacher record that corresponds to this user
+      const teacher = await schoolPrisma.teacher.findFirst({
+        where: {
+          userId: session.user.id,
+          schoolId: session.user.schoolId,
+        },
+        select: { id: true }
+      });
+      
+      if (teacher) {
+        where.staffId = teacher.id;
+      } else {
+        // Return empty result if no teacher found
+        return NextResponse.json({ leaveBalances: [] });
+      }
+    } else if (staffId) {
+      where.staffId = staffId;
+    }
+
     if (academicYearId) where.academicYearId = academicYearId;
     if (leaveTypeId) where.leaveTypeId = leaveTypeId;
 

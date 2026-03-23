@@ -3,24 +3,25 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendLeaveApprovalRequestEmail } from '@/lib/leave-approval-request-email';
+import { sendLeaveApplicationSubmittedEmail } from '@/lib/leave-notification-emails';
 
 // GET - Fetch leave applications with pagination and filters
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.schoolId) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const status = searchParams.get('status');
     const staffId = searchParams.get('staffId');
+    const status = searchParams.get('status');
     const leaveTypeId = searchParams.get('leaveTypeId');
     const academicYearId = searchParams.get('academicYearId');
     const approverId = searchParams.get('approverId');
     const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
 
     const skip = (page - 1) * limit;
 
@@ -28,9 +29,37 @@ export async function GET(request: NextRequest) {
       schoolId: session.user.schoolId,
     };
 
+    // If no staffId provided, show only current user's applications (for teachers)
+    if (!staffId && session.user.role !== 'admin' && session.user.role !== 'super_admin') {
+      // Find the teacher record that corresponds to this user
+      const teacher = await schoolPrisma.teacher.findFirst({
+        where: {
+          userId: session.user.id,
+          schoolId: session.user.schoolId,
+        },
+        select: { id: true }
+      });
+      
+      if (teacher) {
+        where.staffId = teacher.id;
+      } else {
+        // Return empty result if no teacher found
+        return NextResponse.json({
+          applications: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    } else if (staffId) {
+      where.staffId = staffId;
+    }
+
     // Add filters
     if (status) where.status = status;
-    if (staffId) where.staffId = staffId;
     if (leaveTypeId) where.leaveTypeId = leaveTypeId;
     if (academicYearId) where.academicYearId = academicYearId;
     if (approverId) where.approverId = approverId;
@@ -351,6 +380,7 @@ export async function POST(request: NextRequest) {
         select: { name: true },
       });
 
+      // Send emails to approvers
       await Promise.all(approverCandidates.map(async approver => {
         const metadata = {
           applicationId: application.id,
@@ -382,6 +412,57 @@ export async function POST(request: NextRequest) {
           });
         }
       }));
+
+      // Send confirmation email to the applicant
+      if (application.staff.email && school?.name) {
+        try {
+          await sendLeaveApplicationSubmittedEmail({
+            to: application.staff.email,
+            staffName: application.staff.name,
+            leaveType: application.leaveType.name,
+            startDate: application.startDate,
+            endDate: application.endDate,
+            totalDays: application.totalDays,
+            reason: application.reason || undefined,
+            status: application.status,
+            schoolName: school.name,
+            applicationId: application.id,
+            schoolId: session.user.schoolId,
+          });
+        } catch (emailError) {
+          console.error('Failed to send application confirmation email:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
+    }
+
+    // If auto-approved, send confirmation email to applicant
+    if (status === 'approved' && application.staff.email) {
+      const school = await schoolPrisma.school.findUnique({
+        where: { id: session.user.schoolId },
+        select: { name: true },
+      });
+
+      if (school?.name) {
+        try {
+          await sendLeaveApplicationSubmittedEmail({
+            to: application.staff.email,
+            staffName: application.staff.name,
+            leaveType: application.leaveType.name,
+            startDate: application.startDate,
+            endDate: application.endDate,
+            totalDays: application.totalDays,
+            reason: application.reason || undefined,
+            status: application.status,
+            schoolName: school.name,
+            applicationId: application.id,
+            schoolId: session.user.schoolId,
+          });
+        } catch (emailError) {
+          console.error('Failed to send auto-approval email:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
     }
 
     return NextResponse.json({ application }, { status: 201 });

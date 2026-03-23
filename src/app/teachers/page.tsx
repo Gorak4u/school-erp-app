@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { teachersApi } from '@/lib/apiClient';
 import { createTeacherSearchHandlers } from './handlers/searchHandlers';
@@ -75,7 +76,14 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 export default function StaffPage() {
   const { theme } = useTheme();
+  const { hasPermission } = usePermissions();
   const isDark = theme === 'dark';
+  
+  // Permission checks
+  const canCreateTeachers = hasPermission('create_teachers');
+  const canEditTeachers = hasPermission('edit_teachers');
+  const canDeleteTeachers = hasPermission('delete_teachers');
+  
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -483,21 +491,23 @@ export default function StaffPage() {
             <h1 className={`text-3xl font-bold ${txt}`}>Staff Management</h1>
             <p className={`${sub} mt-2`}>Manage teachers, staff members and their assignments</p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
-              isDark 
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
-                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add New Staff
-            </span>
-          </button>
+          {canCreateTeachers && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
+                isDark 
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add New Staff
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -630,22 +640,11 @@ export default function StaffPage() {
           </div>
 
           {/* Filter Options */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className={`block text-xs font-medium mb-2 ${sub}`}>Search</label>
-              <input
-                type="text"
-                className={`${inputCls} rounded-xl`}
-                placeholder="Name, email, ID..."
-                value={teacherSearch.enabled ? teacherSearch.query : (filters.search as string) || ''}
-                onChange={e => !teacherSearch.enabled && setFilter('search', e.target.value)}
-                disabled={teacherSearch.enabled}
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className={`block text-xs font-medium mb-2 ${sub}`}>Status</label>
               <select
-                className={`${inputCls} rounded-xl`}
+                className={`${inputCls} rounded-xl w-full`}
                 value={(filters.status as string) || ''}
                 onChange={e => setFilter('status', e.target.value)}
               >
@@ -658,7 +657,7 @@ export default function StaffPage() {
             <div>
               <label className={`block text-xs font-medium mb-2 ${sub}`}>Role</label>
               <select
-                className={`${inputCls} rounded-xl`}
+                className={`${inputCls} rounded-xl w-full`}
                 value={(filters.role as string) || ''}
                 onChange={e => setFilter('role', e.target.value)}
               >
@@ -672,7 +671,7 @@ export default function StaffPage() {
             <div>
               <label className={`block text-xs font-medium mb-2 ${sub}`}>Department</label>
               <input
-                className={`${inputCls} rounded-xl`}
+                className={`${inputCls} rounded-xl w-full`}
                 placeholder="Department..."
                 value={(filters.department as string) || ''}
                 onChange={e => setFilter('department', e.target.value)}
@@ -685,7 +684,7 @@ export default function StaffPage() {
                   isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
               >
-                Clear All Filters
+                Clear Filters
               </button>
             </div>
           </div>
@@ -853,20 +852,22 @@ export default function StaffPage() {
                     <td className={`${tdCls} text-xs`}>{teacher.joiningDate || '—'}</td>
                     <td className={tdCls}>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingTeacher(teacher);
-                            setFormError('');
-                            setShowEditModal(true);
-                          }}
-                          className={`px-2 py-1 text-xs rounded border transition-colors ${
-                            isDark 
-                              ? 'border-blue-600 text-blue-400 hover:bg-blue-600/20' 
-                              : 'border-blue-500 text-blue-600 hover:bg-blue-50'
-                          }`}
-                        >
-                          Edit
-                        </button>
+                        {canEditTeachers && (
+                          <button
+                            onClick={() => {
+                              setEditingTeacher(teacher);
+                              setFormError('');
+                              setShowEditModal(true);
+                            }}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                              isDark 
+                                ? 'border-blue-600 text-blue-400 hover:bg-blue-600/20' 
+                                : 'border-blue-500 text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDownloadIdCard(teacher)}
                           disabled={!!downloadingIdCard}
@@ -886,30 +887,34 @@ export default function StaffPage() {
                           )}
                           <span>ID Card</span>
                         </button>
-                        <button
-                          onClick={() => handleToggleActivation(teacher)}
-                          className={`px-2 py-1 text-xs rounded border transition-colors ${
-                            teacher.status === 'active'
-                              ? isDark 
-                                ? 'border-orange-600 text-orange-400 hover:bg-orange-600/20' 
-                                : 'border-orange-500 text-orange-600 hover:bg-orange-50'
-                              : isDark 
-                                ? 'border-green-600 text-green-400 hover:bg-green-600/20' 
-                                : 'border-green-500 text-green-600 hover:bg-green-50'
-                          }`}
-                        >
-                          {teacher.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(teacher)}
-                          className={`px-2 py-1 text-xs rounded border transition-colors ${
-                            isDark 
-                              ? 'border-red-600 text-red-400 hover:bg-red-600/20' 
-                              : 'border-red-500 text-red-600 hover:bg-red-50'
-                          }`}
-                        >
-                          Delete
-                        </button>
+                        {(canEditTeachers || canDeleteTeachers) && (
+                          <button
+                            onClick={() => handleToggleStatus(teacher)}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                              teacher.status === 'active' 
+                                ? isDark 
+                                  ? 'border-orange-600 text-orange-400 hover:bg-orange-600/20' 
+                                  : 'border-orange-500 text-orange-600 hover:bg-orange-50'
+                                : isDark 
+                                  ? 'border-green-600 text-green-400 hover:bg-green-600/20' 
+                                  : 'border-green-500 text-green-600 hover:bg-green-50'
+                            }`}
+                          >
+                            {teacher.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
+                        {canDeleteTeachers && (
+                          <button
+                            onClick={() => setDeleteConfirm(teacher)}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                              isDark 
+                                ? 'border-red-600 text-red-400 hover:bg-red-600/20' 
+                                : 'border-red-500 text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

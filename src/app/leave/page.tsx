@@ -5,6 +5,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSession } from 'next-auth/react';
 
 interface LeaveBalance {
   id: string;
@@ -102,7 +103,8 @@ interface AcademicYear {
 
 export default function LeavePage() {
   const { theme } = useTheme();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, permissions } = usePermissions();
+  const { data: session } = useSession();
   const isDark = theme === 'dark';
   
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,23 @@ export default function LeavePage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  
+  // Admin State
+  const [allStaffLeaveBalances, setAllStaffLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [allLeaveApplications, setAllLeaveApplications] = useState<LeaveApplication[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [staffList, setStaffList] = useState<any[]>([]);
+  
+  // Leave History State
+  const [leaveHistory, setLeaveHistory] = useState<LeaveApplication[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyFilters, setHistoryFilters] = useState({
+    status: '',
+    leaveType: '',
+    dateRange: 'all' // all, thisMonth, lastMonth, thisYear, custom
+  });
+  const [historyLoading, setHistoryLoading] = useState(false);
   
   // Application Form State
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -141,7 +160,23 @@ export default function LeavePage() {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Fetch admin data if user can approve leave
+    if (canApproveLeave) {
+      fetchAllStaff();
+    }
   }, [selectedAcademicYear]);
+
+  useEffect(() => {
+    if (activeTab === 'management' && canApproveLeave) {
+      fetchAllStaffLeaveBalances();
+      fetchAllLeaveApplications();
+    } else if (activeTab === 'approvals' && canApproveLeave) {
+      fetchAllLeaveApplications();
+    } else if (activeTab === 'history') {
+      fetchLeaveHistory(1);
+    }
+  }, [activeTab, selectedAcademicYear, historyFilters]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -193,6 +228,7 @@ export default function LeavePage() {
     
     try {
       const response = await fetch(`/api/leave-balance?academicYearId=${selectedAcademicYear}`);
+      
       if (response.ok) {
         const data = await response.json();
         setLeaveBalances(data.leaveBalances || []);
@@ -207,12 +243,137 @@ export default function LeavePage() {
     
     try {
       const response = await fetch(`/api/leave-applications?academicYearId=${selectedAcademicYear}&limit=10`);
+      
       if (response.ok) {
         const data = await response.json();
         setRecentApplications(data.applications || []);
       }
     } catch (error) {
       console.error('Failed to fetch recent applications:', error);
+    }
+  };
+
+  // Admin functions
+  const fetchAllStaff = async () => {
+    try {
+      const response = await fetch('/api/teachers');
+      if (response.ok) {
+        const data = await response.json();
+        setStaffList(data.teachers || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch staff:', error);
+    }
+  };
+
+  const fetchAllStaffLeaveBalances = async () => {
+    if (!selectedAcademicYear) return;
+    
+    try {
+      const response = await fetch(`/api/leave-balance?academicYearId=${selectedAcademicYear}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAllStaffLeaveBalances(data.leaveBalances || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch all staff leave balances:', error);
+    }
+  };
+
+  const fetchAllLeaveApplications = async () => {
+    if (!selectedAcademicYear) return;
+    
+    try {
+      const response = await fetch(`/api/leave-applications?academicYearId=${selectedAcademicYear}&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        setAllLeaveApplications(data.applications || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch all leave applications:', error);
+    }
+  };
+
+  const updateApplicationStatus = async (applicationId: string, status: 'approved' | 'rejected', comments?: string) => {
+    try {
+      const response = await fetch(`/api/leave-applications/${applicationId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, comments }),
+      });
+      
+      if (response.ok) {
+        showSuccessToast('Success', `Leave application ${status} successfully`);
+        fetchAllLeaveApplications(); // Refresh the list
+      } else {
+        const error = await response.json();
+        showErrorToast('Error', error.error || `Failed to ${status} application`);
+      }
+    } catch (error) {
+      showErrorToast('Error', `Failed to ${status} application`);
+    }
+  };
+
+  const cancelApplication = async (applicationId: string) => {
+    if (!confirm('Are you sure you want to cancel this leave application?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/leave-applications/${applicationId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        showSuccessToast('Success', 'Leave application cancelled successfully');
+        fetchAllLeaveApplications(); // Refresh the list
+        fetchRecentApplications(); // Refresh user's applications
+      } else {
+        const error = await response.json();
+        showErrorToast('Error', error.error || 'Failed to cancel application');
+      }
+    } catch (error) {
+      showErrorToast('Error', 'Failed to cancel application');
+    }
+  };
+
+  const fetchLeaveHistory = async (page: number = 1) => {
+    if (!selectedAcademicYear) return;
+    
+    setHistoryLoading(true);
+    try {
+      const params = new URLSearchParams({
+        academicYearId: selectedAcademicYear,
+        page: page.toString(),
+        limit: '20',
+      });
+      
+      // Add filters
+      if (historyFilters.status) params.append('status', historyFilters.status);
+      if (historyFilters.leaveType) params.append('leaveTypeId', historyFilters.leaveType);
+      
+      // For admins, show all applications; for staff, show only their own
+      if (!canApproveLeave) {
+        // Staff can only see their own history
+        const teacher = await fetch('/api/debug/leave-data').then(res => res.json());
+        const currentTeacher = teacher.allStaff.find((staff: any) => staff.userId === session?.user?.id);
+        if (currentTeacher) {
+          params.append('staffId', currentTeacher.id);
+        }
+      }
+      
+      const response = await fetch(`/api/leave-applications?${params}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLeaveHistory(data.applications || []);
+        setHistoryTotal(data.pagination?.total || 0);
+        setHistoryPage(page);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leave history:', error);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -325,6 +486,32 @@ export default function LeavePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                         Apply for Leave
+                      </span>
+                    </button>
+                  )}
+                  {canViewHistory && (
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className={btnSecondary}
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Leave History
+                      </span>
+                    </button>
+                  )}
+                  {canApproveLeave && (
+                    <button
+                      onClick={() => setActiveTab('management')}
+                      className={btnSecondary}
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Staff Management
                       </span>
                     </button>
                   )}
@@ -533,6 +720,16 @@ export default function LeavePage() {
                               <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
                                 Applied {new Date(application.appliedAt).toLocaleDateString()}
                               </div>
+                              {application.status === 'pending' && (
+                                <button
+                                  onClick={() => cancelApplication(application.id)}
+                                  className={`mt-2 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    isDark ? 'bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border border-gray-600/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                                  }`}
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -541,6 +738,393 @@ export default function LeavePage() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Leave History Tab */}
+          {activeTab === 'history' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Filters */}
+              <div className={card}>
+                <div className="p-6">
+                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Leave History
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className={label}>Status</label>
+                      <select
+                        value={historyFilters.status}
+                        onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}
+                        className={input}
+                      >
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>Leave Type</label>
+                      <select
+                        value={historyFilters.leaveType}
+                        onChange={(e) => setHistoryFilters({ ...historyFilters, leaveType: e.target.value })}
+                        className={input}
+                      >
+                        <option value="">All Types</option>
+                        {leaveTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>Date Range</label>
+                      <select
+                        value={historyFilters.dateRange}
+                        onChange={(e) => setHistoryFilters({ ...historyFilters, dateRange: e.target.value })}
+                        className={input}
+                      >
+                        <option value="all">All Time</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="lastMonth">Last Month</option>
+                        <option value="thisYear">This Year</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => fetchLeaveHistory(1)}
+                        className={btnPrimary}
+                      >
+                        Apply Filters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* History List */}
+              <div className={card}>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className={`text-md font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {canApproveLeave ? 'All Leave Applications' : 'Your Leave History'}
+                    </h4>
+                    <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {historyTotal} records
+                    </div>
+                  </div>
+                  
+                  {historyLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {leaveHistory.map((application) => (
+                        <div key={application.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                  {application.leaveType.name}
+                                </h4>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
+                                  {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                                </span>
+                              </div>
+                              
+                              {canApproveLeave && application.staff && (
+                                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
+                                  <strong>Staff:</strong> {application.staff.name} ({application.staff.employeeId})
+                                </p>
+                              )}
+                              
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <strong>Duration:</strong> {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                              </p>
+                              
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <strong>Total Days:</strong> {application.totalDays}
+                              </p>
+                              
+                              {application.reason && (
+                                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
+                                  <strong>Reason:</strong> {application.reason}
+                                </p>
+                              )}
+                              
+                              <div className="flex items-center gap-4 mt-2">
+                                <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                  <strong>Applied:</strong> {new Date(application.appliedAt).toLocaleDateString()}
+                                </div>
+                                
+                                {application.approver && (
+                                  <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                    <strong>Reviewed by:</strong> {application.approver.name}
+                                  </div>
+                                )}
+                                
+                                {application.approvedAt && (
+                                  <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                    <strong>Approved:</strong> {new Date(application.approvedAt).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {application.approvalComments && (
+                                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
+                                  <strong>Comments:</strong> {application.approvalComments}
+                                </p>
+                              )}
+                            </div>
+                            
+                            <div className="flex gap-2 ml-4">
+                              {application.status === 'pending' && canApproveLeave && (
+                                <>
+                                  <button
+                                    onClick={() => updateApplicationStatus(application.id, 'approved')}
+                                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                      isDark ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30' : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
+                                    }`}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                      isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
+                                    }`}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              
+                              {application.status === 'pending' && !canApproveLeave && (
+                                <button
+                                  onClick={() => cancelApplication(application.id)}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                    isDark ? 'bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border border-gray-600/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                                  }`}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {leaveHistory.length === 0 && (
+                        <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          No leave history found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Pagination */}
+                  {historyTotal > 20 && (
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Showing {((historyPage - 1) * 20) + 1} to {Math.min(historyPage * 20, historyTotal)} of {historyTotal} records
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => fetchLeaveHistory(historyPage - 1)}
+                          disabled={historyPage <= 1}
+                          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                            historyPage <= 1
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          Previous
+                        </button>
+                        <span className={`px-3 py-1 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Page {historyPage}
+                        </span>
+                        <button
+                          onClick={() => fetchLeaveHistory(historyPage + 1)}
+                          disabled={historyPage * 20 >= historyTotal}
+                          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                            historyPage * 20 >= historyTotal
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Staff Management Tab - Admin Only */}
+          {activeTab === 'management' && canApproveLeave && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Staff Filter */}
+              <div className={card}>
+                <div className="p-6">
+                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Staff Leave Management
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={label}>Filter by Staff</label>
+                      <select
+                        value={selectedStaff}
+                        onChange={(e) => setSelectedStaff(e.target.value)}
+                        className={input}
+                      >
+                        <option value="">All Staff</option>
+                        {staffList.map((staff) => (
+                          <option key={staff.id} value={staff.id}>
+                            {staff.name} ({staff.employeeId})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* All Staff Leave Balances */}
+              <div className={card}>
+                <div className="p-6">
+                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    All Staff Leave Balances
+                  </h3>
+                  <div className="space-y-4">
+                    {allStaffLeaveBalances
+                      .filter(balance => !selectedStaff || balance.staffId === selectedStaff)
+                      .map((balance) => (
+                        <div key={balance.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {balance.staff.name} ({balance.staff.employeeId})
+                              </h4>
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {balance.leaveType.name} - {balance.academicYear.name}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {balance.balance}
+                              </div>
+                              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                of {balance.totalAllocated} days
+                              </div>
+                              <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                Used: {balance.used} | Carried: {balance.carriedForward}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <div className={`w-full h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                              <div
+                                className={`h-2 rounded-full ${
+                                  balance.balance > 5 ? 'bg-green-500' : balance.balance > 2 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${(balance.balance / balance.totalAllocated) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    {allStaffLeaveBalances.filter(balance => !selectedStaff || balance.staffId === selectedStaff).length === 0 && (
+                      <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        No leave balances found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Approvals Tab - Admin Only */}
+          {activeTab === 'approvals' && canApproveLeave && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className={card}>
+                <div className="p-6">
+                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Pending Leave Approvals
+                  </h3>
+                  <div className="space-y-4">
+                    {allLeaveApplications
+                      .filter(app => app.status === 'pending')
+                      .map((application) => (
+                        <div key={application.id} className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {application.staff.name} ({application.staff.employeeId})
+                              </h4>
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                {application.leaveType.name} - {new Date(application.startDate).toLocaleDateString()} to {new Date(application.endDate).toLocaleDateString()}
+                              </p>
+                              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                Total Days: {application.totalDays}
+                              </p>
+                              {application.reason && (
+                                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
+                                  Reason: {application.reason}
+                                </p>
+                              )}
+                              <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
+                                Applied: {new Date(application.appliedAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                onClick={() => updateApplicationStatus(application.id, 'approved')}
+                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                  isDark ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30' : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
+                                }`}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                  isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
+                                }`}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    {allLeaveApplications.filter(app => app.status === 'pending').length === 0 && (
+                      <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        No pending applications
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 

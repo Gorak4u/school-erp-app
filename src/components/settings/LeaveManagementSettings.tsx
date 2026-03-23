@@ -97,6 +97,24 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
   const [workflows, setWorkflows] = useState<LeaveWorkflow[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
 
+  // Leave Balances State
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<any[]>([]);
+  const [showBalanceForm, setShowBalanceForm] = useState(false);
+  const [showBulkBalanceForm, setShowBulkBalanceForm] = useState(false);
+  const [balanceForm, setBalanceForm] = useState({
+    staffId: '',
+    leaveTypeId: '',
+    totalAllocated: '',
+    carriedForward: '',
+  });
+  const [bulkBalanceForm, setBulkBalanceForm] = useState({
+    leaveTypeId: '',
+    totalAllocated: '',
+    carriedForward: '',
+    selectedStaff: [] as string[],
+  });
+
   // CSS Variables
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
@@ -109,12 +127,14 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
     fetchAcademicYears();
     fetchLeaveTypes();
     fetchRoles();
+    fetchTeachers();
   }, []);
 
   useEffect(() => {
     if (selectedAcademicYear) {
       fetchLeaveSettings();
       fetchWorkflows();
+      fetchLeaveBalances();
     }
   }, [selectedAcademicYear]);
 
@@ -143,6 +163,31 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       console.error('Failed to fetch workflows:', error);
     } finally {
       setWorkflowsLoading(false);
+    }
+  };
+
+  const fetchTeachers = async () => {
+    try {
+      const response = await fetch('/api/teachers');
+      if (response.ok) {
+        const data = await response.json();
+        setTeachers(data.teachers || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch teachers:', error);
+    }
+  };
+
+  const fetchLeaveBalances = async () => {
+    if (!selectedAcademicYear) return;
+    try {
+      const response = await fetch(`/api/leave-balance?academicYearId=${selectedAcademicYear}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLeaveBalances(data.leaveBalances || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leave balances:', error);
     }
   };
 
@@ -316,6 +361,95 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
     }
   };
 
+  const saveLeaveBalance = async () => {
+    if (!selectedAcademicYear || !balanceForm.staffId || !balanceForm.leaveTypeId || !balanceForm.totalAllocated) {
+      showErrorToast('Validation', 'Please fill in all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/leave-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          staffId: balanceForm.staffId,
+          leaveTypeId: balanceForm.leaveTypeId,
+          academicYearId: selectedAcademicYear,
+          totalAllocated: parseFloat(balanceForm.totalAllocated),
+          carriedForward: parseFloat(balanceForm.carriedForward) || 0,
+          action: 'allocate'
+        }),
+      });
+
+      if (response.ok) {
+        showSuccessToast('Success', 'Leave balance allocated successfully');
+        setShowBalanceForm(false);
+        setBalanceForm({
+          staffId: '',
+          leaveTypeId: '',
+          totalAllocated: '',
+          carriedForward: '',
+        });
+        fetchLeaveBalances();
+      } else {
+        const error = await response.json();
+        showErrorToast('Error', error.error || 'Failed to allocate leave balance');
+      }
+    } catch (error) {
+      showErrorToast('Error', 'Failed to allocate leave balance');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveBulkLeaveBalance = async () => {
+    if (!selectedAcademicYear || !bulkBalanceForm.leaveTypeId || !bulkBalanceForm.totalAllocated || bulkBalanceForm.selectedStaff.length === 0) {
+      showErrorToast('Validation', 'Please fill in all required fields and select at least one staff member');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const promises = bulkBalanceForm.selectedStaff.map(staffId => 
+        fetch('/api/leave-balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            staffId,
+            leaveTypeId: bulkBalanceForm.leaveTypeId,
+            academicYearId: selectedAcademicYear,
+            totalAllocated: parseFloat(bulkBalanceForm.totalAllocated),
+            carriedForward: parseFloat(bulkBalanceForm.carriedForward) || 0,
+            action: 'allocate'
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (successful > 0) {
+        showSuccessToast('Success', `Leave balance allocated to ${successful} staff member${successful > 1 ? 's' : ''}${failed > 0 ? ` (${failed} failed)` : ''}`);
+        setShowBulkBalanceForm(false);
+        setBulkBalanceForm({
+          leaveTypeId: '',
+          totalAllocated: '',
+          carriedForward: '',
+          selectedStaff: [],
+        });
+        fetchLeaveBalances();
+      } else {
+        showErrorToast('Error', 'Failed to allocate leave balance to any staff member');
+      }
+    } catch (error) {
+      showErrorToast('Error', 'Failed to allocate leave balances');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const editLeaveType = (leaveType: LeaveType) => {
     setEditingLeaveType(leaveType);
     setLeaveTypeForm({
@@ -360,6 +494,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
         {[
           { id: 'types', label: 'Leave Types' },
+          { id: 'balances', label: 'Leave Balances' },
           { id: 'settings', label: 'Settings' },
           { id: 'workflow', label: 'Approval Workflow' },
         ].map((tab) => (
@@ -468,6 +603,136 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
               </div>
             ))}
           </div>
+        </motion.div>
+      )}
+
+      {/* Leave Balances Tab */}
+      {activeTab === 'balances' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <div className="flex justify-between items-center">
+            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Leave Balances
+            </h3>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setBulkBalanceForm({
+                    leaveTypeId: '',
+                    totalAllocated: '',
+                    carriedForward: '',
+                    selectedStaff: [],
+                  });
+                  setShowBulkBalanceForm(true);
+                }}
+                className={btnSecondary}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Bulk Allocate
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  setBalanceForm({
+                    staffId: '',
+                    leaveTypeId: '',
+                    totalAllocated: '',
+                    carriedForward: '',
+                  });
+                  setShowBalanceForm(true);
+                }}
+                className={btnPrimary}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Allocate Leave Balance
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Academic Year Selection */}
+          <div className={card}>
+            <div className="p-4">
+              <label className={label}>Academic Year</label>
+              <select
+                value={selectedAcademicYear}
+                onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                className={input}
+              >
+                <option value="">Select Academic Year</option>
+                {academicYears.map((year) => (
+                  <option key={year.id} value={year.id}>
+                    {year.name} ({year.year})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Leave Balances List */}
+          {selectedAcademicYear && (
+            <div className="grid gap-4">
+              {leaveBalances.map((balance) => (
+                <div key={balance.id} className={card}>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {balance.staff?.name}
+                          </h4>
+                          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                            isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {balance.staff?.employeeId}
+                          </span>
+                        </div>
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
+                          {balance.leaveType?.name} ({balance.leaveType?.code})
+                          {balance.leaveType?.isPaid && ' • Paid'}
+                        </p>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Allocated:</span>
+                            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}> {balance.totalAllocated} days</span>
+                          </div>
+                          <div>
+                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Used:</span>
+                            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}> {balance.used} days</span>
+                          </div>
+                          <div>
+                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Balance:</span>
+                            <span className={`font-bold ${balance.balance > 5 ? 'text-green-600' : balance.balance > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
+                              {balance.balance} days
+                            </span>
+                          </div>
+                        </div>
+                        {balance.carriedForward > 0 && (
+                          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
+                            Carried Forward: {balance.carriedForward} days
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {leaveBalances.length === 0 && (
+                <div className={`p-8 text-center rounded-xl border border-dashed ${isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
+                  No leave balances allocated for this academic year. Click "Allocate Leave Balance" to get started.
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -891,6 +1156,287 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                 >
                   {loading ? 'Saving...' : (editingLeaveType ? 'Update' : 'Create')}
                 </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Leave Balance Form Modal */}
+      {showBalanceForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`relative w-full max-w-2xl rounded-2xl border shadow-2xl ${card} max-h-[90vh] overflow-y-auto`}
+          >
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Allocate Leave Balance
+                </h3>
+                <button
+                  onClick={() => setShowBalanceForm(false)}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className={label}>Select Staff *</label>
+                  <select
+                    value={balanceForm.staffId}
+                    onChange={(e) => setBalanceForm({ ...balanceForm, staffId: e.target.value })}
+                    className={input}
+                  >
+                    <option value="">Select Teacher/Staff</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name} ({teacher.employeeId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={label}>Leave Type *</label>
+                  <select
+                    value={balanceForm.leaveTypeId}
+                    onChange={(e) => setBalanceForm({ ...balanceForm, leaveTypeId: e.target.value })}
+                    className={input}
+                  >
+                    <option value="">Select Leave Type</option>
+                    {leaveTypes.map((leaveType) => (
+                      <option key={leaveType.id} value={leaveType.id}>
+                        {leaveType.name} ({leaveType.code}) - {leaveType.maxDaysPerYear} days/year
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={label}>Total Allocated Days *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={balanceForm.totalAllocated}
+                      onChange={(e) => setBalanceForm({ ...balanceForm, totalAllocated: e.target.value })}
+                      className={input}
+                      placeholder="e.g., 12"
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Carried Forward Days</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={balanceForm.carriedForward}
+                      onChange={(e) => setBalanceForm({ ...balanceForm, carriedForward: e.target.value })}
+                      className={input}
+                      placeholder="e.g., 2"
+                    />
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                  <p className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Preview:
+                  </p>
+                  <div className="text-sm space-y-1">
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Total Available: <span className="font-bold">{(parseFloat(balanceForm.totalAllocated) || 0) + (parseFloat(balanceForm.carriedForward) || 0)} days</span>
+                    </div>
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Used: <span className="font-bold">0 days</span>
+                    </div>
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Balance: <span className="font-bold text-green-600">{(parseFloat(balanceForm.totalAllocated) || 0) + (parseFloat(balanceForm.carriedForward) || 0)} days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowBalanceForm(false)}
+                    className={btnSecondary}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveLeaveBalance}
+                    disabled={loading}
+                    className={btnPrimary}
+                  >
+                    {loading ? 'Allocating...' : 'Allocate Balance'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Bulk Leave Balance Form Modal */}
+      {showBulkBalanceForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`relative w-full max-w-4xl rounded-2xl border shadow-2xl ${card} max-h-[90vh] overflow-y-auto`}
+          >
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Bulk Allocate Leave Balance
+                </h3>
+                <button
+                  onClick={() => setShowBulkBalanceForm(false)}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className={label}>Leave Type *</label>
+                  <select
+                    value={bulkBalanceForm.leaveTypeId}
+                    onChange={(e) => setBulkBalanceForm({ ...bulkBalanceForm, leaveTypeId: e.target.value })}
+                    className={input}
+                  >
+                    <option value="">Select Leave Type</option>
+                    {leaveTypes.map((leaveType) => (
+                      <option key={leaveType.id} value={leaveType.id}>
+                        {leaveType.name} ({leaveType.code}) - {leaveType.maxDaysPerYear} days/year
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={label}>Total Allocated Days *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={bulkBalanceForm.totalAllocated}
+                      onChange={(e) => setBulkBalanceForm({ ...bulkBalanceForm, totalAllocated: e.target.value })}
+                      className={input}
+                      placeholder="e.g., 12"
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Carried Forward Days</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={bulkBalanceForm.carriedForward}
+                      onChange={(e) => setBulkBalanceForm({ ...bulkBalanceForm, carriedForward: e.target.value })}
+                      className={input}
+                      placeholder="e.g., 2"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={label}>Select Staff Members *</label>
+                  <div className={`border rounded-xl p-4 max-h-60 overflow-y-auto ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                    <div className="space-y-2">
+                      {teachers.map((teacher) => {
+                        const isSelected = bulkBalanceForm.selectedStaff.includes(teacher.id);
+                        return (
+                          <label key={teacher.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setBulkBalanceForm({
+                                    ...bulkBalanceForm,
+                                    selectedStaff: [...bulkBalanceForm.selectedStaff, teacher.id]
+                                  });
+                                } else {
+                                  setBulkBalanceForm({
+                                    ...bulkBalanceForm,
+                                    selectedStaff: bulkBalanceForm.selectedStaff.filter(id => id !== teacher.id)
+                                  });
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {teacher.name}
+                              </div>
+                              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {teacher.employeeId} • {teacher.department || 'No Department'}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {bulkBalanceForm.selectedStaff.length} staff member{bulkBalanceForm.selectedStaff.length !== 1 ? 's' : ''} selected
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                  <p className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Bulk Allocation Summary:
+                  </p>
+                  <div className="text-sm space-y-1">
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Staff Members: <span className="font-bold">{bulkBalanceForm.selectedStaff.length}</span>
+                    </div>
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Leave Type: <span className="font-bold">{leaveTypes.find(lt => lt.id === bulkBalanceForm.leaveTypeId)?.name || 'Not selected'}</span>
+                    </div>
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Days Per Staff: <span className="font-bold">{(parseFloat(bulkBalanceForm.totalAllocated) || 0) + (parseFloat(bulkBalanceForm.carriedForward) || 0)} days</span>
+                    </div>
+                    <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      Total Days to Allocate: <span className="font-bold text-green-600">{((parseFloat(bulkBalanceForm.totalAllocated) || 0) + (parseFloat(bulkBalanceForm.carriedForward) || 0)) * bulkBalanceForm.selectedStaff.length} days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowBulkBalanceForm(false)}
+                    className={btnSecondary}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveBulkLeaveBalance}
+                    disabled={loading || bulkBalanceForm.selectedStaff.length === 0}
+                    className={btnPrimary}
+                  >
+                    {loading ? 'Allocating...' : `Allocate to ${bulkBalanceForm.selectedStaff.length} Staff${bulkBalanceForm.selectedStaff.length !== 1 ? 's' : ''}`}
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

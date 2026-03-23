@@ -60,6 +60,7 @@ const TABS = [
   { id: 'professional', label: 'Professional Details' },
   { id: 'contact', label: 'Contact Information' },
   { id: 'bank', label: 'Bank Details' },
+  { id: 'leave', label: 'Leave Balance' },
   { id: 'additional', label: 'Additional Information' },
 ];
 
@@ -85,6 +86,12 @@ export default function TeacherForm({
   const [activeTab, setActiveTab] = useState('basic');
   const [customRoles, setCustomRoles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Leave balance state
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [leaveBalances, setLeaveBalances] = useState([]);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -120,6 +127,8 @@ export default function TeacherForm({
     employeeId: teacher?.employeeId || '',
     isClassTeacher: teacher?.isClassTeacher || false,
     classTeacherAssignments: teacher?.classTeacherAssignments || [],
+    // Leave balance fields
+    leaveBalances: teacher?.leaveBalances || [],
   });
 
   const set = (key: string, val: any) => setFormData(prev => ({ ...prev, [key]: val }));
@@ -141,6 +150,77 @@ export default function TeacherForm({
     };
     fetchCustomRoles();
   }, []);
+
+  // Fetch leave data
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      try {
+        const [leaveTypesRes, academicYearsRes] = await Promise.all([
+          fetch('/api/leave-types?isActive=true'),
+          fetch('/api/school-structure/academic-years')
+        ]);
+        
+        if (leaveTypesRes.ok) {
+          const leaveTypesData = await leaveTypesRes.json();
+          setLeaveTypes(leaveTypesData.leaveTypes || []);
+        }
+        
+        if (academicYearsRes.ok) {
+          const academicYearsData = await academicYearsRes.json();
+          const years = academicYearsData.academicYears || [];
+          setAcademicYears(years);
+          const activeYear = years.find((ay: any) => ay.isActive);
+          if (activeYear) {
+            setSelectedAcademicYear(activeYear.id);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch leave data:', error);
+      }
+    };
+    fetchLeaveData();
+  }, []);
+
+  // Fetch existing leave balances for edit mode
+  useEffect(() => {
+    if (teacher?.id && selectedAcademicYear) {
+      const fetchLeaveBalances = async () => {
+        try {
+          const response = await fetch(`/api/leave-balance?staffId=${teacher.id}&academicYearId=${selectedAcademicYear}`);
+          if (response.ok) {
+            const data = await response.json();
+            setLeaveBalances(data.leaveBalances || []);
+            set('leaveBalances', data.leaveBalances || []);
+          }
+        } catch (error) {
+          console.error('Failed to fetch leave balances:', error);
+        }
+      };
+      fetchLeaveBalances();
+    }
+  }, [teacher?.id, selectedAcademicYear]);
+
+  // Leave balance functions
+  const addLeaveBalance = () => {
+    const newBalance = {
+      leaveTypeId: '',
+      totalAllocated: '',
+      carriedForward: '',
+      isNew: true
+    };
+    set('leaveBalances', [...formData.leaveBalances, newBalance]);
+  };
+
+  const updateLeaveBalance = (index: number, field: string, value: any) => {
+    const updated = [...formData.leaveBalances];
+    updated[index] = { ...updated[index], [field]: value };
+    set('leaveBalances', updated);
+  };
+
+  const removeLeaveBalance = (index: number) => {
+    const updated = formData.leaveBalances.filter((_: any, i: number) => i !== index);
+    set('leaveBalances', updated);
+  };
 
   // Style classes
   const sectionCls = `rounded-xl border p-4 transition-colors ${
@@ -182,7 +262,41 @@ export default function TeacherForm({
 
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      // Submit teacher form first
+      const teacherData = await onSubmit(formData);
+      
+      // If teacher was created successfully and we have leave balances to allocate
+      if (teacherData?.id && formData.leaveBalances.length > 0 && selectedAcademicYear) {
+        const leaveBalancePromises = formData.leaveBalances
+          .filter((balance: any) => balance.leaveTypeId && balance.totalAllocated)
+          .map((balance: any) => 
+            fetch('/api/leave-balance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                staffId: teacherData.id, // Use teacher ID as staffId
+                leaveTypeId: balance.leaveTypeId,
+                academicYearId: selectedAcademicYear,
+                totalAllocated: parseFloat(balance.totalAllocated),
+                carriedForward: parseFloat(balance.carriedForward) || 0,
+                action: 'allocate'
+              }),
+            })
+          );
+        
+        if (leaveBalancePromises.length > 0) {
+          const results = await Promise.allSettled(leaveBalancePromises);
+          const successful = results.filter(r => r.status === 'fulfilled').length;
+          const failed = results.filter(r => r.status === 'rejected').length;
+          
+          if (successful > 0) {
+            console.log(`Successfully allocated leave balances for ${successful} leave type${successful > 1 ? 's' : ''}`);
+          }
+          if (failed > 0) {
+            console.error(`Failed to allocate ${failed} leave balance${failed > 1 ? 's' : ''}`);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error submitting teacher form:', error);
       alert('Failed to save teacher. Please try again.');
@@ -607,6 +721,135 @@ export default function TeacherForm({
                   />
                   {validations.bankIfscInvalid && <p className={errorTextCls}>Please enter a valid IFSC code (e.g., SBIN0001234)</p>}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TAB: LEAVE BALANCE ─────────────────────────────── */}
+          {activeTab === 'leave' && (
+            <div className="space-y-1 md:space-y-2">
+              <div className={sectionCls}>
+                <p className={sectionTitleCls}>🏖️ Leave Balance Allocation</p>
+                
+                {/* Academic Year Selection */}
+                <div className="mb-4">
+                  <label className={labelCls}>Academic Year</label>
+                  <select 
+                    value={selectedAcademicYear} 
+                    onChange={e => setSelectedAcademicYear(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Select Academic Year</option>
+                    {academicYears.map((year: any) => (
+                      <option key={year.id} value={year.id}>
+                        {year.name} ({year.year})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedAcademicYear && (
+                  <>
+                    {/* Add Leave Balance Button */}
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={addLeaveBalance}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          theme === 'dark'
+                            ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 border border-blue-600/30'
+                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Add Leave Balance
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Leave Balances List */}
+                    <div className="space-y-3">
+                      {formData.leaveBalances.map((balance: any, index: number) => (
+                        <div key={index} className={`p-3 rounded-lg border ${
+                          theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+                        }`}>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className={labelCls}>Leave Type *</label>
+                              <select
+                                value={balance.leaveTypeId}
+                                onChange={e => updateLeaveBalance(index, 'leaveTypeId', e.target.value)}
+                                className={inputCls}
+                              >
+                                <option value="">Select Leave Type</option>
+                                {leaveTypes.map((leaveType: any) => (
+                                  <option key={leaveType.id} value={leaveType.id}>
+                                    {leaveType.name} ({leaveType.code})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>Total Allocated *</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={balance.totalAllocated}
+                                onChange={e => updateLeaveBalance(index, 'totalAllocated', e.target.value)}
+                                className={inputCls}
+                                placeholder="e.g., 12"
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Carried Forward</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={balance.carriedForward}
+                                onChange={e => updateLeaveBalance(index, 'carriedForward', e.target.value)}
+                                className={inputCls}
+                                placeholder="e.g., 2"
+                              />
+                            </div>
+                            <div className="flex items-end">
+                              <button
+                                type="button"
+                                onClick={() => removeLeaveBalance(index)}
+                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                  theme === 'dark'
+                                    ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30'
+                                    : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
+                                }`}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                          {balance.leaveTypeId && balance.totalAllocated && (
+                            <div className={`mt-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Total Available: <span className="font-bold text-green-600">
+                                {(parseFloat(balance.totalAllocated) || 0) + (parseFloat(balance.carriedForward) || 0)} days
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {formData.leaveBalances.length === 0 && (
+                        <div className={`p-4 text-center rounded-lg border border-dashed ${
+                          theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+                        }`}>
+                          No leave balances allocated. Click "Add Leave Balance" to allocate leave.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
