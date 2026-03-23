@@ -83,6 +83,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const assignmentId = searchParams.get('assignmentId');
     if (!assignmentId) return NextResponse.json({ error: 'assignmentId required' }, { status: 400 });
 
+    const teacher = await (schoolPrisma as any).teacher.findFirst({ where: { id, ...tenantWhere(ctx) } });
+    if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
+
+    const assignment = await (schoolPrisma as any).classTeacherAssignment.findFirst({
+      where: {
+        id: assignmentId,
+        teacherId: id,
+        schoolId: ctx.schoolId,
+      },
+      select: { id: true },
+    });
+    if (!assignment) return NextResponse.json({ error: 'Class assignment not found' }, { status: 404 });
+
     await (schoolPrisma as any).classTeacherAssignment.update({
       where: { id: assignmentId },
       data: { isActive: false },

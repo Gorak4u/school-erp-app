@@ -7,7 +7,6 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { teachersApi } from '@/lib/apiClient';
 import { createTeacherSearchHandlers } from './handlers/searchHandlers';
-import { TeacherSearchEngine } from './search/TeacherSearchEngine';
 import StaffForm, { StaffFormData } from './components/StaffForm';
 import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
 
@@ -21,12 +20,11 @@ interface Teacher {
   department?: string;
   subject?: string;
   designation?: string;
+  user?: {
+    role?: string;
+    customRoleId?: string | null;
+  };
   [key: string]: unknown;
-}
-
-interface DeleteConfirmation {
-  teacher: Teacher;
-  index: number;
 }
 
 interface SchoolData {
@@ -90,10 +88,8 @@ export default function StaffPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [downloadingIdCard, setDownloadingIdCard] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmation | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Teacher | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
   const [boards, setBoards] = useState<Board[]>([]);
   const [mediums, setMediums] = useState<Medium[]>([]);
@@ -136,6 +132,11 @@ export default function StaffPage() {
     loadSchoolData();
   }, []);
 
+  const normalizeDateValue = (value: unknown) => {
+    if (!value || typeof value !== 'string') return '';
+    return value.includes('T') ? value.split('T')[0] : value;
+  };
+
   const mapTeacherToFormData = (teacher: Teacher): StaffFormData => {
     if (!teacher) return { firstName: '', lastName: '', email: '', phone: '', role: 'teacher', customRoleId: '', department: '', subject: '', qualification: '', experience: '', employeeId: '', status: 'active', joiningDate: '', gender: '', dateOfBirth: '', address: '', designation: '', salary: '', bankName: '', bankAccountNo: '', bankIfsc: '', emergencyName: '', emergencyPhone: '', remarks: '', photo: '', aadharNumber: '', bloodGroup: '', isClassTeacher: false, classTeacherAssignments: [] };
     const nameParts = (teacher.name || '').trim().split(/\s+/);
@@ -146,17 +147,17 @@ export default function StaffPage() {
       lastName,
       email: teacher.email || '',
       phone: teacher.phone || '',
-      role: (teacher.role as any) || 'teacher',
-      customRoleId: (teacher.customRoleId as any) || '',
+      role: (teacher.user?.role as any) || (teacher.role as any) || 'teacher',
+      customRoleId: (teacher.user?.customRoleId as any) || (teacher.customRoleId as any) || '',
       department: teacher.department || '',
       subject: teacher.subject || '',
       qualification: (teacher.qualification as any) || '',
       experience: teacher.experience?.toString() || '',
       employeeId: teacher.employeeId || '',
       status: (teacher.status as any) || 'active',
-      joiningDate: (teacher.joiningDate as any) || '',
+      joiningDate: normalizeDateValue(teacher.joiningDate),
       gender: (teacher.gender as any) || '',
-      dateOfBirth: (teacher.dateOfBirth as any) || '',
+      dateOfBirth: normalizeDateValue(teacher.dateOfBirth),
       address: (teacher.address as any) || '',
       designation: teacher.designation || '',
       salary: teacher.salary?.toString() || '',
@@ -172,6 +173,29 @@ export default function StaffPage() {
       isClassTeacher: (teacher.isClassTeacher as any) || false,
       classTeacherAssignments: (teacher.classTeacherAssignments as any) || [],
     };
+  };
+
+  const openEditModal = async (teacher: Teacher) => {
+    setFormError('');
+
+    try {
+      const response = await teachersApi.get(teacher.id);
+      const fullTeacher = ((response as any).teacher || teacher) as Teacher;
+      setEditingTeacher(fullTeacher);
+    } catch (err) {
+      setEditingTeacher(teacher);
+
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'warning',
+          title: 'Partial staff data loaded',
+          message: 'Full staff details could not be loaded. You can still continue editing basic information.',
+          duration: 4000,
+        });
+      }
+    }
+
+    setShowEditModal(true);
   };
 
   const handleAddSubmit = async (data: StaffFormData) => {
@@ -221,7 +245,7 @@ export default function StaffPage() {
 
       if (data.isClassTeacher && data.classTeacherAssignments?.length) {
         try {
-          await Promise.all(
+          const assignmentResponses = await Promise.all(
             data.classTeacherAssignments.map((assignment) =>
               fetch(`/api/teachers/${response.teacher?.id}/class-assignments`, {
                 method: 'POST',
@@ -237,12 +261,36 @@ export default function StaffPage() {
               })
             )
           );
+
+          const failedAssignmentSync = assignmentResponses.find((assignmentResponse) => !assignmentResponse.ok);
+          if (failedAssignmentSync) {
+            const assignmentError = await failedAssignmentSync.json().catch(() => null);
+            throw new Error(assignmentError?.error || 'Failed to create one or more class teacher assignments');
+          }
         } catch (assignmentError) {
           console.error('Failed to create class teacher assignments:', assignmentError);
+          if ((window as any).toast) {
+            (window as any).toast({
+              type: 'warning',
+              title: 'Staff created with assignment warning',
+              message: assignmentError instanceof Error ? assignmentError.message : 'Some class teacher assignments could not be saved.',
+              duration: 5000,
+            });
+          }
         }
       }
 
       setShowAddModal(false);
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Staff created',
+          message: response.temporaryPassword
+            ? `Staff profile created. Temporary password: ${response.temporaryPassword}`
+            : 'Staff profile created successfully.',
+          duration: 5000,
+        });
+      }
       refresh();
     } catch (err: any) {
       setFormError(err.message || 'Failed to create staff');
@@ -252,20 +300,30 @@ export default function StaffPage() {
   };
 
   const handleEditSubmit = async (data: StaffFormData) => {
-    console.log('handleEditSubmit called with data:', data);
     if (!editingTeacher) return;
     if (!data.firstName?.trim()) {
-      console.log('Validation failed - firstName:', data.firstName);
       setFormError('First name is required');
+      return;
+    }
+    if (!data.lastName?.trim()) {
+      setFormError('Last name is required');
+      return;
+    }
+    if (!data.email?.trim()) {
+      setFormError('Email is required');
       return;
     }
     setSaving(true);
     setFormError('');
     try {
       await teachersApi.update(editingTeacher.id, {
+        firstName: data.firstName,
+        lastName: data.lastName,
         name: `${data.firstName} ${data.lastName}`.trim(),
         email: data.email,
         phone: data.phone,
+        role: data.role || 'teacher',
+        customRoleId: data.customRoleId || null,
         gender: data.gender,
         dateOfBirth: data.dateOfBirth,
         subject: data.subject,
@@ -286,6 +344,8 @@ export default function StaffPage() {
         emergencyName: data.emergencyName,
         emergencyPhone: data.emergencyPhone,
         remarks: data.remarks,
+        employeeId: data.employeeId,
+        isClassTeacher: data.isClassTeacher,
       });
 
       if (data.isClassTeacher) {
@@ -298,9 +358,9 @@ export default function StaffPage() {
 
         const assignmentsToCreate = newAssignments.filter((na: any) => !na.id);
 
-        await Promise.all([
+        const assignmentResponses = await Promise.all([
           ...assignmentsToDelete.map((a: any) =>
-            fetch(`/api/teachers/${editingTeacher.id}/class-assignments/${a.id}`, { method: 'DELETE' })
+            fetch(`/api/teachers/${editingTeacher.id}/class-assignments?assignmentId=${a.id}`, { method: 'DELETE' })
           ),
           ...assignmentsToCreate.map((assignment: any) =>
             fetch(`/api/teachers/${editingTeacher.id}/class-assignments`, {
@@ -317,24 +377,45 @@ export default function StaffPage() {
             })
           ),
         ]);
+
+        const failedAssignmentSync = assignmentResponses.find((assignmentResponse) => !assignmentResponse.ok);
+        if (failedAssignmentSync) {
+          const assignmentError = await failedAssignmentSync.json().catch(() => null);
+          throw new Error(assignmentError?.error || 'Failed to update class teacher assignments');
+        }
       } else if (!data.isClassTeacher && editingTeacher.isClassTeacher) {
         // Unchecked isClassTeacher - delete all assignments
         try {
           const existingAssignments = editingTeacher.classTeacherAssignments || [];
-          await Promise.all(
+          const assignmentResponses = await Promise.all(
             (existingAssignments as any).map((assignment: any) =>
               fetch(`/api/teachers/${editingTeacher.id}/class-assignments?assignmentId=${assignment.id}`, {
                 method: 'DELETE',
               })
             )
           );
+
+          const failedAssignmentSync = assignmentResponses.find((assignmentResponse) => !assignmentResponse.ok);
+          if (failedAssignmentSync) {
+            const assignmentError = await failedAssignmentSync.json().catch(() => null);
+            throw new Error(assignmentError?.error || 'Failed to clear class teacher assignments');
+          }
         } catch (err) {
           console.error('Failed to clear class teacher assignments:', err);
+          throw err;
         }
       }
 
       setShowEditModal(false);
       setEditingTeacher(null);
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Staff updated',
+          message: 'Staff details were saved successfully.',
+          duration: 3000,
+        });
+      }
       refresh();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update staff';
@@ -411,7 +492,7 @@ export default function StaffPage() {
 
   // Search handlers
   const searchHandlers = createTeacherSearchHandlers({ teachers, refresh });
-  const { teacherSearch, setTeacherSearch, performTeacherSearch, toggleTeacherSearch, clearSearchHistory } = searchHandlers;
+  const { teacherSearch, setTeacherSearch, toggleTeacherSearch } = searchHandlers;
 
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const txt = isDark ? 'text-white' : 'text-gray-900';
@@ -426,26 +507,35 @@ export default function StaffPage() {
     sortBy === field ? <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span> : <span className="ml-1 opacity-30">↕</span>;
 
   const activeCount = teachers.filter((t: any) => t.status === 'active').length;
+  const inactiveCount = teachers.filter((t: any) => t.status !== 'active').length;
+  const classTeacherCount = teachers.filter((t: any) => Array.isArray(t.classTeacherAssignments) && t.classTeacherAssignments.length > 0).length;
+  const departmentCount = new Set(teachers.map((t: any) => t.department).filter(Boolean)).size;
+  const activeFilterCount = [filters.search, filters.status, filters.role, filters.department].filter(Boolean).length;
 
   const handleDeleteTeacher = async (teacherId: string) => {
     try {
       await teachersApi.delete(teacherId);
       setDeleteConfirm(null);
-      // Force immediate refresh with cache busting
-      setTimeout(() => {
-        refresh();
-        // Also trigger a new fetch to bypass any remaining cache
-        window.location.reload();
-      }, 100);
+      setSelectedTeachers((prev) => prev.filter((id) => id !== teacherId));
+      refresh();
+
+      if ((window as any).toast) {
+        (window as any).toast({
+          type: 'success',
+          title: 'Staff deleted',
+          message: 'The staff record and linked login were removed successfully.',
+          duration: 3000,
+        });
+      }
     } catch (err: any) {
       alert('Failed to delete teacher: ' + (err.message || 'Unknown error'));
     }
   };
 
-  const handleToggleActivation = async (teacher: any) => {
+  const handleToggleStatus = async (teacher: any) => {
     try {
       const action = teacher.status === 'active' ? 'deactivate' : 'activate';
-      const response = await teachersApi.update(teacher.id, { action } as any);
+      await teachersApi.update(teacher.id, { action } as any);
       
       if ((window as any).toast) {
         (window as any).toast({
@@ -456,10 +546,7 @@ export default function StaffPage() {
         });
       }
       
-      // Force immediate refresh with cache busting
-      setTimeout(() => {
-        refresh();
-      }, 100);
+      refresh();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       alert(`Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + errorMessage);
@@ -484,42 +571,79 @@ export default function StaffPage() {
 
   return (
     <AppLayout currentPage="teachers">
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="relative px-4 py-6 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden">
+          <div className={`absolute left-[-8rem] top-8 h-56 w-56 rounded-full blur-3xl ${isDark ? 'bg-blue-500/20' : 'bg-blue-200/60'}`} />
+          <div className={`absolute right-[-6rem] top-10 h-60 w-60 rounded-full blur-3xl ${isDark ? 'bg-violet-500/15' : 'bg-violet-200/60'}`} />
+        </div>
+        <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className={`text-3xl font-bold ${txt}`}>Staff Management</h1>
-            <p className={`${sub} mt-2`}>Manage teachers, staff members and their assignments</p>
+        <div className={`relative overflow-hidden rounded-[32px] border px-6 py-7 shadow-2xl sm:px-8 ${isDark ? 'border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(135deg,rgba(17,24,39,0.95),rgba(15,23,42,0.92))]' : 'border-white/70 bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.9),_transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))]'}`}>
+          <div className={`absolute inset-y-0 right-0 w-80 opacity-70 ${isDark ? 'bg-gradient-to-l from-violet-500/10 to-transparent' : 'bg-gradient-to-l from-violet-200/70 to-transparent'}`} />
+          <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${isDark ? 'border-blue-400/20 bg-blue-400/10 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+                Workforce Hub
+              </div>
+              <h1 className={`mt-4 text-3xl font-bold tracking-tight sm:text-4xl ${txt}`}>Staff Management</h1>
+              <p className={`mt-3 max-w-2xl text-sm sm:text-base ${sub}`}>
+                Manage teachers, leadership staff, access roles, and class assignments from one premium operational workspace.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <span className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-white/5 text-gray-200' : 'bg-white text-gray-700 shadow-sm'}`}>
+                  {total.toLocaleString()} total staff
+                </span>
+                <span className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-emerald-500/10 text-emerald-200' : 'bg-emerald-50 text-emerald-700'}`}>
+                  {activeCount} active
+                </span>
+                <span className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-violet-500/10 text-violet-200' : 'bg-violet-50 text-violet-700'}`}>
+                  {classTeacherCount} class teachers
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+              {selectedTeachers.length > 0 && (
+                <button
+                  onClick={handleBulkDownloadIdCards}
+                  disabled={!!downloadingIdCard}
+                  className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${isDark ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20' : 'border border-emerald-200 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50'} ${downloadingIdCard === 'bulk' ? 'cursor-wait opacity-60' : ''}`}
+                >
+                  {downloadingIdCard === 'bulk' ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  )}
+                  Download {selectedTeachers.length} ID Cards
+                </button>
+              )}
+              {canCreateTeachers && (
+                <button
+                  onClick={() => { setFormError(''); setShowAddModal(true); }}
+                  className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5 ${isDark ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500'}`}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add New Staff
+                </button>
+              )}
+            </div>
           </div>
-          {canCreateTeachers && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
-                isDark 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
-                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add New Staff
-              </span>
-            </button>
-          )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className={`rounded-2xl border p-6 transition-all hover:shadow-lg ${isDark ? 'bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-700/50' : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200'}`}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className={`group relative overflow-hidden rounded-[28px] border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl ${isDark ? 'border-blue-500/20 bg-gradient-to-br from-blue-900/40 to-slate-900/90' : 'border-blue-100 bg-gradient-to-br from-white to-blue-50'}`}>
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500" />
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Total Staff</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Total Staff</p>
                 <p className={`text-3xl font-bold mt-2 ${txt}`}>{total}</p>
-                <p className={`text-xs ${sub} mt-1`}>All staff members</p>
+                <p className={`text-xs ${sub} mt-2`}>All staff records in the directory</p>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -527,14 +651,15 @@ export default function StaffPage() {
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 transition-all hover:shadow-lg ${isDark ? 'bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-700/50' : 'bg-gradient-to-br from-green-50 to-green-100/50 border-green-200'}`}>
+          <div className={`group relative overflow-hidden rounded-[28px] border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl ${isDark ? 'border-emerald-500/20 bg-gradient-to-br from-emerald-900/35 to-slate-900/90' : 'border-emerald-100 bg-gradient-to-br from-white to-emerald-50'}`}>
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-green-400 to-lime-400" />
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-600'}`}>Active</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>Active</p>
                 <p className={`text-3xl font-bold mt-2 ${txt}`}>{activeCount}</p>
-                <p className={`text-xs ${sub} mt-1`}>Currently active</p>
+                <p className={`text-xs ${sub} mt-2`}>Currently active staff members</p>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-600/20' : 'bg-green-100'}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-green-600/20' : 'bg-green-100'}`}>
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -542,31 +667,33 @@ export default function StaffPage() {
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 transition-all hover:shadow-lg ${isDark ? 'bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200'}`}>
+          <div className={`group relative overflow-hidden rounded-[28px] border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl ${isDark ? 'border-violet-500/20 bg-gradient-to-br from-violet-900/35 to-slate-900/90' : 'border-violet-100 bg-gradient-to-br from-white to-violet-50'}`}>
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-400 to-pink-400" />
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>On This Page</p>
-                <p className={`text-3xl font-bold mt-2 ${txt}`}>{teachers.length}</p>
-                <p className={`text-xs ${sub} mt-1`}>Currently displayed</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-violet-300' : 'text-violet-600'}`}>Class Teachers</p>
+                <p className={`text-3xl font-bold mt-2 ${txt}`}>{classTeacherCount}</p>
+                <p className={`text-xs ${sub} mt-2`}>With active class assignments</p>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-600/20' : 'bg-purple-100'}`}>
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-violet-600/20' : 'bg-violet-100'}`}>
+                <svg className="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 transition-all hover:shadow-lg ${isDark ? 'bg-gradient-to-br from-orange-900/50 to-orange-800/30 border-orange-700/50' : 'bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200'}`}>
+          <div className={`group relative overflow-hidden rounded-[28px] border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl ${isDark ? 'border-amber-500/20 bg-gradient-to-br from-amber-900/35 to-slate-900/90' : 'border-amber-100 bg-gradient-to-br from-white to-amber-50'}`}>
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-rose-400" />
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>Total Pages</p>
-                <p className={`text-3xl font-bold mt-2 ${txt}`}>{totalPages}</p>
-                <p className={`text-xs ${sub} mt-1`}>Page {page} of {totalPages}</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>Coverage</p>
+                <p className={`text-3xl font-bold mt-2 ${txt}`}>{departmentCount}</p>
+                <p className={`text-xs ${sub} mt-2`}>{inactiveCount} inactive · page {page} of {totalPages || 1}</p>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isDark ? 'bg-amber-600/20' : 'bg-amber-100'}`}>
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M8 7V5a4 4 0 118 0v2m-9 4h10m-10 4h6m-8 6h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
@@ -574,16 +701,43 @@ export default function StaffPage() {
         </div>
 
         {/* Modern Filters Section */}
-        <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-6 shadow-lg mb-8`}>
+        <div className={`relative overflow-hidden rounded-[32px] border p-5 shadow-2xl ${isDark ? 'border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(168,85,247,0.12),_transparent_30%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.10),_transparent_35%),rgba(15,23,42,0.86)]' : 'border-white/70 bg-[radial-gradient(circle_at_top_right,_rgba(221,214,254,0.75),_transparent_30%),radial-gradient(circle_at_bottom_left,_rgba(191,219,254,0.7),_transparent_35%),rgba(255,255,255,0.94)]'} backdrop-blur-xl`}>
+          <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-cyan-400`} />
+
           {/* Search Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <h3 className={`text-lg font-semibold ${txt}`}>Search & Filter</h3>
-            <div className="flex-1 flex items-center gap-3">
-              <div className="relative flex-1 max-w-md">
+          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-2xl">
+              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'border-white/10 bg-white/5 text-violet-200' : 'border-violet-200 bg-white text-violet-700 shadow-sm'}`}>
+                <span className="h-2 w-2 rounded-full bg-violet-500" />
+                Search Workspace
+              </div>
+              <h3 className={`mt-3 text-lg font-semibold ${txt}`}>Search & Filter</h3>
+              <p className={`mt-1 text-sm ${sub}`}>Blend smart search with operational filters to quickly isolate staff by role, department, and status.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:min-w-[440px]">
+              <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-gray-200 bg-white/80'}`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${sub}`}>Visible</div>
+                <div className={`mt-1 text-lg font-bold ${txt}`}>{teachers.length}</div>
+              </div>
+              <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-gray-200 bg-white/80'}`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${sub}`}>Filters</div>
+                <div className={`mt-1 text-lg font-bold ${txt}`}>{activeFilterCount}</div>
+              </div>
+              <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-gray-200 bg-white/80'}`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${sub}`}>Mode</div>
+                <div className={`mt-1 text-sm font-semibold ${teacherSearch.enabled ? 'text-violet-500' : txt}`}>{teacherSearch.enabled ? 'AI search' : 'Normal search'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="relative">
                 <input
                   type="text"
-                  className={`${inputCls} rounded-xl pl-12 pr-4`}
-                  placeholder={teacherSearch.enabled ? "AI-powered search..." : "Name, email, ID..."}
+                  className={`${inputCls} rounded-2xl pl-12 pr-12 shadow-sm`}
+                  placeholder={teacherSearch.enabled ? "AI-powered search..." : "Search by name, email, employee ID..."}
                   value={teacherSearch.enabled ? teacherSearch.query : (filters.search as string) || ''}
                   onChange={e => {
                     if (teacherSearch.enabled) {
@@ -593,58 +747,62 @@ export default function StaffPage() {
                     }
                   }}
                 />
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2">
                   {teacherSearch.isSearching ? (
-                    <div className="animate-spin w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full" />
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
                   ) : (
-                    <svg className={`w-5 h-5 ${teacherSearch.enabled ? 'text-purple-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`h-5 w-5 ${teacherSearch.enabled ? 'text-violet-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   )}
                 </div>
                 {teacherSearch.enabled && (
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                    <span className="px-2 py-1 text-xs rounded-full bg-purple-600 text-white font-medium">AI</span>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span className="inline-flex items-center rounded-full bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md">AI</span>
                   </div>
                 )}
               </div>
+
               <button
                 onClick={toggleTeacherSearch}
-                className={`px-6 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all transform hover:scale-105 ${
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition-all ${
                   teacherSearch.enabled
-                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg'
-                    : isDark 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:from-violet-500 hover:to-indigo-500'
+                    : isDark
+                      ? 'border border-white/10 bg-white/[0.04] text-gray-200 hover:bg-white/[0.08]'
+                      : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span className="flex items-center gap-2">
-                  {teacherSearch.enabled ? (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      AI Search
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      Normal Search
-                    </>
-                  )}
-                </span>
+                {teacherSearch.enabled ? (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    AI Search
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Normal Search
+                  </>
+                )}
               </button>
+            </div>
+
+            <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium ${isDark ? 'border-white/10 bg-white/5 text-gray-300' : 'border-gray-200 bg-white text-gray-600 shadow-sm'}`}>
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {activeFilterCount ? `${activeFilterCount} active filters applied` : 'No filters applied'}
             </div>
           </div>
 
           {/* Filter Options */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
-              <label className={`block text-xs font-medium mb-2 ${sub}`}>Status</label>
+              <label className={`block text-[11px] font-semibold uppercase tracking-[0.14em] mb-1.5 ${sub}`}>Status</label>
               <select
-                className={`${inputCls} rounded-xl w-full`}
+                className={`${inputCls} rounded-2xl w-full`}
                 value={(filters.status as string) || ''}
                 onChange={e => setFilter('status', e.target.value)}
               >
@@ -655,9 +813,9 @@ export default function StaffPage() {
               </select>
             </div>
             <div>
-              <label className={`block text-xs font-medium mb-2 ${sub}`}>Role</label>
+              <label className={`block text-[11px] font-semibold uppercase tracking-[0.14em] mb-1.5 ${sub}`}>Role</label>
               <select
-                className={`${inputCls} rounded-xl w-full`}
+                className={`${inputCls} rounded-2xl w-full`}
                 value={(filters.role as string) || ''}
                 onChange={e => setFilter('role', e.target.value)}
               >
@@ -669,9 +827,9 @@ export default function StaffPage() {
               </select>
             </div>
             <div>
-              <label className={`block text-xs font-medium mb-2 ${sub}`}>Department</label>
+              <label className={`block text-[11px] font-semibold uppercase tracking-[0.14em] mb-1.5 ${sub}`}>Department</label>
               <input
-                className={`${inputCls} rounded-xl w-full`}
+                className={`${inputCls} rounded-2xl w-full`}
                 placeholder="Department..."
                 value={(filters.department as string) || ''}
                 onChange={e => setFilter('department', e.target.value)}
@@ -680,8 +838,10 @@ export default function StaffPage() {
             <div className="flex items-end">
               <button
                 onClick={resetFilters}
-                className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                className={`w-full rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                  isDark
+                    ? 'border border-white/10 bg-white/[0.04] text-gray-200 hover:bg-white/[0.08]'
+                    : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 Clear Filters
@@ -691,7 +851,7 @@ export default function StaffPage() {
         </div>
 
         {/* Modern Table */}
-        <div className={`rounded-2xl border overflow-hidden shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}>
+        <div className={`overflow-hidden rounded-[30px] border shadow-2xl ${isDark ? 'border-white/10 bg-slate-900/80' : 'border-white/70 bg-white/90'} backdrop-blur-xl`}>
           {error && (
             <div className="p-4 bg-red-500/10 border-b border-red-500/20 text-red-400 text-sm flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -702,10 +862,13 @@ export default function StaffPage() {
           )}
           
           {/* Table Header */}
-          <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
-            <div className="flex items-center justify-between">
+          <div className={`border-b px-6 py-5 ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-200 bg-gray-50/80'}`}>
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-center gap-4">
-                <h3 className={`text-lg font-semibold ${txt}`}>Staff Directory</h3>
+                <div>
+                  <h3 className={`text-lg font-semibold ${txt}`}>Staff Directory</h3>
+                  <p className={`mt-1 text-sm ${sub}`}>Operational view of staff records, assignments, and access actions.</p>
+                </div>
                 {selectedTeachers.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -713,24 +876,6 @@ export default function StaffPage() {
                     }`}>
                       {selectedTeachers.length} selected
                     </span>
-                    <button
-                      onClick={handleBulkDownloadIdCards}
-                      disabled={!!downloadingIdCard}
-                      className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                        isDark 
-                          ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
-                      }`}
-                    >
-                      {downloadingIdCard === 'bulk' ? (
-                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      )}
-                      Bulk ID Cards
-                    </button>
                   </div>
                 )}
               </div>
@@ -791,7 +936,7 @@ export default function StaffPage() {
                     </tr>
                   ))
                 ) : teachers.map((teacher: any) => (
-                  <tr key={teacher.id} className={`hover:${isDark ? 'bg-gray-800/50' : 'bg-gray-50'} transition-colors`}>
+                  <tr key={teacher.id} className={`transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50/80'}`}>
                     <td className={tdCls}>
                       <input
                         type="checkbox"
@@ -851,15 +996,11 @@ export default function StaffPage() {
                     </td>
                     <td className={`${tdCls} text-xs`}>{teacher.joiningDate || '—'}</td>
                     <td className={tdCls}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {canEditTeachers && (
                           <button
-                            onClick={() => {
-                              setEditingTeacher(teacher);
-                              setFormError('');
-                              setShowEditModal(true);
-                            }}
-                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                            onClick={() => openEditModal(teacher)}
+                            className={`px-2.5 py-1.5 text-xs rounded-xl border font-medium transition-colors ${
                               isDark 
                                 ? 'border-blue-600 text-blue-400 hover:bg-blue-600/20' 
                                 : 'border-blue-500 text-blue-600 hover:bg-blue-50'
@@ -871,7 +1012,7 @@ export default function StaffPage() {
                         <button
                           onClick={() => handleDownloadIdCard(teacher)}
                           disabled={!!downloadingIdCard}
-                          className={`px-2 py-1 text-xs rounded border transition-all flex items-center gap-1 ${
+                          className={`px-2.5 py-1.5 text-xs rounded-xl border font-medium transition-all flex items-center gap-1 ${
                             isDark 
                               ? 'border-green-600 text-green-400 hover:bg-green-600/20' 
                               : 'border-green-500 text-green-600 hover:bg-green-50'
@@ -890,7 +1031,7 @@ export default function StaffPage() {
                         {(canEditTeachers || canDeleteTeachers) && (
                           <button
                             onClick={() => handleToggleStatus(teacher)}
-                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                            className={`px-2.5 py-1.5 text-xs rounded-xl border font-medium transition-colors ${
                               teacher.status === 'active' 
                                 ? isDark 
                                   ? 'border-orange-600 text-orange-400 hover:bg-orange-600/20' 
@@ -906,7 +1047,7 @@ export default function StaffPage() {
                         {canDeleteTeachers && (
                           <button
                             onClick={() => setDeleteConfirm(teacher)}
-                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                            className={`px-2.5 py-1.5 text-xs rounded-xl border font-medium transition-colors ${
                               isDark 
                                 ? 'border-red-600 text-red-400 hover:bg-red-600/20' 
                                 : 'border-red-500 text-red-600 hover:bg-red-50'
@@ -919,6 +1060,21 @@ export default function StaffPage() {
                     </td>
                   </tr>
                 ))}
+                {!loading && teachers.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-6 py-14 text-center">
+                      <div className="mx-auto max-w-md space-y-3">
+                        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
+                          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <div className={`text-lg font-semibold ${txt}`}>No staff found</div>
+                        <div className={`text-sm ${sub}`}>Try adjusting your search or filters, or create a new staff profile to get started.</div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -926,7 +1082,7 @@ export default function StaffPage() {
           {/* Pagination */}
           <div className={`px-6 py-4 border-t flex items-center justify-between ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
             <p className={`text-sm ${sub}`}>
-              {loading ? 'Loading…' : `Showing ${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString()}`}
+              {loading ? 'Loading…' : total === 0 ? 'No staff records to display' : `Showing ${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString()}`}
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -952,17 +1108,20 @@ export default function StaffPage() {
 
         {/* Add Staff Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowAddModal(false)}>
-            <div className={`w-full max-w-7xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
-              <div className={`px-8 py-6 border-b ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setShowAddModal(false); setFormError(''); }}>
+            <div className={`w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-[32px] border shadow-2xl ${isDark ? 'border-white/10 bg-slate-950/95' : 'border-white/70 bg-white/95'} backdrop-blur-xl`} onClick={e => e.stopPropagation()}>
+              <div className={`px-8 py-6 border-b ${isDark ? 'border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_35%),rgba(15,23,42,0.9)]' : 'border-gray-200 bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.8),_transparent_35%),rgba(248,250,252,0.9)]'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-2xl font-bold ${txt}`}>Add New Staff Member</h3>
-                    <p className={`text-sm ${sub} mt-1`}>Fill in the details to add a new staff member to your school</p>
+                    <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${isDark ? 'bg-blue-500/10 text-blue-200' : 'bg-blue-50 text-blue-700'}`}>
+                      Create Staff Profile
+                    </div>
+                    <h3 className={`mt-3 text-2xl font-bold ${txt}`}>Add New Staff Member</h3>
+                    <p className={`text-sm ${sub} mt-1`}>Create a production-ready staff profile, linked access role, and class assignments in one flow.</p>
                   </div>
                   <button
-                    onClick={() => setShowAddModal(false)}
-                    className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
+                    onClick={() => { setShowAddModal(false); setFormError(''); }}
+                    className={`p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -970,10 +1129,11 @@ export default function StaffPage() {
                   </button>
                 </div>
               </div>
-              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 180px)' }}>
                 <StaffForm
                   mode="add"
                   theme={theme}
+                  externalError={formError}
                   boards={boards}
                   mediums={mediums}
                   classes={dbClasses}
@@ -990,17 +1150,20 @@ export default function StaffPage() {
 
         {/* Edit Staff Modal */}
         {showEditModal && editingTeacher && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowEditModal(false)}>
-            <div className={`w-full max-w-7xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
-              <div className={`px-8 py-6 border-b ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setShowEditModal(false); setEditingTeacher(null); setFormError(''); }}>
+            <div className={`w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-[32px] border shadow-2xl ${isDark ? 'border-white/10 bg-slate-950/95' : 'border-white/70 bg-white/95'} backdrop-blur-xl`} onClick={e => e.stopPropagation()}>
+              <div className={`px-8 py-6 border-b ${isDark ? 'border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.14),_transparent_35%),rgba(15,23,42,0.9)]' : 'border-gray-200 bg-[radial-gradient(circle_at_top_left,_rgba(221,214,254,0.7),_transparent_35%),rgba(248,250,252,0.9)]'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-2xl font-bold ${txt}`}>Edit Staff Member</h3>
-                    <p className={`text-sm ${sub} mt-1`}>Update the details for {editingTeacher.name}</p>
+                    <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${isDark ? 'bg-violet-500/10 text-violet-200' : 'bg-violet-50 text-violet-700'}`}>
+                      Edit Staff Profile
+                    </div>
+                    <h3 className={`mt-3 text-2xl font-bold ${txt}`}>Edit Staff Member</h3>
+                    <p className={`text-sm ${sub} mt-1`}>Update profile, access, and assignment details for {editingTeacher.name}.</p>
                   </div>
                   <button
-                    onClick={() => setShowEditModal(false)}
-                    className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
+                    onClick={() => { setShowEditModal(false); setEditingTeacher(null); setFormError(''); }}
+                    className={`p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1008,11 +1171,12 @@ export default function StaffPage() {
                   </button>
                 </div>
               </div>
-              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 180px)' }}>
                 <StaffForm
                   mode="edit"
                   theme={theme}
                   initialData={mapTeacherToFormData(editingTeacher)}
+                  externalError={formError}
                   boards={boards}
                   mediums={mediums}
                   classes={dbClasses}
@@ -1043,7 +1207,7 @@ export default function StaffPage() {
                 </div>
               </div>
               <p className={`${sub} mb-6`}>
-                Are you sure you want to permanently delete <span className={`font-medium ${txt}`}>{(deleteConfirm as any).name}</span> and their user account?
+                Are you sure you want to permanently delete <span className={`font-medium ${txt}`}>{deleteConfirm.name}</span> and their user account?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1053,7 +1217,7 @@ export default function StaffPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDeleteTeacher((deleteConfirm as any).id)}
+                  onClick={() => handleDeleteTeacher(deleteConfirm.id)}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
                 >
                   Delete
@@ -1064,6 +1228,7 @@ export default function StaffPage() {
         )}
 
         </div>
+      </div>
     </AppLayout>
   );
 }
