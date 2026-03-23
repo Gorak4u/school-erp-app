@@ -106,8 +106,8 @@ export async function GET(
             ...schoolFilter,
             staffId: id,
             status: 'approved',
-            startDate: { lte: endDate.toISOString().split('T')[0] },
-            endDate: { gte: startDate.toISOString().split('T')[0] },
+            startDate: { lte: endDate.toISOString() },
+            endDate: { gte: startDate.toISOString() },
           },
           include: {
             leaveType: {
@@ -183,7 +183,7 @@ export async function GET(
       // Find attendance record for this date
       const record = records.find(r => {
         const recordDate = type === 'student' ? r.date : r.date;
-        return recordDate.toISOString().split('T')[0] === dateStr;
+        return recordDate === dateStr;
       });
 
       calendar.push({

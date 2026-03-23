@@ -8,7 +8,7 @@ import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
 import EnhancedFeeCollection from '../../fees/components/EnhancedFeeCollection';
-import AttendanceCalendar from '../../attendance/components/AttendanceCalendar';
+import AttendanceCalendar from '../../../components/attendance/AttendanceCalendar';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import jsPDF from 'jspdf';
