@@ -30,13 +30,55 @@ export async function GET(
   const { ctx, error } = await getSessionContext();
   if (error) return error;
 
+  const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : tenantWhere(ctx);
+
   // Check permissions based on type
   if (type === 'student') {
     if (!hasPermissionByName(ctx.permissions, 'VIEW_ATTENDANCE') && !['admin', 'teacher'].includes(ctx.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   } else if (type === 'staff') {
-    if (!hasPermissionByName(ctx.permissions, 'VIEW_STAFF_ATTENDANCE') && !hasPermissionByName(ctx.permissions, 'MANAGE_ATTENDANCE') && !['admin'].includes(ctx.role || '')) {
+    // Allow if user has staff attendance viewing permissions OR if viewing their own calendar
+    const canViewStaffAttendance = hasPermissionByName(ctx.permissions, 'VIEW_STAFF_ATTENDANCE') || 
+                                   hasPermissionByName(ctx.permissions, 'MANAGE_ATTENDANCE') || 
+                                   ['admin'].includes(ctx.role || '');
+    
+    let isViewingOwnCalendar = false;
+    
+    if (!canViewStaffAttendance) {
+      // Check if this is their own calendar by fetching the teacher record and checking userId
+      console.log('[Calendar API] Checking own calendar. Teacher ID:', id, 'User ID:', ctx.userId);
+      
+      const teacher = await (schoolPrisma as any).teacher.findFirst({
+        where: { id, ...schoolFilter },
+        select: { userId: true, email: true }
+      });
+      
+      console.log('[Calendar API] Teacher lookup result:', teacher);
+      
+      if (teacher) {
+        // Check by userId if available, otherwise check by email
+        if (teacher.userId && teacher.userId === ctx.userId) {
+          isViewingOwnCalendar = true;
+          console.log('[Calendar API] Matched own calendar by userId');
+        } else if (teacher.email && ctx.email && teacher.email.toLowerCase() === ctx.email.toLowerCase()) {
+          isViewingOwnCalendar = true;
+          console.log('[Calendar API] Matched own calendar by email');
+        } else {
+          console.log('[Calendar API] Not own calendar. Teacher userId:', teacher.userId, 'email:', teacher.email, 'Ctx userId:', ctx.userId, 'ctx.email:', ctx.email);
+        }
+      }
+    }
+    
+    const canManageOwnAttendance = hasPermissionByName(ctx.permissions, 'MANAGE_OWN_ATTENDANCE');
+    
+    console.log('[Calendar API] Permissions:', { canViewStaffAttendance, isViewingOwnCalendar, canManageOwnAttendance, hasPermission: hasPermissionByName(ctx.permissions, 'MANAGE_OWN_ATTENDANCE') });
+    
+    // Allow if: has staff view permissions OR (is own calendar AND has manage_own_attendance permission)
+    // OR (is own calendar - staff should view their own calendar by default)
+    const hasAccess = canViewStaffAttendance || (isViewingOwnCalendar && (canManageOwnAttendance || ['teacher', 'staff'].includes(ctx.role)));
+    
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   } else {
@@ -44,7 +86,6 @@ export async function GET(
   }
 
   try {
-    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : tenantWhere(ctx);
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month, getDaysInMonth(year, month));
 
@@ -182,7 +223,9 @@ export async function GET(
       
       // Find attendance record for this date
       const record = records.find(r => {
-        const recordDate = type === 'student' ? r.date : r.date;
+        const recordDate = type === 'student' 
+          ? r.date 
+          : new Date(r.date).toISOString().split('T')[0];
         return recordDate === dateStr;
       });
 

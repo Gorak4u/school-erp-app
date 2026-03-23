@@ -138,8 +138,8 @@ export default function AssignmentsWorkspace() {
                 <span className="h-2 w-2 rounded-full bg-violet-500" />
                 Assignments Management • {activeAcademicYear?.name || 'Academic delivery hub'}
               </div>
-              <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>A real assignments workspace for creation, tracking, and review</h1>
-              <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Filter school-wide assignments, monitor submission pressure, and create new work from a premium shell backed by live tenant-scoped data.</p>
+              <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Assignments Management</h1>
+              <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Create, track, and review assignments with real-time submission monitoring.</p>
             </div>
             {canCreate && <button className={btnPrimary} onClick={() => setShowCreateModal(true)}>Create assignment</button>}
           </div>

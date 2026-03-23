@@ -173,112 +173,163 @@ export async function POST(request: NextRequest) {
   const { ctx, error } = await getSessionContext();
   if (error) return error;
 
-  if (!canManageStaffAttendanceAccess(ctx)) {
+  const body = await request.json();
+  const { records, selfSubmit = false } = body;
+
+  if (!Array.isArray(records) || records.length === 0) {
+    return NextResponse.json({ error: 'records array is required' }, { status: 400 });
+  }
+
+  // Check permissions
+  const isSuperAdmin = ctx.role === 'super_admin';
+  const isStaff = ctx.role === 'staff';
+  const canManageStaff = canManageStaffAttendanceAccess(ctx);
+
+  // Staff can only submit their own attendance
+  if (selfSubmit && isStaff) {
+    if (records.length !== 1 || records[0].teacherId !== ctx.userId) {
+      return NextResponse.json({ error: 'Staff can only submit their own attendance' }, { status: 403 });
+    }
+  } else if (!canManageStaff && !selfSubmit) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {
-    const body = await request.json();
-    const { records } = body;
+  const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : tenantWhere(ctx);
+  const attendanceDate = parseAttendanceDate(records[0].date);
 
-    if (!Array.isArray(records) || records.length === 0) {
-      return NextResponse.json({ error: 'records array is required' }, { status: 400 });
-    }
+  // Check for approved leaves for all staff members
+  const teacherIds = records.map(r => r.teacherId);
+  const approvedLeaves = await (schoolPrisma as any).leaveApplication.findMany({
+    where: {
+      ...schoolFilter,
+      staffId: { in: teacherIds },
+      status: 'approved',
+      startDate: { lte: attendanceDate },
+      endDate: { gte: attendanceDate },
+    },
+    select: {
+      staffId: true,
+      leaveType: { select: { name: true, code: true } },
+      startDate: true,
+      endDate: true,
+    },
+  });
 
-    const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : tenantWhere(ctx);
-    const attendanceDate = parseAttendanceDate(records[0].date);
+  // Create a map of approved leaves
+  const leaveMap = new Map<string, any>();
+  approvedLeaves.forEach((leave: any) => {
+    leaveMap.set(leave.staffId, leave);
+  });
 
-    // Check for approved leaves for all staff members
-    const teacherIds = records.map(r => r.teacherId);
-    const approvedLeaves = await (schoolPrisma as any).leaveApplication.findMany({
-      where: {
-        ...schoolFilter,
-        staffId: { in: teacherIds },
-        status: 'approved',
-        startDate: { lte: attendanceDate },
-        endDate: { gte: attendanceDate },
-      },
-      select: {
-        staffId: true,
-        leaveType: { select: { name: true, code: true } },
-        startDate: true,
-        endDate: true,
-      },
+  // Validate that no staff member has approved leave
+  const conflicts = records.filter(record => leaveMap.has(record.teacherId));
+  if (conflicts.length > 0) {
+    const conflictDetails = conflicts.map(conflict => {
+      const leave = leaveMap.get(conflict.teacherId);
+      return `Staff member has approved leave: ${leave.leaveType.name} (${leave.startDate} to ${leave.endDate})`;
     });
+    return NextResponse.json({ 
+      error: 'Cannot mark attendance for staff with approved leave', 
+      conflicts: conflictDetails 
+    }, { status: 409 });
+  }
 
-    // Create a map of approved leaves
-    const leaveMap = new Map<string, any>();
-    approvedLeaves.forEach((leave: any) => {
-      leaveMap.set(leave.staffId, leave);
-    });
+  const results = await Promise.all(
+    records.map(async (record: any) => {
+      const { teacherId, date, status, remarks, checkInAt, checkOutAt } = record;
 
-    // Validate that no staff member has approved leave
-    const conflicts = records.filter(record => leaveMap.has(record.teacherId));
-    if (conflicts.length > 0) {
-      const conflictDetails = conflicts.map(conflict => {
-        const leave = leaveMap.get(conflict.teacherId);
-        return `Staff member has approved leave: ${leave.leaveType.name} (${leave.startDate} to ${leave.endDate})`;
-      });
-      return NextResponse.json({ 
-        error: 'Cannot mark attendance for staff with approved leave', 
-        conflicts: conflictDetails 
-      }, { status: 409 });
-    }
+      if (!teacherId || !date || !status) {
+        throw new Error('teacherId, date, and status are required');
+      }
 
-    const results = await Promise.all(
-      records.map(async (record: any) => {
-        const { teacherId, date, status, remarks, checkInAt, checkOutAt } = record;
-
-        if (!teacherId || !date || !status) {
-          throw new Error('teacherId, date, and status are required');
-        }
-
-        // Create attendance session key
-        const attendanceSessionKey = [
-          ctx.schoolId || 'school',
-          'staff',
-          teacherId,
-          date,
-        ].join(':');
-
-        return (schoolPrisma as any).staffAttendanceRecord.upsert({
+      // Check if attendance is already locked (for non-super-admin edits)
+      if (!isSuperAdmin) {
+        const existingRecord = await (schoolPrisma as any).staffAttendanceRecord.findFirst({
           where: {
-            teacherId_attendanceDate: {
-              teacherId,
-              attendanceDate: parseAttendanceDate(date),
-            },
-          },
-          update: {
-            status,
-            remarks,
-            checkInAt: checkInAt ? new Date(checkInAt) : null,
-            checkOutAt: checkOutAt ? new Date(checkOutAt) : null,
-            markedBy: ctx.userId,
-            markedByRole: ctx.role,
-            attendanceSessionKey,
-            schoolId: ctx.schoolId || undefined,
-          },
-          create: {
             teacherId,
             attendanceDate: parseAttendanceDate(date),
-            status,
-            remarks,
-            checkInAt: checkInAt ? new Date(checkInAt) : null,
-            checkOutAt: checkOutAt ? new Date(checkOutAt) : null,
-            markedBy: ctx.userId,
-            markedByRole: ctx.role,
-            attendanceSessionKey,
-            schoolId: ctx.schoolId || undefined,
+            isLocked: true,
           },
         });
-      })
-    );
 
+        if (existingRecord) {
+          return {
+            success: false,
+            error: `Attendance for ${date} is locked and cannot be modified`,
+            teacherId,
+            date,
+          };
+        }
+      }
+
+      // Create attendance session key
+      const attendanceSessionKey = [
+        ctx.schoolId || 'school',
+        'staff',
+        teacherId,
+        date,
+      ].join(':');
+
+      const result = await (schoolPrisma as any).staffAttendanceRecord.upsert({
+        where: {
+          teacherId_attendanceDate: {
+            teacherId,
+            attendanceDate: parseAttendanceDate(date),
+          },
+        },
+        update: {
+          status,
+          remarks,
+          checkInAt: checkInAt ? new Date(checkInAt) : null,
+          checkOutAt: checkOutAt ? new Date(checkOutAt) : null,
+          markedBy: ctx.userId,
+          markedByRole: ctx.role,
+          attendanceSessionKey,
+          schoolId: ctx.schoolId || undefined,
+          isLocked: selfSubmit, // Lock attendance when staff submits it themselves
+          submittedAt: selfSubmit ? new Date() : undefined,
+        },
+        create: {
+          teacherId,
+          attendanceDate: parseAttendanceDate(date),
+          status,
+          remarks,
+          checkInAt: checkInAt ? new Date(checkInAt) : null,
+          checkOutAt: checkOutAt ? new Date(checkOutAt) : null,
+          markedBy: ctx.userId,
+          markedByRole: ctx.role,
+          attendanceSessionKey,
+          schoolId: ctx.schoolId || undefined,
+          isLocked: selfSubmit, // Lock attendance when staff submits it themselves
+          submittedAt: selfSubmit ? new Date() : undefined,
+        },
+      });
+
+      return {
+        success: true,
+        result,
+        teacherId,
+        date,
+        isLocked: selfSubmit,
+      };
+    })
+  );
+
+  // Check for any failed operations
+  const failures = results.filter(r => !r.success);
+  if (failures.length > 0) {
     return NextResponse.json({ 
-      success: true, 
-      message: `${results.length} staff attendance records saved`,
-      records: results 
-    });
+      error: 'Some operations failed', 
+      failures 
+    }, { status: 400 });
+  }
+
+  return NextResponse.json({ 
+    message: `Saved ${results.length} attendance records successfully`,
+    records: results,
+    lockedCount: results.filter(r => r.isLocked).length,
+  });
   } catch (error: any) {
     console.error('POST /api/staff-attendance:', error);
     return NextResponse.json({ 

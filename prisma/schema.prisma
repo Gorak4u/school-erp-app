@@ -892,6 +892,8 @@ model StaffAttendanceRecord {
   attendanceSessionKey String?
   markedBy         String?  // User ID who marked the attendance
   markedByRole     String?  // Role of the person who marked
+  isLocked         Boolean  @default(false) // Lock attendance after self-submission
+  submittedAt      DateTime? // When attendance was submitted by staff
   metadata         String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -901,6 +903,7 @@ model StaffAttendanceRecord {
   @@index([schoolId, teacherId, attendanceDate(sort: Desc)])
   @@index([schoolId, status, attendanceDate(sort: Desc)])
   @@index([attendanceSessionKey])
+  @@index([isLocked])
   @@schema("school")
 }
 

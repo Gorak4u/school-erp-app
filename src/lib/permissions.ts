@@ -21,6 +21,7 @@ export const ALL_PERMISSIONS = {
   MANAGE_ATTENDANCE: 'manage_attendance',
   VIEW_STAFF_ATTENDANCE: 'view_staff_attendance',
   MANAGE_STAFF_ATTENDANCE: 'manage_staff_attendance',
+  MANAGE_OWN_ATTENDANCE: 'manage_own_attendance',
 
   // Assignments
   VIEW_ASSIGNMENTS: 'view_assignments',
@@ -102,6 +103,8 @@ export const PERMISSION_LABELS: Record<string, string> = {
   view_attendance: 'View Attendance',
   manage_attendance: 'Manage Attendance',
   view_staff_attendance: 'View Staff Attendance',
+  manage_staff_attendance: 'Manage Staff Attendance',
+  manage_own_attendance: 'Submit Own Attendance',
   view_assignments: 'View Assignments',
   create_assignments: 'Create Assignments',
   grade_assignments: 'Grade Assignments',
@@ -159,7 +162,7 @@ export const PERMISSION_GROUPS = [
   },
   {
     label: 'Attendance',
-    permissions: ['view_attendance', 'manage_attendance', 'view_staff_attendance'] as Permission[],
+    permissions: ['view_attendance', 'manage_attendance', 'view_staff_attendance', 'manage_staff_attendance', 'manage_own_attendance'] as Permission[],
   },
   {
     label: 'Assignments',
@@ -207,7 +210,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_dashboard',
     'view_students',
     'view_teachers',
-    'view_attendance', 'manage_attendance', 'view_staff_attendance',
+    'view_attendance', 'manage_attendance', 'view_staff_attendance', 'manage_own_attendance',
     'view_assignments', 'create_assignments', 'grade_assignments', 'view_assignment_analytics',
     'view_exams',
     'view_fees',
@@ -237,6 +240,19 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_expenses',
     'view_reports',
     'view_announcements',
+  ],
+  staff: [
+    'view_dashboard',
+    'view_attendance', 'view_staff_attendance', 'manage_own_attendance',
+    'view_assignments',
+    'view_reports',
+    'view_announcements',
+    // Leave permissions for staff
+    'view_leave_balance',
+    'apply_leave',
+    'view_own_leave_history',
+    'cancel_own_leave',
+    'view_department_leave_calendar',
   ],
   student: [
     'view_dashboard',
@@ -719,4 +735,12 @@ export function canManageStaffAttendanceAccess(input: {
       ALL_PERMISSIONS.MANAGE_STAFF_ATTENDANCE,
       ALL_PERMISSIONS.MANAGE_ATTENDANCE,
     ]);
+}
+
+export function canManageOwnAttendanceAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_OWN_ATTENDANCE);
 }

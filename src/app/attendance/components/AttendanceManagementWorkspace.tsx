@@ -8,7 +8,10 @@ import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { usePermissions } from '@/hooks/usePermissions';
 import { attendanceApi, studentsApi } from '@/lib/apiClient';
 import { showErrorToast, showSuccessToast } from '@/lib/toastUtils';
+import { canManageOwnAttendanceAccess } from '@/lib/permissions';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
+import StaffSelfAttendance from '@/components/attendance/StaffSelfAttendance';
+import StaffSelfCalendar from '@/components/attendance/StaffSelfCalendar';
 
 const TODAY = new Date().toISOString().split('T')[0];
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -16,12 +19,17 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 export default function AttendanceManagementWorkspace() {
   const { theme } = useTheme();
   const { dropdowns, activeAcademicYear } = useSchoolConfig();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, permissions } = usePermissions();
   const isDark = theme === 'dark';
+  
   const canManageAttendance = hasPermission('manage_attendance');
-  const canManageStaffAttendance = hasPermission('manage_staff_attendance') || canManageAttendance;
+  const canManageStaffAttendance = hasPermission('manage_staff_attendance'); // Only admins/super admins
+  const canManageOwnAttendance = canManageOwnAttendanceAccess({ role: null, isSuperAdmin: false, permissions });
   const canViewStaff = hasPermission('view_staff_attendance') || canManageAttendance;
-  const [activeTab, setActiveTab] = useState<'students' | 'staff' | 'student-history' | 'staff-history' | 'student-calendar' | 'staff-calendar'>('students');
+  
+  // Users who can submit their own attendance (teachers and staff, but not admins)
+  const canSubmitOwnAttendance = canManageOwnAttendance && !canManageStaffAttendance;
+  const [activeTab, setActiveTab] = useState<'students' | 'staff' | 'student-history' | 'staff-history' | 'student-calendar' | 'staff-calendar' | 'my-calendar'>('students');
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showStaffMarkModal, setShowStaffMarkModal] = useState(false);
   const [markClass, setMarkClass] = useState('');
@@ -56,6 +64,7 @@ export default function AttendanceManagementWorkspace() {
     markAllLate: false,
   });
   const [studentSearch, setStudentSearch] = useState(''); // For searching within loaded students
+  const [showStaffSelfAttendance, setShowStaffSelfAttendance] = useState(false);
 
   // Handle URL parameters for direct navigation
   useEffect(() => {
@@ -448,13 +457,16 @@ export default function AttendanceManagementWorkspace() {
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 Attendance Management • {activeAcademicYear?.name || 'School operations hub'}
               </div>
-              <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Student and staff attendance in one premium workspace</h1>
-              <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Track live student attendance, mark classes quickly, and monitor leave-aware staff capacity without a blocking page loader.</p>
+              <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Attendance Management</h1>
+              <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Track student and staff attendance with real-time updates and leave management.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full xl:w-auto">
               <button className={btnPrimary} onClick={() => setShowMarkModal(true)} disabled={!canManageAttendance}>Quick mark</button>
               {canManageStaffAttendance && (
                 <button className={btnPrimary} onClick={() => setShowStaffMarkModal(true)}>Quick mark staff</button>
+              )}
+              {canSubmitOwnAttendance && (
+                <button className={btnPrimary} onClick={() => setShowStaffSelfAttendance(true)}>📝 Submit My Attendance</button>
               )}
               <button className={btnSecondary} onClick={() => setActiveTab(activeTab === 'students' ? 'staff' : 'students')} disabled={!canViewStaff && activeTab === 'students'}>{activeTab === 'students' ? 'Staff ops' : 'Student grid'}</button>
             </div>
@@ -483,6 +495,7 @@ export default function AttendanceManagementWorkspace() {
           {canViewStaff && <button onClick={() => setActiveTab('staff-history')} className={activeTab === 'staff-history' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 px-4 py-2.5 rounded-xl text-sm font-medium' : btnSecondary}>Staff History</button>}
           <button onClick={() => setActiveTab('student-calendar')} className={activeTab === 'student-calendar' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 px-4 py-2.5 rounded-xl text-sm font-medium' : btnSecondary}>Student Calendar</button>
           {canViewStaff && <button onClick={() => setActiveTab('staff-calendar')} className={activeTab === 'staff-calendar' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 px-4 py-2.5 rounded-xl text-sm font-medium' : btnSecondary}>Staff Calendar</button>}
+          {canManageOwnAttendance && <button onClick={() => setActiveTab('my-calendar')} className={activeTab === 'my-calendar' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 px-4 py-2.5 rounded-xl text-sm font-medium' : btnSecondary}>📅 My Calendar</button>}
         </div>
 
         {activeTab === 'students' && (
@@ -1022,7 +1035,32 @@ export default function AttendanceManagementWorkspace() {
             />
           </div>
         )}
+
+        {/* Staff Self Calendar View */}
+        {activeTab === 'my-calendar' && (
+          <div className={`${card} p-6`}>
+            <StaffSelfCalendar theme={theme} />
+          </div>
+        )}
       </div>
+
+      {/* Staff Self Attendance Modal */}
+      {showStaffSelfAttendance && (
+        <StaffSelfAttendance
+          theme={theme}
+          onClose={() => setShowStaffSelfAttendance(false)}
+          onSuccess={() => {
+            showSuccessToast('Attendance submitted successfully', 'Your attendance has been locked.');
+            // Refresh staff data if on staff tab
+            if (activeTab === 'staff') {
+              // Trigger a refresh by changing tab temporarily
+              const currentTab = activeTab;
+              setActiveTab('students');
+              setTimeout(() => setActiveTab(currentTab), 100);
+            }
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
