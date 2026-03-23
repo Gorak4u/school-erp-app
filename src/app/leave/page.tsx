@@ -105,7 +105,7 @@ export default function LeavePage() {
   const { hasPermission } = usePermissions();
   const isDark = theme === 'dark';
   
-  const [loading, setLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -184,7 +184,7 @@ export default function LeavePage() {
   }, [activeTab, selectedAcademicYear]);
 
   const fetchDashboardData = async () => {
-    setLoading(true);
+    setDashboardLoading(true);
     try {
       await Promise.all([
         fetchAcademicYears(),
@@ -195,7 +195,7 @@ export default function LeavePage() {
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
     }
   };
 
@@ -485,19 +485,6 @@ export default function LeavePage() {
   const historyApprovedCount = leaveHistory.filter((application) => application.status === 'approved').length;
   const historyRejectedCount = leaveHistory.filter((application) => application.status === 'rejected').length;
 
-  if (loading) {
-    return (
-      <AppLayout currentPage="leave" title="Leave Management" theme={theme}>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Loading leave data...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout currentPage="leave" title="Leave Management" theme={theme}>
       <div className="relative min-h-screen overflow-hidden p-4 md:p-6">
@@ -649,7 +636,27 @@ export default function LeavePage() {
               {/* Leave Balance Summary */}
               {canViewBalance && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                  <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
+                  {dashboardLoading ? (
+                    // Skeleton cards
+                    [1,2,3,4].map((i) => (
+                      <div key={i} className={`group relative overflow-hidden ${card} animate-pulse`}>
+                        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gray-400 via-gray-500 to-gray-400" />
+                        <div className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className={`h-3 w-24 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                              <div className={`mt-3 h-8 w-16 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                              <div className={`mt-2 h-3 w-32 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                            </div>
+                            <div className={`w-12 h-12 rounded-2xl ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    // Actual cards
+                    <>
+                    <div className={`group relative overflow-hidden ${card} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl`}>
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400" />
                     <div className="p-6">
                       <div className="flex items-start justify-between gap-4">
@@ -725,6 +732,8 @@ export default function LeavePage() {
                       </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </div>
               )}
 
