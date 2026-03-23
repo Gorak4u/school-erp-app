@@ -82,6 +82,28 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
 
   useEffect(() => { load(); }, []);
 
+  const updateTeacherRole = async () => {
+    try {
+      const response = await fetch('/api/roles/seed-defaults', { method: 'POST' });
+      if (response.ok) {
+        const result = await response.json();
+        const teacherResult = result.results?.find((r: any) => r.name === 'Teacher');
+        if (teacherResult) {
+          showSuccessToast('Success', `Teacher role updated (${teacherResult.status})`);
+        } else {
+          showSuccessToast('Success', 'Roles re-seeded with latest permissions');
+        }
+        load(); // Reload roles to show updated permissions
+      } else {
+        const errorData = await response.json();
+        showErrorToast('Error', errorData.error || 'Failed to update teacher role');
+      }
+    } catch (error) {
+      console.error('Failed to update teacher role:', error);
+      showErrorToast('Error', 'An error occurred while updating teacher role');
+    }
+  };
+
   const addRoleRow = () => {
     const id = 'new_' + Date.now();
     setRoleDrafts(prev => ({

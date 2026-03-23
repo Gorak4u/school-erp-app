@@ -20,7 +20,19 @@ export async function POST() {
       });
 
       if (existing) {
-        results.push({ name: roleTemplate.name, status: 'already_exists', id: existing.id });
+        // For Teacher role, always update to latest permissions
+        if (roleTemplate.name === 'Teacher') {
+          const updated = await (schoolPrisma as any).CustomRole.update({
+            where: { id: existing.id },
+            data: {
+              permissions: JSON.stringify(roleTemplate.permissions),
+              updatedAt: new Date(),
+            },
+          });
+          results.push({ name: roleTemplate.name, status: 'updated', id: updated.id });
+        } else {
+          results.push({ name: roleTemplate.name, status: 'already_exists', id: existing.id });
+        }
         continue;
       }
 

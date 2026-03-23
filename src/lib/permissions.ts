@@ -189,17 +189,26 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
   teacher: [
     'view_dashboard',
     'view_students',
+    'view_teachers',
     'view_attendance', 'manage_attendance',
     'view_exams',
     'view_fees',
-    'view_expenses',
     'view_reports',
     'view_announcements',
+    // Leave permissions for teachers
+    'view_leave_balance',
+    'apply_leave',
+    'view_own_leave_history',
+    'cancel_own_leave',
+    'view_department_leave_calendar',
     // Note: NO view_admin_dashboard (financial KPIs hidden)
     // Note: NO view_alumni (alumni page hidden)
     // Note: NO create/edit/delete/promote_students (read-only)
     // Note: NO manage_fees (view-only on fees page)
-    // Note: NO create/edit/delete/approve/pay expenses (view-only on expenses page)
+    // Note: NO view_expenses (financial data hidden from teachers)
+    // Note: NO create/edit/delete/approve/pay expenses (teachers cannot access expenses)
+    // Note: NO approve_leave permissions (teachers cannot approve others' leave)
+    // Note: NO manage_leave_settings/types (admin only)
   ],
   parent: [
     'view_dashboard',
