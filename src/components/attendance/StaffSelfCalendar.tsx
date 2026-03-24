@@ -14,6 +14,25 @@ export default function StaffSelfCalendar({ theme }: StaffSelfCalendarProps) {
   const { theme: contextTheme } = useTheme();
   const isDark = (theme === 'dark') || (contextTheme === 'dark');
   
+  // Check if user is a school admin - they don't have staff profiles
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.isSuperAdmin;
+  
+  if (isAdmin) {
+    return (
+      <div className="text-center py-8">
+        <div className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Admin Calendar View
+        </div>
+        <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          As a school administrator, you can view staff calendars using the "Staff Calendar" tab above.
+        </p>
+        <p className={`mt-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          This personal calendar is designed for teachers and staff members.
+        </p>
+      </div>
+    );
+  }
+  
   const [staffInfo, setStaffInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -109,11 +109,12 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Optimized query with cursor-based pagination
+    // Traditional pagination query
     const queryOptions: any = {
       where,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-      take: pageSize + 1, // Fetch one extra to check if there are more records
+      take: pageSize,
+      skip: (page - 1) * pageSize,
       include: {
         teacher: {
           select: {
@@ -126,12 +127,6 @@ export async function GET(request: NextRequest) {
         _count: { select: { submissions: true } },
       },
     };
-
-    // Add cursor if provided
-    if (cursor) {
-      queryOptions.cursor = { id: cursor };
-      queryOptions.skip = 1; // Skip the cursor item
-    }
 
     const [assignments, total, activeAssignments, gradedAssignments, overdueAssignments, dueSoonAssignments, submissionCount, pendingReviewCount] = await Promise.all([
       (schoolPrisma as any).assignment.findMany(queryOptions),
@@ -154,12 +149,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Check if there are more records
-    const hasMore = assignments.length > pageSize;
-    const actualAssignments = hasMore ? assignments.slice(0, -1) : assignments;
-    const nextCursor = hasMore ? actualAssignments[actualAssignments.length - 1].id : null;
+    const totalPages = Math.ceil(total / pageSize);
+    const hasNextPage = page < totalPages;
+    const hasPreviousPage = page > 1;
 
     const enriched = await Promise.all(
-      actualAssignments.map(async (assignment: any) => {
+      assignments.map(async (assignment: any) => {
         const [submitted, graded, pending, classInfo] = await Promise.all([
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'submitted' } }),
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'graded' } }),
@@ -202,11 +197,12 @@ export async function GET(request: NextRequest) {
       total,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      totalPages,
       pagination: {
-        hasMore,
-        nextCursor,
-        cursor,
+        hasNextPage,
+        hasPreviousPage,
+        currentPage: page,
+        totalPages,
       },
       summary: {
         totalAssignments: total,

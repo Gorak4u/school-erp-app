@@ -77,6 +77,11 @@ export default function AssignmentsWorkspace() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Traditional pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
@@ -84,54 +89,39 @@ export default function AssignmentsWorkspace() {
   const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}`;
   const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
 
-  const loadAssignments = async (reset = true) => {
+  const loadAssignments = async (page = 1) => {
     try {
-      if (reset) {
-        setLoading(true);
-        setCursor(null);
-        setHasMore(true);
-      } else {
-        setIsLoadingMore(true);
-      }
+      setLoading(true);
       
       const query = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) query.set(key, value);
       });
       
-      // Add cursor for pagination
-      if (cursor && !reset) {
-        query.set('cursor', cursor);
-      }
+      // Use traditional pagination
+      query.set('page', page.toString());
+      query.set('pageSize', pageSize.toString());
       
-      query.set('pageSize', '12');
       const response = await fetch(`/api/assignments?${query.toString()}`, { credentials: 'include' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to fetch assignments');
       
-      if (reset) {
-        setAssignments(data.assignments || []);
-      } else {
-        setAssignments(prev => [...prev, ...(data.assignments || [])]);
-      }
-      
+      setAssignments(data.assignments || []);
       setSummary(data.summary || null);
+      setTotalRecords(data.total || 0);
+      setCurrentPage(page);
       setHasMore(data.pagination?.hasMore || false);
-      if (data.pagination?.nextCursor) {
-        setCursor(data.pagination.nextCursor);
-      }
     } catch (e: any) {
       console.error('Failed to load assignments:', e);
       showErrorToast('Error loading assignments', e.message);
     } finally {
       setLoading(false);
-      setIsLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    loadAssignments();
-  }, [filters.status, filters.classId, filters.teacherId, filters.search, filters.mediumId, filters.dueDateFrom, filters.dueDateTo, filters.createdFrom, filters.createdTo]);
+    loadAssignments(1);
+  }, [filters.status, filters.classId, filters.teacherId, filters.search, filters.mediumId, filters.dueDateFrom, filters.dueDateTo, filters.createdFrom, filters.createdTo, pageSize]);
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -313,16 +303,88 @@ export default function AssignmentsWorkspace() {
           </div>
         </div>
 
-        {/* Load More Button */}
-        {!loading && hasMore && assignments.length > 0 && (
-          <div className="text-center py-4">
-            <button
-              onClick={() => loadAssignments(false)}
-              disabled={isLoadingMore}
-              className={`${btnPrimary} ${isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isLoadingMore ? 'Loading...' : 'Load More'}
-            </button>
+        {/* Pagination Controls */}
+        {!loading && totalRecords > 0 && (
+          <div className={`${card} p-4`}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className={`px-3 py-1 rounded-lg border text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                >
+                  <option value={12}>12</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>per page</span>
+              </div>
+
+              {/* Page Navigation */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadAssignments(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                    currentPage <= 1
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, Math.ceil(totalRecords / pageSize)) }, (_, i) => {
+                    const totalPages = Math.ceil(totalRecords / pageSize);
+                    let pageNum;
+                    
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => loadAssignments(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
+                          pageNum === currentPage
+                            ? isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                            : isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => loadAssignments(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalRecords / pageSize)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                    currentPage >= Math.ceil(totalRecords / pageSize)
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+
+              {/* Results Info */}
+              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Showing {Math.min((currentPage - 1) * pageSize + 1, totalRecords)}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} results
+              </div>
+            </div>
           </div>
         )}
 

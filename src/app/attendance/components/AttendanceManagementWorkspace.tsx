@@ -26,9 +26,10 @@ export default function AttendanceManagementWorkspace() {
   const canManageStaffAttendance = hasPermission('manage_staff_attendance'); // Only admins/super admins
   const canManageOwnAttendance = canManageOwnAttendanceAccess({ role: null, isSuperAdmin: false, permissions });
   const canViewStaff = hasPermission('view_staff_attendance') || canManageAttendance;
+  const isAdmin = hasPermission('manage_staff_attendance') || hasPermission('manage_attendance');
   
   // Users who can submit their own attendance (teachers and staff, but not admins)
-  const canSubmitOwnAttendance = canManageOwnAttendance && !canManageStaffAttendance;
+  const canSubmitOwnAttendance = canManageOwnAttendance && !canManageStaffAttendance && !isAdmin;
   const [activeTab, setActiveTab] = useState<'students' | 'staff' | 'student-history' | 'staff-history' | 'student-calendar' | 'staff-calendar' | 'my-calendar'>('students');
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showStaffMarkModal, setShowStaffMarkModal] = useState(false);
