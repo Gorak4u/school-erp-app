@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export function getCronAuthorizationHeader() {
+  return `Bearer ${process.env.CRON_SECRET || ''}`;
+}
+
+export function isCronAuthorizationHeaderValid(authHeader: string | null) {
+  return authHeader === getCronAuthorizationHeader();
+}
+
 export function isCronAuthorized(request: NextRequest) {
-  return request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  return isCronAuthorizationHeaderValid(request.headers.get('authorization'));
 }
 
 export function cronUnauthorizedResponse() {

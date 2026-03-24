@@ -8,6 +8,7 @@ import {
   setJobSchedule,
   initializeCronScheduler,
 } from '@/lib/cronScheduler';
+import { isCronAuthorizationHeaderValid } from '@/lib/cron/route-helpers';
 
 /**
  * Unified Cron Management API
@@ -21,7 +22,7 @@ import {
 
 async function auth(request: NextRequest): Promise<boolean> {
   // Machine-to-machine: CRON_SECRET bearer token
-  if (request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`) {
+  if (isCronAuthorizationHeaderValid(request.headers.get('authorization'))) {
     return true;
   }
   // Admin UI: super-admin NextAuth session

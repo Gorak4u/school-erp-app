@@ -13,11 +13,23 @@ import { saasPrisma } from './prisma';
  */
 
 const TZ = 'Asia/Kolkata';
-const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const CRON_SECRET = process.env.CRON_SECRET || '';
+const cronGlobals = globalThis as typeof globalThis & {
+  __cronSchedulerInitialized?: boolean;
+  __cronSchedulerInitPromise?: Promise<boolean> | null;
+};
 
 // Active node-cron task handles
 const activeTasks = new Map<string, ScheduledTask>();
+
+// Derive the server's actual listening URL for internal dispatch
+function getInternalBaseUrl() {
+  const port = process.env.PORT || 3000;
+  const host = process.env.NODE_ENV === 'production'
+    ? process.env.NEXTAUTH_URL?.replace(/^https?:\/\//, '').split('/')[0] || 'localhost'
+    : 'localhost';
+  return `http://${host}:${port}`;
+}
 
 // ─── Default Job Definitions ────────────────────────────────────────────────
 
@@ -163,7 +175,7 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
   let message = '';
 
   try {
-    const url = `${BASE_URL}/api/cron/${jobName}`;
+    const url = `${getInternalBaseUrl()}/api/cron/${jobName}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -312,10 +324,18 @@ export async function getCronStatus() {
     orderBy: [{ scope: 'asc' }, { category: 'asc' }, { jobName: 'asc' }],
   });
 
-  const recentRuns = await db().cronJobRun.findMany({
-    orderBy: { startedAt: 'desc' },
-    take: 50,
-  });
+  const [recentRuns, runningRuns] = await Promise.all([
+    db().cronJobRun.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: 50,
+    }),
+    db().cronJobRun.findMany({
+      where: { status: 'running', finishedAt: null },
+      select: { jobName: true },
+    }),
+  ]);
+
+  const runningJobNames = new Set(runningRuns.map((run: { jobName: string }) => run.jobName));
 
   return {
     jobs: configs.map((c: any) => {
@@ -325,7 +345,7 @@ export async function getCronStatus() {
         scope: meta?.scope || c.scope,
         category: meta?.category || c.category,
         description: meta?.description || c.description,
-        running: activeTasks.has(c.jobName),
+        running: runningJobNames.has(c.jobName),
       };
     }),
     recentRuns,
@@ -337,8 +357,24 @@ export async function getCronStatus() {
 
 let initialized = false;
 export function ensureInitialized() {
-  if (!initialized && process.env.NODE_ENV === 'production') {
-    initialized = true;
-    initializeCronScheduler();
+  if (initialized || cronGlobals.__cronSchedulerInitialized) {
+    return;
   }
+
+  initialized = true;
+  cronGlobals.__cronSchedulerInitialized = true;
+  cronGlobals.__cronSchedulerInitPromise = initializeCronScheduler()
+    .then((ready) => {
+      if (!ready) {
+        initialized = false;
+        cronGlobals.__cronSchedulerInitialized = false;
+      }
+      return ready;
+    })
+    .catch((error) => {
+      initialized = false;
+      cronGlobals.__cronSchedulerInitialized = false;
+      console.error('[Cron] Failed to auto-initialize scheduler in server process:', error);
+      return false;
+    });
 }
