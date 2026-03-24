@@ -6,6 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ALL_PERMISSIONS } from '@/lib/permissions';
+import { showSuccess, showError, showWarning, showInfo } from '@/components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Plus, Search, Filter, Eye, Edit, Ban, Trash2, 
@@ -99,16 +100,18 @@ export default function FinesPage() {
       }
 
       setFines(data.fines || []);
+      const paginationData = data.pagination || {};
+      console.log('Fines pagination data:', paginationData);
       setPagination(prev => ({
         ...prev,
-        total: data.pagination?.total || 0,
-        totalPages: data.pagination?.totalPages || 0,
-        hasNext: data.pagination?.hasNext || false,
-        hasPrev: data.pagination?.hasPrev || false,
+        total: paginationData.total || 0,
+        totalPages: paginationData.totalPages || 0,
+        hasNext: paginationData.hasNext || false,
+        hasPrev: paginationData.hasPrev || false,
       }));
     } catch (error) {
       console.error('Error fetching fines:', error);
-      alert('Failed to fetch fines');
+      showError('Data Load Failed', 'Failed to fetch fines');
     } finally {
       setLoading(false);
     }
@@ -136,16 +139,18 @@ export default function FinesPage() {
 
       setWaiverRequests(data.waiverRequests || []);
       setPendingWaiverCount(data.pendingCount || 0);
+      const paginationData = data.pagination || {};
+      console.log('Waiver requests pagination data:', paginationData);
       setPagination(prev => ({
         ...prev,
-        total: data.pagination?.total || 0,
-        totalPages: data.pagination?.totalPages || 0,
-        hasNext: data.pagination?.hasNext || false,
-        hasPrev: data.pagination?.hasPrev || false,
+        total: paginationData.total || 0,
+        totalPages: paginationData.totalPages || 0,
+        hasNext: paginationData.hasNext || false,
+        hasPrev: paginationData.hasPrev || false,
       }));
     } catch (error) {
       console.error('Error fetching waiver requests:', error);
-      alert('Failed to fetch waiver requests');
+      showError('Data Load Failed', 'Failed to fetch waiver requests');
     } finally {
       setLoading(false);
     }
@@ -206,7 +211,7 @@ export default function FinesPage() {
     e.preventDefault();
     
     if (!createForm.studentId || !createForm.amount || !createForm.description) {
-      alert('Please fill in all required fields');
+      showError('Validation Error', 'Please fill in all required fields');
       return;
     }
 
@@ -249,10 +254,10 @@ export default function FinesPage() {
       // Refresh fines list
       fetchFines();
       
-      alert('Fine created successfully!');
+      showSuccess('Fine Created', 'Fine has been created successfully');
     } catch (error: any) {
       console.error('Error creating fine:', error);
-      alert(error.message || 'Failed to create fine');
+      showError('Creation Failed', error.message || 'Failed to create fine');
     } finally {
       setCreateLoading(false);
     }
@@ -281,13 +286,13 @@ export default function FinesPage() {
     e.preventDefault();
     
     if (!waiverForm.waiveAmount || !waiverForm.reason) {
-      alert('Please fill in all required fields');
+      showError('Validation Error', 'Please fill in all required fields');
       return;
     }
 
     const waiveAmount = parseFloat(waiverForm.waiveAmount);
     if (waiveAmount <= 0 || waiveAmount > selectedFineForWaiver.pendingAmount) {
-      alert(`Waiver amount must be between ₹1 and ₹${selectedFineForWaiver.pendingAmount}`);
+      showError('Invalid Amount', `Waiver amount must be between ₹1 and ₹${selectedFineForWaiver.pendingAmount}`);
       return;
     }
 
@@ -324,10 +329,10 @@ export default function FinesPage() {
       // Refresh fines list
       fetchFines();
       
-      alert('Waiver request submitted successfully!');
+      showSuccess('Waiver Request Submitted', 'Your waiver request has been submitted successfully');
     } catch (error: any) {
       console.error('Error submitting waiver request:', error);
-      alert(error.message || 'Failed to submit waiver request');
+      showError('Submission Failed', error.message || 'Failed to submit waiver request');
     } finally {
       setWaiverLoading(false);
     }
@@ -347,10 +352,10 @@ export default function FinesPage() {
       }
       
       fetchFines();
-      alert('Fine deleted successfully!');
+      showSuccess('Fine Deleted', 'Fine has been deleted successfully');
     } catch (error) {
       console.error('Error deleting fine:', error);
-      alert('Failed to delete fine');
+      showError('Deletion Failed', 'Failed to delete fine');
     }
   };
 
@@ -368,10 +373,10 @@ export default function FinesPage() {
       }
       
       fetchWaiverRequests();
-      alert('Waiver request approved!');
+      showSuccess('Waiver Approved', 'Waiver request has been approved successfully');
     } catch (error) {
       console.error('Error approving waiver:', error);
-      alert('Failed to approve waiver request');
+      showError('Approval Failed', 'Failed to approve waiver request');
     }
   };
 
@@ -392,10 +397,10 @@ export default function FinesPage() {
       }
       
       fetchWaiverRequests();
-      alert('Waiver request rejected!');
+      showSuccess('Waiver Rejected', 'Waiver request has been rejected successfully');
     } catch (error) {
       console.error('Error rejecting waiver:', error);
-      alert('Failed to reject waiver request');
+      showError('Rejection Failed', 'Failed to reject waiver request');
     }
   };
 
@@ -442,17 +447,13 @@ export default function FinesPage() {
               <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fines Management</h1>
               <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Manage student fines, payments, and waiver requests with automated tracking.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3 w-full xl:w-auto">
+            <div className="grid grid-cols-1 gap-3 w-full xl:w-auto">
               {canManageFines && (
                 <button className={btnPrimary} onClick={handleCreateFine}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Fine
                 </button>
               )}
-              <button className={btnSecondary}>
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-              </button>
             </div>
           </div>
         </div>
@@ -813,29 +814,35 @@ export default function FinesPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className={`${card} p-4 mt-4`}>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing {((pagination.page - 1) * pagination.pageSize) + 1} to{' '}
-                  {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
-                  {pagination.total.toLocaleString()} {activeTab === 'fines' ? 'fines' : 'requests'}
+        {/* Pagination - Always show page info and size selector */}
+        <div className={`${card} p-4 mt-4`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Showing {((pagination.page - 1) * pagination.pageSize) + 1} to{' '}
+                {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
+                {pagination.total.toLocaleString()} {activeTab === 'fines' ? 'fines' : 'requests'}
+              </span>
+              {pagination.totalPages <= 1 && (
+                <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  (Page {pagination.page} of {pagination.totalPages})
                 </span>
-              </div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <select
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className={`${input} w-auto`}
+              >
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
               
-              <div className="flex items-center gap-2">
-                <select
-                  value={pagination.pageSize}
-                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  className={`${input} w-auto`}
-                >
-                  <option value={25}>25 per page</option>
-                  <option value={50}>50 per page</option>
-                  <option value={100}>100 per page</option>
-                </select>
-                
+              {pagination.totalPages > 1 && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
@@ -865,10 +872,10 @@ export default function FinesPage() {
                     Next
                   </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Create Fine Modal */}
