@@ -169,6 +169,93 @@ export async function sendEmail({
 
 // School-level email sender (uses school's own SMTP)
 // Used for: fee receipts, school notifications, admissions, reminders
+// Wrap email content with school branding
+export async function wrapEmailWithBranding(html: string, schoolId?: string): Promise<string> {
+  try {
+    // Get school information for branding
+    let schoolName = 'School ERP';
+    let schoolLogo = '';
+    let schoolAddress = '';
+    let schoolPhone = '';
+    let schoolEmail = '';
+
+    if (schoolId) {
+      try {
+        logger.debug('Fetching school info for email branding', { schoolId });
+        const school = await (saasPrisma as any).school.findUnique({
+          where: { id: schoolId },
+          select: { name: true, logo: true, address: true, phone: true, email: true }
+        });
+        
+        logger.debug('School info fetched', { school: school || 'null' });
+        
+        if (school) {
+          schoolName = school.name;
+          schoolLogo = school.logo || '';
+          schoolAddress = school.address || '';
+          schoolPhone = school.phone || '';
+          schoolEmail = school.email || '';
+          logger.info('School branding applied', { schoolName, schoolId });
+        } else {
+          logger.warn('School not found for branding', { schoolId });
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch school info for email branding', { error, schoolId });
+      }
+    } else {
+      logger.debug('No schoolId provided for email branding');
+    }
+
+    // Create branded email template
+    const brandedHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${schoolName}</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #1e3a5f, #2563eb); padding: 32px; text-align: center;">
+            ${schoolLogo ? `<img src="${schoolLogo}" alt="${schoolName}" style="max-height: 60px; margin-bottom: 16px;">` : ''}
+            <h1 style="color: white; margin: 0; font-size: 24px;">${schoolName}</h1>
+            <p style="color: #93c5fd; margin: 8px 0 0;">School Management System</p>
+          </div>
+          
+          <!-- Content -->
+          <div style="padding: 32px; background-color: #ffffff;">
+            ${html}
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #1e293b; padding: 32px; text-align: center;">
+            <p style="color: #94a3b8; margin: 0 0 16px; font-size: 14px;">
+              ${schoolAddress ? `${schoolAddress}<br/>` : ''}
+              ${schoolPhone ? `📞 ${schoolPhone}<br/>` : ''}
+              ${schoolEmail ? `✉️ ${schoolEmail}` : ''}
+            </p>
+            <p style="color: #64748b; margin: 16px 0 0; font-size: 12px;">
+              © ${new Date().getFullYear()} ${schoolName}. All rights reserved.
+            </p>
+            <p style="color: #64748b; margin: 8px 0 0; font-size: 11px;">
+              This is an automated message. Please do not reply to this email.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return brandedHtml;
+  } catch (error) {
+    logger.error('Failed to wrap email with branding', { error, schoolId });
+    // Return original HTML if branding fails
+    return html;
+  }
+}
+
 export async function sendSchoolEmail({
   to,
   subject,
@@ -198,6 +285,9 @@ export async function sendSchoolEmail({
     });
     return { success: true, skipped: true, reason: 'Email notifications disabled' };
   }
+  
+  // Apply school branding to the email
+  const brandedHtml = await wrapEmailWithBranding(html, schoolId);
   
   const smtp = await getSchoolSmtpConfig(schoolId);
   logger.debug('School SMTP config retrieved', {
@@ -260,7 +350,7 @@ export async function sendSchoolEmail({
       from: `"${fromName}" <${finalFrom}>`,
       to,
       subject,
-      html,
+      html: brandedHtml,
       attachments,
     });
     return { success: true };

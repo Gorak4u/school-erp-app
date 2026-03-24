@@ -151,8 +151,37 @@ export async function queueCommunicationOutbox(input: {
 
   if (email) {
     let emailPersistedToOutbox = false;
+    const emailDedupeKey = email.dedupeKey || buildFallbackDedupeKey(['email', email.to, email.subject]);
+    let shouldSkipEmail = false;
 
+    // Check for existing email with same dedupeKey
     try {
+      const existingEmail = await (schoolPrisma as any).communicationOutbox.findFirst({
+        where: {
+          channel: 'email',
+          dedupeKey: emailDedupeKey,
+        },
+        select: { id: true },
+      });
+
+      if (existingEmail?.id) {
+        shouldSkipEmail = true;
+        logger.info('Skipping duplicate email outbox item', {
+          to: email.to,
+          subject: email.subject,
+          dedupeKey: emailDedupeKey,
+        });
+      }
+    } catch (error) {
+      logger.warn('Email dedupe precheck skipped', {
+        error,
+        to: email.to,
+        subject: email.subject,
+      });
+    }
+
+    if (!shouldSkipEmail) {
+      try {
       await (schoolPrisma as any).communicationOutbox.create({
         data: {
           schoolId: email.schoolId || null,
@@ -166,7 +195,7 @@ export async function queueCommunicationOutbox(input: {
             html: email.html,
             attachments: email.attachments || [],
           }),
-          dedupeKey: email.dedupeKey || buildFallbackDedupeKey(['email', email.to, email.subject]),
+          dedupeKey: emailDedupeKey,
           status: 'pending',
           attemptCount: 0,
           nextAttemptAt: email.scheduledAt || new Date(),
@@ -179,6 +208,7 @@ export async function queueCommunicationOutbox(input: {
         to: email.to,
         subject: email.subject,
       });
+    }
     }
 
     if (!emailPersistedToOutbox) {

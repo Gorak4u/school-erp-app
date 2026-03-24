@@ -6,18 +6,28 @@ import { ctxSchoolWhere, getActiveAcademicYearForSchool } from '@/lib/schoolScop
 // Single endpoint that returns ALL school configuration data
 // Used by SchoolConfigContext to populate dropdowns across the entire app
 export async function GET() {
-  const { ctx, error } = await getSessionContext();
-  if (error) return error;
-
   try {
+    const { ctx, error } = await getSessionContext();
+    if (error) return error;
+
+    console.log('[API] School config: Session context loaded', { 
+      schoolId: ctx.schoolId, 
+      isSuperAdmin: ctx.isSuperAdmin,
+      role: ctx.role 
+    });
+
     const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
+    console.log('[API] School config: Using school filter', schoolFilter);
 
     const academicYears = await schoolPrisma.academicYear.findMany({
       where: schoolFilter,
       orderBy: [{ isActive: 'desc' }, { year: 'desc' }]
     });
+    console.log('[API] School config: Found', academicYears.length, 'academic years');
+    
     const activeAcademicYear = await getActiveAcademicYearForSchool(ctx.schoolId, schoolPrisma) || academicYears[0] || null;
     const activeAYId = activeAcademicYear?.id;
+    console.log('[API] School config: Active academic year', activeAcademicYear?.id);
 
     const [
       boards,
@@ -59,6 +69,15 @@ export async function GET() {
       schoolPrisma.schoolSetting.findMany({ where: schoolFilter }),
     ]);
 
+    console.log('[API] School config: Data loaded', {
+      boards: boards.length,
+      mediums: mediums.length,
+      classes: classes.length,
+      sections: sections.length,
+      timings: timings.length,
+      settings: settingsRaw.length
+    });
+
     const settings: Record<string, Record<string, string>> = {};
     for (const s of settingsRaw) {
       if (!settings[s.group]) settings[s.group] = {};
@@ -94,7 +113,7 @@ export async function GET() {
       classCodes: [...new Set(classes.map((c: any) => c.code))],
     };
 
-    return NextResponse.json({
+    const response = {
       academicYears,
       activeAcademicYear,
       boards,
@@ -104,11 +123,47 @@ export async function GET() {
       timings,
       settings,
       dropdowns,
-    });
+    };
+
+    console.log('[API] School config: Response prepared successfully');
+    return NextResponse.json(response);
+    
   } catch (error: any) {
-    console.error('Error fetching school config:', error);
+    console.error('[API] School config error:', error);
+    console.error('[API] School config error stack:', error.stack);
+    
+    // Check if it's a database connection error
+    if (error.code === 'P1001' || error.message.includes('database') || error.message.includes('connection')) {
+      console.error('[API] Database connection error detected');
+      return NextResponse.json(
+        { 
+          error: 'Database connection failed', 
+          details: 'Unable to connect to the database. Please check your database configuration.',
+          code: 'DATABASE_ERROR'
+        }, 
+        { status: 503 }
+      );
+    }
+    
+    // Check if it's a Prisma validation error
+    if (error.code === 'P2002' || error.code === 'P2025') {
+      console.error('[API] Prisma validation error:', error);
+      return NextResponse.json(
+        { 
+          error: 'Data validation failed', 
+          details: error.message,
+          code: 'VALIDATION_ERROR'
+        }, 
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch school config', details: error.message },
+      { 
+        error: 'Failed to fetch school config', 
+        details: error.message,
+        code: 'UNKNOWN_ERROR'
+      }, 
       { status: 500 }
     );
   }
