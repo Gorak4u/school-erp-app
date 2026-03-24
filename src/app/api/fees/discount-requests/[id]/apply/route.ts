@@ -198,7 +198,9 @@ export async function POST(
       }
       
       // Only apply discount if it actually reduces the pending amount
-      if (newPendingAmount >= remainingBalance) {
+      if (newPendingAmount < remainingBalance) {
+        // Apply discount - it provides benefit
+      } else {
         console.log(`SKIPPING: Discount doesn't benefit student. Current Pending: ${remainingBalance}, New Pending: ${newPendingAmount}`);
         skippedRecords.push({
           id: record.id,

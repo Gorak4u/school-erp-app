@@ -21,7 +21,8 @@ import {
   Target,
   QrCode,
   X,
-  Share
+  Share,
+  Percent
 } from 'lucide-react';
 import PaymentReceipt from './PaymentReceipt';
 import { PDFGenerator } from '@/utils/pdfGenerator';
@@ -422,7 +423,7 @@ School Administration
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'discounts' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('all');
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
@@ -449,6 +450,13 @@ School Administration
   // Optimized payment history state
   const [paymentHistoryData, setPaymentHistoryData] = useState<any>(null);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+
+  // Discount history state
+  const [discountHistoryData, setDiscountHistoryData] = useState<any>(null);
+  const [loadingDiscountHistory, setLoadingDiscountHistory] = useState(false);
+  const [discountSearch, setDiscountSearch] = useState('');
+  const [discountTypeFilter, setDiscountTypeFilter] = useState('all');
+  const [discountStatusFilter, setDiscountStatusFilter] = useState('all');
 
   // Fetch optimized payment history when history tab is activated
   useEffect(() => {
@@ -515,6 +523,34 @@ School Administration
     };
     
     fetchPaymentHistory();
+  }, [activeTab, studentId]);
+
+  // Fetch discount history when discounts tab is activated
+  useEffect(() => {
+    const fetchDiscountHistory = async () => {
+      if (activeTab !== 'discounts' || !studentId) return;
+      
+      setLoadingDiscountHistory(true);
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          pageSize: '1000', // Get all records for discount history tab
+        });
+        
+        const response = await fetch(`/api/fees/students/${studentId}/discount-history?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setDiscountHistoryData(data.data);
+        }
+      } catch (e) {
+        console.error('Failed to load discount history', e);
+      } finally {
+        setLoadingDiscountHistory(false);
+      }
+    };
+    
+    fetchDiscountHistory();
   }, [activeTab, studentId]);
 
   const isDark = theme === 'dark';
@@ -1099,21 +1135,6 @@ School Administration
   
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <button
-        onClick={() => router.push('/fees')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-          isDark 
-            ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700' 
-            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border border-gray-300'
-        }`}
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Fees
-      </button>
-      
       {/* Tab Navigation */}
       <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
         <div className={`flex gap-1 p-2 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100 bg-gray-50'}`}>
@@ -1121,6 +1142,7 @@ School Administration
             { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
             { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
             { id: 'payment', label: 'Make Payment', icon: <CreditCard className="w-4 h-4" /> },
+            { id: 'discounts', label: 'Discounts', icon: <Award className="w-4 h-4" /> },
             { id: 'history', label: 'History', icon: <Clock className="w-4 h-4" /> },
           ].map(tab => (
             <button
@@ -1643,6 +1665,216 @@ School Administration
           </motion.div>
         )}
 
+        {/* Discounts Tab */}
+        {activeTab === 'discounts' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {(() => {
+              if (loadingDiscountHistory) {
+                return (
+                  <div className={`${cardCls} p-10 rounded-xl border text-center`}>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className={`${textPrimary} mt-4`}>Loading discount history...</p>
+                  </div>
+                );
+              }
+
+              const discounts = discountHistoryData?.discounts || [];
+              const summary = discountHistoryData?.summary || {};
+
+              if (discounts.length === 0) {
+                return (
+                  <div className={`${cardCls} p-10 rounded-xl border text-center`}>
+                    <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className={`${textPrimary} font-medium text-lg`}>No Discount History</p>
+                    <p className={`${textSecondary} mt-2`}>This student hasn't received any discounts yet.</p>
+                  </div>
+                );
+              }
+
+              // Filter discounts based on search and filters
+              const filteredDiscounts = discounts.filter((discount: any) => {
+                const matchesSearch = discountSearch === '' || 
+                  discount.discountName?.toLowerCase().includes(discountSearch.toLowerCase()) ||
+                  discount.feeName?.toLowerCase().includes(discountSearch.toLowerCase()) ||
+                  discount.discountDescription?.toLowerCase().includes(discountSearch.toLowerCase());
+                
+                const matchesType = discountTypeFilter === 'all' || discount.discountType === discountTypeFilter;
+                const matchesStatus = discountStatusFilter === 'all' || 
+                  (discountStatusFilter === 'applied' && !discount.isReversed) ||
+                  (discountStatusFilter === 'reversed' && discount.isReversed);
+                
+                return matchesSearch && matchesType && matchesStatus;
+              });
+
+              return (
+                <div className="space-y-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className={`${cardCls} p-4 rounded-xl border`}>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <Award className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${textSecondary}`}>Total Discounts</p>
+                          <p className={`text-xl font-bold ${textPrimary}`}>{summary.totalDiscounts || 0}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={`${cardCls} p-4 rounded-xl border`}>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                          <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${textSecondary}`}>Total Saved</p>
+                          <p className={`text-xl font-bold ${textPrimary}`}>₹{(summary.totalDiscountAmount || 0).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={`${cardCls} p-4 rounded-xl border`}>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                          <CheckCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${textSecondary}`}>Applied</p>
+                          <p className={`text-xl font-bold ${textPrimary}`}>{summary.appliedDiscounts || 0}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={`${cardCls} p-4 rounded-xl border`}>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                          <X className="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${textSecondary}`}>Reversed</p>
+                          <p className={`text-xl font-bold ${textPrimary}`}>{summary.reversedDiscounts || 0}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filters */}
+                  <div className={`${cardCls} p-4 rounded-xl border`}>
+                    <div className="flex flex-wrap gap-3">
+                      <input
+                        type="text"
+                        placeholder="Search discounts..."
+                        value={discountSearch}
+                        onChange={(e) => setDiscountSearch(e.target.value)}
+                        className={`flex-1 min-w-[200px] px-4 py-2 rounded-lg border ${inputCls}`}
+                      />
+                      
+                      <select
+                        value={discountTypeFilter}
+                        onChange={(e) => setDiscountTypeFilter(e.target.value)}
+                        className={`px-4 py-2 rounded-lg border ${inputCls}`}
+                      >
+                        <option value="all">All Types</option>
+                        <option value="fixed">Fixed</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="full_waiver">Full Waiver</option>
+                      </select>
+                      
+                      <select
+                        value={discountStatusFilter}
+                        onChange={(e) => setDiscountStatusFilter(e.target.value)}
+                        className={`px-4 py-2 rounded-lg border ${inputCls}`}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="applied">Applied</option>
+                        <option value="reversed">Reversed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Discount List */}
+                  <div className={`${cardCls} rounded-xl border overflow-hidden`}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className={isDark ? 'bg-gray-800' : 'bg-gray-50'}>
+                          <tr>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Date</th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Discount Name</th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Type</th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Fee</th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Amount</th>
+                            <th className={`px-4 py-3 text-left text-xs font-medium ${textSecondary} uppercase tracking-wider`}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {filteredDiscounts.map((discount: any) => (
+                            <tr key={discount.id} className="hover:bg-gray-400 dark:hover:bg-gray-900">
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                {new Date(discount.appliedAt).toLocaleDateString()}
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                <div>
+                                  <div className="font-medium">{discount.discountName}</div>
+                                  {discount.discountDescription && (
+                                    <div className={`text-xs ${textSecondary}`}>{discount.discountDescription}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                <div className="flex items-center gap-2">
+                                  <Percent className="w-3 h-3 text-gray-400" />
+                                  {discount.discountType === 'fixed' ? 'Fixed' : 
+                                   discount.discountType === 'percentage' ? `${discount.discountValue}%` :
+                                   discount.discountType === 'full_waiver' ? 'Full Waiver' : discount.discountType}
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                <div>
+                                  <div className="font-medium">{discount.feeName}</div>
+                                  <div className={`text-xs ${textSecondary}`}>{discount.feeCategory}</div>
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                <div className="text-right">
+                                  <div className="font-medium text-green-600">₹{discount.discountAmount.toLocaleString()}</div>
+                                  {discount.previousDiscount > 0 && (
+                                    <div className={`text-xs ${textSecondary}`}>Previous: ₹{discount.previousDiscount.toLocaleString()}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${textPrimary}`}>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  discount.isReversed 
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                }`}>
+                                  {discount.isReversed ? 'Reversed' : 'Applied'}
+                                </span>
+                                {discount.isReversed && discount.reversalReason && (
+                                  <div className={`text-xs ${textSecondary} mt-1`}>{discount.reversalReason}</div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'} text-sm ${textSecondary}`}>
+                      {filteredDiscounts.length} discount{filteredDiscounts.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
+                      Total saved: <span className="font-semibold text-green-600">₹{filteredDiscounts.reduce((s: number, d: any) => s + d.discountAmount, 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </motion.div>
+        )}
+
         {/* History Tab */}
         {activeTab === 'history' && (
           <motion.div
@@ -1657,13 +1889,13 @@ School Administration
                   type="text"
                   placeholder="Search by fee name, receipt no, method..."
                   value={historySearch}
-                  onChange={e => setHistorySearch(e.target.value)}
-                  className={`w-full px-4 py-2 rounded-lg border text-sm ${inputCls}`}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg border ${inputCls}`}
                 />
               </div>
               <button
                 onClick={() => window.print()}
-                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors hover:text-gray-900 dark:hover:text-white ${
                   isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                 }`}
               >
@@ -1745,18 +1977,18 @@ School Administration
                         <tr key={entry.id} className={`${
                           i % 2 === 0 ? (isDark ? 'bg-gray-900' : 'bg-white') : (isDark ? 'bg-gray-800/50' : 'bg-gray-50/50')
                         } hover:${isDark ? 'bg-gray-700' : 'bg-blue-50/30'} transition-colors`}>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hover:text-gray-900 dark:hover:text-white">
                             <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
                               {entry.receiptNumber}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 font-medium ${textPrimary}`}>
+                          <td className={`px-4 py-3 font-medium ${textPrimary} hover:text-gray-900 dark:hover:text-white`}>
                             {entry.feeName}
-                            {entry.academicYear && <span className={`block text-xs ${textSecondary}`}>{entry.academicYear}</span>}
+                            {entry.academicYear && <span className={`block text-xs ${textSecondary} hover:text-gray-700 dark:hover:text-gray-300`}>{entry.academicYear}</span>}
                           </td>
-                          <td className={`px-4 py-3 ${textSecondary}`}>{entry.academicYear || '-'}</td>
-                          <td className={`px-4 py-3 font-semibold text-green-600`}>₹{Number(entry.amount).toLocaleString()}</td>
-                          <td className="px-4 py-3">
+                          <td className={`px-4 py-3 ${textSecondary} hover:text-gray-700 dark:hover:text-gray-300`}>{entry.academicYear || '-'}</td>
+                          <td className={`px-4 py-3 font-semibold text-green-600 hover:text-green-700`}>₹{Number(entry.amount).toLocaleString()}</td>
+                          <td className="px-4 py-3 hover:text-gray-900 dark:hover:text-white">
                             <span className={`px-2 py-1 text-xs rounded-full capitalize ${
                               entry.paymentMethod === 'cash'
                                 ? isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700'
@@ -1767,13 +1999,13 @@ School Administration
                               {entry.paymentMethod || 'cash'}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 ${textSecondary}`}>
+                          <td className={`px-4 py-3 ${textSecondary} hover:text-gray-700 dark:hover:text-gray-300`}>
                             <div className="flex items-center gap-1">
                               <span>👤</span>
                               <span>{entry.collectedBy || 'Staff'}</span>
                             </div>
                           </td>
-                          <td className={`px-4 py-3 ${textSecondary} text-xs`}>
+                          <td className={`px-4 py-3 ${textSecondary} text-xs hover:text-gray-700 dark:hover:text-gray-300`}>
                             {entry.paymentDate
                               ? new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                               : '-'}
@@ -1793,16 +2025,16 @@ School Administration
                                     const pDate = new Date(p.paymentDate);
                                     return pDate <= paymentDate && p.feeRecordId === entry.feeRecordId;
                                   })
-                                  .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || entry.amount;
-                                
+                                  ?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
+
                                 setSelectedHistoryEntry({
                                   ...entry,
-                                  cumulativePaid: cumulativePaid
+                                  cumulativePaidAmount: cumulativePaid
                                 });
                                 setShowHistoryReceipt(true);
                               }}
                               title="View Receipt"
-                              className={`p-1.5 rounded-lg text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                              className={`p-1.5 rounded-lg text-sm transition-colors hover:text-gray-900 dark:hover:text-white ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
                             >
                               🧾
                             </button>
@@ -2055,7 +2287,7 @@ School Administration
                     </div>
                     <button
                       onClick={() => setShowUpiQr(false)}
-                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                      className={`p-2 rounded-lg hover:text-gray-900 dark:hover:text-white ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
                     >
                       <X className="w-5 h-5" />
                     </button>
