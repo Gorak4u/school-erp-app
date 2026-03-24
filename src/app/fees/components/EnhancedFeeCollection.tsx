@@ -1315,7 +1315,7 @@ School Administration
     <div className="space-y-6">
       {/* Tab Navigation */}
       <div className={`rounded-xl border overflow-hidden ${cardCls}`}>
-        <div className={`flex gap-1 p-2 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100 bg-gray-50'}`}>
+        <div className={`flex gap-1 p-2 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100'}`}>
           {[
             { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
             { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
@@ -1327,12 +1327,12 @@ School Administration
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow'
                   : isDark
-                    ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                    : 'hover:bg-white text-gray-500 hover:text-gray-900'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               {tab.icon}
@@ -1456,7 +1456,7 @@ School Administration
                   className={`p-4 rounded-lg border transition-colors ${
                     isDark 
                       ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
                   }`}
                 >
                   <Target className="w-6 h-6 mb-2 mx-auto text-blue-600" />
@@ -1469,7 +1469,7 @@ School Administration
                   className={`p-4 rounded-lg border transition-colors ${
                     isDark 
                       ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
                   }`}
                 >
                   <Users className="w-6 h-6 mb-2 mx-auto text-purple-600" />
@@ -1564,7 +1564,7 @@ School Administration
                       ? 'opacity-50 cursor-not-allowed'
                       : isDark 
                         ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                        : 'bg-white hover:bg-gray-50 text-gray-700'
                   }`}
                 >
                   Clear All
@@ -2273,18 +2273,212 @@ School Administration
           </motion.div>
         )}
 
-        {/* Fines Tab */}
+        {/* Fines Tab - Redesigned */}
         {activeTab === 'fines' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <StudentFines
-              student={{ ...studentData, studentId }}
-              theme={theme}
-              onClose={() => setActiveTab('overview')}
-            />
+            {/* Fines Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className={`${cardCls} p-6 rounded-xl border relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={`text-sm ${textSecondary}`}>Total Fines</p>
+                    <FileText className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats?.totalFines?.toLocaleString() || 0}</p>
+                  <p className={`text-xs ${textSecondary} mt-1`}>{fines?.length || 0} fines</p>
+                </div>
+              </div>
+
+              <div className={`${cardCls} p-6 rounded-xl border relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={`text-sm ${textSecondary}`}>Paid Amount</p>
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  </div>
+                  <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats?.totalFinesPaid?.toLocaleString() || 0}</p>
+                  <p className={`text-xs ${textSecondary} mt-1`}>Collected fines</p>
+                </div>
+              </div>
+
+              <div className={`${cardCls} p-6 rounded-xl border relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={`text-sm ${textSecondary}`}>Pending Amount</p>
+                    <AlertCircle className="w-5 h-5 text-yellow-500" />
+                  </div>
+                  <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats?.totalFinesPending?.toLocaleString() || 0}</p>
+                  <p className={`text-xs ${textSecondary} mt-1`}>{finesStats?.pendingFinesCount || 0} pending</p>
+                </div>
+              </div>
+
+              <div className={`${cardCls} p-6 rounded-xl border relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={`text-sm ${textSecondary}`}>Waived Amount</p>
+                    <Ban className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats?.totalFinesWaived?.toLocaleString() || 0}</p>
+                  <p className={`text-xs ${textSecondary} mt-1`}>Waived fines</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  onClick={() => {
+                    // Handle create new fine
+                  }}
+                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
+                  }`}
+                >
+                  <FileText className="w-6 h-6 mb-2 mx-auto text-orange-500" />
+                  <p className="font-medium">Create New Fine</p>
+                  <p className={`text-sm ${textSecondary}`}>Issue a new fine</p>
+                </button>
+
+                <button
+                  onClick={() => {
+                    // Handle bulk payment
+                  }}
+                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
+                  }`}
+                >
+                  <DollarSign className="w-6 h-6 mb-2 mx-auto text-green-500" />
+                  <p className="font-medium">Pay All Pending</p>
+                  <p className={`text-sm ${textSecondary}`}>Pay ₹{finesStats?.totalFinesPending?.toLocaleString() || 0}</p>
+                </button>
+
+                <button
+                  onClick={() => {
+                    // Handle export
+                  }}
+                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
+                  }`}
+                >
+                  <Calendar className="w-6 h-6 mb-2 mx-auto text-blue-500" />
+                  <p className="font-medium">Export Report</p>
+                  <p className={`text-sm ${textSecondary}`}>Download fines report</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Fines History */}
+            <div className={`${cardCls} p-6 rounded-xl border`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className={`text-lg font-semibold ${textPrimary}`}>Fine History</h3>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${textSecondary}`}>Filter by status:</span>
+                  <select className={`px-3 py-1 rounded-lg text-sm border ${inputCls}`}>
+                    <option value="all">All Fines</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="waived">Waived</option>
+                  </select>
+                </div>
+              </div>
+
+              {loadingFines ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className={`text-sm ${textSecondary}`}>Loading fines...</p>
+                  </div>
+                </div>
+              ) : fines && fines.length > 0 ? (
+                <div className="space-y-4">
+                  {fines.map((fine: any) => (
+                    <motion.div
+                      key={fine.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={`p-4 rounded-lg border transition-all hover:scale-[1.02] ${
+                        fine.status === 'paid' 
+                          ? 'border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-800' 
+                          : fine.status === 'waived'
+                          ? 'border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800'
+                          : 'border-orange-200 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className={`font-mono text-sm font-semibold ${
+                              fine.status === 'paid' ? 'text-green-600' :
+                              fine.status === 'waived' ? 'text-purple-600' : 'text-orange-600'
+                            }`}>
+                              {fine.fineNumber}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              fine.status === 'paid' ? 'bg-green-100 text-green-700' :
+                              fine.status === 'waived' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {fine.status.charAt(0).toUpperCase() + fine.status.slice(1)}
+                            </span>
+                          </div>
+                          <h4 className={`font-medium ${textPrimary} mb-1`}>{fine.description}</h4>
+                          <p className={`text-sm ${textSecondary} mb-2`}>{fine.category}</p>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className={`${textSecondary}`}>
+                              <Calendar className="w-3 h-3 inline mr-1" />
+                              Issued: {new Date(fine.issuedAt).toLocaleDateString()}
+                            </span>
+                            <span className={`${textSecondary}`}>
+                              <Clock className="w-3 h-3 inline mr-1" />
+                              Due: {new Date(fine.dueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-lg font-bold ${textPrimary}`}>₹{fine.amount.toLocaleString()}</p>
+                          <p className={`text-sm ${fine.status === 'paid' ? 'text-green-600' : fine.status === 'waived' ? 'text-purple-600' : 'text-orange-600'}`}>
+                            {fine.status === 'paid' ? 'Paid' : 
+                             fine.status === 'waived' ? 'Waived' : 
+                             `₹${fine.pendingAmount.toLocaleString()} pending`}
+                          </p>
+                          {fine.pendingAmount > 0 && (
+                            <button
+                              className={`mt-2 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                                isDark 
+                                  ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                                  : 'bg-orange-500 hover:bg-orange-600 text-white'
+                              }`}
+                            >
+                              Pay Now
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <p className={`${textSecondary}`}>No fines found</p>
+                  <p className={`text-sm ${textSecondary} mt-1`}>This student has no fines on record</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </div>
@@ -2314,11 +2508,11 @@ School Administration
                 
                 {/* Receipt Actions */}
                 <div className="space-y-3 mb-6">
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <p className={`text-sm ${textSecondary} mb-2`}>Receipt Number</p>
                     <p className={`font-mono font-bold ${textPrimary}`}>{latestReceipt?.receiptNumber || 'Receipt Ready'}</p>
                   </div>
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <p className={`text-sm ${textSecondary} mb-1`}>Amount Paid</p>
                     <p className={`text-2xl font-bold ${textPrimary}`}>₹{(latestReceipt?.paymentData?.currentYearFees || []).reduce((sum: number, item: any) => sum + Number(item.amountPaid || item.paidAmount || 0), 0).toLocaleString()}</p>
                     <p className={`text-sm ${textSecondary}`}>via {paymentMethods.find(m => m.id === latestReceipt?.paymentMethod)?.name || paymentMethods.find(m => m.id === paymentMethod)?.name}</p>
@@ -2345,7 +2539,7 @@ School Administration
                         setShowReceipt(false);
                         setShowDetailedReceipt(true);
                       }}
-                      className={`px-4 py-3 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} ${textPrimary} rounded-lg font-medium transition-colors flex items-center justify-center gap-2`}
+                      className={`px-4 py-3 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-50'} ${textPrimary} rounded-lg font-medium transition-colors flex items-center justify-center gap-2`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />

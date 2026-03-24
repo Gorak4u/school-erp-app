@@ -357,7 +357,7 @@ export default function FeesPage() {
       {feeCollectionModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000]">
           <div className={`relative w-full max-w-6xl mx-4 overflow-hidden rounded-2xl border shadow-lg ${
-            theme === 'dark' ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+            theme === 'dark' ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`}>
             <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between">

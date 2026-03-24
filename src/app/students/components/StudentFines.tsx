@@ -53,7 +53,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
   const [submittingWaiver, setSubmittingWaiver] = useState(false);
 
   const isDark = 'dark'; // Removed theme prop usage
-  const card = `rounded-lg border p-4 ${isDark ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`;
+  const card = `rounded-lg border p-4 ${isDark ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-white'}`;
   const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
   const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
 
