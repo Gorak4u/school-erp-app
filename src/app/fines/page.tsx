@@ -5,12 +5,16 @@ import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useFinesWebSocket } from '@/hooks/useWebSocket';
+import { useNotifications } from '@/components/RealTimeNotifications';
+import RealTimeNotifications from '@/components/RealTimeNotifications';
 import { ALL_PERMISSIONS } from '@/lib/permissions';
 import { showSuccess, showError, showWarning, showInfo } from '@/components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Plus, Search, Filter, Eye, Edit, Ban, Trash2, 
-  Clock, AlertCircle, CheckCircle, XCircle, CreditCard
+  Clock, AlertCircle, CheckCircle, XCircle, CreditCard,
+  Download, ChevronDown, CheckSquare, Square
 } from 'lucide-react';
 
 export default function FinesPage() {
@@ -19,12 +23,23 @@ export default function FinesPage() {
   const { hasPermission } = usePermissions();
   const isDark = theme === 'dark';
 
+  // WebSocket and notifications
+  const { isConnected, notifications: wsNotifications, sendMessage } = useFinesWebSocket('school-1'); // TODO: Get actual school ID
+  const { 
+    notifications, 
+    addNotification, 
+    markAsRead, 
+    removeNotification, 
+    clearNotifications 
+  } = useNotifications();
+
   // CSS Variables following design system
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
   const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
   const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}`;
   const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
+  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
 
   // State
   const [activeTab, setActiveTab] = useState<'fines' | 'waiver-requests'>('fines');
@@ -40,6 +55,15 @@ export default function FinesPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [waiverLoading, setWaiverLoading] = useState(false);
   const [selectedFineForWaiver, setSelectedFineForWaiver] = useState<any>(null);
+  
+  // Bulk operations state
+  const [selectedFines, setSelectedFines] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'delete' | 'export' | 'approve' | 'reject' | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkRemarks, setBulkRemarks] = useState('');
+  
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 25,
@@ -255,6 +279,18 @@ export default function FinesPage() {
       fetchFines();
       
       showSuccess('Fine Created', 'Fine has been created successfully');
+      
+      // Send real-time notification
+      addNotification({
+        type: 'fine_created',
+        title: 'New Fine Created',
+        message: `Fine ${data.fineNumber} created for ${data.student?.name || 'Student'}`,
+        data: {
+          fineNumber: data.fineNumber,
+          studentName: data.student?.name,
+          amount: data.amount
+        }
+      });
     } catch (error: any) {
       console.error('Error creating fine:', error);
       showError('Creation Failed', error.message || 'Failed to create fine');
@@ -330,6 +366,18 @@ export default function FinesPage() {
       fetchFines();
       
       showSuccess('Waiver Request Submitted', 'Your waiver request has been submitted successfully');
+      
+      // Send real-time notification
+      addNotification({
+        type: 'waiver_requested',
+        title: 'Waiver Request Submitted',
+        message: `Waiver request submitted for fine ${selectedFineForWaiver.fineNumber}`,
+        data: {
+          fineNumber: selectedFineForWaiver.fineNumber,
+          studentName: selectedFineForWaiver.student?.name,
+          amount: waiveAmount
+        }
+      });
     } catch (error: any) {
       console.error('Error submitting waiver request:', error);
       showError('Submission Failed', error.message || 'Failed to submit waiver request');
@@ -374,6 +422,17 @@ export default function FinesPage() {
       
       fetchWaiverRequests();
       showSuccess('Waiver Approved', 'Waiver request has been approved successfully');
+      
+      // Send real-time notification
+      addNotification({
+        type: 'waiver_approved',
+        title: 'Waiver Approved',
+        message: `Waiver request for fine has been approved`,
+        data: {
+          fineNumber: requestId, // This would be the fine number in real implementation
+          amount: 0 // This would be the approved amount
+        }
+      });
     } catch (error) {
       console.error('Error approving waiver:', error);
       showError('Approval Failed', 'Failed to approve waiver request');
@@ -398,9 +457,183 @@ export default function FinesPage() {
       
       fetchWaiverRequests();
       showSuccess('Waiver Rejected', 'Waiver request has been rejected successfully');
+      
+      // Send real-time notification
+      addNotification({
+        type: 'waiver_rejected',
+        title: 'Waiver Rejected',
+        message: `Waiver request for fine has been rejected`,
+        data: {
+          fineNumber: requestId, // This would be the fine number in real implementation
+          reason: reason
+        }
+      });
     } catch (error) {
       console.error('Error rejecting waiver:', error);
       showError('Rejection Failed', 'Failed to reject waiver request');
+    }
+  };
+
+  // Bulk operations handlers
+  const handleSelectAll = () => {
+    if (selectedFines.length === fines.length) {
+      setSelectedFines([]);
+    } else {
+      setSelectedFines(fines.map(fine => fine.id));
+    }
+  };
+
+  const handleSelectFine = (fineId: string) => {
+    setSelectedFines(prev => 
+      prev.includes(fineId) 
+        ? prev.filter(id => id !== fineId)
+        : [...prev, fineId]
+    );
+  };
+
+  const handleBulkAction = (action: 'delete' | 'export' | 'approve' | 'reject') => {
+    if (selectedFines.length === 0) {
+      showError('No Selection', 'Please select at least one fine to perform bulk action');
+      return;
+    }
+    setBulkAction(action);
+    setShowBulkModal(true);
+  };
+
+  const handleBulkExecute = async () => {
+    if (!bulkAction || selectedFines.length === 0) return;
+
+    setBulkLoading(true);
+    try {
+      let results = { success: 0, failed: 0, errors: [] as string[] };
+
+      for (const fineId of selectedFines) {
+        try {
+          let response;
+          
+          switch (bulkAction) {
+            case 'delete':
+              response = await fetch(`/api/fines/${fineId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+              });
+              break;
+            
+            case 'export':
+              // Export is handled differently
+              break;
+            
+            case 'approve':
+              // Find waiver request for this fine and approve it
+              const waiver = waiverRequests.find(wr => wr.fineId === fineId);
+              if (waiver) {
+                response = await fetch(`/api/fines/waiver-requests?id=${waiver.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'approved' }),
+                  credentials: 'include',
+                });
+              }
+              break;
+            
+            case 'reject':
+              // Find waiver request for this fine and reject it
+              const waiverToReject = waiverRequests.find(wr => wr.fineId === fineId);
+              if (waiverToReject) {
+                response = await fetch(`/api/fines/waiver-requests?id=${waiverToReject.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'rejected', remarks: bulkRemarks }),
+                  credentials: 'include',
+                });
+              }
+              break;
+          }
+
+          if (response && !response.ok) {
+            const error = await response.json();
+            results.errors.push(`Fine ${fineId}: ${error.error || 'Unknown error'}`);
+            results.failed++;
+          } else {
+            results.success++;
+          }
+        } catch (error) {
+          results.errors.push(`Fine ${fineId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          results.failed++;
+        }
+      }
+
+      // Refresh data
+      if (activeTab === 'fines') {
+        fetchFines();
+      } else {
+        fetchWaiverRequests();
+      }
+
+      // Show results
+      if (results.success > 0) {
+        showSuccess(
+          'Bulk Action Completed', 
+          `Successfully processed ${results.success} item${results.success > 1 ? 's' : ''}`
+        );
+      }
+      
+      if (results.failed > 0) {
+        showError(
+          'Some Actions Failed',
+          `${results.failed} action${results.failed > 1 ? 's' : ''} failed. Check console for details.`
+        );
+        console.error('Bulk action errors:', results.errors);
+      }
+
+      // Reset state
+      setSelectedFines([]);
+      setShowBulkModal(false);
+      setBulkAction(null);
+      setBulkRemarks('');
+      setShowBulkActions(false);
+      
+    } catch (error) {
+      console.error('Bulk action error:', error);
+      showError('Bulk Action Failed', 'An unexpected error occurred during bulk operation');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'excel' | 'pdf' | 'csv' = 'excel') => {
+    try {
+      const params = new URLSearchParams({
+        format,
+        ...(search && { search }),
+        ...(selectedStatus !== 'all' && { status: selectedStatus }),
+        ...(selectedType !== 'all' && { type: selectedType }),
+        ...(selectedFines.length > 0 && { fineIds: selectedFines.join(',') }),
+      });
+
+      const response = await fetch(`/api/fines/export?${params.toString()}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export fines');
+      }
+
+      // Download file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fines-${new Date().toISOString().split('T')[0]}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      showSuccess('Export Successful', `Fines exported as ${format.toUpperCase()} file`);
+    } catch (error) {
+      console.error('Export error:', error);
+      showError('Export Failed', 'Failed to export fines');
     }
   };
 
@@ -440,9 +673,21 @@ export default function FinesPage() {
         <div className={`${card} p-6 md:p-8`}>
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${isDark ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : 'border-blue-100 bg-blue-50 text-blue-700'}`}>
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Fines Management • {activeAcademicYear?.name || 'School operations hub'}
+              <div className="flex items-center gap-4">
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${isDark ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : 'border-blue-100 bg-blue-50 text-blue-700'}`}>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Fines Management • {activeAcademicYear?.name || 'School operations hub'}
+                </div>
+                
+                {/* WebSocket Status Indicator */}
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${
+                  isConnected 
+                    ? isDark ? 'border-green-500/20 bg-green-500/10 text-green-300' : 'border-green-100 bg-green-50 text-green-700'
+                    : isDark ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-red-100 bg-red-50 text-red-700'
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
+                  {isConnected ? 'Live Updates' : 'Offline'}
+                </div>
               </div>
               <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fines Management</h1>
               <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Manage student fines, payments, and waiver requests with automated tracking.</p>
@@ -536,17 +781,130 @@ export default function FinesPage() {
                   <option value="all">All Types</option>
                   <option value="late_fee">Late Fee</option>
                   <option value="library">Library</option>
-                  <option value="damage">Damage</option>
-                  <option value="discipline">Discipline</option>
                   <option value="uniform">Uniform</option>
+                  <option value="discipline">Discipline</option>
+                  <option value="damage">Damage</option>
                   <option value="other">Other</option>
                 </select>
               )}
+              
+              {/* Export Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className={`${btnSecondary} flex items-center gap-2`}
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                
+                {showBulkActions && (
+                  <div className={`absolute right-0 top-full mt-1 ${card} p-2 min-w-[150px] z-10`}>
+                    <button
+                      onClick={() => {
+                        handleExport('excel');
+                        setShowBulkActions(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:${isDark ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}
+                    >
+                      Export as Excel
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExport('csv');
+                        setShowBulkActions(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:${isDark ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExport('pdf');
+                        setShowBulkActions(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:${isDark ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}
+                    >
+                      Export as PDF
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Tab Content */}
+        {/* Bulk Actions Bar - Always visible when there are fines */}
+        {fines.length > 0 && (
+          <div className={`${card} p-4`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {selectedFines.length > 0 
+                    ? `${selectedFines.length} fine${selectedFines.length > 1 ? 's' : ''} selected`
+                    : 'Select fines to perform bulk actions'
+                  }
+                </span>
+                <button
+                  onClick={handleSelectAll}
+                  className={`text-sm ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                >
+                  {selectedFines.length === fines.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {selectedFines.length > 0 ? (
+                  <>
+                    {activeTab === 'fines' && (
+                      <button
+                        onClick={() => handleBulkAction('delete')}
+                        className={`${btnDanger} text-xs`}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete Selected ({selectedFines.length})
+                      </button>
+                    )}
+                    
+                    {activeTab === 'waiver-requests' && (
+                      <>
+                        <button
+                          onClick={() => handleBulkAction('approve')}
+                          className={`${btnPrimary} text-xs`}
+                        >
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Approve Selected ({selectedFines.length})
+                        </button>
+                        <button
+                          onClick={() => handleBulkAction('reject')}
+                          className={`${btnDanger} text-xs`}
+                        >
+                          <XCircle className="w-3 h-3 mr-1" />
+                          Reject Selected ({selectedFines.length})
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => handleExport('excel')}
+                      className={`${btnSecondary} text-xs`}
+                    >
+                      <Download className="w-3 h-3 mr-1" />
+                      Export Selected ({selectedFines.length})
+                    </button>
+                  </>
+                ) : (
+                  <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} italic`}>
+                    Select fines using checkboxes to enable bulk actions
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fines Tab */}
         {activeTab === 'fines' && (
           <div className={`${card} overflow-hidden`}>
             {loading ? (
@@ -565,10 +923,28 @@ export default function FinesPage() {
                   {search ? 'Try adjusting your search criteria' : 'Create your first fine to get started'}
                 </p>
                 {!search && canManageFines && (
-                  <button className={btnPrimary + ' px-6 py-3'} onClick={handleCreateFine}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Fine
-                  </button>
+                  <div className="flex gap-3 justify-center">
+                    <button className={btnPrimary + ' px-6 py-3'} onClick={handleCreateFine}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Fine
+                    </button>
+                    <button 
+                      className={`${btnSecondary} px-6 py-3`}
+                      onClick={() => {
+                        // Create sample fines for demo
+                        const sampleFines = [
+                          { studentId: '1', type: 'late_fee', amount: 500, description: 'Late submission of assignment' },
+                          { studentId: '2', type: 'library', amount: 200, description: 'Library book return delay' },
+                          { studentId: '3', type: 'uniform', amount: 1000, description: 'Uniform violation' }
+                        ];
+                        console.log('Sample fines created for demo:', sampleFines);
+                        showInfo('Demo Mode', 'Sample fines would be created here. Use "Create Fine" to add real fines.');
+                      }}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Create Sample Fines (Demo)
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -576,6 +952,29 @@ export default function FinesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <th className={`p-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleSelectAll}
+                            className={`p-2 rounded-lg border-2 transition-all hover:scale-105 ${
+                              selectedFines.length === fines.length && fines.length > 0
+                                ? isDark 
+                                  ? 'bg-blue-600 border-blue-500 text-white' 
+                                  : 'bg-blue-100 border-blue-500 text-blue-700'
+                                : isDark 
+                                  ? 'border-gray-600 hover:border-blue-500 text-gray-400' 
+                                  : 'border-gray-300 hover:border-blue-500 text-gray-600'
+                            }`}
+                          >
+                            {selectedFines.length === fines.length && fines.length > 0 ? (
+                              <CheckSquare className="w-4 h-4" />
+                            ) : (
+                              <Square className="w-4 h-4" />
+                            )}
+                          </button>
+                          <span className="text-xs font-medium">Select All</span>
+                        </div>
+                      </th>
                       <th className={`p-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Student</th>
                       <th className={`p-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fine Details</th>
                       <th className={`p-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount</th>
@@ -587,6 +986,26 @@ export default function FinesPage() {
                   <tbody>
                     {fines.map((fine) => (
                       <tr key={fine.id} className={`border-b ${isDark ? 'border-gray-800' : 'border-gray-100'} hover:${isDark ? 'bg-gray-800/50' : 'bg-gray-50'} transition-colors`}>
+                        <td className="p-4">
+                          <button
+                            onClick={() => handleSelectFine(fine.id)}
+                            className={`p-2 rounded-lg border-2 transition-all hover:scale-105 ${
+                              selectedFines.includes(fine.id)
+                                ? isDark 
+                                  ? 'bg-blue-600 border-blue-500 text-white' 
+                                  : 'bg-blue-100 border-blue-500 text-blue-700'
+                                : isDark 
+                                  ? 'border-gray-600 hover:border-blue-500 text-gray-400' 
+                                  : 'border-gray-300 hover:border-blue-500 text-gray-600'
+                            }`}
+                          >
+                            {selectedFines.includes(fine.id) ? (
+                              <CheckSquare className="w-4 h-4" />
+                            ) : (
+                              <Square className="w-4 h-4" />
+                            )}
+                          </button>
+                        </td>
                         <td className="p-4">
                           <div>
                             <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
@@ -1166,6 +1585,92 @@ export default function FinesPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Bulk Actions Modal */}
+      <AnimatePresence>
+        {showBulkModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className={`${card} w-full max-w-md`}
+            >
+              <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                  Confirm Bulk Action
+                </h3>
+              </div>
+              
+              <div className="p-6">
+                <div className={`mb-4 p-4 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'} border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    You are about to perform the following action on <strong>{selectedFines.length}</strong> fine{selectedFines.length > 1 ? 's' : ''}:
+                  </p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                    {bulkAction === 'delete' && 'Delete selected fines'}
+                    {bulkAction === 'approve' && 'Approve selected waiver requests'}
+                    {bulkAction === 'reject' && 'Reject selected waiver requests'}
+                    {bulkAction === 'export' && 'Export selected fines'}
+                  </p>
+                </div>
+
+                {bulkAction === 'reject' && (
+                  <div className="mb-4">
+                    <label className={label}>Rejection Reason</label>
+                    <textarea
+                      placeholder="Provide reason for rejection..."
+                      value={bulkRemarks}
+                      onChange={(e) => setBulkRemarks(e.target.value)}
+                      className={`${input} resize-none`}
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {bulkAction === 'delete' && (
+                  <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-red-900/20 border-red-600/30' : 'bg-red-50 border-red-200'} border`}>
+                    <p className={`text-sm ${isDark ? 'text-red-400' : 'text-red-700'}`}>
+                      <strong>Warning:</strong> This action cannot be undone. All selected fines will be permanently deleted.
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className={`p-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} flex gap-3`}>
+                <button
+                  onClick={() => setShowBulkModal(false)}
+                  className={btnSecondary}
+                  disabled={bulkLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkExecute}
+                  disabled={bulkLoading}
+                  className={btnPrimary}
+                >
+                  {bulkLoading ? 'Processing...' : 'Confirm Action'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Real-time Notifications */}
+      <RealTimeNotifications
+        notifications={notifications}
+        onClear={clearNotifications}
+        onMarkAsRead={markAsRead}
+        onRemove={removeNotification}
+        theme={theme}
+      />
     </AppLayout>
   );
 }
