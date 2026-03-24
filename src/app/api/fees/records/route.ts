@@ -188,11 +188,31 @@ export async function GET(request: NextRequest) {
       ${havingClause}
     `;
 
+    // Add fines summary query
+    const finesSummaryQuery = `
+      SELECT 
+        COUNT(*) as "totalFines",
+        COALESCE(SUM(f.amount), 0) as "totalFinesAmount",
+        COALESCE(SUM(f."paidAmount"), 0) as "totalFinesCollected",
+        COALESCE(SUM(f."pendingAmount"), 0) as "totalFinesPending",
+        COALESCE(SUM(f."waivedAmount"), 0) as "totalFinesWaived",
+        COUNT(CASE WHEN f."paidAmount" >= f.amount THEN 1 END) as "finesPaidCount",
+        COUNT(CASE WHEN f."paidAmount" > 0 AND f."paidAmount" < f.amount THEN 1 END) as "finesPartialCount",
+        COUNT(CASE WHEN f."paidAmount" = 0 THEN 1 END) as "finesPendingCount"
+      FROM "school"."Fine" f
+      LEFT JOIN "school"."Student" s ON f."studentId" = s.id
+      WHERE f."schoolId" = $1
+      ${studentId ? `AND f."studentId" = $2` : ''}
+      ${studentClass ? `AND s.class = $${studentId ? 3 : 2}` : ''}
+      ${status ? `AND f.status = $${studentId ? (studentClass ? 4 : 3) : (studentClass ? 3 : 2)}` : ''}
+    `;
+
     // Execute optimized queries in parallel
-    const [recordsResult, countResult, summaryResult] = await Promise.all([
+    const [recordsResult, countResult, summaryResult, finesSummaryResult] = await Promise.all([
       schoolPrisma.$queryRawUnsafe(query),
       schoolPrisma.$queryRawUnsafe(countQuery),
-      schoolPrisma.$queryRawUnsafe(summaryQuery)
+      schoolPrisma.$queryRawUnsafe(summaryQuery),
+      schoolPrisma.$queryRawUnsafe(finesSummaryQuery, ctx.schoolId, ...(studentId ? [studentId] : []), ...(studentClass ? [studentClass] : []), ...(status ? [status] : []))
     ]);
 
     console.log('DEBUG - Fee Records Results:', {
@@ -258,7 +278,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / pageSize);
 
     // Format summary statistics
-    const summary = {
+    const regularFeesSummary = {
       totalRecords: safeParseInt((summaryResult as unknown as any[])[0]?.totalRecords),
       totalAmount: safeParseFloat((summaryResult as unknown as any[])[0]?.totalAmount),
       totalCollected: safeParseFloat((summaryResult as unknown as any[])[0]?.totalCollected),
@@ -266,6 +286,32 @@ export async function GET(request: NextRequest) {
       overdueCount: safeParseInt((summaryResult as unknown as any[])[0]?.overdueCount),
       partialCount: safeParseInt((summaryResult as unknown as any[])[0]?.partialCount),
       pendingCount: safeParseInt((summaryResult as unknown as any[])[0]?.pendingCount)
+    };
+
+    // Format fines summary statistics
+    const finesSummary = {
+      totalFines: safeParseInt((finesSummaryResult as unknown as any[])[0]?.totalFines),
+      totalFinesAmount: safeParseFloat((finesSummaryResult as unknown as any[])[0]?.totalFinesAmount),
+      totalFinesCollected: safeParseFloat((finesSummaryResult as unknown as any[])[0]?.totalFinesCollected),
+      totalFinesPending: safeParseFloat((finesSummaryResult as unknown as any[])[0]?.totalFinesPending),
+      totalFinesWaived: safeParseFloat((finesSummaryResult as unknown as any[])[0]?.totalFinesWaived),
+      finesPaidCount: safeParseInt((finesSummaryResult as unknown as any[])[0]?.finesPaidCount),
+      finesPartialCount: safeParseInt((finesSummaryResult as unknown as any[])[0]?.finesPartialCount),
+      finesPendingCount: safeParseInt((finesSummaryResult as unknown as any[])[0]?.finesPendingCount)
+    };
+
+    // Combined summary including both regular fees and fines
+    const summary = {
+      ...regularFeesSummary,
+      ...finesSummary,
+      // Combined totals
+      combinedTotalRecords: regularFeesSummary.totalRecords + finesSummary.totalFines,
+      combinedTotalAmount: regularFeesSummary.totalAmount + finesSummary.totalFinesAmount,
+      combinedTotalCollected: regularFeesSummary.totalCollected + finesSummary.totalFinesCollected,
+      combinedTotalPending: regularFeesSummary.totalAmount - regularFeesSummary.totalCollected + finesSummary.totalFinesPending,
+      combinedPaidCount: regularFeesSummary.paidCount + finesSummary.finesPaidCount,
+      combinedPartialCount: regularFeesSummary.partialCount + finesSummary.finesPartialCount,
+      combinedPendingCount: regularFeesSummary.pendingCount + finesSummary.finesPendingCount,
     };
 
     // Handle BigInt serialization in JSON response

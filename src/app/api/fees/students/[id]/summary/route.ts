@@ -21,30 +21,47 @@ export async function GET(
       return NextResponse.json({ error: 'Student id is required' }, { status: 400 });
     }
 
-    const student = await prisma.student.findFirst({
-      where: {
-        id: studentId,
-        ...tenantWhere(ctx),
-      },
-      include: {
-        feeRecords: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            feeStructure: true,
-            payments: {
-              orderBy: { createdAt: 'desc' },
-              take: 3,
+    // Fetch both fee records and fines in parallel
+    const [student, fines] = await Promise.all([
+      prisma.student.findFirst({
+        where: {
+          id: studentId,
+          ...tenantWhere(ctx),
+        },
+        include: {
+          feeRecords: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              feeStructure: true,
+              payments: {
+                orderBy: { createdAt: 'desc' },
+                take: 3,
+              },
             },
           },
         },
-      },
-    });
+      }),
+      // Fetch fines for this student
+      (prisma as any).Fine.findMany({
+        where: {
+          studentId: studentId,
+          ...tenantWhere(ctx),
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
     const feeRecords = student.feeRecords || [];
+
+    // Calculate fines statistics
+    const totalFinesAmount = fines.reduce((sum: number, fine: any) => sum + Number(fine.amount || 0), 0);
+    const totalFinesPaid = fines.reduce((sum: number, fine: any) => sum + Number(fine.paidAmount || 0), 0);
+    const totalFinesPending = fines.reduce((sum: number, fine: any) => sum + Number(fine.pendingAmount || 0), 0);
+    const totalFinesWaived = fines.reduce((sum: number, fine: any) => sum + Number(fine.waivedAmount || 0), 0);
 
     const feeBreakdownMap = new Map<string, any>();
     for (const record of feeRecords) {
@@ -74,20 +91,28 @@ export async function GET(
       a.feeName.localeCompare(b.feeName)
     );
 
-    const totalFees = feeRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
-    const totalPaid = feeRecords.reduce((sum, record) => sum + Number(record.paidAmount || 0), 0);
-    const totalDiscount = feeRecords.reduce((sum, record) => sum + Number(record.discount || 0), 0);
-    const totalPending = feeRecords.reduce(
+    // Calculate regular fees totals
+    const regularFeesTotal = feeRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
+    const regularFeesPaid = feeRecords.reduce((sum, record) => sum + Number(record.paidAmount || 0), 0);
+    const regularFeesDiscount = feeRecords.reduce((sum, record) => sum + Number(record.discount || 0), 0);
+    const regularFeesPending = feeRecords.reduce(
       (sum, record) => sum + Math.max(0, (record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0)),
       0
     );
-    const totalOverdue = feeRecords.reduce((sum, record) => {
+    const regularFeesOverdue = feeRecords.reduce((sum, record) => {
       const pendingAmount = Math.max(0, (record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0));
       if (record.dueDate && new Date(record.dueDate) < new Date() && pendingAmount > 0) {
         return sum + pendingAmount;
       }
       return sum;
     }, 0);
+
+    // Calculate combined totals (fees + fines)
+    const totalFees = regularFeesTotal + totalFinesAmount;
+    const totalPaid = regularFeesPaid + totalFinesPaid;
+    const totalDiscount = regularFeesDiscount;
+    const totalPending = regularFeesPending + totalFinesPending;
+    const totalOverdue = regularFeesOverdue + totalFinesPending; // Fines are always considered overdue if pending
 
     const paymentStatus = totalOverdue > 0
       ? 'overdue'
@@ -111,6 +136,15 @@ export async function GET(
         totalDiscount,
         totalOverdue,
         paymentStatus,
+        // Add fines breakdown
+        finesTotal: totalFinesAmount,
+        finesPaid: totalFinesPaid,
+        finesPending: totalFinesPending,
+        finesWaived: totalFinesWaived,
+        regularFeesTotal,
+        regularFeesPaid,
+        regularFeesPending,
+        regularFeesOverdue,
         feeBreakdown,
         feeRecords: feeRecords.map(record => ({
           id: record.id,
@@ -124,6 +158,18 @@ export async function GET(
           dueDate: record.dueDate || null,
           status: record.status,
           academicYear: record.academicYear || '',
+        })),
+        fines: fines.map((fine: any) => ({
+          id: fine.id,
+          fineNumber: fine.fineNumber,
+          description: fine.description,
+          amount: fine.amount || 0,
+          paidAmount: fine.paidAmount || 0,
+          pendingAmount: fine.pendingAmount || 0,
+          waivedAmount: fine.waivedAmount || 0,
+          status: fine.status,
+          createdAt: fine.createdAt,
+          dueDate: fine.dueDate,
         })),
       },
     });

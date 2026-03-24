@@ -55,6 +55,24 @@ export async function GET(request: NextRequest) {
       ORDER BY "totalCollected" DESC
     `;
     
+    // Add fines grouped query
+    const finesGroupedQuery = `
+      SELECT 
+        COALESCE(fp."collectedBy", 'Unknown') as collector,
+        COALESCE(fp."paymentMethod", 'Unknown') as "paymentMethod",
+        COUNT(*) as collections,
+        COALESCE(SUM(fp.amount), 0) as "totalCollected",
+        MAX(fp."paymentDate") as "latestCollectionDate",
+        COUNT(DISTINCT fp."fineId") as "uniqueStudents",
+        COUNT(DISTINCT s.class) as "classesServed"
+      FROM "school"."FinePayment" fp
+      LEFT JOIN "school"."Fine" f ON fp."fineId" = f.id
+      LEFT JOIN "school"."Student" s ON f."studentId" = s.id
+      WHERE ${whereClause.replace('p."createdAt"', 'fp."createdAt"').replace('p."collectedBy"', 'fp."collectedBy"').replace('p."paymentMethod"', 'fp."paymentMethod"')}
+      GROUP BY fp."collectedBy", fp."paymentMethod"
+      ORDER BY "totalCollected" DESC
+    `;
+    
     const summaryQuery = `
       SELECT 
         COUNT(DISTINCT p."collectedBy") as "totalCollectors",
@@ -67,6 +85,21 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "school"."FeeRecord" fr ON p."feeRecordId" = fr.id
       LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
       WHERE ${whereClause}
+    `;
+    
+    // Add fines summary query
+    const finesSummaryQuery = `
+      SELECT 
+        COUNT(DISTINCT fp."collectedBy") as "totalCollectors",
+        COALESCE(SUM(fp.amount), 0) as "totalAmount",
+        COUNT(*) as "totalTransactions",
+        COUNT(DISTINCT fp."fineId") as "totalStudents",
+        COALESCE(AVG(fp.amount), 0) as "avgTransactionAmount",
+        COUNT(DISTINCT fp."paymentMethod") as "paymentMethodsCount"
+      FROM "school"."FinePayment" fp
+      LEFT JOIN "school"."Fine" f ON fp."fineId" = f.id
+      LEFT JOIN "school"."Student" s ON f."studentId" = s.id
+      WHERE ${whereClause.replace('p."createdAt"', 'fp."createdAt"').replace('p."collectedBy"', 'fp."collectedBy"').replace('p."paymentMethod"', 'fp."paymentMethod"')}
     `;
     
     const countQuery = `
@@ -82,11 +115,15 @@ export async function GET(request: NextRequest) {
 
     const [
       groupedAggregations,
+      finesGroupedAggregations,
       summaryStats,
+      finesSummaryStats,
       totalCount
     ] = await Promise.all([
       schoolPrisma.$queryRawUnsafe(groupedQuery),
+      schoolPrisma.$queryRawUnsafe(finesGroupedQuery),
       schoolPrisma.$queryRawUnsafe(summaryQuery),
+      schoolPrisma.$queryRawUnsafe(finesSummaryQuery),
       schoolPrisma.$queryRawUnsafe(countQuery)
     ]);
 
@@ -102,28 +139,71 @@ export async function GET(request: NextRequest) {
     };
 
     // Format the grouped collections
-    const allCollections = (groupedAggregations as unknown as any[]).map((group: any) => ({
+    const regularFeeCollections = (groupedAggregations as unknown as any[]).map((group: any) => ({
       collector: group.collector,
       paymentMethod: group.paymentMethod,
       collections: safeParseInt(group.collections),
       totalCollected: safeParseFloat(group.totalCollected),
       latestCollectionDate: group.latestCollectionDate,
       uniqueStudents: safeParseInt(group.uniqueStudents),
-      classesServed: group.classesServed || []
+      classesServed: group.classesServed || [],
+      type: 'regular_fees'
     }));
+
+    // Format the fines collections
+    const finesCollections = (finesGroupedAggregations as unknown as any[]).map((group: any) => ({
+      collector: group.collector,
+      paymentMethod: group.paymentMethod,
+      collections: safeParseInt(group.collections),
+      totalCollected: safeParseFloat(group.totalCollected),
+      latestCollectionDate: group.latestCollectionDate,
+      uniqueStudents: safeParseInt(group.uniqueStudents),
+      classesServed: group.classesServed || [],
+      type: 'fines'
+    }));
+
+    // Combine all collections
+    const allCollections = [...regularFeeCollections, ...finesCollections];
 
     // Apply pagination
     const totalCollections = safeParseInt((totalCount as unknown as any[])[0]?.count);
     const formattedCollections = allCollections.slice((page - 1) * limit, page * limit);
 
-    // Format summary statistics
-    const summary = {
+    // Format regular fees summary statistics
+    const regularFeesSummary = {
       totalCollectors: safeParseInt((summaryStats as unknown as any[])[0]?.totalCollectors),
       totalAmount: safeParseFloat((summaryStats as unknown as any[])[0]?.totalAmount),
       totalTransactions: safeParseInt((summaryStats as unknown as any[])[0]?.totalTransactions),
       totalStudents: safeParseInt((summaryStats as unknown as any[])[0]?.totalStudents),
       avgTransactionAmount: safeParseFloat((summaryStats as unknown as any[])[0]?.avgTransactionAmount),
       paymentMethodsCount: safeParseInt((summaryStats as unknown as any[])[0]?.paymentMethodsCount)
+    };
+
+    // Format fines summary statistics
+    const finesSummary = {
+      totalCollectors: safeParseInt((finesSummaryStats as unknown as any[])[0]?.totalCollectors),
+      totalAmount: safeParseFloat((finesSummaryStats as unknown as any[])[0]?.totalAmount),
+      totalTransactions: safeParseInt((finesSummaryStats as unknown as any[])[0]?.totalTransactions),
+      totalStudents: safeParseInt((finesSummaryStats as unknown as any[])[0]?.totalStudents),
+      avgTransactionAmount: safeParseFloat((finesSummaryStats as unknown as any[])[0]?.avgTransactionAmount),
+      paymentMethodsCount: safeParseInt((finesSummaryStats as unknown as any[])[0]?.paymentMethodsCount)
+    };
+
+    // Combined summary statistics
+    const summary = {
+      ...regularFeesSummary,
+      ...finesSummary,
+      // Combined totals
+      combinedTotalCollectors: regularFeesSummary.totalCollectors + finesSummary.totalCollectors,
+      combinedTotalAmount: regularFeesSummary.totalAmount + finesSummary.totalAmount,
+      combinedTotalTransactions: regularFeesSummary.totalTransactions + finesSummary.totalTransactions,
+      combinedTotalStudents: regularFeesSummary.totalStudents + finesSummary.totalStudents,
+      combinedAvgTransactionAmount: (regularFeesSummary.totalAmount + finesSummary.totalAmount) / 
+        (regularFeesSummary.totalTransactions + finesSummary.totalTransactions || 1),
+      combinedPaymentMethodsCount: Math.max(regularFeesSummary.paymentMethodsCount, finesSummary.paymentMethodsCount),
+      // Separate breakdowns
+      regularFees: regularFeesSummary,
+      fines: finesSummary
     };
 
     // Handle BigInt serialization in JSON response

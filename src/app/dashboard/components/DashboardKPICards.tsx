@@ -61,6 +61,21 @@ export default function DashboardKPICards({ theme, kpiData, canViewFinancials = 
       link: '/students'
     },
     {
+      title: 'Total Revenue',
+      value: `₹${(kpiData.financial.totalRevenue / 100000).toFixed(1)}L`,
+      subtitle: 'Including fines',
+      trend: {
+        value: '+15.2%',
+        type: 'up',
+        color: 'green'
+      },
+      icon: '💵',
+      iconBg: theme === 'dark' ? 'bg-indigo-600/20' : 'bg-indigo-100',
+      iconColor: theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600',
+      link: '/fees',
+      financial: true
+    },
+    {
       title: 'Fees Collected',
       value: `₹${(kpiData.financial.feesCollected / 100000).toFixed(1)}L`,
       subtitle: `${kpiData.financial.collectionRate}% collection rate`,

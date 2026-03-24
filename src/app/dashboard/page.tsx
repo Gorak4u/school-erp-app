@@ -138,7 +138,7 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       const response = await dashboardApi.stats();
-      setDashboardData(response.data);
+      setDashboardData(response as any);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

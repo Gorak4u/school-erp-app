@@ -32,8 +32,8 @@ export async function GET() {
         SELECT 
           (SELECT COUNT(*) FROM "school"."Student" WHERE "schoolId" = ${schoolId}) as total_students,
           (SELECT COUNT(*) FROM "school"."Student" WHERE "schoolId" = ${schoolId} AND "status" = 'active') as active_students,
-          (SELECT COUNT(*) FROM "school"."Teacher" WHERE "schoolId" = ${schoolId}) as total_teachers,
-          (SELECT COUNT(*) FROM "school"."Teacher" WHERE "schoolId" = ${schoolId} AND "status" = 'active') as active_teachers
+          (SELECT COUNT(*) FROM "school"."User" WHERE "schoolId" = ${schoolId}) as total_teachers,
+          (SELECT COUNT(*) FROM "school"."User" WHERE "schoolId" = ${schoolId} AND "isActive" = true) as active_teachers
       `;
       totalStudents = parseInt(stats.total_students);
       activeStudents = parseInt(stats.active_students);
@@ -45,8 +45,8 @@ export async function GET() {
         SELECT 
           (SELECT COUNT(*) FROM "school"."Student") as total_students,
           (SELECT COUNT(*) FROM "school"."Student" WHERE "status" = 'active') as active_students,
-          (SELECT COUNT(*) FROM "school"."Teacher") as total_teachers,
-          (SELECT COUNT(*) FROM "school"."Teacher" WHERE "status" = 'active') as active_teachers
+          (SELECT COUNT(*) FROM "school"."User") as total_teachers,
+          (SELECT COUNT(*) FROM "school"."User" WHERE "isActive" = true) as active_teachers
       `;
       totalStudents = parseInt(stats.total_students);
       activeStudents = parseInt(stats.active_students);
@@ -57,19 +57,25 @@ export async function GET() {
     // OPTIMIZED: Consolidate fee and attendance stats into 1 query
     const [
       feeStats,
+      finesAggregation,
       attendanceToday,
       classDistribution,
     ] = await Promise.all([
-      (schoolPrisma as any).feeRecord.aggregate({
+      (schoolPrisma as any).FeeRecord.aggregate({
         where: feeRecordFilter,
         _sum: { amount: true, paidAmount: true, pendingAmount: true },
       }),
-      (schoolPrisma as any).attendanceRecord.groupBy({
+      // Add fines aggregation
+      (schoolPrisma as any).Fine.aggregate({
+        where: { schoolId: ctx.schoolId },
+        _sum: { amount: true, paidAmount: true, pendingAmount: true, waivedAmount: true },
+      }),
+      (schoolPrisma as any).AttendanceRecord.groupBy({
         by: ['status'],
         where: { date: today, ...attendanceFilter },
         _count: { status: true },
       }),
-      (schoolPrisma as any).student.groupBy({ 
+      (schoolPrisma as any).Student.groupBy({ 
         by: ['class'], 
         where: studentFilter, 
         _count: { class: true }, 
@@ -77,18 +83,21 @@ export async function GET() {
       }),
     ]);
 
+    // Extract fines statistics
+    const finesStats = finesAggregation._sum;
+
     // OPTIMIZED: Fetch only necessary data for UI
     const [
       upcomingExams,
       recentPayments,
     ] = await Promise.all([
-      (schoolPrisma as any).exam.findMany({
+      (schoolPrisma as any).Exam.findMany({
         where: { ...examFilter, date: { gte: today }, status: 'scheduled' },
         orderBy: { date: 'asc' },
         take: 5,
         select: { id: true, name: true, date: true, class: true, subject: true, venue: true },
       }),
-      (schoolPrisma as any).payment.findMany({
+      (schoolPrisma as any).Payment.findMany({
         where: paymentFilter,
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -124,11 +133,19 @@ export async function GET() {
         active: activeTeachers,
       },
       fees: {
-        totalAmount: feeStats._sum.amount || 0,
-        totalCollected: feeStats._sum.paidAmount || 0,
-        totalPending: feeStats._sum.pendingAmount || 0,
-        collectionRate: feeStats._sum.amount
-          ? Math.round(((feeStats._sum.paidAmount || 0) / feeStats._sum.amount) * 100)
+        // Combine regular fees and fines
+        totalAmount: (feeStats._sum.amount || 0) + (finesAggregation._sum.amount || 0),
+        totalCollected: (feeStats._sum.paidAmount || 0) + (finesAggregation._sum.paidAmount || 0),
+        totalPending: (feeStats._sum.pendingAmount || 0) + (finesAggregation._sum.pendingAmount || 0),
+        totalFines: finesAggregation._sum.amount || 0,
+        finesCollected: finesAggregation._sum.paidAmount || 0,
+        finesPending: finesAggregation._sum.pendingAmount || 0,
+        finesWaived: finesAggregation._sum.waivedAmount || 0,
+        regularFeesAmount: feeStats._sum.amount || 0,
+        regularFeesCollected: feeStats._sum.paidAmount || 0,
+        regularFeesPending: feeStats._sum.pendingAmount || 0,
+        collectionRate: ((feeStats._sum.amount || 0) + (finesAggregation._sum.amount || 0))
+          ? Math.round((((feeStats._sum.paidAmount || 0) + (finesAggregation._sum.paidAmount || 0)) / ((feeStats._sum.amount || 0) + (finesAggregation._sum.amount || 0))) * 100)
           : 0,
       },
       attendance: {

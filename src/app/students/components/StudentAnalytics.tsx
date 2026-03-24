@@ -118,6 +118,20 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       const studentPending = s.fees?.pending || 0;
       return sum + studentPending;
     }, 0);
+    
+    // Add fines calculations
+    const totalFines = activeStudents.reduce((sum, s) => sum + (s.fees?.finesTotal || 0), 0);
+    const totalFinesPaid = activeStudents.reduce((sum, s) => sum + (s.fees?.finesPaid || 0), 0);
+    const totalFinesPending = activeStudents.reduce((sum, s) => sum + (s.fees?.finesPending || 0), 0);
+    const finesDefaulters = activeStudents.filter(s => (s.fees?.finesPending || 0) > 0).length;
+    
+    // Combined totals including fines
+    const combinedTotalFees = totalFees + totalFines;
+    const combinedTotalPaid = totalPaid + totalFinesPaid;
+    const combinedTotalPending = totalPending + totalFinesPending;
+    const combinedCollectionRate = combinedTotalFees > 0 ? (combinedTotalPaid / combinedTotalFees) * 100 : 0;
+    const combinedDefaulters = activeStudents.filter(s => ((s.fees?.pending || 0) + (s.fees?.finesPending || 0)) > 0).length;
+    
     const collectionRate = totalFees > 0 ? (totalPaid / totalFees) * 100 : 0;
     const feeDefaulters = activeStudents.filter(s => (s.fees?.pending || 0) > 0).length;
 
@@ -130,10 +144,19 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
     });
 
     return {
+      // Academic
       avgGpa, gpaDistribution, passRate,
+      // Attendance
       avgAttendance, lowAttendance, perfectAttendance, classAttendance,
+      // Behavioral
       avgDiscipline, totalIncidents, totalAchievements,
+      // Financial - Regular Fees
       totalFees, totalPaid, totalPending, collectionRate, feeDefaulters,
+      // Financial - Fines
+      totalFines, totalFinesPaid, totalFinesPending, finesDefaulters,
+      // Financial - Combined
+      combinedTotalFees, combinedTotalPaid, combinedTotalPending, combinedCollectionRate, combinedDefaulters,
+      // Demographics
       genderDist, totalStudents
     };
   }, [students]);
@@ -260,10 +283,22 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       ]
     },
     feeDistribution: {
-      labels: analytics.totalPaid > 0 ? ['Paid', 'Pending'] : ['No data'],
+      labels: analytics.combinedTotalPaid > 0 ? ['Regular Fees Paid', 'Regular Fees Pending', 'Fines Paid', 'Fines Pending'] : ['No data'],
       datasets: [{
-        data: analytics.totalPaid > 0 ? [analytics.totalPaid, analytics.totalPending] : [1],
-        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(156, 163, 175, 0.8)']
+        data: analytics.combinedTotalPaid > 0 ? [analytics.totalPaid, analytics.totalPending, analytics.totalFinesPaid, analytics.totalFinesPending] : [1],
+        backgroundColor: [
+          'rgba(34, 197, 94, 0.8)',  // Regular Fees Paid - Green
+          'rgba(239, 68, 68, 0.8)',  // Regular Fees Pending - Red
+          'rgba(59, 130, 246, 0.8)', // Fines Paid - Blue
+          'rgba(251, 146, 60, 0.8)'  // Fines Pending - Orange
+        ],
+        borderColor: [
+          'rgba(34, 197, 94, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(59, 130, 246, 1)',
+          'rgba(251, 146, 60, 1)'
+        ],
+        borderWidth: 2
       }]
     }
   };
@@ -416,12 +451,33 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       {/* Financial Analysis Tab */}
       {activeAnalyticsTab === 'financial' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <MetricCard title="Total Fees" value={`Rs.${(analytics.totalFees / 100000).toFixed(1)}L`} subtitle="Current academic year" color="text-blue-400" />
-            <MetricCard title="Collected" value={`Rs.${(analytics.totalPaid / 100000).toFixed(1)}L`} subtitle={`${analytics.collectionRate.toFixed(1)}% collection rate`} color="text-green-400" />
-            <MetricCard title="Pending" value={`Rs.${(analytics.totalPending / 100000).toFixed(1)}L`} subtitle={`${analytics.feeDefaulters} defaulters`} color="text-red-400" />
-            <MetricCard title="Collection Rate" value={`${analytics.collectionRate.toFixed(1)}%`} subtitle="Overall efficiency" color="text-purple-400" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard title="Total Fees" value={`Rs.${(analytics.combinedTotalFees / 100000).toFixed(1)}L`} subtitle="Including fines" color="text-blue-400" />
+            <MetricCard title="Collected" value={`Rs.${(analytics.combinedTotalPaid / 100000).toFixed(1)}L`} subtitle={`${analytics.combinedCollectionRate.toFixed(1)}% rate`} color="text-green-400" />
+            <MetricCard title="Pending" value={`Rs.${(analytics.combinedTotalPending / 100000).toFixed(1)}L`} subtitle={`${analytics.combinedDefaulters} defaulters`} color="text-red-400" />
+            <MetricCard title="Fines" value={`Rs.${(analytics.totalFines / 1000).toFixed(0)}K`} subtitle={`${analytics.finesDefaulters} students`} color="text-orange-400" />
           </div>
+
+          {/* Fines Breakdown */}
+          {analytics.totalFines > 0 && (
+            <div className={`p-6 rounded-xl border ${cardCls}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Fines Breakdown</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <p className={`text-2xl font-bold text-orange-400`}>Rs.{(analytics.totalFines / 1000).toFixed(0)}K</p>
+                  <p className={`text-sm ${textSecondary}`}>Total Fines</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-2xl font-bold text-green-400`}>Rs.{(analytics.totalFinesPaid / 1000).toFixed(0)}K</p>
+                  <p className={`text-sm ${textSecondary}`}>Fines Collected</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-2xl font-bold text-red-400`}>Rs.{(analytics.totalFinesPending / 1000).toFixed(0)}K</p>
+                  <p className={`text-sm ${textSecondary}`}>Fines Pending</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className={`p-6 rounded-xl border ${cardCls}`}>
@@ -429,41 +485,58 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
               <div className="h-64"><Line data={financialCharts.collectionTrend} options={chartOptions} /></div>
             </div>
             <div className={`p-6 rounded-xl border ${cardCls}`}>
-              <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Fee Distribution</h3>
+              <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Fee Distribution (Including Fines)</h3>
               <div className="h-64"><Doughnut data={financialCharts.feeDistribution} options={pieOptions} /></div>
             </div>
           </div>
 
           {/* Top Defaulters */}
           <div className={`p-6 rounded-xl border ${cardCls}`}>
-            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Top Fee Defaulters</h3>
+            <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Top Fee Defaulters (Including Fines)</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className={`${isDark ? 'border-gray-700' : 'border-gray-200'} border-b`}>
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Student</th>
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Class</th>
-                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Total</th>
-                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Paid</th>
-                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Pending</th>
+                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Regular Fees</th>
+                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Fines</th>
+                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Total Pending</th>
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {students.filter(s => (s.fees?.pending || 0) > 0).sort((a, b) => (b.fees?.pending || 0) - (a.fees?.pending || 0)).slice(0, 10).map((s, i) => (
-                    <tr key={i} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
-                      <td className={`py-3 px-4 ${textPrimary}`}>{s.name}</td>
-                      <td className={`py-3 px-4 ${textSecondary}`}>{s.class}</td>
-                      <td className={`py-3 px-4 text-right ${textPrimary}`}>Rs.{s.fees?.total?.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-green-500">Rs.{s.fees?.paid?.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-red-500">Rs.{s.fees?.pending?.toLocaleString()}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs ${(s.fees?.pending || 0) > (s.fees?.total || 1) * 0.5 ? 'bg-red-600/20 text-red-400' : 'bg-yellow-600/20 text-yellow-400'}`}>
-                          {(s.fees?.pending || 0) > (s.fees?.total || 1) * 0.5 ? 'Critical' : 'Overdue'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {students
+                    .filter(s => ((s.fees?.pending || 0) + (s.fees?.finesPending || 0)) > 0)
+                    .sort((a, b) => ((b.fees?.pending || 0) + (b.fees?.finesPending || 0)) - ((a.fees?.pending || 0) + (a.fees?.finesPending || 0)))
+                    .slice(0, 10)
+                    .map((s, i) => {
+                      const regularPending = s.fees?.pending || 0;
+                      const finesPending = s.fees?.finesPending || 0;
+                      const totalPending = regularPending + finesPending;
+                      const totalOwed = (s.fees?.total || 0) + (s.fees?.finesTotal || 0);
+                      
+                      return (
+                        <tr key={i} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
+                          <td className={`py-3 px-4 ${textPrimary}`}>{s.name}</td>
+                          <td className={`py-3 px-4 ${textSecondary}`}>{s.class}</td>
+                          <td className={`py-3 px-4 text-right ${textPrimary}`}>Rs.{regularPending.toLocaleString()}</td>
+                          <td className={`py-3 px-4 text-right text-orange-500`}>Rs.{finesPending.toLocaleString()}</td>
+                          <td className={`py-3 px-4 text-right text-red-500 font-bold`}>Rs.{totalPending.toLocaleString()}</td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              totalPending > totalOwed * 0.5 ? 'bg-red-600/20 text-red-400' : 
+                              finesPending > 0 ? 'bg-orange-600/20 text-orange-400' : 
+                              'bg-yellow-600/20 text-yellow-400'
+                            }`}>
+                              {totalPending > totalOwed * 0.5 ? 'Critical' : 
+                               finesPending > 0 ? 'Has Fines' : 
+                               'Overdue'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
