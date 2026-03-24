@@ -160,10 +160,22 @@ export async function GET(request: NextRequest) {
 
     const enriched = await Promise.all(
       actualAssignments.map(async (assignment: any) => {
-        const [submitted, graded, pending] = await Promise.all([
+        const [submitted, graded, pending, classInfo] = await Promise.all([
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'submitted' } }),
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'graded' } }),
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'pending' } }),
+          // Fetch class information
+          assignment.classId ? (schoolPrisma as any).class.findUnique({
+            where: { id: assignment.classId },
+            select: { 
+              id: true, 
+              name: true, 
+              code: true,
+              medium: {
+                select: { id: true, name: true, code: true }
+              }
+            }
+          }) : null
         ]);
 
         const totalRecipients = assignment._count?.submissions || 0;
@@ -171,6 +183,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...assignment,
+          class: classInfo,
           stats: {
             totalRecipients,
             submitted,

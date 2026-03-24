@@ -14,7 +14,19 @@ type Assignment = {
   title: string;
   subject: string;
   classId?: string | null;
-  class?: string | null;
+  class?: {
+    id: string;
+    name: string;
+    code: string;
+    medium?: {
+      id: string;
+      name: string;
+      code: string;
+    } | null;
+    section?: {
+      name: string;
+    } | null;
+  } | null;
   dueDate: string;
   type: string;
   status: string;
@@ -293,7 +305,9 @@ export default function AssignmentsWorkspace() {
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-gray-700/80' : 'divide-gray-200'}`}>
-                {loading ? Array.from({ length: 6 }).map((_, i) => <tr key={i}>{Array.from({ length: 6 }).map((_, j) => <td key={j} className="px-4 py-4"><div className={`h-4 rounded animate-pulse ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} /></td>)}</tr>) : assignments.length === 0 ? <tr><td colSpan={6} className="px-4 py-16 text-center"><div className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>No assignments found</div><div className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Adjust your filters or create a new assignment.</div></td></tr> : assignments.map((assignment) => <tr key={assignment.id} className={isDark ? 'hover:bg-gray-800/60' : 'hover:bg-gray-50'}><td className="px-4 py-4"><div className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{assignment.title}</div><div className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{assignment.subject} • {assignment.type}</div></td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{assignment.classId || assignment.class || '—'}</td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{assignment.teacher?.name || '—'}</td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{assignment.dueDate}</td><td className="px-4 py-4 text-sm"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment.isOverdue ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20' : assignment.isDueSoon ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'}`}>{assignment.isOverdue ? 'Overdue' : assignment.status}</span></td><td className="px-4 py-4"><div className="space-y-2"><div className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{assignment.stats?.completionRate ?? 0}% complete</div><div className={`h-2 w-full rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}><div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500" style={{ width: `${assignment.stats?.completionRate ?? 0}%` }} /></div><div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{assignment.stats?.submitted ?? 0} submitted • {assignment.stats?.pending ?? 0} pending • {assignment.stats?.graded ?? 0} graded</div></div></td></tr>)}
+                {loading ? Array.from({ length: 6 }).map((_, i) => <tr key={i}>{Array.from({ length: 6 }).map((_, j) => <td key={j} className="px-4 py-4"><div className={`h-4 rounded animate-pulse ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} /></td>)}</tr>) : assignments.length === 0 ? <tr><td colSpan={6} className="px-4 py-16 text-center"><div className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>No assignments found</div><div className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Adjust your filters or create a new assignment.</div></td></tr> : assignments.map((assignment) => <tr key={assignment.id} className={isDark ? 'hover:bg-gray-800/60' : 'hover:bg-gray-50'}><td className="px-4 py-4"><div className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{assignment.title}</div><div className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{assignment.subject} • {assignment.type}</div></td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {assignment.class ? `${assignment.class.name} ${assignment.class.medium ? `- ${assignment.class.medium.name}` : ''}` : assignment.classId || '—'}
+                </td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{assignment.teacher?.name || '—'}</td><td className={`px-4 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{assignment.dueDate}</td><td className="px-4 py-4 text-sm"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment.isOverdue ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20' : assignment.isDueSoon ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'}`}>{assignment.isOverdue ? 'Overdue' : assignment.status}</span></td><td className="px-4 py-4"><div className="space-y-2"><div className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{assignment.stats?.completionRate ?? 0}% complete</div><div className={`h-2 w-full rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}><div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500" style={{ width: `${assignment.stats?.completionRate ?? 0}%` }} /></div><div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{assignment.stats?.submitted ?? 0} submitted • {assignment.stats?.pending ?? 0} pending • {assignment.stats?.graded ?? 0} graded</div></div></td></tr>)}
               </tbody>
             </table>
           </div>
