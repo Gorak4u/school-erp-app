@@ -73,8 +73,7 @@ const publicRoutes = [
   '/api/razorpay/verify-payment',
   '/api/razorpay/verify-subscription-payment',
   '/api/school/by-subdomain',
-  '/api/upload',
-  '/api/payment-config'
+  '/api/upload'
 ];
 
 // Development-only routes (blocked in production)
