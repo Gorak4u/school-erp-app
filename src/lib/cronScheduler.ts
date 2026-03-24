@@ -1,0 +1,321 @@
+import cron, { type ScheduledTask } from 'node-cron';
+import { saasPrisma } from './prisma';
+
+/**
+ * Production-Ready Cron Scheduler
+ *
+ * Design principles:
+ * - ALL config stored in DB (CronJobConfig table) - never resets on restart
+ * - Jobs dispatch by calling their own API route with CRON_SECRET header
+ * - Each job run is logged in CronJobRun table with duration + output
+ * - Separate scope: 'school' jobs vs 'saas' jobs
+ * - Auto-seeds default config on first startup if DB is empty
+ */
+
+const TZ = 'Asia/Kolkata';
+const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+const CRON_SECRET = process.env.CRON_SECRET || '';
+
+// Active node-cron task handles
+const activeTasks = new Map<string, ScheduledTask>();
+
+// ─── Default Job Definitions ────────────────────────────────────────────────
+
+const DEFAULT_JOBS = [
+  // ── School jobs ──
+  {
+    jobName: 'process-communication-outbox',
+    scope: 'school',
+    category: 'communication',
+    description: 'Process queued emails and send them via school SMTP',
+    schedule: '*/5 * * * *',
+    enabled: true,
+  },
+  {
+    jobName: 'send-reminders',
+    scope: 'school',
+    category: 'communication',
+    description: 'Send fee payment reminders and low-attendance alerts',
+    schedule: '0 9 * * *',
+    enabled: true,
+  },
+  {
+    jobName: 'update-statistics',
+    scope: 'school',
+    category: 'analytics',
+    description: 'Refresh cached school statistics (students, fees, attendance)',
+    schedule: '0 */2 * * *',
+    enabled: true,
+  },
+  {
+    jobName: 'cleanup-logs',
+    scope: 'school',
+    category: 'maintenance',
+    description: 'Delete audit logs and sent outbox entries older than 90 days',
+    schedule: '0 2 * * 0',
+    enabled: true,
+  },
+  // ── SaaS jobs ──
+  {
+    jobName: 'process-renewals',
+    scope: 'saas',
+    category: 'billing',
+    description: 'Process subscription renewals and send invoice emails via SaaS SMTP',
+    schedule: '0 */6 * * *',
+    enabled: true,
+  },
+  {
+    jobName: 'process-suspensions',
+    scope: 'saas',
+    category: 'billing',
+    description: 'Suspend overdue subscriptions and notify school admins',
+    schedule: '0 4 * * *',
+    enabled: true,
+  },
+  {
+    jobName: 'promo-cleanup',
+    scope: 'saas',
+    category: 'marketing',
+    description: 'Deactivate expired promo codes and log usage stats',
+    schedule: '0 2 * * 0',
+    enabled: true,
+  },
+];
+
+// ─── DB helpers ─────────────────────────────────────────────────────────────
+
+const db = () => (saasPrisma as any);
+
+function isDatabaseConnectivityError(error: any) {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    error?.code === 'P1001' ||
+    error?.name === 'DriverAdapterError' ||
+    message.includes('database') ||
+    message.includes('connection') ||
+    message.includes('db not reachable') ||
+    message.includes('database unreachable')
+  );
+}
+
+async function seedDefaultConfigs() {
+  for (const job of DEFAULT_JOBS) {
+    await db().cronJobConfig.upsert({
+      where: { jobName: job.jobName },
+      update: {}, // never overwrite user edits on restart
+      create: job,
+    });
+  }
+}
+
+async function loadEnabledConfigs() {
+  return db().cronJobConfig.findMany({
+    where: { enabled: true },
+    orderBy: { scope: 'asc' },
+  });
+}
+
+async function markRunStart(jobName: string, scope: string, triggeredBy: string) {
+  return db().cronJobRun.create({
+    data: { jobName, scope, status: 'running', triggeredBy },
+  });
+}
+
+async function markRunFinish(
+  runId: string,
+  jobName: string,
+  status: 'success' | 'failed',
+  durationMs: number,
+  processed: number,
+  output: string,
+  error?: string,
+) {
+  const now = new Date();
+  await Promise.all([
+    db().cronJobRun.update({
+      where: { id: runId },
+      data: { status, finishedAt: now, durationMs, processed, output, error },
+    }),
+    db().cronJobConfig.update({
+      where: { jobName },
+      data: { lastRunAt: now, lastStatus: status, lastRunMs: durationMs },
+    }),
+  ]);
+}
+
+// ─── Job dispatcher ──────────────────────────────────────────────────────────
+
+async function dispatchJob(jobName: string, scope: string, triggeredBy = 'scheduler') {
+  const run = await markRunStart(jobName, scope, triggeredBy);
+  const start = Date.now();
+  let status: 'success' | 'failed' = 'success';
+  let output = '';
+  let error = '';
+  let processed = 0;
+
+  try {
+    const url = `${BASE_URL}/api/cron/${jobName}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${CRON_SECRET}`,
+      },
+      signal: AbortSignal.timeout(15 * 60 * 1000), // 15 min hard timeout
+    });
+
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      status = 'failed';
+      error = body.error || `HTTP ${res.status}`;
+    } else {
+      processed = body.result?.processed ?? body.processed ?? body.results?.processed ?? 0;
+      output = JSON.stringify(body).slice(0, 4000);
+    }
+  } catch (err: any) {
+    status = 'failed';
+    error = err.message ?? String(err);
+  }
+
+  const durationMs = Date.now() - start;
+  await markRunFinish(run.id, jobName, status, durationMs, processed, output, error || undefined);
+
+  console.log(
+    `[Cron][${scope}] ${jobName} → ${status} in ${durationMs}ms` +
+      (processed ? ` (${processed} records)` : ''),
+  );
+}
+
+// ─── Scheduler lifecycle ─────────────────────────────────────────────────────
+
+export async function initializeCronScheduler(): Promise<boolean> {
+  console.log('[Cron] Initializing scheduler…');
+
+  try {
+    await seedDefaultConfigs();
+    const jobs = await loadEnabledConfigs();
+
+    // Stop any previously running tasks (hot-reload safe)
+    stopAllJobs();
+
+    for (const job of jobs) {
+      if (!cron.validate(job.schedule)) {
+        console.warn(`[Cron] Invalid schedule for ${job.jobName}: "${job.schedule}" – skipped`);
+        continue;
+      }
+
+      const task = cron.schedule(
+        job.schedule,
+        () => dispatchJob(job.jobName, job.scope, 'scheduler'),
+        { timezone: TZ },
+      );
+
+      activeTasks.set(job.jobName, task);
+      console.log(`[Cron] Scheduled ${job.scope}/${job.jobName} @ "${job.schedule}"`);
+    }
+
+    console.log(`[Cron] ${activeTasks.size} jobs active`);
+    return true;
+  } catch (err) {
+    if (isDatabaseConnectivityError(err)) {
+      console.warn('[Cron] Database unavailable, skipping cron scheduler initialization for now.');
+      return false;
+    }
+
+    console.error('[Cron] Failed to initialize:', err);
+    return false;
+  }
+}
+
+export function stopAllJobs() {
+  activeTasks.forEach((task) => task.stop());
+  activeTasks.clear();
+}
+
+// ─── Management functions (called by API) ────────────────────────────────────
+
+export async function triggerJobNow(jobName: string): Promise<{ success: boolean; message: string }> {
+  const config = await db().cronJobConfig.findUnique({ where: { jobName } });
+  if (!config) return { success: false, message: `Job "${jobName}" not found` };
+
+  // Fire without blocking the API response
+  dispatchJob(jobName, config.scope, 'manual').catch(console.error);
+  return { success: true, message: `Job "${jobName}" triggered` };
+}
+
+export async function setJobEnabled(jobName: string, enabled: boolean): Promise<boolean> {
+  const updated = await db().cronJobConfig.update({
+    where: { jobName },
+    data: { enabled },
+  }).catch(() => null);
+
+  if (!updated) return false;
+
+  if (!enabled) {
+    activeTasks.get(jobName)?.stop();
+    activeTasks.delete(jobName);
+  } else {
+    // Re-schedule with current stored schedule
+    const task = cron.schedule(
+      updated.schedule,
+      () => dispatchJob(jobName, updated.scope, 'scheduler'),
+      { timezone: TZ },
+    );
+    activeTasks.set(jobName, task);
+  }
+  return true;
+}
+
+export async function setJobSchedule(jobName: string, schedule: string): Promise<boolean> {
+  if (!cron.validate(schedule)) return false;
+
+  const updated = await db().cronJobConfig.update({
+    where: { jobName },
+    data: { schedule },
+  }).catch(() => null);
+
+  if (!updated) return false;
+
+  // Restart with new schedule if currently active
+  if (activeTasks.has(jobName)) {
+    activeTasks.get(jobName)!.stop();
+    const task = cron.schedule(
+      schedule,
+      () => dispatchJob(jobName, updated.scope, 'scheduler'),
+      { timezone: TZ },
+    );
+    activeTasks.set(jobName, task);
+  }
+  return true;
+}
+
+export async function getCronStatus() {
+  const configs = await db().cronJobConfig.findMany({
+    orderBy: [{ scope: 'asc' }, { category: 'asc' }, { jobName: 'asc' }],
+  });
+
+  const recentRuns = await db().cronJobRun.findMany({
+    orderBy: { startedAt: 'desc' },
+    take: 50,
+  });
+
+  return {
+    jobs: configs.map((c: any) => ({
+      ...c,
+      running: activeTasks.has(c.jobName),
+    })),
+    recentRuns,
+    activeCount: activeTasks.size,
+  };
+}
+
+// ─── Auto-init in production ──────────────────────────────────────────────────
+
+let initialized = false;
+export function ensureInitialized() {
+  if (!initialized && process.env.NODE_ENV === 'production') {
+    initialized = true;
+    initializeCronScheduler();
+  }
+}

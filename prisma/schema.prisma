@@ -190,6 +190,49 @@ model SaasSetting {
   @@schema("saas")
 }
 
+model CronJobConfig {
+  id          String    @id @default(cuid())
+  jobName     String    @unique
+  scope       String    // 'school' | 'saas'
+  category    String    // 'communication' | 'billing' | 'analytics' | 'maintenance' | 'marketing'
+  description String
+  schedule    String
+  enabled     Boolean   @default(true)
+  lastRunAt   DateTime?
+  lastStatus  String?   // 'success' | 'failed' | 'running'
+  lastRunMs   Int?
+  nextRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([scope])
+  @@index([enabled])
+  @@schema("saas")
+  @@map("cron_job_configs")
+}
+
+model CronJobRun {
+  id          String    @id @default(cuid())
+  jobName     String
+  scope       String    // 'school' | 'saas'
+  status      String    // 'running' | 'success' | 'failed'
+  triggeredBy String    @default("scheduler") // 'scheduler' | 'manual'
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  durationMs  Int?
+  processed   Int?
+  failed      Int?
+  output      String?   @db.Text
+  error       String?   @db.Text
+
+  @@index([jobName])
+  @@index([scope])
+  @@index([status])
+  @@index([startedAt])
+  @@schema("saas")
+  @@map("cron_job_runs")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   actorEmail String

@@ -1,0 +1,18 @@
+[2026-03-24T08:37:20.397Z] INFO | Starting super admin verification | Meta: {"emailConfigured":false,"passwordConfigured":false,"email":"NOT_SET"}
+[2026-03-24T08:37:20.397Z] WARN | No super admin credentials found in .env | Meta: {"emailConfigured":false,"passwordConfigured":false,"solution":"Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in .env"}
+[2026-03-24T08:41:13.717Z] INFO | Starting super admin verification | Meta: {"emailConfigured":false,"passwordConfigured":false,"email":"NOT_SET"}
+[2026-03-24T08:41:13.717Z] WARN | No super admin credentials found in .env | Meta: {"emailConfigured":false,"passwordConfigured":false,"solution":"Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in .env"}
+[2026-03-24T08:45:36.723Z] INFO | Starting super admin verification | Meta: {"emailConfigured":false,"passwordConfigured":false,"email":"NOT_SET"}
+[2026-03-24T08:45:36.724Z] WARN | No super admin credentials found in .env | Meta: {"emailConfigured":false,"passwordConfigured":false,"solution":"Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in .env"}
+[2026-03-24T08:52:25.001Z] INFO | Starting super admin verification | Meta: {"emailConfigured":true,"passwordConfigured":true,"email":"gorak4u@gmail.com"}
+[2026-03-24T08:52:28.392Z] INFO | Super admin password hashed successfully
+[2026-03-24T08:52:28.392Z] INFO | Creating or updating super admin in SaaS User table
+[2026-03-24T08:52:31.274Z] INFO | Super admin ready in SaaS User table | Meta: {"email":"gorak4u@gmail.com","id":"bfb4b496-4c1e-4c87-9c7c-fcfc54e2689f","role":"super_admin"}
+[2026-03-24T08:52:32.433Z] INFO | Super admin ready in school_User table
+[2026-03-24T08:52:32.433Z] INFO | Super admin initialization complete
+[2026-03-24T09:05:30.594Z] INFO | Starting super admin verification | Meta: {"emailConfigured":true,"passwordConfigured":true,"email":"gorak4u@gmail.com"}
+[2026-03-24T09:05:30.822Z] INFO | Super admin password hashed successfully
+[2026-03-24T09:05:30.822Z] INFO | Creating or updating super admin in SaaS User table
+[2026-03-24T09:05:32.170Z] INFO | Super admin ready in SaaS User table | Meta: {"email":"gorak4u@gmail.com","id":"bfb4b496-4c1e-4c87-9c7c-fcfc54e2689f","role":"super_admin"}
+[2026-03-24T09:05:33.202Z] INFO | Super admin ready in school_User table
+[2026-03-24T09:05:33.202Z] INFO | Super admin initialization complete

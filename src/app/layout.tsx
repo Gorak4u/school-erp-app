@@ -8,15 +8,6 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 
-// Initialize cron jobs for server-side
-import { initializeCronJobs } from "@/lib/cronJobs";
-
-// Initialize cron jobs when the app starts
-if (typeof window === 'undefined') {
-  // Only run on server side
-  initializeCronJobs();
-}
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
