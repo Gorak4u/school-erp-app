@@ -6,6 +6,7 @@ import { canDeleteStudentsAccess, canEditStudentsAccess, canViewStudentsAccess }
 
 function stripUnsupportedStudentFields(data: Record<string, any>) {
   const {
+    id,
     boardId,
     mediumId,
     classId,
@@ -19,8 +20,11 @@ function stripUnsupportedStudentFields(data: Record<string, any>) {
     _admissionPreview,
     _discountInfo,
     _transportInfo,
+    // Remove transport object as it's handled separately
+    transport,
     ...rest
   } = data;
+  
   return rest;
 }
 
@@ -118,6 +122,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       where: { id },
       data: {
         ...sanitizedData,
+        // Explicitly remove any id fields that might have slipped through
+        id: undefined,
         documents: documents ? JSON.stringify(documents) : undefined,
         gpa: academics?.gpa,
         rank: academics?.rank,
