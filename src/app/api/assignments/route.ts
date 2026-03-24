@@ -237,12 +237,16 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         userId: true,
+        schoolId: true,
       },
     });
 
     if (!assignedTeacher?.id) {
       return NextResponse.json({ error: 'Assigned teacher not found' }, { status: 404 });
     }
+
+    // Use teacher's schoolId if ctx.schoolId is null (for super admins)
+    const effectiveSchoolId = ctx.schoolId || assignedTeacher.schoolId;
 
     const assignment = await (schoolPrisma as any).assignment.create({
       data: {
@@ -259,7 +263,7 @@ export async function POST(request: NextRequest) {
         status: status || 'active',
         academicYearId: academicYearId || null,
         attachments: attachments || null,
-        schoolId: ctx.schoolId,
+        schoolId: effectiveSchoolId,
         publishAt: normalizedPublishAt,
         dueAt: normalizedDueAt,
         closeAt: normalizedCloseAt,
@@ -320,7 +324,7 @@ export async function POST(request: NextRequest) {
         ? {
             to: assignedTeacher.email,
             subject: `New assignment created: ${assignment.title}`,
-            schoolId: ctx.schoolId || undefined,
+            schoolId: effectiveSchoolId,
             recipientUserId: assignedTeacher.userId || null,
             templateKey: 'assignment_created',
             dedupeKey: `assignment_created_email:${assignment.id}:${assignedTeacher.email}`,
