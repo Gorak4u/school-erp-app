@@ -36,6 +36,7 @@ export const ALL_PERMISSIONS = {
   // Fines
   VIEW_FINES: 'view_fines',
   MANAGE_FINES: 'manage_fines',
+  APPROVE_FINE_REQUESTS: 'approve_fine_requests',
 
   // Exams
   VIEW_EXAMS: 'view_exams',
@@ -117,6 +118,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   manage_fees: 'Manage Fees',
   view_fines: 'View Fines',
   manage_fines: 'Manage Fines',
+  approve_fine_requests: 'Approve Fine Requests',
   view_exams: 'View Exams',
   manage_exams: 'Manage Exams',
   view_reports: 'View Reports',
@@ -450,6 +452,36 @@ export function canManageFeesAccess(input: {
   return !!input.isSuperAdmin
     || input.role === 'admin'
     || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_FEES);
+}
+
+export function canViewFinesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasAnyPermissionByName(input.permissions, [ALL_PERMISSIONS.VIEW_FINES, ALL_PERMISSIONS.MANAGE_FINES]);
+}
+
+export function canManageFinesAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.MANAGE_FINES);
+}
+
+export function canApproveFineRequestsAccess(input: {
+  role?: string | null;
+  isSuperAdmin?: boolean | null;
+  permissions?: readonly string[] | null;
+}): boolean {
+  return !!input.isSuperAdmin
+    || input.role === 'admin'
+    || hasPermissionByName(input.permissions, ALL_PERMISSIONS.APPROVE_FINE_REQUESTS);
 }
 
 export function canViewExpensesAccess(input: {

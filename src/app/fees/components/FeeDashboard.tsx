@@ -31,11 +31,22 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
     }, 0) || 0
   );
 
+  // Calculate total waived amounts from all student fee summaries
+  const totalWaived = feeStatistics?.totalWaived ?? (
+    dashboardStudents?.reduce((sum: number, student: any) => {
+      // Calculate waived amounts from student's fee records and fines
+      const studentWaived = student.feeRecords?.reduce((waivedSum: number, record: any) => waivedSum + (record.waivedAmount || 0), 0) || 0;
+      const studentFinesWaived = student.fines?.reduce((finesWaivedSum: number, fine: any) => finesWaivedSum + (fine.waivedAmount || 0), 0) || 0;
+      return sum + studentWaived + studentFinesWaived;
+    }, 0) || 0
+  );
+
   const statCards = [
     { label: 'Total Fees', value: `₹${(stats.totalFees / 1000).toFixed(0)}K`, icon: '💰', color: 'blue', trend: `${stats.collectionRate?.toFixed(1) || 0}% collected` },
     { label: 'Collected', value: `₹${(stats.collectedFees / 1000).toFixed(0)}K`, icon: '✅', color: 'green', trend: `${fullyPaidCount} fully paid` },
     { label: 'Pending', value: `₹${(stats.pendingFees / 1000).toFixed(0)}K`, icon: '⏳', color: 'amber', trend: `${pendingCount} students` },
     { label: 'Overdue', value: `₹${(stats.overdueFees / 1000).toFixed(0)}K`, icon: '⚠️', color: 'red', trend: `${overdueCount} students` },
+    { label: 'Waived', value: `₹${(totalWaived / 1000).toFixed(0)}K`, icon: '🚫', color: 'purple', trend: 'Total waived amounts' },
   ];
 
   const colorMap: Record<string, string> = {
@@ -43,6 +54,7 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
     green: 'from-green-500 to-green-700',
     amber: 'from-amber-500 to-amber-700',
     red: 'from-red-500 to-red-700',
+    purple: 'from-purple-500 to-purple-700',
   };
 
   const partialCount = partiallyPaidCount;

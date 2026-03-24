@@ -237,7 +237,8 @@ export default function DashboardPage() {
       totalRevenue: (dashboardData.fees?.totalAmount as number) || 0,
       feesCollected: dashboardData.fees?.totalCollected || 0,
       pendingFees: (dashboardData.fees?.totalPending as number) || 0,
-      collectionRate: (dashboardData.fees?.collectionRate as number) || 0
+      collectionRate: (dashboardData.fees?.collectionRate as number) || 0,
+      finesWaived: (dashboardData.fees?.finesWaived as number) || 0
     },
     operational: {
       totalTeachers: dashboardData.teachers?.total || 0,
@@ -247,7 +248,7 @@ export default function DashboardPage() {
     }
   } : {
     academic: { totalStudents: 0, activeStudents: 0, averageAttendance: 0, passRate: 0 },
-    financial: { totalRevenue: 0, feesCollected: 0, pendingFees: 0, collectionRate: 0 },
+    financial: { totalRevenue: 0, feesCollected: 0, pendingFees: 0, collectionRate: 0, finesWaived: 0 },
     operational: { totalTeachers: 0, activeTeachers: 0, satisfactionScore: 0, efficiency: 0 }
   };
 

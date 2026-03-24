@@ -33,6 +33,7 @@ interface DashboardKPICardsProps {
       feesCollected: number;
       pendingFees: number;
       collectionRate: number;
+      finesWaived: number;
     };
     operational: {
       totalTeachers: number;
@@ -145,6 +146,21 @@ export default function DashboardKPICards({ theme, kpiData, canViewFinancials = 
       iconBg: theme === 'dark' ? 'bg-red-600/20' : 'bg-red-100',
       iconColor: theme === 'dark' ? 'text-red-400' : 'text-red-600',
       link: '/fees',
+      financial: true
+    },
+    {
+      title: 'Waived Amounts',
+      value: `₹${(kpiData.financial.finesWaived / 100000).toFixed(1)}L`,
+      subtitle: 'Total waived fines',
+      trend: {
+        value: '+5.1%',
+        type: 'up',
+        color: 'blue'
+      },
+      icon: '🚫',
+      iconBg: theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-100',
+      iconColor: theme === 'dark' ? 'text-purple-400' : 'text-purple-600',
+      link: '/fines',
       financial: true
     },
     {

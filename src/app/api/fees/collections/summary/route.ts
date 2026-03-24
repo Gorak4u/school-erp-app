@@ -62,13 +62,17 @@ export async function GET(request: NextRequest) {
         COALESCE(fp."paymentMethod", 'Unknown') as "paymentMethod",
         COUNT(*) as collections,
         COALESCE(SUM(fp.amount), 0) as "totalCollected",
-        MAX(fp."paymentDate") as "latestCollectionDate",
+        MAX(fp."createdAt") as "latestCollectionDate",
         COUNT(DISTINCT fp."fineId") as "uniqueStudents",
         COUNT(DISTINCT s.class) as "classesServed"
       FROM "school"."FinePayment" fp
       LEFT JOIN "school"."Fine" f ON fp."fineId" = f.id
       LEFT JOIN "school"."Student" s ON f."studentId" = s.id
-      WHERE ${whereClause.replace('p."createdAt"', 'fp."createdAt"').replace('p."collectedBy"', 'fp."collectedBy"').replace('p."paymentMethod"', 'fp."paymentMethod"')}
+      WHERE ${whereConditions.map(condition => 
+        condition.replace('p."createdAt"', 'fp."createdAt"')
+                 .replace('p."collectedBy"', 'fp."collectedBy"')
+                 .replace('p."paymentMethod"', 'fp."paymentMethod"')
+      ).join(' AND ')}
       GROUP BY fp."collectedBy", fp."paymentMethod"
       ORDER BY "totalCollected" DESC
     `;
@@ -99,7 +103,11 @@ export async function GET(request: NextRequest) {
       FROM "school"."FinePayment" fp
       LEFT JOIN "school"."Fine" f ON fp."fineId" = f.id
       LEFT JOIN "school"."Student" s ON f."studentId" = s.id
-      WHERE ${whereClause.replace('p."createdAt"', 'fp."createdAt"').replace('p."collectedBy"', 'fp."collectedBy"').replace('p."paymentMethod"', 'fp."paymentMethod"')}
+      WHERE ${whereConditions.map(condition => 
+        condition.replace('p."createdAt"', 'fp."createdAt"')
+                 .replace('p."collectedBy"', 'fp."collectedBy"')
+                 .replace('p."paymentMethod"', 'fp."paymentMethod"')
+      ).join(' AND ')}
     `;
     
     const countQuery = `

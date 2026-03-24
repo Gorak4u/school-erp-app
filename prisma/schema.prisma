@@ -2083,6 +2083,9 @@ model Fine {
   @@index([schoolId, status])
   @@index([schoolId, type])
   @@index([sourceType, sourceId])
+  @@index([schoolId, createdAt]) // For pagination and sorting
+  @@index([studentId, status]) // For student-specific queries
+  @@index([fineNumber]) // For fine number searches
   @@schema("school")
 }
 
@@ -2114,6 +2117,7 @@ model FineWaiverRequest {
   requesterName String
   requesterEmail String?
   reason      String
+  waiveAmount Float    @default(0)
   documents   String?
   status      String
   reviewedBy  String?
@@ -2126,6 +2130,8 @@ model FineWaiverRequest {
   @@index([schoolId, status])
   @@index([fineId])
   @@index([status, createdAt])
+  @@index([schoolId, createdAt]) // For pagination and sorting
+  @@index([requesterId, status]) // For user-specific queries
   @@schema("school")
 }
 

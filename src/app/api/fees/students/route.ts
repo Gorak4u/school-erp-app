@@ -115,15 +115,58 @@ export async function GET(request: NextRequest) {
       orderBy
     });
 
+    // Fetch fines data for all students in parallel
+    const studentIds = students.map(s => s.id);
+    const finesData = studentIds.length > 0 ? await (prisma as any).fine.findMany({
+      where: {
+        studentId: { in: studentIds },
+        ...(ctx.schoolId && { schoolId: ctx.schoolId })
+      },
+      include: {
+        payments: {
+          orderBy: { createdAt: 'desc' }
+        },
+        waiverRequests: {
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    }) : [];
+
+    // Group fines by student for efficient lookup
+    const finesByStudent = finesData.reduce((acc: any, fine: any) => {
+      if (!acc[fine.studentId]) {
+        acc[fine.studentId] = [];
+      }
+      acc[fine.studentId].push(fine);
+      return acc;
+    }, {});
+
     // Process student data to calculate fee summaries
     const processedStudents = students.map(student => {
       // Calculate fee totals from fee records
       const feeRecords = student.feeRecords || [];
       
-      const totalFees = feeRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
-      const totalPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
-      const totalPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
-      const totalDiscount = feeRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
+      // Get fines for this student
+      const studentFines = finesByStudent[student.id] || [];
+      
+      // Calculate regular fee totals
+      const regularFeesTotal = feeRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
+      const regularFeesPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
+      const regularFeesPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
+      const regularFeesDiscount = feeRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
+      
+      // Calculate fines totals
+      const finesTotal = studentFines.reduce((sum: number, fine: any) => sum + (fine.amount || 0), 0);
+      const finesPaid = studentFines.reduce((sum: number, fine: any) => sum + (fine.paidAmount || 0), 0);
+      const finesPending = studentFines.reduce((sum: number, fine: any) => sum + (fine.pendingAmount || 0), 0);
+      const finesWaived = studentFines.reduce((sum: number, fine: any) => sum + (fine.waivedAmount || 0), 0);
+      
+      // Combined totals (fees + fines)
+      const totalFees = regularFeesTotal + finesTotal;
+      const totalPaid = regularFeesPaid + finesPaid;
+      const totalPending = regularFeesPending + finesPending;
+      const totalDiscount = regularFeesDiscount + finesWaived;
       
       // Get latest payment date
       const allPayments = feeRecords.flatMap(fr => fr.payments || []);
@@ -134,14 +177,22 @@ export async function GET(request: NextRequest) {
       // Determine payment status - calculate from payment amounts
       let calculatedPaymentStatus: 'fully_paid' | 'partially_paid' | 'no_payment' | 'overdue';
       
-      // Calculate overdue based on due dates and pending amounts
+      // Calculate overdue based on due dates and pending amounts (including fines)
       const now = new Date();
       const overdueRecords = feeRecords.filter(fr => {
         const pendingAmount = (fr.amount || 0) - (fr.paidAmount || 0) - (fr.discount || 0);
         const isOverdue = fr.dueDate && new Date(fr.dueDate) < now && pendingAmount > 0;
         return isOverdue;
       });
-      const totalOverdue = overdueRecords.reduce((sum, record) => sum + ((record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0)), 0);
+      const overdueFines = studentFines.filter((fine: any) => {
+        const pendingAmount = (fine.amount || 0) - (fine.paidAmount || 0) - (fine.waivedAmount || 0);
+        const isOverdue = fine.dueDate && new Date(fine.dueDate) < now && pendingAmount > 0;
+        return isOverdue;
+      });
+      
+      const regularFeesOverdue = overdueRecords.reduce((sum, record) => sum + ((record.amount || 0) - (record.paidAmount || 0) - (record.discount || 0)), 0);
+      const finesOverdue = overdueFines.reduce((sum: number, fine: any) => sum + ((fine.amount || 0) - (fine.paidAmount || 0) - (fine.waivedAmount || 0)), 0);
+      const totalOverdue = regularFeesOverdue + finesOverdue;
       
       if (totalOverdue > 0) {
         calculatedPaymentStatus = 'overdue';
@@ -173,6 +224,13 @@ export async function GET(request: NextRequest) {
         totalDiscount,
         lastPaymentDate: latestPayment?.paymentDate || '',
         calculatedPaymentStatus,
+        // Add fines-specific data
+        finesTotal,
+        finesPaid,
+        finesPending,
+        finesWaived,
+        fineAmount: finesTotal, // For backward compatibility with existing UI
+        pendingFinesCount: studentFines.filter((fine: any) => (fine.pendingAmount || 0) > 0).length,
         feeRecords: feeRecords.map(fr => {
           // Normalize academic year to 'YYYY-YY' format
           let normalizedAcademicYear = fr.academicYear;
@@ -245,6 +303,12 @@ export async function GET(request: NextRequest) {
           totalFees: processedStudents.reduce((sum, s) => sum + (s?.totalFees || 0), 0),
           totalCollected: processedStudents.reduce((sum, s) => sum + (s?.totalPaid || 0), 0),
           totalPending: processedStudents.reduce((sum, s) => sum + (s?.totalPending || 0), 0),
+          // Add fines-specific summary data
+          totalFinesAmount: processedStudents.reduce((sum, s) => sum + (s?.finesTotal || 0), 0),
+          totalFinesCollected: processedStudents.reduce((sum, s) => sum + (s?.finesPaid || 0), 0),
+          totalFinesPending: processedStudents.reduce((sum, s) => sum + (s?.finesPending || 0), 0),
+          totalFinesWaived: processedStudents.reduce((sum, s) => sum + (s?.finesWaived || 0), 0),
+          // Regular payment status counts
           fullyPaid: processedStudents.filter(s => s?.calculatedPaymentStatus === 'fully_paid').length,
           partiallyPaid: processedStudents.filter(s => s?.calculatedPaymentStatus === 'partially_paid').length,
           noPayment: processedStudents.filter(s => s?.calculatedPaymentStatus === 'no_payment').length,

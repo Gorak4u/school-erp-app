@@ -60,3 +60,15 @@
 [2026-03-24T16:40:23.291Z] INFO | Super admin initialization complete
 [2026-03-24T16:50:00.973Z] INFO | Email notifications setting not found, defaulting to enabled | Meta: {}
 [2026-03-24T16:50:01.293Z] INFO | Email notifications setting not found, defaulting to enabled | Meta: {}
+[2026-03-24T19:15:09.944Z] INFO | Starting super admin verification | Meta: {"emailConfigured":true,"passwordConfigured":true,"email":"gorak4u@gmail.com"}
+[2026-03-24T19:15:10.416Z] INFO | Super admin password hashed successfully
+[2026-03-24T19:15:10.416Z] INFO | Creating or updating super admin in SaaS User table
+[2026-03-24T19:15:11.644Z] INFO | Super admin ready in SaaS User table | Meta: {"email":"gorak4u@gmail.com","id":"7aedf4b5-ad40-424e-b797-d0d18c4f445e","role":"super_admin"}
+[2026-03-24T19:15:12.032Z] INFO | Super admin ready in school_User table
+[2026-03-24T19:15:12.032Z] INFO | Super admin initialization complete
+[2026-03-24T19:16:36.876Z] INFO | Starting super admin verification | Meta: {"emailConfigured":true,"passwordConfigured":true,"email":"gorak4u@gmail.com"}
+[2026-03-24T19:16:37.529Z] INFO | Super admin password hashed successfully
+[2026-03-24T19:16:37.529Z] INFO | Creating or updating super admin in SaaS User table
+[2026-03-24T19:16:39.047Z] INFO | Super admin ready in SaaS User table | Meta: {"email":"gorak4u@gmail.com","id":"7aedf4b5-ad40-424e-b797-d0d18c4f445e","role":"super_admin"}
+[2026-03-24T19:16:40.201Z] INFO | Super admin ready in school_User table
+[2026-03-24T19:16:40.201Z] INFO | Super admin initialization complete

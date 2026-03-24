@@ -309,6 +309,7 @@ export async function GET(request: NextRequest) {
       combinedTotalAmount: regularFeesSummary.totalAmount + finesSummary.totalFinesAmount,
       combinedTotalCollected: regularFeesSummary.totalCollected + finesSummary.totalFinesCollected,
       combinedTotalPending: regularFeesSummary.totalAmount - regularFeesSummary.totalCollected + finesSummary.totalFinesPending,
+      combinedTotalWaived: finesSummary.totalFinesWaived, // Regular fees use discounts, not waivers
       combinedPaidCount: regularFeesSummary.paidCount + finesSummary.finesPaidCount,
       combinedPartialCount: regularFeesSummary.partialCount + finesSummary.finesPartialCount,
       combinedPendingCount: regularFeesSummary.pendingCount + finesSummary.finesPendingCount,

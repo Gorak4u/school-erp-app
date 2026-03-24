@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle, Clock, Ban, Eye, Calendar, DollarSign, FileText } from 'lucide-react';
 
 interface Fine {
@@ -39,12 +39,20 @@ interface StudentFinesProps {
   onClose: () => void;
 }
 
-export default function StudentFines({ student, theme, onClose }: StudentFinesProps) {
-  const [fines, setFines] = useState<Fine[]>([]);
+export default function StudentFines({ student }: StudentFinesProps) {
+  const [fines, setFines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [selectedFine, setSelectedFine] = useState<any>(null);
+  const [waiverForm, setWaiverForm] = useState({
+    reason: '',
+    remarks: '',
+    documents: [] as File[]
+  });
+  const [submittingWaiver, setSubmittingWaiver] = useState(false);
 
-  const isDark = theme === 'dark';
+  const isDark = 'dark'; // Removed theme prop usage
   const card = `rounded-lg border p-4 ${isDark ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`;
   const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
   const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
@@ -54,24 +62,62 @@ export default function StudentFines({ student, theme, onClose }: StudentFinesPr
   }, [student?.id, student?.studentId]);
 
   const fetchStudentFines = async () => {
-    const studentId = student?.id || student?.studentId;
-    if (!studentId) return;
-
     try {
       setLoading(true);
-      const response = await fetch(`/api/fees/students/${studentId}/fines`);
+      const response = await fetch(`/api/fees/students/${student.id || student.studentId}/fines`);
+      if (!response.ok) throw new Error('Failed to fetch fines');
       const data = await response.json();
-
-      if (response.ok) {
-        setFines(data.fines || []);
-      } else {
-        setError(data.error || 'Failed to fetch fines');
-      }
-    } catch (error) {
-      console.error('Failed to fetch student fines:', error);
-      setError('Failed to fetch fines');
+      console.log('Fetched fines data:', data);
+      setFines(data.fines || []);
+    } catch (err: any) {
+      console.error('Fetch fines error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestWaiver = (fine: any) => {
+    setSelectedFine(fine);
+    setShowWaiverModal(true);
+  };
+
+  const handleWaiverRequestSubmit = async () => {
+    if (!selectedFine || !waiverForm.reason.trim()) {
+      alert('Please provide a reason for the waiver request');
+      return;
+    }
+
+    setSubmittingWaiver(true);
+    try {
+      const response = await fetch('/api/fines/waiver-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fineId: selectedFine.id,
+          reason: waiverForm.reason,
+          remarks: waiverForm.remarks,
+          documents: waiverForm.documents.map(f => f.name),
+          waiveAmount: selectedFine.pendingAmount
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit waiver request');
+      }
+
+      const result = await response.json();
+      alert('Waiver request submitted successfully!');
+      setShowWaiverModal(false);
+      setWaiverForm({ reason: '', remarks: '', documents: [] });
+      
+      // Refresh fines data
+      await fetchStudentFines();
+    } catch (err: any) {
+      alert(`Error submitting waiver request: ${err.message}`);
+    } finally {
+      setSubmittingWaiver(false);
     }
   };
 
@@ -126,7 +172,8 @@ export default function StudentFines({ student, theme, onClose }: StudentFinesPr
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className={card}>
@@ -220,7 +267,7 @@ export default function StudentFines({ student, theme, onClose }: StudentFinesPr
                       <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-xs text-gray-500 mb-1">Recent Payments:</p>
                         <div className="space-y-1">
-                          {fine.payments.slice(0, 2).map((payment) => (
+                          {fine.payments.slice(0, 2).map((payment: any) => (
                             <div key={payment.id} className="flex items-center gap-2 text-xs">
                               <span>₹{payment.amount} via {payment.paymentMethod}</span>
                               <span className="text-gray-500">
@@ -231,6 +278,8 @@ export default function StudentFines({ student, theme, onClose }: StudentFinesPr
                         </div>
                       </div>
                     )}
+
+                    {/* No actions here - waiver requests are handled in main Fines page */}
                   </div>
                   
                   <div className="text-right ml-4">
@@ -252,5 +301,114 @@ export default function StudentFines({ student, theme, onClose }: StudentFinesPr
         )}
       </div>
     </div>
+    
+    {/* Waiver Request Modal */}
+    <AnimatePresence>
+      {showWaiverModal && selectedFine && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowWaiverModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={card}>
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Request Waiver
+                  </h2>
+                  <button
+                    onClick={() => setShowWaiverModal(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Fine</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {selectedFine.fineNumber} - {selectedFine.description}
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Student</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {student.name}
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Pending Amount</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    ₹{selectedFine.pendingAmount.toLocaleString()}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Reason for Waiver *</label>
+                    <textarea 
+                      className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      rows={3}
+                      placeholder="Explain why this fine should be waived..."
+                      value={waiverForm.reason}
+                      onChange={(e) => setWaiverForm(prev => ({ ...prev, reason: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Additional Remarks (Optional)</label>
+                    <textarea 
+                      className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      rows={2}
+                      placeholder="Any additional information..."
+                      value={waiverForm.remarks}
+                      onChange={(e) => setWaiverForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Supporting Documents (Optional)</label>
+                    <input 
+                      type="file" 
+                      className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => setWaiverForm(prev => ({ 
+                        ...prev, 
+                        documents: Array.from(e.target.files || []) 
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => setShowWaiverModal(false)}
+                    className={btnSecondary}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleWaiverRequestSubmit}
+                    disabled={submittingWaiver}
+                    className={btnPrimary}
+                  >
+                    {submittingWaiver ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

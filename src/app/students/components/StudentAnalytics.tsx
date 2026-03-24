@@ -123,6 +123,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
     const totalFines = activeStudents.reduce((sum, s) => sum + (s.fees?.finesTotal || 0), 0);
     const totalFinesPaid = activeStudents.reduce((sum, s) => sum + (s.fees?.finesPaid || 0), 0);
     const totalFinesPending = activeStudents.reduce((sum, s) => sum + (s.fees?.finesPending || 0), 0);
+    const totalFinesWaived = activeStudents.reduce((sum, s) => sum + (s.fees?.finesWaived || 0), 0);
     const finesDefaulters = activeStudents.filter(s => (s.fees?.finesPending || 0) > 0).length;
     
     // Combined totals including fines
@@ -153,7 +154,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       // Financial - Regular Fees
       totalFees, totalPaid, totalPending, collectionRate, feeDefaulters,
       // Financial - Fines
-      totalFines, totalFinesPaid, totalFinesPending, finesDefaulters,
+      totalFines, totalFinesPaid, totalFinesPending, totalFinesWaived, finesDefaulters,
       // Financial - Combined
       combinedTotalFees, combinedTotalPaid, combinedTotalPending, combinedCollectionRate, combinedDefaulters,
       // Demographics
@@ -283,19 +284,21 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
       ]
     },
     feeDistribution: {
-      labels: analytics.combinedTotalPaid > 0 ? ['Regular Fees Paid', 'Regular Fees Pending', 'Fines Paid', 'Fines Pending'] : ['No data'],
+      labels: analytics.combinedTotalPaid > 0 ? ['Regular Fees Paid', 'Regular Fees Pending', 'Fines Paid', 'Fines Waived', 'Fines Pending'] : ['No data'],
       datasets: [{
-        data: analytics.combinedTotalPaid > 0 ? [analytics.totalPaid, analytics.totalPending, analytics.totalFinesPaid, analytics.totalFinesPending] : [1],
+        data: analytics.combinedTotalPaid > 0 ? [analytics.totalPaid, analytics.totalPending, analytics.totalFinesPaid, analytics.totalFinesWaived, analytics.totalFinesPending] : [1],
         backgroundColor: [
           'rgba(34, 197, 94, 0.8)',  // Regular Fees Paid - Green
           'rgba(239, 68, 68, 0.8)',  // Regular Fees Pending - Red
           'rgba(59, 130, 246, 0.8)', // Fines Paid - Blue
+          'rgba(147, 51, 234, 0.8)', // Fines Waived - Purple
           'rgba(251, 146, 60, 0.8)'  // Fines Pending - Orange
         ],
         borderColor: [
           'rgba(34, 197, 94, 1)',
           'rgba(239, 68, 68, 1)',
           'rgba(59, 130, 246, 1)',
+          'rgba(147, 51, 234, 1)',
           'rgba(251, 146, 60, 1)'
         ],
         borderWidth: 2
@@ -462,18 +465,22 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
           {analytics.totalFines > 0 && (
             <div className={`p-6 rounded-xl border ${cardCls}`}>
               <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Fines Breakdown</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <p className={`text-2xl font-bold text-orange-400`}>Rs.{(analytics.totalFines / 1000).toFixed(0)}K</p>
                   <p className={`text-sm ${textSecondary}`}>Total Fines</p>
                 </div>
                 <div className="text-center">
                   <p className={`text-2xl font-bold text-green-400`}>Rs.{(analytics.totalFinesPaid / 1000).toFixed(0)}K</p>
-                  <p className={`text-sm ${textSecondary}`}>Fines Collected</p>
+                  <p className={`text-sm ${textSecondary}`}>Collected</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-2xl font-bold text-purple-400`}>Rs.{(analytics.totalFinesWaived / 1000).toFixed(0)}K</p>
+                  <p className={`text-sm ${textSecondary}`}>Waived</p>
                 </div>
                 <div className="text-center">
                   <p className={`text-2xl font-bold text-red-400`}>Rs.{(analytics.totalFinesPending / 1000).toFixed(0)}K</p>
-                  <p className={`text-sm ${textSecondary}`}>Fines Pending</p>
+                  <p className={`text-sm ${textSecondary}`}>Pending</p>
                 </div>
               </div>
             </div>

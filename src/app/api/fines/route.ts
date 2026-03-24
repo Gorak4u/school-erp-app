@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 
+// Simple in-memory cache for pagination results (5 minutes TTL)
+const paginationCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(params: any): string {
+  return JSON.stringify(params);
+}
+
+function getFromCache(key: string): any {
+  const cached = paginationCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  paginationCache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any): void {
+  paginationCache.set(key, { data, timestamp: Date.now() });
+  
+  // Clean up old cache entries periodically
+  if (paginationCache.size > 100) {
+    const now = Date.now();
+    for (const [k, v] of paginationCache.entries()) {
+      if (now - v.timestamp > CACHE_TTL) {
+        paginationCache.delete(k);
+      }
+    }
+  }
+}
+
+// Clear cache for a specific school
+function clearSchoolCache(schoolId: string): void {
+  for (const [key] of paginationCache.entries()) {
+    if (key.includes(`"schoolId":"${schoolId}"`)) {
+      paginationCache.delete(key);
+    }
+  }
+}
+
 // Helper function to generate fine numbers
 function generateFineNumber(year: string, index: number): string {
   return `F-${year}-${String(index).padStart(4, '0')}`;
@@ -54,10 +94,24 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count for pagination
+    // Create cache key
+    const cacheKey = getCacheKey({ 
+      schoolId: ctx.schoolId, 
+      studentId, status, type, category, page, pageSize, search 
+    });
+
+    // Check cache first (except for search queries which are less likely to be repeated)
+    if (!search) {
+      const cached = getFromCache(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached);
+      }
+    }
+
+    // Get total count for pagination (optimized query)
     const total = await (schoolPrisma as any).Fine.count({ where });
 
-    // Get fines with pagination
+    // Get fines with pagination (optimized with selective includes)
     const fines = await (schoolPrisma as any).Fine.findMany({
       where,
       include: {
@@ -81,6 +135,7 @@ export async function GET(request: NextRequest) {
             maxAmount: true
           }
         },
+        // Only include latest payment for performance
         payments: {
           select: {
             id: true,
@@ -89,16 +144,20 @@ export async function GET(request: NextRequest) {
             receiptNumber: true,
             createdAt: true
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          take: 1 // Only get latest payment for performance
         },
+        // Only include latest waiver request for performance
         waiverRequests: {
           select: {
             id: true,
             status: true,
+            waiveAmount: true,
             requestedBy: true,
             createdAt: true
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          take: 1 // Only get latest waiver request for performance
         }
       },
       orderBy: [
@@ -107,7 +166,7 @@ export async function GET(request: NextRequest) {
         { createdAt: 'desc' }
       ],
       skip: (page - 1) * pageSize,
-      take: pageSize
+      take: Math.min(pageSize, 100) // Max 100 records per page for performance
     });
 
     // Calculate summary statistics
@@ -122,6 +181,57 @@ export async function GET(request: NextRequest) {
         pendingAmount: true
       }
     });
+
+    return NextResponse.json({
+      success: true,
+      fines,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+        hasNext: page * pageSize < total,
+        hasPrev: page > 1
+      },
+      summary: summary.reduce((acc: any, item: any) => {
+        acc[item.status] = {
+          count: item._count,
+          amount: item._sum.amount || 0,
+          paidAmount: item._sum.paidAmount || 0,
+          waivedAmount: item._sum.waivedAmount || 0,
+          pendingAmount: item._sum.pendingAmount || 0
+        };
+        return acc;
+      }, {} as Record<string, any>)
+    });
+
+    // Cache the response (except for search queries)
+    if (!search) {
+      const responseData = {
+        success: true,
+        fines,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+          hasNext: page * pageSize < total,
+          hasPrev: page > 1
+        },
+        summary: summary.reduce((acc: any, item: any) => {
+          acc[item.status] = {
+            count: item._count,
+            amount: item._sum.amount || 0,
+            paidAmount: item._sum.paidAmount || 0,
+            waivedAmount: item._sum.waivedAmount || 0,
+            pendingAmount: item._sum.pendingAmount || 0
+          };
+          return acc;
+        }, {} as Record<string, any>)
+      };
+      setCache(cacheKey, responseData);
+      return NextResponse.json(responseData);
+    }
 
     return NextResponse.json({
       success: true,
@@ -166,35 +276,24 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const {
-      studentId,
-      ruleId,
-      type,
-      category,
-      description,
-      amount,
-      dueDate,
-      sourceType = 'manual',
-      sourceId,
-      remarks
-    } = body;
+    const { studentId, type, category, amount, description, dueDate, ruleId } = body;
 
-    // Validation
-    if (!studentId || !type || !category || !description || !amount || !dueDate) {
+    // Validate required fields
+    if (!studentId || !type || !amount || !description) {
       return NextResponse.json(
         { 
           success: false,
-          error: 'studentId, type, category, description, amount, and dueDate are required' 
+          error: 'Missing required fields: studentId, type, amount, description'
         },
         { status: 400 }
       );
     }
 
-    // Verify student belongs to school
+    // Validate student exists and belongs to school
     const student = await (schoolPrisma as any).Student.findFirst({
-      where: { 
+      where: {
         id: studentId,
-        ...(ctx.schoolId && { schoolId: ctx.schoolId })
+        schoolId: ctx.schoolId
       }
     });
 
@@ -208,12 +307,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify rule if provided
+    // Validate rule if provided
     if (ruleId) {
       const rule = await (schoolPrisma as any).FineRule.findFirst({
-        where: { 
+        where: {
           id: ruleId,
-          schoolId: ctx.schoolId!
+          schoolId: ctx.schoolId
         }
       });
 
@@ -234,66 +333,97 @@ export async function POST(request: NextRequest) {
     });
 
     const year = currentAcademicYear?.year || new Date().getFullYear().toString();
-
-    // Get next fine number
-    const lastFine = await (schoolPrisma as any).Fine.findFirst({
-      where: {
-        fineNumber: {
-          startsWith: `F-${year}-`
-        }
-      },
-      orderBy: { fineNumber: 'desc' }
-    });
-
-    let nextNumber = 1;
-    if (lastFine) {
-      const parts = lastFine.fineNumber.split('-');
-      nextNumber = parseInt(parts[2]) + 1;
-    }
-
-    const fineNumber = generateFineNumber(year, nextNumber);
-
-    // Create fine
-    const fine = await (schoolPrisma as any).Fine.create({
-      data: {
-        schoolId: ctx.schoolId!,
-        studentId,
-        ruleId,
-        fineNumber,
-        type,
-        category,
-        description,
-        amount,
-        paidAmount: 0,
-        waivedAmount: 0,
-        pendingAmount: amount,
-        status: 'pending',
-        sourceType,
-        sourceId,
-        issuedAt: new Date(),
-        dueDate: new Date(dueDate)
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            admissionNo: true,
-            class: true,
-            section: true,
-            rollNo: true
+    
+    // Get next fine number for this school using a more robust approach
+    // Use a transaction with a more comprehensive approach to prevent conflicts
+    const fine = await (schoolPrisma as any).$transaction(async (tx: any) => {
+      // Get ALL existing fine numbers for this year and school (not just first 100)
+      const allExistingFines = await tx.Fine.findMany({
+        where: {
+          schoolId: ctx.schoolId!,
+          fineNumber: {
+            startsWith: `F-${year}-`
           }
         },
-        rule: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            type: true,
-            baseAmount: true
+        select: { fineNumber: true },
+        orderBy: { fineNumber: 'asc' }
+      });
+
+      // Extract all existing numbers and sort them
+      const existingNumbers = allExistingFines.map((f: any) => {
+        const parts = f.fineNumber.split('-');
+        return parseInt(parts[2]) || 0;
+      }).sort((a: number, b: number) => a - b);
+
+      // Find the first gap in the sequence
+      let nextNumber = 1;
+      for (let i = 0; i < existingNumbers.length; i++) {
+        if (existingNumbers[i] !== nextNumber) {
+          // Found a gap
+          break;
+        }
+        nextNumber++;
+      }
+
+      // Generate the fine number
+      let finalFineNumber = generateFineNumber(year, nextNumber);
+      
+      console.log(`Creating fine with number: ${finalFineNumber} (next available: ${nextNumber})`);
+      
+      // Double-check that this number doesn't exist (extra safety)
+      const existingCheck = await tx.Fine.findFirst({
+        where: { fineNumber: finalFineNumber },
+        select: { id: true }
+      });
+
+      if (existingCheck) {
+        // If somehow it still exists, find the next available
+        let fallbackNumber = nextNumber + 1;
+        let fallbackFineNumber = generateFineNumber(year, fallbackNumber);
+        
+        while (true) {
+          const fallbackCheck = await tx.Fine.findFirst({
+            where: { fineNumber: fallbackFineNumber },
+            select: { id: true }
+          });
+          
+          if (!fallbackCheck) {
+            console.log(`Using fallback number: ${fallbackFineNumber}`);
+            finalFineNumber = fallbackFineNumber;
+            break;
+          }
+          
+          fallbackNumber++;
+          fallbackFineNumber = generateFineNumber(year, fallbackNumber);
+          
+          // Prevent infinite loop
+          if (fallbackNumber > nextNumber + 1000) {
+            throw new Error('Unable to generate unique fine number after 1000 attempts');
           }
         }
       }
+      
+      // Create the fine within the same transaction
+      return await tx.Fine.create({
+        data: {
+          schoolId: ctx.schoolId!,
+          studentId,
+          ruleId,
+          fineNumber: finalFineNumber,
+          type,
+          category,
+          description,
+          amount,
+          paidAmount: 0,
+          waivedAmount: 0,
+          pendingAmount: amount,
+          status: 'pending',
+          sourceType: 'manual',
+          sourceId: null,
+          issuedAt: new Date(),
+          dueDate: new Date(dueDate),
+        }
+      });
     });
 
     // Create notification if auto-notify is enabled
@@ -309,43 +439,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Clear cache for this school after creating a fine
+    clearSchoolCache(ctx.schoolId!);
+
     return NextResponse.json({
       success: true,
       fine,
       message: 'Fine created successfully'
     }, { status: 201 });
 
-  } catch (error) {
-    console.error('POST /api/fines:', error);
+  } catch (error: any) {
+    console.error('Create fine error:', error);
     
-    // Handle Prisma specific errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unique constraint')) {
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'Fine with this number already exists' 
-          },
-          { status: 409 }
-        );
-      }
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Fine number conflict. Please try again.' 
+        },
+        { status: 409 }
+      );
+    }
       
-      if (error.message.includes('Foreign key constraint')) {
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'Invalid reference to student, rule, or school' 
-          },
-          { status: 400 }
-        );
-      }
+    if (error.message && error.message.includes('Foreign key constraint')) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Invalid reference to student, rule, or school' 
+        },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(
       { 
         success: false,
-        error: 'Failed to create fine',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: error.message || 'Failed to create fine'
       },
       { status: 500 }
     );

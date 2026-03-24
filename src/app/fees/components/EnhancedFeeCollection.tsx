@@ -23,7 +23,8 @@ import {
   X,
   Share,
   Percent,
-  FileText
+  FileText,
+  Ban
 } from 'lucide-react';
 import PaymentReceipt from './PaymentReceipt';
 import StudentFines from '../../students/components/StudentFines';
@@ -109,7 +110,7 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       for (const feeId of selectedFees) {
         const fee = filteredFees.find(f => f.id === feeId);
         if (!fee || fee.status === 'paid') continue;
-        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
+        const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0));
         
         let paymentResult;
         if (fee.isFine) {
@@ -713,6 +714,7 @@ School Administration
           status: record.status || 'pending',
           paidAmount: record.paidAmount || 0,
           discount: record.discount || 0,
+          waivedAmount: record.waivedAmount || 0,
           frequency: record.feeStructure?.frequency || 'one-time',
           academicYear: record.academicYear || '2025-26',
           description: record.feeStructure?.description || '',
@@ -734,6 +736,7 @@ School Administration
         status: fine.pendingAmount > 0 ? 'pending' : 'paid',
         paidAmount: fine.paidAmount,
         discount: 0,
+        waivedAmount: fine.waivedAmount || 0,
         frequency: 'one-time',
         academicYear: '2025-26',
         description: fine.description,
@@ -773,13 +776,13 @@ School Administration
   }, [filteredFees]);
 
   const totalPending = useMemo(() => {
-    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount - (fee.discount || 0)), 0);
+    return filteredFees.reduce((sum, fee) => sum + (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0)), 0);
   }, [filteredFees]);
 
   const selectedFeesTotal = useMemo(() => {
     return filteredFees
       .filter(fee => selectedFees.includes(fee.id))
-      .reduce((sum, fee) => sum + (customAmounts[fee.id] || (fee.amount - fee.paidAmount - (fee.discount || 0))), 0);
+      .reduce((sum, fee) => sum + (customAmounts[fee.id] || (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0))), 0);
   }, [filteredFees, selectedFees, customAmounts]);
 
   const overdueFees = useMemo(() => {
@@ -964,7 +967,7 @@ School Administration
     const fee = filteredFees.find(f => f.id === feeId);
     if (!fee) return;
     
-    const maxAmount = fee.amount - fee.paidAmount - (fee.discount || 0);
+    const maxAmount = fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0);
     const validAmount = Math.min(Math.max(0, amount), maxAmount);
     
     setCustomAmounts(prev => ({
@@ -1002,7 +1005,7 @@ School Administration
         for (const feeId of selectedFees) {
           const fee = filteredFees.find(f => f.id === feeId);
           if (!fee || fee.status === 'paid') continue;
-          const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
+          const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0));
           
           let paymentResult;
           if (fee.isFine) {
@@ -1347,7 +1350,7 @@ School Administration
             className="space-y-6"
           >
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6`}>
               <div className={`${cardCls} p-6 rounded-xl border`}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -1380,6 +1383,18 @@ School Administration
                   </div>
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
                     <Award className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Waived</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{filteredFees.reduce((sum, fee) => sum + (fee.waivedAmount || 0), 0).toLocaleString()}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
+                    <Ban className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
               </div>
@@ -1561,7 +1576,7 @@ School Administration
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFees.map((fee) => {
                 const isSelected = selectedFees.includes(fee.id);
-                const pendingAmount = fee.amount - fee.paidAmount - (fee.discount || 0);
+                const pendingAmount = fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0);
                 
                 return (
                   <motion.div
@@ -1619,6 +1634,12 @@ School Administration
                         <div className="flex justify-between">
                           <span className={`text-sm ${textSecondary}`}>Discount:</span>
                           <span className="font-medium text-purple-500">-₹{fee.discount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {fee.waivedAmount && fee.waivedAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className={`text-sm ${textSecondary}`}>Waived:</span>
+                          <span className="font-medium text-purple-400">-₹{fee.waivedAmount.toLocaleString()}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
@@ -1705,8 +1726,8 @@ School Administration
                   {selectedFees.map(feeId => {
                     const fee = filteredFees.find(f => f.id === feeId);
                     if (!fee) return null;
-                    const customAmount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
-                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== (fee.amount - fee.paidAmount - (fee.discount || 0));
+                    const customAmount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0));
+                    const isCustom = customAmounts[feeId] && customAmounts[feeId] !== (fee.amount - fee.paidAmount - (fee.discount || 0) - (fee.waivedAmount || 0));
                     
                     return (
                       <div key={feeId} className="flex justify-between items-center text-sm">

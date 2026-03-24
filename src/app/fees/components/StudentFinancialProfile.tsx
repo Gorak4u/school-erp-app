@@ -494,7 +494,12 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Fines</p>
                 <p className="text-xl font-bold text-orange-500">Rs.{finesStats.totalFinesPending.toLocaleString()}</p>
-                <p className={`text-xs ${textSecondary}`}>{finesStats.pendingFinesCount} pending</p>
+                <div className={`text-xs ${textSecondary}`}>
+                  <span>{finesStats.pendingFinesCount} pending</span>
+                  {finesStats.totalFinesWaived > 0 && (
+                    <span className="ml-2 text-purple-400">₹{finesStats.totalFinesWaived.toLocaleString()} waived</span>
+                  )}
+                </div>
               </div>
             )}
             <div className={`p-4 rounded-lg border ${cardCls}`}>
