@@ -317,59 +317,59 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className={`text-xl font-bold ${textPrimary}`}>Student Financial Profile</h2>
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            placeholder="Search student by name or ID..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className={`w-64 px-4 py-2 rounded-lg border text-sm ${inputCls}`}
-          />
-          {onClose && (
-            <button onClick={onClose} className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-              Close
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Student Info Header */}
+      {/* Unified Header */}
       <div className={`p-6 rounded-xl border ${cardCls}`}>
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          {/* Student Info */}
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
               <span className="text-white text-2xl font-bold">{currentStudentData?.name?.charAt(0) || 'S'}</span>
             </div>
             <div>
-              <h3 className={`text-lg font-semibold ${textPrimary}`}>{currentStudentData?.name || 'Student Name'}</h3>
+              <h2 className={`text-xl font-bold ${textPrimary}`}>{currentStudentData?.name || 'Student Name'}</h2>
               <p className={`text-sm ${textSecondary}`}>Class {currentStudentData?.studentClass || 'N/A'} | {currentStudentData?.admissionNo || 'N/A'}</p>
               <p className={`text-sm ${textSecondary}`}>Parent: {currentStudentData?.parentName || 'N/A'} | {currentStudentData?.contact || 'N/A'}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <span className={`px-3 py-1 rounded-full text-sm ${
-              (currentStudentData?.riskLevel || 'low') === 'low' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
-              : (currentStudentData?.riskLevel || 'low') === 'medium' ? isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-              : isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
-            }`}>
-              {(currentStudentData?.riskLevel || 'low').charAt(0).toUpperCase() + (currentStudentData?.riskLevel || 'low').slice(1)} Risk
-            </span>
-            {previousYearPendingTotal > 0 && (
-              <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-red-600/20 text-red-400 border border-red-700' : 'bg-red-100 text-red-700 border border-red-300'}`}>
-                ⚠️ ₹{previousYearPendingTotal.toLocaleString()} Pending ({previousYearPendingCount} year{previousYearPendingCount > 1 ? 's' : ''})
+
+          {/* Status Pills & Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm ${
+                (currentStudentData?.riskLevel || 'low') === 'low' ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600'
+                : (currentStudentData?.riskLevel || 'low') === 'medium' ? isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
+                : isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600'
+              }`}>
+                {(currentStudentData?.riskLevel || 'low').charAt(0).toUpperCase() + (currentStudentData?.riskLevel || 'low').slice(1)} Risk
               </span>
-            )}
-            <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-              {currentStudentData?.feePlan || 'Quarterly'} Plan
-            </span>
-            {currentStudentData?.scholarship && (
-              <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
-                {currentStudentData.scholarship}
+              {previousYearPendingTotal > 0 && (
+                <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-red-600/20 text-red-400 border border-red-700' : 'bg-red-100 text-red-700 border border-red-300'}`}>
+                  ⚠️ ₹{previousYearPendingTotal.toLocaleString()} Pending ({previousYearPendingCount} year{previousYearPendingCount > 1 ? 's' : ''})
+                </span>
+              )}
+              <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                {currentStudentData?.feePlan || 'Quarterly'} Plan
               </span>
-            )}
+              {currentStudentData?.scholarship && (
+                <span className={`px-3 py-1 rounded-full text-sm ${isDark ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
+                  {currentStudentData.scholarship}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                placeholder="Search student by name or ID..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className={`w-48 px-3 py-2 rounded-lg border text-sm ${inputCls}`}
+              />
+              {onClose && (
+                <button onClick={onClose} className={`px-3 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                  Close
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

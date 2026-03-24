@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
+import { RequirePermission } from '@/components/PermissionGuard';
 import { useTheme } from '@/contexts/ThemeContext';
 import EnhancedFeeCollection from '../fees/components/EnhancedFeeCollection';
 
@@ -129,7 +130,31 @@ export default function FeeCollectionPage() {
   }
 
   return (
-    <AppLayout currentPage="fee-collection" title="Fee Collection">
+    <RequirePermission permission="manage_fees" fallback={
+      <AppLayout currentPage="fee-collection" title="Access Denied">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h1 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
+              Access Denied
+            </h1>
+            <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              You don't have permission to access the Fee Collection module.
+            </p>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                theme === 'dark'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    }>
+      <AppLayout currentPage="fee-collection" title="Fee Collection">
       <div className="space-y-6 pb-6">
 
         {/* Page Header */}
@@ -336,5 +361,6 @@ export default function FeeCollectionPage() {
         </AnimatePresence>
       </div>
     </AppLayout>
+    </RequirePermission>
   );
 }
