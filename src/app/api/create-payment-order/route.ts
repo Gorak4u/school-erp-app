@@ -78,51 +78,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
     }
 
-    // For development, use mock implementation if Razorpay credentials are test credentials
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const isMockCredentials = keyId.includes('1234567890abcdef') || keyId === 'rzp_test_1234567890abcdef';
-    
     const normalizedAmount = Number(amount);
-    let order;
-    if (isDevelopment && isMockCredentials) {
-      // Mock Razorpay order for development
-      console.log('Using mock Razorpay implementation for development');
-      order = {
-        id: `order_mock_${Date.now()}`,
-        amount: Math.round(normalizedAmount * 100),
-        currency,
-        receipt: `rec_mock_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
-        notes: {
-          subscriptionId: subscription.id,
-          schoolId: targetSchoolId,
-          userId: (session?.user as any)?.id || 'registration-flow',
-          plan,
-          type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
-          billingCycle,
-        },
-        status: 'created',
-      };
-    } else {
-      // Real Razorpay implementation
-      const razorpay = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-      });
 
-      order = await razorpay.orders.create({
-        amount: Math.round(normalizedAmount * 100),
-        currency,
-        receipt: `rec_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
-        notes: {
-          subscriptionId: subscription.id,
-          schoolId: targetSchoolId,
-          userId: (session?.user as any)?.id || 'registration-flow',
-          plan,
-          type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
-          billingCycle,
-        },
-      });
-    }
+    // Initialize Razorpay with production-ready configuration
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(normalizedAmount * 100),
+      currency,
+      receipt: `rec_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
+      notes: {
+        subscriptionId: subscription.id,
+        schoolId: targetSchoolId,
+        userId: (session?.user as any)?.id || 'registration-flow',
+        plan,
+        type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
+        billingCycle,
+      },
+    });
 
     await (saasPrisma as any).subscriptionPayment.create({
       data: {
