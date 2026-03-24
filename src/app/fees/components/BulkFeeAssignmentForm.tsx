@@ -2,7 +2,23 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Plus, Users, Building, GraduationCap, School, ChevronDown } from 'lucide-react';
+import { 
+  Users, 
+  GraduationCap, 
+  School, 
+  Building, 
+  Search, 
+  X, 
+  CheckCircle, 
+  AlertCircle, 
+  ChevronDown,
+  FileText,
+  Target,
+  DollarSign,
+  Calendar,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 
 interface BulkFeeAssignmentFormProps {
   theme: 'dark' | 'light';
@@ -1146,76 +1162,112 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
+          {/* Modern Compact Header */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center`}>
-                {getTargetIcon()}
-              </div>
+            <div className="flex items-center gap-4">
+              <motion.div 
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25`}
+              >
+                <FileText className="w-6 h-6 text-white" />
+              </motion.div>
               <div>
-                <h2 className={`text-xl font-bold ${textPrimary}`}>Bulk Fee/Fine Assignment</h2>
-                <p className={`text-sm ${textSecondary}`}>
-                  Step {currentStep} of {currentStep === 3 ? 3 : 3}
-                </p>
+                <motion.h2 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className={`text-lg font-black ${textPrimary}`}
+                >
+                  Bulk Fee/Fine Assignment
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className={`text-xs ${textSecondary}`}
+                >
+                  Complete the 3-step process
+                </motion.p>
               </div>
             </div>
-            <button
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
               onClick={onClose}
-              className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100/80'}`}
+              whileHover={{ rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
             >
-              <X className="w-5 h-5" />
-            </button>
+              <X className="w-4 h-4" />
+            </motion.button>
           </div>
 
-          {/* World-Class Progress Bar */}
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-6">
-              {[1, 2, 3].map((step) => (
-                <div key={step} className="flex items-center">
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: step * 0.1, duration: 0.3 }}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-300 backdrop-blur-sm ${
-                      step < currentStep
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/30 transform scale-110'
-                        : step === currentStep
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-2xl shadow-blue-500/30 transform scale-110'
-                        : isDark ? 'bg-gray-700/50 text-gray-400 border border-gray-600/30' : 'bg-gray-200/50 text-gray-500 border border-gray-300/30'
-                    }`}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    {step < currentStep ? (
-                      <motion.div
-                        initial={{ rotate: -180 }}
-                        animate={{ rotate: 0 }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        <CheckCircle className="w-5 h-5" />
-                      </motion.div>
-                    ) : (
-                      <span className="font-bold">{step}</span>
-                    )}
-                  </motion.div>
-                  {step < 3 && (
+          {/* Modern Step Progress Bar */}
+          <div className="mb-8">
+            {/* Step Labels */}
+            <div className="flex items-center justify-between mb-4">
+              {[
+                { step: 1, label: 'Select Targets', icon: Target },
+                { step: 2, label: 'Fee Details', icon: DollarSign },
+                { step: 3, label: 'Confirmation', icon: CheckCircle }
+              ].map((item, index) => (
+                <motion.div
+                  key={item.step}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex-1 text-center"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
                     <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ delay: step * 0.1 + 0.2, duration: 0.5 }}
-                      className={`flex-1 h-1 mx-4 rounded-full transition-all duration-500 ${
-                        step < currentStep 
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg shadow-green-500/20' 
-                          : isDark ? 'bg-gray-700/50' : 'bg-gray-200/50'
+                      animate={{ 
+                        scale: currentStep === item.step ? 1.1 : 1,
+                        opacity: currentStep >= item.step ? 1 : 0.5
+                      }}
+                      transition={{ duration: 0.3 }}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                        currentStep > item.step
+                          ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
+                          : currentStep === item.step
+                          ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                          : isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-200/50 text-gray-500'
                       }`}
-                    />
-                  )}
-                </div>
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {currentStep > item.step ? (
+                        <motion.div
+                          initial={{ rotate: -180 }}
+                          animate={{ rotate: 0 }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </motion.div>
+                      ) : (
+                        <item.icon className="w-4 h-4" />
+                      )}
+                    </motion.div>
+                    <span className={`text-xs font-bold transition-colors duration-300 ${
+                      currentStep >= item.step ? textPrimary : textTertiary
+                    }`}>
+                      {item.label}
+                    </span>
+                  </div>
+                </motion.div>
               ))}
             </div>
-            <div className="flex justify-between text-xs">
-              <span className={textSecondary}>Select Targets</span>
-              <span className={textSecondary}>Fee Details</span>
-              <span className={textSecondary}>Confirmation</span>
+            
+            {/* Progress Line */}
+            <div className="relative h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+              />
             </div>
           </div>
 
