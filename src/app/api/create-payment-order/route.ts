@@ -44,7 +44,16 @@ export async function POST(req: NextRequest) {
 
     if (!keyId || !keySecret) {
       return NextResponse.json({
-        error: 'Razorpay is not configured. Please configure SaaS payment settings before accepting payments.'
+        error: 'Razorpay is not configured. Please configure SaaS payment settings before accepting payments.',
+        details: 'Missing Razorpay API keys'
+      }, { status: 500 });
+    }
+
+    // Validate Razorpay credentials format
+    if (!keyId.startsWith('rzp_') || keySecret.length < 20) {
+      return NextResponse.json({
+        error: 'Invalid Razorpay credentials. Please check your API keys.',
+        details: 'Key ID should start with "rzp_" and secret should be at least 20 characters'
       }, { status: 500 });
     }
 
@@ -69,25 +78,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
     }
 
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
-    });
-
+    // For development, use mock implementation if Razorpay credentials are test credentials
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isMockCredentials = keyId.includes('1234567890abcdef') || keyId === 'rzp_test_1234567890abcdef';
+    
     const normalizedAmount = Number(amount);
-    const order = await razorpay.orders.create({
-      amount: Math.round(normalizedAmount * 100),
-      currency,
-      receipt: `rec_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
-      notes: {
-        subscriptionId: subscription.id,
-        schoolId: targetSchoolId,
-        userId: (session?.user as any)?.id || 'registration-flow',
-        plan,
-        type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
-        billingCycle,
-      },
-    });
+    let order;
+    if (isDevelopment && isMockCredentials) {
+      // Mock Razorpay order for development
+      console.log('Using mock Razorpay implementation for development');
+      order = {
+        id: `order_mock_${Date.now()}`,
+        amount: Math.round(normalizedAmount * 100),
+        currency,
+        receipt: `rec_mock_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
+        notes: {
+          subscriptionId: subscription.id,
+          schoolId: targetSchoolId,
+          userId: (session?.user as any)?.id || 'registration-flow',
+          plan,
+          type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
+          billingCycle,
+        },
+        status: 'created',
+      };
+    } else {
+      // Real Razorpay implementation
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+
+      order = await razorpay.orders.create({
+        amount: Math.round(normalizedAmount * 100),
+        currency,
+        receipt: `rec_${subscription.id.slice(0, 20)}_${Date.now().toString().slice(-6)}`,
+        notes: {
+          subscriptionId: subscription.id,
+          schoolId: targetSchoolId,
+          userId: (session?.user as any)?.id || 'registration-flow',
+          plan,
+          type: isRenewal ? 'subscription_renewal' : 'subscription_payment',
+          billingCycle,
+        },
+      });
+    }
 
     await (saasPrisma as any).subscriptionPayment.create({
       data: {
@@ -114,6 +149,25 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Create payment order error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create payment order' }, { status: 500 });
+    
+    // Provide more specific error messages
+    if (error.statusCode === 401) {
+      return NextResponse.json({ 
+        error: 'Razorpay authentication failed. Please check your API keys.', 
+        details: 'Invalid or expired Razorpay credentials'
+      }, { status: 500 });
+    }
+    
+    if (error.statusCode === 400) {
+      return NextResponse.json({ 
+        error: 'Invalid payment request. Please check the payment details.', 
+        details: error.error?.description || 'Bad request to Razorpay'
+      }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      error: error.message || 'Failed to create payment order',
+      details: error.error?.description || 'Unknown error occurred'
+    }, { status: 500 });
   }
 }
