@@ -283,7 +283,12 @@ export async function middleware(request: NextRequest) {
 
   // ── Token Validation ────────────────────────────────────────────────────────
   // Validate token structure and required fields
-  if (!token.email || !token.id) {
+  // Some APIs (like school-config) use empty string fallbacks for ID
+  const isSystemApi = pathname.startsWith('/api/school-config') || 
+                      pathname.startsWith('/api/subscription') ||
+                      pathname.startsWith('/api/auth/');
+  
+  if (!isSystemApi && (!token.email || !token.id)) {
     console.error(`🚫 Invalid token structure for: ${pathname}`);
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
