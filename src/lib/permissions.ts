@@ -33,6 +33,10 @@ export const ALL_PERMISSIONS = {
   VIEW_FEES: 'view_fees',
   MANAGE_FEES: 'manage_fees',
 
+  // Fines
+  VIEW_FINES: 'view_fines',
+  MANAGE_FINES: 'manage_fines',
+
   // Exams
   VIEW_EXAMS: 'view_exams',
   MANAGE_EXAMS: 'manage_exams',
@@ -111,6 +115,8 @@ export const PERMISSION_LABELS: Record<string, string> = {
   view_assignment_analytics: 'View Assignment Analytics',
   view_fees: 'View Fees',
   manage_fees: 'Manage Fees',
+  view_fines: 'View Fines',
+  manage_fines: 'Manage Fines',
   view_exams: 'View Exams',
   manage_exams: 'Manage Exams',
   view_reports: 'View Reports',

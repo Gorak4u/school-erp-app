@@ -7,6 +7,7 @@ import { Student } from '../types';
 import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
+import StudentFines from './StudentFines';
 import EnhancedFeeCollection from '../../fees/components/EnhancedFeeCollection';
 import AttendanceCalendar from '../../../components/attendance/AttendanceCalendar';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
@@ -502,6 +503,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     { id: 'overview', label: '📋 Overview', icon: '📋' },
                     { id: 'academics', label: '📈 Academics', icon: '📈' },
                     { id: 'fees', label: '💰 Fees', icon: '💰' },
+                    { id: 'fines', label: '⚖️ Fines', icon: '⚖️' },
                     { id: 'attendance', label: '📊 Attendance', icon: '📊' },
                     { id: 'analytics', label: '📈 Analytics', icon: '📈' },
                     { id: 'medical', label: '🏥 Medical', icon: '🏥' },
@@ -895,6 +897,15 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     <StudentMedicalInfo
                       theme={theme}
                       student={selectedStudent}
+                      onClose={() => setActiveTab('overview')}
+                    />
+                  )}
+
+                  {/* Fines Tab */}
+                  {activeTab === 'fines' && (
+                    <StudentFines
+                      student={selectedStudent}
+                      theme={theme}
                       onClose={() => setActiveTab('overview')}
                     />
                   )}

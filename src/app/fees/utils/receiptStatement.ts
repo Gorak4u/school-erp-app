@@ -1,4 +1,4 @@
-export type ReceiptSectionKey = 'academic' | 'transport' | 'arrears';
+export type ReceiptSectionKey = 'academic' | 'transport' | 'arrears' | 'fines';
 
 export interface ReceiptLineItem {
   id: string;
@@ -71,6 +71,7 @@ const isArrearsRecord = (record: any) => {
 
 const resolveSection = (record: any): ReceiptSectionKey => {
   if (isArrearsRecord(record)) return 'arrears';
+  if (record?.isFine || record?.category === 'fines' || normalizeText(record?.name || '').includes('fine')) return 'fines';
   const category = normalizeText(record?.category || record?.feeCategory || record?.feeStructure?.category || record?.feeStructureName);
   if (category.includes('transport')) return 'transport';
   return 'academic';
@@ -79,6 +80,7 @@ const resolveSection = (record: any): ReceiptSectionKey => {
 const resolveSectionLabel = (section: ReceiptSectionKey) => {
   if (section === 'transport') return 'Transport Fees';
   if (section === 'arrears') return 'Arrears From Previous Academic Year';
+  if (section === 'fines') return 'Fines & Penalties';
   return 'Academic Fees';
 };
 
@@ -128,6 +130,7 @@ const buildSummaryRows = (statementLines: ReceiptLineItem[]): ReceiptSummaryRow[
     { key: 'academic', label: 'Academic Fees', total: 0, paid: 0, discount: 0, balance: 0 },
     { key: 'transport', label: 'Transport Fees', total: 0, paid: 0, discount: 0, balance: 0 },
     { key: 'arrears', label: 'Arrears From Previous Academic Year', total: 0, paid: 0, discount: 0, balance: 0 },
+    { key: 'fines', label: 'Fines & Penalties', total: 0, paid: 0, discount: 0, balance: 0 },
   ];
 
   for (const line of statementLines) {
@@ -158,7 +161,7 @@ export const buildReceiptStatementModel = (
   const statementLines = statementSource
     .map((record: any, index: number) => normalizeLine(record, index, 'statement', paymentDate))
     .sort((a: ReceiptLineItem, b: ReceiptLineItem) => {
-      const order: Record<ReceiptSectionKey, number> = { academic: 0, transport: 1, arrears: 2 };
+      const order: Record<ReceiptSectionKey, number> = { academic: 0, transport: 1, fines: 2, arrears: 3 };
       const sectionDiff = order[a.section] - order[b.section];
       if (sectionDiff !== 0) return sectionDiff;
       return a.name.localeCompare(b.name);

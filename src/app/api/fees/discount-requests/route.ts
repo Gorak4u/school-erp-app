@@ -36,7 +36,9 @@ async function validateDiscountApplication(
       return {
         valid: false,
         error: 'Discount value must be greater than 0',
-        details: 'Please provide a positive discount value'
+        details: discountData.discountType === 'percentage' 
+          ? 'For full waiver, use 100 for percentage discount'
+          : 'For full waiver, use the full fee amount as fixed discount'
       };
     }
 
@@ -535,17 +537,26 @@ export async function POST(request: NextRequest) {
         
         // Get approvers and submitter details
         const [approvers, submitter] = await Promise.all([
-          (schoolPrisma as any).User.findMany({
+          (schoolPrisma as any).school_User.findMany({
             where: { 
               schoolId: ctx.schoolId,
               isActive: true,
-              permissions: { has: 'approve_discounts' }
+              OR: [
+                { role: 'admin' }, // Admin role can approve discounts
+                {
+                  CustomRole: {
+                    permissions: {
+                      contains: 'manage_fees'
+                    }
+                  }
+                }
+              ]
             },
-            select: { id: true, email: true, name: true, role: true }
+            select: { id: true, email: true, firstName: true, lastName: true, role: true }
           }),
-          (schoolPrisma as any).User.findUnique({
+          (schoolPrisma as any).school_User.findUnique({
             where: { id: ctx.userId },
-            select: { id: true, email: true, name: true, role: true }
+            select: { id: true, email: true, firstName: true, lastName: true, role: true }
           })
         ]);
 

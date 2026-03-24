@@ -46,7 +46,7 @@ export async function sendRouteChangeNotification(params: {
   try {
     // Fetch student, parent, route, and school details
     const [student, newRoute, oldRoute, school] = await Promise.all([
-      (schoolPrisma as any).student.findUnique({
+      (schoolPrisma as any).Student.findUnique({
         where: { id: params.studentId },
         select: { 
           name: true, 
@@ -55,15 +55,15 @@ export async function sendRouteChangeNotification(params: {
           userId: true
         }
       }),
-      (schoolPrisma as any).transportRoute.findUnique({
+      (schoolPrisma as any).TransportRoute.findUnique({
         where: { id: params.newRouteId },
         select: { routeNumber: true, routeName: true, monthlyFee: true }
       }),
-      params.oldRouteId ? (schoolPrisma as any).transportRoute.findUnique({
+      params.oldRouteId ? (schoolPrisma as any).TransportRoute.findUnique({
         where: { id: params.oldRouteId },
         select: { routeName: true }
       }) : null,
-      (schoolPrisma as any).school.findUnique({
+      (schoolPrisma as any).School.findUnique({
         where: { id: params.schoolId },
         select: { name: true }
       })
@@ -80,7 +80,7 @@ export async function sendRouteChangeNotification(params: {
     }
 
     // Get assignment details
-    const assignment = await (schoolPrisma as any).studentTransport.findFirst({
+    const assignment = await (schoolPrisma as any).StudentTransport.findFirst({
       where: { studentId: params.studentId, routeId: params.newRouteId, isActive: true },
       select: { pickupStop: true, dropStop: true, monthlyFee: true }
     });
@@ -147,7 +147,7 @@ export async function sendAssignmentConfirmation(params: {
 }) {
   try {
     const [student, route, assignment, school] = await Promise.all([
-      (schoolPrisma as any).student.findUnique({
+      (schoolPrisma as any).Student.findUnique({
         where: { id: params.studentId },
         select: { 
           name: true, 
@@ -156,15 +156,15 @@ export async function sendAssignmentConfirmation(params: {
           userId: true
         }
       }),
-      (schoolPrisma as any).transportRoute.findUnique({
+      (schoolPrisma as any).TransportRoute.findUnique({
         where: { id: params.routeId },
         select: { routeNumber: true, routeName: true, monthlyFee: true }
       }),
-      (schoolPrisma as any).studentTransport.findFirst({
+      (schoolPrisma as any).StudentTransport.findFirst({
         where: { studentId: params.studentId, routeId: params.routeId, isActive: true },
         select: { pickupStop: true, dropStop: true, monthlyFee: true }
       }),
-      (schoolPrisma as any).school.findUnique({
+      (schoolPrisma as any).School.findUnique({
         where: { id: params.schoolId },
         select: { name: true }
       })
@@ -229,19 +229,20 @@ export async function sendTransportFeeReminder(params: {
 }) {
   try {
     const [student, feeRecord, school] = await Promise.all([
-      (schoolPrisma as any).student.findUnique({
+      (schoolPrisma as any).Student.findUnique({
         where: { id: params.studentId },
         select: { 
           name: true, 
-          parentEmail: true,
+          parentEmail: true, 
+          parentName: true,
           userId: true
         }
       }),
-      (schoolPrisma as any).feeRecord.findUnique({
+      (schoolPrisma as any).FeeRecord.findUnique({
         where: { id: params.feeRecordId },
         include: { feeStructure: true }
       }),
-      (schoolPrisma as any).school.findUnique({
+      (schoolPrisma as any).School.findUnique({
         where: { id: params.schoolId },
         select: { name: true }
       })
@@ -257,7 +258,7 @@ export async function sendTransportFeeReminder(params: {
     }
 
     // Get transport assignment
-    const assignment = await (schoolPrisma as any).studentTransport.findFirst({
+    const assignment = await (schoolPrisma as any).StudentTransport.findFirst({
       where: { studentId: params.studentId, isActive: true },
       include: { route: true }
     });
@@ -317,12 +318,12 @@ export async function sendCapacityWarning(params: {
 }) {
   try {
     const [route, transportManagers] = await Promise.all([
-      (schoolPrisma as any).transportRoute.findUnique({
+      (schoolPrisma as any).TransportRoute.findUnique({
         where: { id: params.routeId },
         select: { routeNumber: true, routeName: true, capacity: true }
       }),
       // Get all admin users as transport managers
-      (schoolPrisma as any).user.findMany({
+      (schoolPrisma as any).school_User.findMany({
         where: { schoolId: params.schoolId, role: 'admin' },
         select: { id: true, email: true }
       })

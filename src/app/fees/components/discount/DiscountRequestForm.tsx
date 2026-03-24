@@ -614,7 +614,8 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
           name: generateDiscountName(), // Auto-generated discount name
           targetType,
           feeStructureIds,
-          discountValue: Number(formData.discountValue),
+          // Ensure full_waiver has discountValue: 100
+          discountValue: formData.discountType === 'full_waiver' ? 100 : Number(formData.discountValue),
           maxCapAmount: formData.maxCapAmount ? Number(formData.maxCapAmount) : null,
           transportRouteIds: formData.transportRouteIds,
         }),

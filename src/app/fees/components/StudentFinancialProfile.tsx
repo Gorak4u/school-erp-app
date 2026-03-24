@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PaymentReceipt from './PaymentReceipt';
 import StudentDiscountForm from './StudentDiscountForm';
+import StudentFines from '../../students/components/StudentFines';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 import { studentsApi } from '@/lib/apiClient';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -37,10 +38,38 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const canApplyDiscounts = isAdmin || hasPermission('manage_fees');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId);
-  const [activeTab, setActiveTab] = useState<'overview' | 'fee-details' | 'payment-history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fee-details' | 'fines' | 'payment-history'>('overview');
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [fines, setFines] = useState<any[]>([]);
+  const [loadingFines, setLoadingFines] = useState(false);
+
+  // Fetch fines data
+  useEffect(() => {
+    if (studentId || selectedStudent) {
+      fetchFines();
+    }
+  }, [studentId, selectedStudent]);
+
+  const fetchFines = async () => {
+    const currentStudentId = studentId || selectedStudent;
+    if (!currentStudentId) return;
+    
+    setLoadingFines(true);
+    try {
+      const response = await fetch(`/api/fees/students/${currentStudentId}/fines`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setFines(data.fines || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch fines:', error);
+    } finally {
+      setLoadingFines(false);
+    }
+  };
 
   const isDark = theme === 'dark';
   const cardCls = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
@@ -144,6 +173,36 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   const totalPending = apiData?.totalPending || 0;
   const totalOverdue = apiData?.totalOverdue || 0;
   
+  // Calculate fines statistics
+  const finesStats = useMemo(() => {
+    if (!fines.length) return {
+      totalFines: 0,
+      totalFinesPaid: 0,
+      totalFinesPending: 0,
+      totalFinesWaived: 0,
+      pendingFinesCount: 0,
+    };
+    
+    const totalFinesAmount = fines.reduce((sum, fine) => sum + fine.amount, 0);
+    const totalFinesPaid = fines.reduce((sum, fine) => sum + fine.paidAmount, 0);
+    const totalFinesPending = fines.reduce((sum, fine) => sum + fine.pendingAmount, 0);
+    const totalFinesWaived = fines.reduce((sum, fine) => sum + fine.waivedAmount, 0);
+    const pendingFinesCount = fines.filter(fine => fine.pendingAmount > 0).length;
+    
+    return {
+      totalFines: totalFinesAmount,
+      totalFinesPaid,
+      totalFinesPending,
+      totalFinesWaived,
+      pendingFinesCount,
+    };
+  }, [fines]);
+  
+  // Calculate total including fines
+  const totalFeesIncludingFines = totalFees + finesStats.totalFines;
+  const totalPaidIncludingFines = totalPaid + finesStats.totalFinesPaid;
+  const totalPendingIncludingFines = totalPending + finesStats.totalFinesPending;
+  
   // Calculate total discount from fee records
   const totalDiscount = feeRecords.reduce((sum: number, record: any) => sum + (record.discount || 0), 0);
 
@@ -158,14 +217,18 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     email: apiData.email || 'N/A',
     feePlan: apiData.feePlan || 'Standard',
     scholarship: apiData.scholarship || '',
-    totalFees,
-    paid: totalPaid,
-    pending: totalPending,
+    totalFees: totalFeesIncludingFines,
+    paid: totalPaidIncludingFines,
+    pending: totalPendingIncludingFines,
     lateFees: totalOverdue,
     discount: totalDiscount,
+    finesTotal: finesStats.totalFines,
+    finesPaid: finesStats.totalFinesPaid,
+    finesPending: finesStats.totalFinesPending,
+    pendingFinesCount: finesStats.pendingFinesCount,
     nextDueDate: apiData.nextDueDate || '-',
     nextDueAmount: apiData.nextDueAmount || 0,
-    riskLevel: totalOverdue > 0 ? 'high' : totalPending > totalFees * 0.5 ? 'medium' : 'low',
+    riskLevel: totalOverdue > 0 || finesStats.totalFinesPending > 0 ? 'high' : totalPendingIncludingFines > totalFeesIncludingFines * 0.5 ? 'medium' : 'low',
     previousYearPending: apiData.previousYearPending || {},
     paymentStatus: apiData.calculatedPaymentStatus || 'no_payment',
     lastPaymentDate: apiData.lastPaymentDate || '',
@@ -380,6 +443,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
           {[
             { id: 'overview', label: 'Overview', icon: '📊' },
             { id: 'fee-details', label: 'Fee Details', icon: '📋' },
+            { id: 'fines', label: 'Fines', icon: '⚖️' },
             { id: 'payment-history', label: 'Payment History', icon: '💳' },
           ].map(tab => (
             <button
@@ -408,7 +472,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
           className="space-y-6"
         >
           {/* Financial Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-4">
             <div className={`p-4 rounded-lg border ${cardCls}`}>
               <p className={`text-sm ${textSecondary}`}>Total Fees</p>
               <p className={`text-xl font-bold ${textPrimary}`}>Rs.{(currentStudentData?.totalFees || 0).toLocaleString()}</p>
@@ -425,6 +489,14 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <p className={`text-sm ${textSecondary}`}>Discount</p>
               <p className="text-xl font-bold text-blue-500">Rs.{(currentStudentData?.discount || 0).toLocaleString()}</p>
             </div>
+            {/* Fines Tile Card - Only show if fines are present */}
+            {finesStats.totalFines > 0 && (
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Fines</p>
+                <p className="text-xl font-bold text-orange-500">Rs.{finesStats.totalFinesPending.toLocaleString()}</p>
+                <p className={`text-xs ${textSecondary}`}>{finesStats.pendingFinesCount} pending</p>
+              </div>
+            )}
             <div className={`p-4 rounded-lg border ${cardCls}`}>
               <p className={`text-sm ${textSecondary}`}>Next Due</p>
               <p className={`text-xl font-bold ${textPrimary}`}>{currentStudentData?.nextDueDate || 'N/A'}</p>
@@ -584,6 +656,20 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
         </motion.div>
       )}
 
+      {activeTab === 'fines' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <StudentFines
+            student={{ ...apiData, studentId: studentId || apiData?.id }}
+            theme={theme}
+            onClose={() => setActiveTab('overview')}
+          />
+        </motion.div>
+      )}
+
       {activeTab === 'payment-history' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -604,7 +690,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Pending</p>
                 <p className={`text-2xl font-bold text-orange-600`}>
-                  ₹{((apiData?.totalFees || 0) - (apiData?.totalPaid || 0) - (apiData?.totalDiscount || 0)).toLocaleString()}
+                  ₹{((apiData?.totalFees || 0) - (apiData?.totalPaid || 0) - (apiData?.totalDiscount || 0) + finesStats.totalFinesPending).toLocaleString()}
                 </p>
               </div>
               <div className={`p-4 rounded-lg border ${cardCls}`}>

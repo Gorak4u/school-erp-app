@@ -508,25 +508,37 @@ export function createSearchHandlers(ctx: any) {
         let discountCreated = false;
         let transportDiscountCreated = false;
         if (_discountInfo?.hasDiscount) {
-          try {
-            const academicYear = result.student.academicYear ||
-              `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
-            const discountRes = await fetch('/api/fees/discount-requests', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: `Discount for ${result.student.name}`,
-                description: _discountInfo.reason,
-                discountType: _discountInfo.discountType,
-                discountValue: Number(_discountInfo.discountValue) || 0,
-                maxCapAmount: _discountInfo.maxCapAmount ? Number(_discountInfo.maxCapAmount) : null,
-                scope: 'student',
-                targetType: 'individual',
-                studentIds: [result.student.id],
-                classIds: [],
-                sectionIds: [],
-                feeStructureIds: _discountInfo.feeStructureIds || [],
-                academicYear,
+          let discountValue = Number(_discountInfo.discountValue) || 0;
+          let discountType = _discountInfo.discountType;
+          
+          // Convert full_waiver to appropriate format
+          if (discountType === 'full_waiver') {
+            discountType = 'percentage';
+            discountValue = 100; // Full waiver = 100%
+          }
+          
+          // Only create discount request if discount value is greater than 0,
+          // OR if it's a percentage discount of 100% (full waiver)
+          if (discountValue > 0 || (discountType === 'percentage' && discountValue === 100)) {
+            try {
+              const academicYear = result.student.academicYear ||
+                `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+              const discountRes = await fetch('/api/fees/discount-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: `Discount for ${result.student.name}`,
+                  description: _discountInfo.reason,
+                  discountType,
+                  discountValue,
+                  maxCapAmount: _discountInfo.maxCapAmount ? Number(_discountInfo.maxCapAmount) : null,
+                  scope: 'student',
+                  targetType: 'individual',
+                  studentIds: [result.student.id],
+                  classIds: [],
+                  sectionIds: [],
+                  feeStructureIds: _discountInfo.feeStructureIds || [],
+                  academicYear,
                 reason: _discountInfo.reason,
                 validFrom: _discountInfo.validFrom,
                 validTo: _discountInfo.validTo || null,
@@ -537,20 +549,33 @@ export function createSearchHandlers(ctx: any) {
           } catch (discountErr) {
             console.error('Discount request creation failed:', discountErr);
           }
+          }
         }
 
         if (_transportInfo?.discountInfo?.hasDiscount && transportAssignmentResult?.feeStructure?.id) {
-          try {
-            const academicYear = result.student.academicYear ||
-              `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
-            const discountRes = await fetch('/api/fees/discount-requests', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: `Transport discount for ${result.student.name}`,
-                description: _transportInfo.discountInfo.reason,
-                discountType: _transportInfo.discountInfo.discountType,
-                discountValue: Number(_transportInfo.discountInfo.discountValue) || 0,
+          let transportDiscountValue = Number(_transportInfo.discountInfo.discountValue) || 0;
+          let transportDiscountType = _transportInfo.discountInfo.discountType;
+          
+          // Convert full_waiver to appropriate format
+          if (transportDiscountType === 'full_waiver') {
+            transportDiscountType = 'percentage';
+            transportDiscountValue = 100; // Full waiver = 100%
+          }
+          
+          // Only create transport discount request if discount value is greater than 0,
+          // OR if it's a percentage discount of 100% (full waiver)
+          if (transportDiscountValue > 0 || (transportDiscountType === 'percentage' && transportDiscountValue === 100)) {
+            try {
+              const academicYear = result.student.academicYear ||
+                `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+              const discountRes = await fetch('/api/fees/discount-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: `Transport discount for ${result.student.name}`,
+                  description: _transportInfo.discountInfo.reason,
+                  discountType: transportDiscountType,
+                  discountValue: transportDiscountValue,
                 maxCapAmount: null,
                 scope: 'student',
                 targetType: 'individual',
@@ -568,6 +593,7 @@ export function createSearchHandlers(ctx: any) {
             else console.error('Transport discount request failed:', await discountRes.text());
           } catch (transportDiscountErr) {
             console.error('Transport discount request creation failed:', transportDiscountErr);
+          }
           }
         }
 

@@ -41,6 +41,7 @@ model School {
   timings      SchoolTiming[]
   announcements Announcement[]
   medicalRecords MedicalRecord[]
+  fineRules     FineRule[]
 
   @@index([slug])
   @@index([isActive])
@@ -372,6 +373,9 @@ model Student {
   examResults           ExamResult[]
   arrears               FeeArrears[]
   feeRecords            FeeRecord[]
+  fines                 Fine[]
+  bookLoans             BookLoan[]
+  attendanceFineCounters AttendanceFineCounter[]
   academicYearRef       AcademicYear?          @relation("StudentAcademicYear", fields: [academicYearId], references: [id])
   school                School?                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   promotions            StudentPromotion[]
@@ -1034,6 +1038,7 @@ model AcademicYear {
   leaveApplications LeaveApplication[]
   leaveWorkflows LeaveWorkflow[]
   leaveSettings LeaveSettings[]
+  fineRules     FineRule[]
   school        School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, year])
@@ -2004,4 +2009,177 @@ model SubscriptionPromo {
 
   @@unique([subscriptionId, promoCodeId]) // One promo per subscription
   @@schema("saas")
+}
+
+// ========================================
+// Fine Management System Models
+// ========================================
+
+// Fine Rule Templates - Configurable by school
+model FineRule {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String
+  code            String
+  type            String
+  baseAmount      Float
+  dailyRate       Float?
+  maxAmount       Float?
+  percentageOf    String?
+  graceDays       Int      @default(0)
+  triggerEvent    String
+  applicableTo    String
+  classIds        String?
+  categoryIds     String?
+  autoApply       Boolean  @default(false)
+  autoNotify      Boolean  @default(true)
+  requiresApproval Boolean @default(false)
+  academicYearId  String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear    AcademicYear? @relation(fields: [academicYearId], references: [id])
+  fines           Fine[]
+  @@unique([schoolId, code])
+  @@index([schoolId, code])
+  @@index([isActive, triggerEvent])
+  @@schema("school")
+}
+
+model Fine {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  ruleId          String?
+  fineNumber      String   @unique
+  type            String
+  category        String
+  description     String
+  amount          Float
+  paidAmount      Float    @default(0)
+  waivedAmount    Float    @default(0)
+  pendingAmount   Float
+  status          String
+  sourceType      String
+  sourceId        String?
+  issuedAt        DateTime @default(now())
+  dueDate         DateTime
+  paidAt          DateTime?
+  waivedAt        DateTime?
+  waivedBy        String?
+  waiverReason    String?
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  rule            FineRule? @relation(fields: [ruleId], references: [id])
+  payments        FinePayment[]
+  waiverRequests  FineWaiverRequest[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([schoolId, studentId])
+  @@index([status, dueDate])
+  @@index([type, status])
+  @@index([schoolId, status])
+  @@index([schoolId, type])
+  @@index([sourceType, sourceId])
+  @@schema("school")
+}
+
+model FinePayment {
+  id            String   @id @default(cuid())
+  fineId        String
+  amount        Float
+  paymentMethod String
+  receiptNumber String   @unique
+  collectedBy   String
+  remarks       String?
+  razorpayOrderId     String?
+  razorpayPaymentId   String?
+  razorpaySignature   String?
+  createdAt     DateTime @default(now())
+  fine          Fine     @relation(fields: [fineId], references: [id], onDelete: Cascade)
+  @@index([fineId])
+  @@index([createdAt])
+  @@index([receiptNumber])
+  @@schema("school")
+}
+
+model FineWaiverRequest {
+  id          String   @id @default(cuid())
+  schoolId    String
+  fineId      String
+  requestedBy String
+  requesterId String
+  requesterName String
+  requesterEmail String?
+  reason      String
+  documents   String?
+  status      String
+  reviewedBy  String?
+  reviewedByName String?
+  reviewedAt  DateTime?
+  remarks     String?
+  fine        Fine     @relation(fields: [fineId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([schoolId, status])
+  @@index([fineId])
+  @@index([status, createdAt])
+  @@schema("school")
+}
+
+model FineAutomationLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  triggerType     String
+  ruleId          String
+  ruleName        String
+  executedAt      DateTime @default(now())
+  status          String
+  finesCreated    Int      @default(0)
+  finesFailed     Int      @default(0)
+  errorMessage    String?
+  processedIds    String?
+  @@index([schoolId, executedAt])
+  @@index([triggerType, executedAt])
+  @@schema("school")
+}
+
+model BookLoan {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  bookId          String
+  bookTitle       String
+  bookAccessionNo String?
+  issuedAt        DateTime @default(now())
+  dueDate         DateTime
+  returnedAt      DateTime?
+  status          String
+  renewals        Int      @default(0)
+  fineId          String?
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  @@index([schoolId, studentId])
+  @@index([status, dueDate])
+  @@index([schoolId, status])
+  @@schema("school")
+}
+
+model AttendanceFineCounter {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  academicYearId  String
+  month           Int
+  year            Int
+  lateCount       Int      @default(0)
+  absenceCount    Int      @default(0)
+  lastLateFineAt  DateTime?
+  lastAbsenceFineAt DateTime?
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  @@unique([schoolId, studentId, academicYearId, month, year])
+  @@index([schoolId, studentId])
+  @@index([month, year])
+  @@schema("school")
 }

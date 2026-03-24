@@ -910,7 +910,11 @@ export default function StudentForm({
         },
         ...(discountData.hasDiscount && {
           _discountInfo: { 
-            ...discountData, 
+            ...discountData,
+            // Ensure full_waiver has discountValue: 100
+            ...(discountData.discountType === 'full_waiver' && {
+              discountValue: 100
+            }),
             feeStructureIds: selectedDiscountFeeIds 
           },
         }),
@@ -919,7 +923,13 @@ export default function StudentForm({
             ...transportInfo,
             annualFee: transportFeeCalcs.baseAnnual,
             ...(transportDiscount.hasDiscount && {
-              discountInfo: transportDiscount,
+              discountInfo: {
+                ...transportDiscount,
+                // Ensure full_waiver has discountValue: 100
+                ...(transportDiscount.discountType === 'full_waiver' && {
+                  discountValue: 100
+                })
+              },
             }),
           },
         }),

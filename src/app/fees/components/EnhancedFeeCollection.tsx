@@ -22,9 +22,11 @@ import {
   QrCode,
   X,
   Share,
-  Percent
+  Percent,
+  FileText
 } from 'lucide-react';
 import PaymentReceipt from './PaymentReceipt';
+import StudentFines from '../../students/components/StudentFines';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 
 interface EnhancedFeeCollectionProps {
@@ -108,13 +110,41 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
         const fee = filteredFees.find(f => f.id === feeId);
         if (!fee || fee.status === 'paid') continue;
         const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
-        const paymentResult = await paymentsApi.process({
-          feeRecordId: feeId,
-          amount,
-          paymentMethod: 'upi',
-          collectedBy: getCurrentUserName(),
-          remarks: 'UPI payment - QR code',
-        });
+        
+        let paymentResult;
+        if (fee.isFine) {
+          // Process fine payment using fine API
+          const response = await fetch(`/api/fines/${fee.fineId}/pay`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount,
+              paymentMethod: 'upi',
+              remarks: 'UPI payment - QR code',
+            }),
+          });
+          
+          const data = await response.json();
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to process fine payment');
+          }
+          
+          paymentResult = {
+            success: true,
+            receiptNumber: data.receiptNumber,
+            payment: data.payment,
+          };
+        } else {
+          // Process regular fee payment
+          paymentResult = await paymentsApi.process({
+            feeRecordId: feeId,
+            amount,
+            paymentMethod: 'upi',
+            collectedBy: getCurrentUserName(),
+            remarks: 'UPI payment - QR code',
+          });
+        }
+        
         processedPayments.push({ fee, amount, paymentResult });
       }
 
@@ -144,6 +174,9 @@ export default function EnhancedFeeCollection({ theme, onClose, studentId, stude
       if (onPaymentSuccess) {
         onPaymentSuccess();
       }
+      
+      // Refresh fines data after successful payment
+      fetchFines();
       
       // Send payment confirmation email asynchronously
       sendPaymentConfirmationEmail(receiptPayload, 'upi');
@@ -423,7 +456,7 @@ School Administration
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'payment' | 'discounts' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fees' | 'fines' | 'payment' | 'discounts' | 'history'>('overview');
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('all');
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
@@ -483,14 +516,14 @@ School Administration
           const dbCategories = [...new Set(structures
             .map((fs: any) => normalizeCategory(fs.category))
             .filter(Boolean))];
-          const fallbackCategories = ['academic', 'transport', 'extracurricular', 'other'];
+          const fallbackCategories = ['academic', 'transport', 'extracurricular', 'fines', 'other'];
           const allCategories = [...new Set([...dbCategories, ...fallbackCategories])];
           setFeeCategories(allCategories);
         }
       } catch (error) {
         console.error('Failed to fetch fee categories:', error);
         // Set fallback categories on error
-        setFeeCategories(['academic', 'transport', 'extracurricular', 'other']);
+        setFeeCategories(['academic', 'transport', 'extracurricular', 'fines', 'other']);
       }
     };
 
@@ -615,33 +648,109 @@ School Administration
     },
   ];
 
+  const [fines, setFines] = useState<any[]>([]);
+  const [loadingFines, setLoadingFines] = useState(false);
+
+  // Calculate fines statistics
+  const finesStats = useMemo(() => {
+    if (!fines.length) return null;
+    
+    const totalFines = fines.reduce((sum, fine) => sum + fine.amount, 0);
+    const totalFinesPaid = fines.reduce((sum, fine) => sum + fine.paidAmount, 0);
+    const totalFinesPending = fines.reduce((sum, fine) => sum + fine.pendingAmount, 0);
+    const totalFinesWaived = fines.reduce((sum, fine) => sum + fine.waivedAmount, 0);
+    const pendingFinesCount = fines.filter(fine => fine.pendingAmount > 0).length;
+    
+    return {
+      totalFines,
+      totalFinesPaid,
+      totalFinesPending,
+      totalFinesWaived,
+      pendingFinesCount,
+    };
+  }, [fines]);
+
+  // Fetch fines data
+  useEffect(() => {
+    if (studentId) {
+      fetchFines();
+    }
+  }, [studentId]);
+
+  const fetchFines = async () => {
+    if (!studentId) return;
+    
+    setLoadingFines(true);
+    try {
+      const response = await fetch(`/api/fees/students/${studentId}/fines`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setFines(data.fines || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch fines:', error);
+    } finally {
+      setLoadingFines(false);
+    }
+  };
+
   // Get real fee data from studentData prop (comes from database via fees page)
   const allFeeData: FeeItem[] = useMemo(() => {
-    if (!studentData?.feeRecords || studentData.feeRecords.length === 0) {
-      return [];
+    let feeItems: FeeItem[] = [];
+    
+    // Add regular fees
+    if (studentData?.feeRecords && studentData.feeRecords.length > 0) {
+      feeItems = feeItems.concat(studentData.feeRecords.map((record: any) => {
+        const category = normalizeCategory(record.category || record.feeStructure?.category || (record as any).feeStructureName) || 'academic';
+        
+        return {
+          id: record.id,
+          name: record.feeStructure?.name || record.name || (record as any).feeStructureName || 'Fee',
+          category: category,
+          amount: record.amount || 0,
+          dueDate: record.dueDate || '',
+          status: record.status || 'pending',
+          paidAmount: record.paidAmount || 0,
+          discount: record.discount || 0,
+          frequency: record.feeStructure?.frequency || 'one-time',
+          academicYear: record.academicYear || '2025-26',
+          description: record.feeStructure?.description || '',
+          priority: record.status === 'overdue' ? 'high' : 'medium',
+          lateFee: record.feeStructure?.lateFee || 0,
+          discountAvailable: false,
+        };
+      }));
     }
     
-    return studentData.feeRecords.map((record: any) => {
-      const category = normalizeCategory(record.category || record.feeStructure?.category || (record as any).feeStructureName) || 'academic';
-      
-      return {
-        id: record.id,
-        name: record.feeStructure?.name || record.name || (record as any).feeStructureName || 'Fee',
-        category: category,
-        amount: record.amount || 0,
-        dueDate: record.dueDate || '',
-        status: record.status || 'pending',
-        paidAmount: record.paidAmount || 0,
-        discount: record.discount || 0,
-        frequency: record.feeStructure?.frequency || 'one-time',
-        academicYear: record.academicYear || '2025-26',
-        description: record.feeStructure?.description || '',
-        priority: record.status === 'overdue' ? 'high' : 'medium',
-        lateFee: record.feeStructure?.lateFee || 0,
+    // Add fines as fee items
+    if (fines.length > 0) {
+      const fineItems = fines.map((fine: any) => ({
+        id: `fine-${fine.id}`,
+        name: `Fine: ${fine.description}`,
+        category: 'fines',
+        amount: fine.amount,
+        dueDate: fine.dueDate,
+        status: fine.pendingAmount > 0 ? 'pending' : 'paid',
+        paidAmount: fine.paidAmount,
+        discount: 0,
+        frequency: 'one-time',
+        academicYear: '2025-26',
+        description: fine.description,
+        priority: 'high',
+        lateFee: 0,
         discountAvailable: false,
-      };
-    });
-  }, [studentData]);
+        isFine: true,
+        fineId: fine.id,
+        fineNumber: fine.fineNumber,
+        pendingAmount: fine.pendingAmount,
+      }));
+      
+      feeItems = feeItems.concat(fineItems);
+    }
+    
+    return feeItems;
+  }, [studentData, fines]);
 
   // Computed values for enhanced UI
   const filteredFees = useMemo(() => {
@@ -709,8 +818,10 @@ School Administration
       .filter(Boolean);
 
     const firstProcessed = processedPayments[0];
-    const statementRecords = (studentData?.feeRecords || []).map((record: any) => {
-      const processedMatch = processedPayments.find(({ fee }) => fee.id === record.id);
+    
+    // Separate regular fees and fines
+    const regularFeeRecords = (studentData?.feeRecords || []).map((record: any) => {
+      const processedMatch = processedPayments.find(({ fee }) => fee.id === record.id && !fee.isFine);
       if (!processedMatch) return record;
 
       const updatedPaidAmount = Number(processedMatch.paymentResult?.feeRecord?.paidAmount ?? record.paidAmount ?? 0);
@@ -733,6 +844,37 @@ School Administration
       };
     });
 
+    // Add fines to statement records
+    const finesRecords = fines.map((fine: any) => {
+      const processedMatch = processedPayments.find(({ fee }) => fee.isFine && fee.fineId === fine.id);
+      if (!processedMatch) return fine;
+
+      const updatedPaidAmount = Number(processedMatch.paymentResult?.payment?.paidAmount ?? fine.paidAmount ?? 0);
+      const updatedPendingAmount = Number(
+        processedMatch.paymentResult?.payment?.pendingAmount
+        ?? Math.max(0, Number(fine.amount) - updatedPaidAmount - fine.waivedAmount)
+      );
+
+      return {
+        ...fine,
+        amount: Number(fine.amount),
+        paidAmount: updatedPaidAmount,
+        pendingAmount: updatedPendingAmount,
+        waivedAmount: fine.waivedAmount || 0,
+        status: updatedPendingAmount > 0 ? 'partial' : 'paid',
+        receiptNumber: processedMatch.paymentResult?.receiptNumber || processedMatch.paymentResult?.payment?.receiptNumber || fine.receiptNumber,
+        isFine: true,
+        fineNumber: fine.fineNumber,
+        description: fine.description,
+        category: 'fines',
+        academicYear: '2025-26',
+        feeStructure: { name: `Fine: ${fine.description}`, category: 'fines' },
+      };
+    });
+
+    // Combine regular fees and fines for statement records
+    const statementRecords = [...regularFeeRecords, ...finesRecords];
+
     return {
       studentData: buildReceiptStudentData(firstProcessed?.paymentResult?.payment?.collectedBy),
       paymentData: {
@@ -752,6 +894,8 @@ School Administration
           transactionId: paymentResult?.payment?.transactionId || '',
           remarks: paymentResult?.payment?.remarks || '',
           paymentDate: paymentResult?.payment?.paymentDate || paymentResult?.feeRecord?.paidDate || new Date().toISOString(),
+          isFine: fee.isFine || false,
+          fineNumber: fee.fineNumber || '',
         })),
         statementRecords,
         includedReceiptNumbers,
@@ -859,13 +1003,41 @@ School Administration
           const fee = filteredFees.find(f => f.id === feeId);
           if (!fee || fee.status === 'paid') continue;
           const amount = customAmounts[feeId] || (fee.amount - fee.paidAmount - (fee.discount || 0));
-          const paymentResult = await paymentsApi.process({
-            feeRecordId: feeId,
-            amount,
-            paymentMethod: paymentMethod,
-            collectedBy: getCurrentUserName(),
-            remarks: promoCode ? `Promo: ${promoCode}` : undefined,
-          });
+          
+          let paymentResult;
+          if (fee.isFine) {
+            // Process fine payment using fine API
+            const response = await fetch(`/api/fines/${fee.fineId}/pay`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount,
+                paymentMethod,
+                remarks: promoCode ? `Promo: ${promoCode}` : 'Cash payment',
+              }),
+            });
+            
+            const data = await response.json();
+            if (!data.success) {
+              throw new Error(data.error || 'Failed to process fine payment');
+            }
+            
+            paymentResult = {
+              success: true,
+              receiptNumber: data.receiptNumber,
+              payment: data.payment,
+            };
+          } else {
+            // Process regular fee payment
+            paymentResult = await paymentsApi.process({
+              feeRecordId: feeId,
+              amount,
+              paymentMethod: paymentMethod,
+              collectedBy: getCurrentUserName(),
+              remarks: promoCode ? `Promo: ${promoCode}` : undefined,
+            });
+          }
+          
           processedPayments.push({ fee, amount, paymentResult });
         }
 
@@ -891,6 +1063,9 @@ School Administration
         if (onPaymentSuccess) {
           onPaymentSuccess();
         }
+        
+        // Refresh fines data after successful payment
+        fetchFines();
         
         // Send payment confirmation email asynchronously
         sendPaymentConfirmationEmail(receiptPayload, 'cash');
@@ -1141,6 +1316,7 @@ School Administration
           {[
             { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
             { id: 'fees', label: 'Fee Details', icon: <DollarSign className="w-4 h-4" /> },
+            { id: 'fines', label: 'Fines', icon: <FileText className="w-4 h-4" /> },
             { id: 'payment', label: 'Make Payment', icon: <CreditCard className="w-4 h-4" /> },
             { id: 'discounts', label: 'Discounts', icon: <Award className="w-4 h-4" /> },
             { id: 'history', label: 'History', icon: <Clock className="w-4 h-4" /> },
@@ -1232,6 +1408,29 @@ School Administration
                 </div>
               </div>
             </div>
+
+            {/* Fines Tile Card - Only show if fines are present */}
+            {finesStats && (
+              <div className={`${cardCls} p-6 rounded-xl border`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${textSecondary}`}>Fines</p>
+                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats.totalFinesPending.toLocaleString()}</p>
+                    <p className={`text-xs ${textSecondary}`}>{finesStats.pendingFinesCount} pending</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+                    <FileText className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex justify-between text-xs">
+                    <span className={textSecondary}>Total: ₹{finesStats.totalFines.toLocaleString()}</span>
+                    <span className={textSecondary}>Paid: ₹{finesStats.totalFinesPaid.toLocaleString()}</span>
+                    <span className={textSecondary}>Waived: ₹{finesStats.totalFinesWaived.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions */}
             <div className={`${cardCls} p-6 rounded-xl border`}>
@@ -2050,6 +2249,21 @@ School Administration
                 </div>
               );
             })()}
+          </motion.div>
+        )}
+
+        {/* Fines Tab */}
+        {activeTab === 'fines' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            <StudentFines
+              student={{ ...studentData, studentId }}
+              theme={theme}
+              onClose={() => setActiveTab('overview')}
+            />
           </motion.div>
         )}
       </div>
