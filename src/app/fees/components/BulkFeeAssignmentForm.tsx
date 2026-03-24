@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Plus, Users, Building, GraduationCap, School } from 'lucide-react';
+import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Plus, Users, Building, GraduationCap, School, ChevronDown } from 'lucide-react';
 
 interface BulkFeeAssignmentFormProps {
   theme: 'dark' | 'light';
@@ -56,21 +56,25 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
   const [previewData, setPreviewData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // CSS Variables - Modern UI Design
+  // CSS Variables - World-Class Compact UI Design
   const isDark = theme === 'dark';
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`;
-  const btnPrimary = `px-6 py-3 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-5 py-3 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
-  const row = `p-4 rounded-xl border ${isDark ? 'border-gray-600/50 bg-gray-700/30' : 'border-gray-200 bg-gray-50/50'}`;
-  const tile = `p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${isDark ? 'border-gray-600 hover:border-blue-500' : 'border-gray-300 hover:border-blue-400'}`;
-  const tileSelected = `p-4 rounded-xl border-2 transition-all cursor-pointer ring-2 ring-blue-200 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20`;
-  const glassCard = `rounded-2xl border shadow-xl backdrop-blur-md ${isDark ? 'bg-gray-800/80 border-gray-700/50' : 'bg-white/80 border-gray-200/50'}`;
-  const successBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${isDark ? 'bg-green-900/30 text-green-400 border border-green-600/30' : 'bg-green-100 text-green-700 border border-green-200'}`;
-  const warningBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${isDark ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-600/30' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`;
-  const errorBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${isDark ? 'bg-red-900/30 text-red-400 border border-red-600/30' : 'bg-red-100 text-red-700 border border-red-200'}`;
+  const card = `rounded-2xl border shadow-xl backdrop-blur-xl transition-all duration-300 ${isDark ? 'bg-gradient-to-br from-gray-900/90 to-gray-800/90 border-gray-700/50 shadow-black/20' : 'bg-gradient-to-br from-white/95 to-gray-50/95 border-gray-200/50 shadow-gray-200/50'}`;
+  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 placeholder:transition-all placeholder:duration-200 ${isDark ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400/70 focus:bg-gray-700/60 focus:border-blue-400/50 focus:shadow-lg focus:shadow-blue-500/10' : 'bg-white/80 border-gray-300/50 text-gray-900 placeholder-gray-400/50 focus:bg-white focus:border-blue-400/60 focus:shadow-lg focus:shadow-blue-500/10'}`;
+  const label = `block text-sm font-bold mb-2 tracking-tight ${isDark ? 'text-gray-100' : 'text-gray-800'}`;
+  const btnPrimary = `px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl backdrop-blur-sm ${isDark ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white shadow-blue-600/25 hover:shadow-blue-600/40' : 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 hover:from-blue-600 hover:via-blue-500 hover:to-blue-600 text-white shadow-blue-500/25 hover:shadow-blue-500/40'}`;
+  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all duration-200 transform hover:scale-105 active:scale-95 backdrop-blur-sm ${isDark ? 'border-gray-600/50 text-gray-200 hover:bg-gray-700/50 hover:border-gray-500/60 hover:shadow-lg' : 'border-gray-300/50 text-gray-700 hover:bg-gray-100/80 hover:border-gray-400/60 hover:shadow-lg'}`;
+  const btnDanger = `px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 backdrop-blur-sm ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-500/20' : 'bg-red-100/80 text-red-600 hover:bg-red-200/80 border border-red-200/60 hover:border-red-300/60 hover:shadow-lg hover:shadow-red-500/20'}`;
+  const row = `p-4 rounded-xl border backdrop-blur-sm transition-all duration-200 ${isDark ? 'border-gray-600/30 bg-gray-700/20 hover:bg-gray-700/30' : 'border-gray-200/30 bg-gray-50/30 hover:bg-gray-100/40'}`;
+  const tile = `p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-sm ${isDark ? 'border-gray-600/50 hover:border-blue-400/60 bg-gray-700/30 hover:bg-gray-600/40' : 'border-gray-300/50 hover:border-blue-400/60 bg-white/60 hover:bg-blue-50/40'}`;
+  const tileSelected = `p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ring-2 ring-blue-400/20 border-blue-500 bg-gradient-to-br from-blue-50/80 to-blue-100/80 dark:from-blue-900/40 dark:to-blue-800/40 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transform scale-105`;
+  const glassCard = `rounded-2xl border shadow-xl backdrop-blur-2xl transition-all duration-300 ${isDark ? 'bg-gray-800/80 border-gray-700/30 shadow-black/30' : 'bg-white/85 border-gray-200/30 shadow-gray-300/30'}`;
+  const successBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-green-900/40 text-green-300 border border-green-600/40 shadow-green-500/20' : 'bg-green-100/80 text-green-700 border border-green-200/60 shadow-green-500/20'}`;
+  const warningBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-yellow-900/40 text-yellow-300 border border-yellow-600/40 shadow-yellow-500/20' : 'bg-yellow-100/80 text-yellow-700 border border-yellow-200/60 shadow-yellow-500/20'}`;
+  const errorBadge = `inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-red-900/40 text-red-300 border border-red-600/40 shadow-red-500/20' : 'bg-red-100/80 text-red-700 border border-red-200/60 shadow-red-500/20'}`;
+  const premiumGradient = `bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700`;
+  const successGradient = `bg-gradient-to-br from-green-500 via-emerald-600 to-green-600`;
+  const warningGradient = `bg-gradient-to-br from-yellow-500 via-orange-600 to-yellow-600`;
+  const errorGradient = `bg-gradient-to-br from-red-500 via-pink-600 to-red-600`;
   
   // Text color variables
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
@@ -427,53 +431,46 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
           </select>
         </div>
 
-        {/* Target Type Selection - Modern Card Design */}
-        <div className="mb-8">
-          <label className={label}>Assign To *</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Target Type Selection - Compact */}
+        <div className={`${glassCard} p-5 mb-5`}>
+          <div className="grid grid-cols-4 gap-3">
             {[
-              { value: 'student', label: 'Students', icon: Users, desc: 'Individual students' },
-              { value: 'class', label: 'Classes', icon: GraduationCap, desc: 'Entire classes' },
-              { value: 'medium', label: 'Mediums', icon: Building, desc: 'By medium' },
-              { value: 'school', label: 'Entire School', icon: School, desc: 'All students' }
-            ].map((type) => (
+              { value: 'student', label: 'Students', icon: Users, gradient: 'from-blue-500 to-blue-600', iconBg: 'bg-blue-500' },
+              { value: 'class', label: 'Classes', icon: GraduationCap, gradient: 'from-purple-500 to-purple-600', iconBg: 'bg-purple-500' },
+              { value: 'medium', label: 'Mediums', icon: School, gradient: 'from-emerald-500 to-emerald-600', iconBg: 'bg-emerald-500' },
+              { value: 'school', label: 'School', icon: Building, gradient: 'from-orange-500 to-orange-600', iconBg: 'bg-orange-500' }
+            ].map((target, index) => (
               <motion.div
-                key={type.value}
-                whileHover={{ scale: 1.02 }}
+                key={target.value}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ 
-                    ...prev, 
-                    targetType: type.value as any,
-                    studentIds: [],
-                    classIds: [],
-                    mediumIds: []
-                  }))}
-                  className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                    formData.targetType === type.value 
-                      ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 shadow-lg' 
-                      : `${isDark ? 'border-gray-600 hover:border-blue-400 bg-gray-700/50' : 'border-gray-300 hover:border-blue-400 bg-white'} hover:shadow-md`
+                  onClick={() => setFormData(prev => ({ ...prev, targetType: target.value as any, studentIds: [], classIds: [], mediumIds: [] }))}
+                  className={`w-full p-3 rounded-xl border-2 transition-all duration-300 text-left relative overflow-hidden group h-20 ${
+                    formData.targetType === target.value 
+                      ? 'border-blue-500 bg-gradient-to-br from-blue-50/90 to-blue-100/90 dark:from-blue-900/60 dark:to-blue-800/60 shadow-lg shadow-blue-500/20' 
+                      : `${isDark ? 'border-gray-600/50 hover:border-blue-400/60 bg-gray-700/30 hover:bg-gray-600/40' : 'border-gray-300/50 hover:border-blue-400/60 bg-white/70 hover:bg-blue-50/40'} hover:shadow-lg`
                   }`}
                 >
-                  <div className="flex flex-col items-center text-center">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-3 ${
-                      formData.targetType === type.value 
-                        ? 'bg-blue-500 text-white shadow-lg' 
-                        : `${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-600'}`
+                  <div className="absolute inset-0 bg-gradient-to-br ${target.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                  
+                  <div className="flex flex-col items-center text-center relative z-10 h-full justify-center">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center mb-1.5 transition-all duration-300 ${
+                      formData.targetType === target.value 
+                        ? `${target.iconBg} text-white shadow-lg transform scale-110` 
+                        : `${isDark ? 'bg-gray-600/50 text-gray-300' : 'bg-gray-100/80 text-gray-600'} group-hover:transform group-hover:scale-105`
                     }`}>
-                      <type.icon className="w-6 h-6" />
+                      <target.icon className="w-3.5 h-3.5" />
                     </div>
-                    <div className={`font-semibold mb-1 ${
-                      formData.targetType === type.value ? 'text-blue-600 dark:text-blue-400' : textPrimary
+                    <div className={`font-bold text-xs transition-colors duration-300 ${
+                      formData.targetType === target.value ? 'text-blue-600 dark:text-blue-400' : textPrimary
                     }`}>
-                      {type.label}
-                    </div>
-                    <div className={`text-xs ${
-                      formData.targetType === type.value ? 'text-blue-500 dark:text-blue-300' : textSecondary
-                    }`}>
-                      {type.desc}
+                      {target.label}
                     </div>
                   </div>
                 </button>
@@ -490,79 +487,101 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
                      formData.targetType === 'class' ? 'Classes' : 'Mediums'} *
             </label>
             
-            {/* Enhanced Search Input */}
+            {/* Compact Search Input */}
             {formData.targetType === 'student' && (
               <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 transition-colors duration-200 group-focus-within:text-blue-500" />
                   <input
                     type="text"
-                    placeholder="Search students by name, admission number..."
+                    placeholder="Search students..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`pl-12 pr-4 py-3 ${input} shadow-sm`}
+                    className={`pl-11 pr-10 py-2.5 ${input} shadow-md hover:shadow-lg transition-all duration-200`}
                   />
                   {searchTerm && (
-                    <button
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
                       onClick={() => setSearchTerm('')}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:scale-110"
                     >
-                      <X className="w-4 h-4 text-gray-400" />
-                    </button>
+                      <X className="w-3.5 h-3.5 text-gray-400" />
+                    </motion.button>
                   )}
+                  <div className="absolute bottom-1.5 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-0 transition-opacity duration-200 group-focus-within:opacity-100"></div>
                 </div>
               </div>
             )}
 
-            {/* Modern Selection List */}
-            <div className={`rounded-xl border shadow-sm ${isDark ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-white'}`}>
+            {/* World-Class Selection List */}
+            <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl transition-all duration-300 ${isDark ? 'border-gray-600/50 bg-gray-700/20' : 'border-gray-300/50 bg-white/70'}`}>
               {/* List Header */}
-              <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-200 bg-gray-50'} rounded-t-xl`}>
+              <div className={`px-6 py-4 border-b backdrop-blur-sm rounded-t-3xl ${isDark ? 'border-gray-600/30 bg-gray-700/30' : 'border-gray-200/30 bg-gray-50/50'}`}>
                 <div className="flex items-center justify-between">
-                  <h4 className={`font-semibold text-sm ${textPrimary}`}>
-                    {formData.targetType === 'student' ? 'Students' : 
-                     formData.targetType === 'class' ? 'Classes' : 'Mediums'}
-                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      formData.targetType === 'student' ? 'bg-blue-500 text-white' :
+                      formData.targetType === 'class' ? 'bg-purple-500 text-white' :
+                      'bg-emerald-500 text-white'
+                    }`}>
+                      {formData.targetType === 'student' && <Users className="w-4 h-4" />}
+                      {formData.targetType === 'class' && <GraduationCap className="w-4 h-4" />}
+                      {formData.targetType === 'medium' && <Building className="w-4 h-4" />}
+                    </div>
+                    <h4 className={`font-bold text-base ${textPrimary}`}>
+                      {formData.targetType === 'student' ? 'Students' : 
+                       formData.targetType === 'class' ? 'Classes' : 'Mediums'}
+                    </h4>
+                  </div>
                   {formData.targetType === 'student' && isSearching && (
-                    <div className="flex items-center text-xs text-blue-500">
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Searching...
+                    <div className="flex items-center gap-2 text-blue-500">
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm font-medium">Searching...</span>
                     </div>
                   )}
                 </div>
               </div>
               
               {/* List Content */}
-              <div className="max-h-64 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto">
                 {formData.targetType === 'student' && !isSearching && searchTerm && searchResults.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className={`w-16 h-16 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center mx-auto mb-4`}>
-                      <Search className="w-6 h-6 text-gray-400" />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-16"
+                  >
+                    <div className={`w-20 h-20 rounded-3xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-100/50'} flex items-center justify-center mx-auto mb-6 backdrop-blur-sm`}>
+                      <Search className="w-8 h-8 text-gray-400" />
                     </div>
-                    <div className={`text-sm ${textSecondary}`}>No students found</div>
-                    <div className={`text-xs ${textTertiary} mt-1`}>Try adjusting your search terms</div>
-                  </div>
+                    <div className={`text-lg font-medium ${textSecondary} mb-2`}>No students found</div>
+                    <div className={`text-sm ${textTertiary}`}>Try adjusting your search terms</div>
+                  </motion.div>
                 )}
                 
                 {formData.targetType === 'student' && !isSearching && searchTerm.length < 2 && (
-                  <div className="text-center py-12">
-                    <div className={`w-16 h-16 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center mx-auto mb-4`}>
-                      <Search className="w-6 h-6 text-gray-400" />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-16"
+                  >
+                    <div className={`w-20 h-20 rounded-3xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-100/50'} flex items-center justify-center mx-auto mb-6 backdrop-blur-sm`}>
+                      <Search className="w-8 h-8 text-gray-400" />
                     </div>
-                    <div className={`text-sm ${textSecondary}`}>Type to search students</div>
-                    <div className={`text-xs ${textTertiary} mt-1`}>Enter at least 2 characters</div>
-                  </div>
+                    <div className={`text-lg font-medium ${textSecondary} mb-2`}>Type to search students</div>
+                    <div className={`text-sm ${textTertiary}`}>Enter at least 2 characters</div>
+                  </motion.div>
                 )}
                 
-                {/* Student List */}
+                {/* Compact Student List */}
                 {formData.targetType === 'student' && !isSearching && searchTerm.length >= 2 && searchResults.length > 0 && (
-                  <div className="divide-y ${isDark ? 'divide-gray-600' : 'divide-gray-200'}">
-                    {searchResults.map((target: any) => {
+                  <div className={`divide-y ${isDark ? 'divide-gray-600/30' : 'divide-gray-200/30'} max-h-64 overflow-y-auto rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    {searchResults.map((target: any, index: number) => {
                       const status = target.status?.toLowerCase();
                       const alumniStatuses = ['graduated', 'transferred', 'exit', 'exited', 'suspended', 'alumni'];
                       const isAlumni = alumniStatuses.includes(status);
                       
-                      // Don't show alumni students when assigning fines
                       if (formData.category === 'fine' && isAlumni) {
                         return null;
                       }
@@ -570,48 +589,73 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
                       return (
                         <motion.label
                           key={target.id}
-                          initial={{ opacity: 0, x: -10 }}
+                          initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className={`flex items-center p-4 cursor-pointer transition-all hover:bg-opacity-50 ${
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          className={`flex items-center p-3 cursor-pointer transition-all duration-200 hover:bg-opacity-50 ${
                             formData.studentIds.includes(target.id)
-                              ? isDark ? 'bg-blue-900/20 border-blue-500/30' : 'bg-blue-50 border-blue-200'
-                              : isDark ? 'hover:bg-gray-600/30' : 'hover:bg-gray-50'
+                              ? isDark ? 'bg-blue-900/30 border-blue-500/30' : 'bg-blue-50/80 border-blue-200/60'
+                              : isDark ? 'hover:bg-gray-600/20' : 'hover:bg-gray-50/60'
                           }`}
                         >
                           <div className="flex items-center flex-1">
-                            <input
-                              type="checkbox"
-                              checked={formData.studentIds.includes(target.id)}
-                              onChange={() => handleTargetSelection(target.id, 'student')}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500/20 mr-4"
-                            />
+                            <motion.div 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="relative"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.studentIds.includes(target.id)}
+                                onChange={() => handleTargetSelection(target.id, 'student')}
+                                className="w-4 h-4 text-blue-600 rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500/20 mr-3 cursor-pointer"
+                              />
+                              {formData.studentIds.includes(target.id) && (
+                                <motion.div 
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="absolute -inset-1 rounded-lg border-2 border-blue-500 pointer-events-none"
+                                />
+                              )}
+                            </motion.div>
                             <div className="flex-1">
-                              <div className={`font-medium ${textPrimary}`}>{target.name}</div>
-                              <div className={`text-sm ${textSecondary} flex items-center gap-4 mt-1`}>
-                                <span className="flex items-center gap-1">
-                                  <span className="text-xs opacity-60">📚</span>
+                              <div className={`font-semibold text-sm ${textPrimary}`}>{target.name}</div>
+                              <div className={`text-xs ${textSecondary} flex items-center gap-3 mt-1`}>
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100/60 dark:bg-gray-700/40">
+                                  <span className="text-xs opacity-70">📚</span>
                                   {target.class || 'N/A'}
                                 </span>
-                                <span className="flex items-center gap-1">
-                                  <span className="text-xs opacity-60">🎫</span>
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100/60 dark:bg-gray-700/40">
+                                  <span className="text-xs opacity-70">🎫</span>
                                   {target.admissionNo}
                                 </span>
                                 {target.status && (
-                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                                    target.status === 'active' 
-                                      ? successBadge 
-                                      : isAlumni
-                                        ? errorBadge
-                                        : warningBadge
-                                  }`}>
+                                  <motion.span 
+                                    initial={{ scale: 0.8 }}
+                                    animate={{ scale: 1 }}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${
+                                      target.status === 'active' 
+                                        ? successBadge 
+                                        : isAlumni
+                                          ? errorBadge
+                                          : warningBadge
+                                    }`}
+                                  >
                                     {target.status.replace(/_/g, ' ').replace(/\b\w/g, (char: string) => char.toUpperCase())}
-                                  </span>
+                                  </motion.span>
                                 )}
                               </div>
                             </div>
                           </div>
                           {formData.studentIds.includes(target.id) && (
-                            <CheckCircle className="w-5 h-5 text-blue-500 ml-3" />
+                            <motion.div
+                              initial={{ scale: 0, rotate: -180 }}
+                              animate={{ scale: 1, rotate: 0 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              className="ml-3"
+                            >
+                              <CheckCircle className="w-5 h-5 text-blue-500" />
+                            </motion.div>
                           )}
                         </motion.label>
                       );
@@ -738,108 +782,168 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
   );
 
   const renderStep2 = () => (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h3 className={`text-xl font-bold mb-6 ${textPrimary}`}>Fee Details</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`text-xl font-black ${textPrimary}`}>Fee Details</h3>
+          <div className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm ${isDark ? 'bg-purple-900/40 text-purple-300 border border-purple-600/40' : 'bg-purple-100/80 text-purple-700 border border-purple-200/60'}`}>
+            Step 2 of 3
+          </div>
+        </div>
         
-        {/* Main Fee Information Card */}
-        <div className={`${glassCard} p-6 mb-6`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className={label}>Fee/Fine Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder={generateFeeName()}
-                className={input}
-              />
-              <div className={`text-xs ${textTertiary} mt-1`}>
-                Auto-generated: {generateFeeName()}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className={`${glassCard} p-5`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <label className={label}>Category *</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'fee', label: 'Fee', gradient: 'from-blue-500 to-blue-600', icon: '💰' },
+                  { value: 'fine', gradient: 'from-red-500 to-red-600', icon: '⚠️' }
+                ].map((category) => (
+                  <motion.button
+                    key={category.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, category: category.value as 'fee' | 'fine' }))}
+                    className={`p-3 rounded-xl border-2 transition-all duration-300 text-left relative overflow-hidden group h-14 ${
+                      formData.category === category.value
+                        ? `border-${category.value === 'fee' ? 'blue' : 'red'}-500 bg-gradient-to-br from-${category.value === 'fee' ? 'blue' : 'red'}-50/90 to-${category.value === 'fee' ? 'blue' : 'red'}-100/90 dark:from-${category.value === 'fee' ? 'blue' : 'red'}-900/60 dark:to-${category.value === 'fee' ? 'blue' : 'red'}-800/60 shadow-lg shadow-${category.value === 'fee' ? 'blue' : 'red'}-500/20`
+                        : `${isDark ? 'border-gray-600/50 hover:border-' + (category.value === 'fee' ? 'blue' : 'red') + '-400/60 bg-gray-700/30 hover:bg-gray-600/40' : 'border-gray-300/50 hover:border-' + (category.value === 'fee' ? 'blue' : 'red') + '-400/60 bg-white/70 hover:bg-' + (category.value === 'fee' ? 'blue' : 'red') + '-50/40'} hover:shadow-lg`
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                    <div className="flex items-center justify-center h-full relative z-10">
+                      <span className="text-lg mr-2">{category.icon}</span>
+                      <span className={`font-bold text-sm transition-colors duration-300 ${
+                        formData.category === category.value 
+                          ? category.value === 'fee' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
+                          : textPrimary
+                      }`}>
+                        {category.label}
+                      </span>
+                    </div>
+                  </motion.button>
+                ))}
               </div>
-            </div>
-
-            <div>
+              {formData.category === 'fine' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`mt-2 p-2 rounded-lg text-xs ${errorBadge}`}
+                >
+                  <span className="font-bold">⚠️ Alumni Protected:</span> Alumni students will be automatically excluded
+                </motion.div>
+              )}
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <label className={label}>Fee/Fine Name *</label>
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter fee/fine name"
+                  className={`${input} shadow-md hover:shadow-lg transition-all duration-200`}
+                />
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
               <label className={label}>Amount *</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">₹</span>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg font-bold text-gray-400">₹</div>
                 <input
                   type="number"
-                  step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                   placeholder="0.00"
-                  className={`pl-10 ${input}`}
+                  className={`${input} pl-10 shadow-md hover:shadow-lg transition-all duration-200`}
                 />
               </div>
-            </div>
-
-            <div>
-              <label className={label}>Category</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: 'fee', label: 'Fee', color: 'blue' },
-                  { value: 'fine', label: 'Fine', color: 'red' },
-                  { value: 'other', label: 'Other', color: 'gray' }
-                ].map((cat) => (
-                  <button
-                    key={cat.value}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, category: cat.value as any }))}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      formData.category === cat.value
-                        ? cat.color === 'blue' ? 'bg-blue-500 text-white'
-                        : cat.color === 'red' ? 'bg-red-500 text-white'
-                        : 'bg-gray-500 text-white'
-                        : `${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
               <label className={label}>Due Date *</label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className={input}
-              />
-            </div>
-
-            <div>
+              <div className="relative group">
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className={`${input} shadow-md hover:shadow-lg transition-all duration-200`}
+                />
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+            >
               <label className={label}>Frequency</label>
-              <select
-                value={formData.frequency}
-                onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value as any }))}
-                className={input}
-              >
-                <option value="once">Once</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
+              <div className="relative group">
+                <select
+                  value={formData.frequency}
+                  onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value as any }))}
+                  className={`${input} shadow-md hover:shadow-lg transition-all duration-200 appearance-none cursor-pointer`}
+                >
+                  <option value="once">Once</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div className="absolute right-5 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="absolute bottom-2 left-5 right-5 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-0 transition-opacity duration-200 group-focus-within:opacity-100"></div>
+              </div>
+            </motion.div>
 
-            <div>
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.35 }}
+            >
               <label className={label}>Late Fee (Optional)</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">₹</span>
+              <div className="relative group">
+                <div className="absolute left-5 top-1/2 transform -translate-y-1/2 flex items-center pointer-events-none">
+                  <span className="text-gray-500 font-bold text-lg">₹</span>
+                </div>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.lateFee}
                   onChange={(e) => setFormData(prev => ({ ...prev, lateFee: e.target.value }))}
                   placeholder="0.00"
-                  className={`pl-10 ${input}`}
+                  className={`pl-12 ${input} shadow-lg hover:shadow-xl transition-all duration-200`}
                 />
+                <div className="absolute bottom-2 left-5 right-5 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-0 transition-opacity duration-200 group-focus-within:opacity-100"></div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Description Section */}
         <div className={`${glassCard} p-6 mb-6`}>
@@ -896,81 +1000,129 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
   );
 
   const renderStep3 = () => (
-    <div className="space-y-8">
-      {/* Success Animation */}
+    <div className="space-y-12">
+      {/* World-Class Success Animation */}
       <motion.div 
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25, duration: 0.8 }}
         className="text-center"
       >
-        <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <CheckCircle className="w-10 h-10 text-white" />
+        <div className="relative inline-block">
+          {/* Glowing background effect */}
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1.2, opacity: 0.3 }}
+            transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+            className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-600 rounded-full blur-3xl"
+          />
+          <div className="w-24 h-24 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-green-500/30 relative z-10">
+            <motion.div
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 1, ease: "easeInOut" }}
+            >
+              <CheckCircle className="w-12 h-12 text-white" />
+            </motion.div>
+          </div>
         </div>
-        <h3 className={`text-2xl font-bold mb-3 ${textPrimary}`}>Fee/Fine Assigned Successfully!</h3>
-        <p className={`${textSecondary} text-lg`}>
-          {previewData?.message || 'The fee/fine has been assigned to the selected targets.'}
-        </p>
-      </motion.div>
-
-      {/* Assignment Summary Card */}
-      {previewData?.summary && (
-        <motion.div
+        <motion.h3 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className={`text-3xl font-black mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent`}
+        >
+          Fee/Fine Assigned Successfully!
+        </motion.h3>
+        <motion.p 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className={`${glassCard} p-6`}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className={`${textSecondary} text-lg max-w-md mx-auto`}
         >
-          <h4 className={`font-bold text-lg mb-4 ${textPrimary}`}>Assignment Summary</h4>
-          
-          {/* Key Metrics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className={`text-center p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-2xl font-bold ${textPrimary}`}>
-                {previewData.summary.studentsAssigned}
-              </div>
-              <div className={`text-sm ${textSecondary}`}>Students</div>
-            </div>
-            <div className={`text-center p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-2xl font-bold ${textPrimary}`}>
-                ₹{previewData.summary.amount}
-              </div>
-              <div className={`text-sm ${textSecondary}`}>Per Student</div>
-            </div>
-            <div className={`text-center p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-2xl font-bold ${textPrimary}`}>
-                ₹{previewData.summary.totalAmount}
-              </div>
-              <div className={`text-sm ${textSecondary}`}>Total Amount</div>
-            </div>
-            <div className={`text-center p-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-2xl font-bold ${textPrimary}`}>
-                {previewData.summary.category}
-              </div>
-              <div className={`text-sm ${textSecondary}`}>Type</div>
+          {previewData?.message || 'The fee/fine has been assigned to the selected targets.'}
+        </motion.p>
+      </motion.div>
+
+      {/* World-Class Assignment Summary Card */}
+      {previewData?.summary && (
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+          className={`${glassCard} p-10`}
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h4 className={`font-black text-2xl ${textPrimary}`}>Assignment Summary</h4>
+            <div className={`px-4 py-2 rounded-full text-sm font-bold tracking-wide backdrop-blur-sm ${isDark ? 'bg-green-900/40 text-green-300 border border-green-600/40' : 'bg-green-100/80 text-green-700 border border-green-200/60'}`}>
+              Step 3 of 3
             </div>
           </div>
+          
+          {/* World-Class Metrics Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+            {[
+              { value: previewData.summary.studentsAssigned, label: 'Students', icon: Users, gradient: 'from-blue-500 to-blue-600', delay: 0.7 },
+              { value: `₹${previewData.summary.amount}`, label: 'Per Student', icon: DollarSign, gradient: 'from-green-500 to-green-600', delay: 0.75 },
+              { value: `₹${previewData.summary.totalAmount}`, label: 'Total Amount', icon: DollarSign, gradient: 'from-purple-500 to-purple-600', delay: 0.8 },
+              { value: previewData.summary.category, label: 'Type', icon: Calendar, gradient: 'from-orange-500 to-orange-600', delay: 0.85 }
+            ].map((metric, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: metric.delay, duration: 0.4 }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                className={`text-center p-6 rounded-3xl backdrop-blur-sm border transition-all duration-300 hover:shadow-xl ${
+                  isDark ? 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-600/40' : 'bg-gray-50/50 border-gray-200/30 hover:bg-gray-100/60'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${metric.gradient} flex items-center justify-center mx-auto mb-4 shadow-lg`}>
+                  <metric.icon className="w-6 h-6 text-white" />
+                </div>
+                <div className={`text-3xl font-black ${textPrimary} mb-2`}>
+                  {metric.value}
+                </div>
+                <div className={`text-sm font-bold ${textSecondary}`}>
+                  {metric.label}
+                </div>
+              </motion.div>
+            ))}
+          </div>
 
-          {/* Detailed Information */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-3 border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}">
-              <span className={`font-medium ${textSecondary}`}>Target Type</span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                previewData.summary.targetType === 'student' ? successBadge :
-                previewData.summary.targetType === 'class' ? warningBadge :
-                errorBadge
-              }`}>
-                {previewData.summary.targetType}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}">
-              <span className={`font-medium ${textSecondary}`}>Fee Name</span>
-              <span className={`font-semibold ${textPrimary}`}>{previewData.summary.feeName}</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b ${isDark ? 'border-gray-600' : 'border-gray-200'}">
-              <span className={`font-medium ${textSecondary}`}>Due Date</span>
-              <span className={`font-semibold ${textPrimary}`}>{previewData.summary.dueDate}</span>
-            </div>
+          {/* World-Class Detailed Information */}
+          <div className="space-y-4">
+            {[
+              { label: 'Target Type', value: previewData.summary.targetType, badge: true },
+              { label: 'Fee Name', value: previewData.summary.feeName, badge: false },
+              { label: 'Due Date', value: previewData.summary.dueDate, badge: false }
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.9 + index * 0.1, duration: 0.3 }}
+                className="flex items-center justify-between p-5 rounded-2xl border backdrop-blur-sm transition-all duration-200 hover:shadow-lg ${
+                  isDark ? 'border-gray-600/30 bg-gray-700/20 hover:bg-gray-700/30' : 'border-gray-200/30 bg-gray-50/30 hover:bg-gray-100/40'
+                }"
+              >
+                <span className={`font-bold ${textSecondary}`}>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  {item.badge && (
+                    <span className={`px-4 py-2 rounded-full text-sm font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${
+                      previewData.summary.targetType === 'student' ? successBadge :
+                      previewData.summary.targetType === 'class' ? warningBadge :
+                      errorBadge
+                    }`}>
+                      {previewData.summary.targetType}
+                    </span>
+                  )}
+                  {!item.badge && (
+                    <span className={`font-bold text-lg ${textPrimary}`}>{item.value}</span>
+                  )}
+                </div>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
       )}
@@ -1014,26 +1166,46 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
             </button>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
+          {/* World-Class Progress Bar */}
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-6">
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: step * 0.1, duration: 0.3 }}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-300 backdrop-blur-sm ${
                       step < currentStep
-                        ? 'bg-green-600 text-white'
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/30 transform scale-110'
                         : step === currentStep
-                        ? 'bg-blue-600 text-white'
-                        : isDark ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-600'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-2xl shadow-blue-500/30 transform scale-110'
+                        : isDark ? 'bg-gray-700/50 text-gray-400 border border-gray-600/30' : 'bg-gray-200/50 text-gray-500 border border-gray-300/30'
                     }`}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
-                  </div>
+                    {step < currentStep ? (
+                      <motion.div
+                        initial={{ rotate: -180 }}
+                        animate={{ rotate: 0 }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                      </motion.div>
+                    ) : (
+                      <span className="font-bold">{step}</span>
+                    )}
+                  </motion.div>
                   {step < 3 && (
-                    <div
-                      className={`flex-1 h-1 mx-2 transition-colors ${
-                        step < currentStep ? 'bg-green-600' : isDark ? 'bg-gray-600' : 'bg-gray-200'
+                    <motion.div
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ delay: step * 0.1 + 0.2, duration: 0.5 }}
+                      className={`flex-1 h-1 mx-4 rounded-full transition-all duration-500 ${
+                        step < currentStep 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg shadow-green-500/20' 
+                          : isDark ? 'bg-gray-700/50' : 'bg-gray-200/50'
                       }`}
                     />
                   )}
@@ -1088,53 +1260,82 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
             {currentStep === 3 && renderStep3()}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-between mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
+          {/* World-Class Action Buttons */}
+          <div className="flex justify-between mt-10 pt-8 border-t backdrop-blur-sm ${isDark ? 'border-gray-600/30' : 'border-gray-200/30'}">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={onClose}
               className={btnSecondary}
             >
               {currentStep === 3 ? 'Close' : 'Cancel'}
-            </button>
+            </motion.button>
 
-            <div className="flex space-x-3">
+            <div className="flex space-x-4">
               {currentStep > 1 && currentStep < 3 && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handlePrevious}
                   className={btnSecondary}
                 >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  <ChevronLeft className="w-4 h-4 mr-2" />
                   Previous
-                </button>
+                </motion.button>
               )}
 
               {currentStep < 2 && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleNext}
                   className={btnPrimary}
                 >
                   Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </motion.button>
               )}
 
               {currentStep === 2 && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleSubmit}
                   disabled={isSubmitting}
                   className={`${btnPrimary} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {isSubmitting ? 'Assigning...' : `Assign ${formData.category === 'fine' ? 'Fine' : 'Fee'}`}
-                </button>
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      Assign {formData.category === 'fine' ? 'Fine' : 'Fee'}
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </motion.button>
               )}
 
               {currentStep === 3 && onSuccess && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={onSuccess}
                   className={btnPrimary}
                 >
                   Done
-                </button>
+                  <CheckCircle className="w-4 h-4 ml-2" />
+                </motion.button>
               )}
             </div>
           </div>

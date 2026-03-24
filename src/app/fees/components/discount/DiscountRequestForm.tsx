@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, DollarSign, Calendar, CheckCircle, AlertCircle, X, ChevronRight, ChevronLeft, Plus, Users, Building, GraduationCap, School, Lightbulb, TrendingUp } from 'lucide-react';
 
 interface DiscountRequestFormProps {
   theme: 'dark' | 'light';
@@ -46,14 +46,13 @@ interface ValidationState {
 }
 
 export default function DiscountRequestForm({ theme, onClose, onSuccess, initialScope, initialStudent }: DiscountRequestFormProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [routeType, setRouteType] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
+  const [isLoading, setIsLoading] = useState(false);
+  const [validationState, setValidationState] = useState<ValidationState>({ step: 0, isValid: false, errors: [], warnings: [] });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationState, setValidationState] = useState<ValidationState>({
-    step: 1,
-    isValid: false,
-    errors: [],
-    warnings: []
-  });
+  const [currentStep, setCurrentStep] = useState(1);
   
   // Data States
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
@@ -63,27 +62,39 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
   const [mediums, setMediums] = useState<any[]>([]);
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<Array<{id: string; year: string; name: string}>>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentLookup, setSelectedStudentLookup] = useState<Record<string, any>>(initialStudent ? { [initialStudent.id]: initialStudent } : {});
   const [previewData, setPreviewData] = useState<any>(null);
   const [feeTypeBalances, setFeeTypeBalances] = useState<Record<string, { totalAmount: number; paidAmount: number; pendingAmount: number; discountAmount: number }>>({});
   const [loadingFeeBalances, setLoadingFeeBalances] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // CSS Variables
+  // CSS Variables - World-Class Best-in-Class UI Design
   const isDark = theme === 'dark';
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
-  const row = `p-4 rounded-xl border ${isDark ? 'border-gray-600/50 bg-gray-700/30' : 'border-gray-200 bg-gray-50/50'}`;
+  const card = `rounded-3xl border shadow-2xl backdrop-blur-xl transition-all duration-300 ${isDark ? 'bg-gradient-to-br from-gray-900/90 to-gray-800/90 border-gray-700/50 shadow-black/20' : 'bg-gradient-to-br from-white/95 to-gray-50/95 border-gray-200/50 shadow-gray-200/50'}`;
+  const input = `w-full px-5 py-4 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 placeholder:transition-all placeholder:duration-200 ${isDark ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400/70 focus:bg-gray-700/60 focus:border-blue-400/50 focus:shadow-lg focus:shadow-blue-500/10' : 'bg-white/80 border-gray-300/50 text-gray-900 placeholder-gray-400/50 focus:bg-white focus:border-blue-400/60 focus:shadow-lg focus:shadow-blue-500/10'}`;
+  const label = `block text-sm font-bold mb-3 tracking-tight ${isDark ? 'text-gray-100' : 'text-gray-800'}`;
+  const btnPrimary = `px-8 py-4 rounded-2xl text-sm font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl backdrop-blur-sm ${isDark ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white shadow-blue-600/25 hover:shadow-blue-600/40' : 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 hover:from-blue-600 hover:via-blue-500 hover:to-blue-600 text-white shadow-blue-500/25 hover:shadow-blue-500/40'}`;
+  const btnSecondary = `px-6 py-4 rounded-2xl text-sm font-bold border-2 transition-all duration-200 transform hover:scale-105 active:scale-95 backdrop-blur-sm ${isDark ? 'border-gray-600/50 text-gray-200 hover:bg-gray-700/50 hover:border-gray-500/60 hover:shadow-lg' : 'border-gray-300/50 text-gray-700 hover:bg-gray-100/80 hover:border-gray-400/60 hover:shadow-lg'}`;
+  const btnDanger = `px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 backdrop-blur-sm ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-500/20' : 'bg-red-100/80 text-red-600 hover:bg-red-200/80 border border-red-200/60 hover:border-red-300/60 hover:shadow-lg hover:shadow-red-500/20'}`;
+  const row = `p-6 rounded-2xl border backdrop-blur-sm transition-all duration-200 ${isDark ? 'border-gray-600/30 bg-gray-700/20 hover:bg-gray-700/30' : 'border-gray-200/30 bg-gray-50/30 hover:bg-gray-100/40'}`;
+  const glassCard = `rounded-3xl border shadow-2xl backdrop-blur-2xl transition-all duration-300 ${isDark ? 'bg-gray-800/80 border-gray-700/30 shadow-black/30' : 'bg-white/85 border-gray-200/30 shadow-gray-300/30'}`;
+  const successBadge = `inline-flex items-center px-4 py-2 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-green-900/40 text-green-300 border border-green-600/40 shadow-green-500/20' : 'bg-green-100/80 text-green-700 border border-green-200/60 shadow-green-500/20'}`;
+  const warningBadge = `inline-flex items-center px-4 py-2 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-yellow-900/40 text-yellow-300 border border-yellow-600/40 shadow-yellow-500/20' : 'bg-yellow-100/80 text-yellow-700 border border-yellow-200/60 shadow-yellow-500/20'}`;
+  const errorBadge = `inline-flex items-center px-4 py-2 rounded-full text-xs font-bold tracking-wide backdrop-blur-sm transition-all duration-200 ${isDark ? 'bg-red-900/40 text-red-300 border border-red-600/40 shadow-red-500/20' : 'bg-red-100/80 text-red-700 border border-red-200/60 shadow-red-500/20'}`;
   
-  // Text color variables
-  const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+  // World-Class Enhanced UI Elements
+  const worldClassCard = `rounded-3xl border-2 shadow-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-3xl ${isDark ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/10 to-slate-800/95 border-blue-500/20 shadow-blue-500/10 hover:border-blue-400/30 hover:shadow-blue-500/20' : 'bg-gradient-to-br from-white/95 via-blue-50/30 to-white/95 border-blue-200/50 shadow-blue-200/20 hover:border-blue-300/60 hover:shadow-blue-300/30'}`;
+  const worldClassInput = `w-full px-6 py-4 rounded-2xl border-2 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 placeholder:transition-all placeholder:duration-300 ${isDark ? 'bg-gradient-to-br from-gray-800/80 to-gray-700/60 border-gray-600/50 text-white placeholder-gray-400/60 focus:bg-gradient-to-br focus:from-gray-700/80 focus:to-gray-600/60 focus:border-blue-400/60 focus:shadow-2xl focus:shadow-blue-500/20' : 'bg-gradient-to-br from-white/90 to-gray-50/80 border-gray-300/60 text-gray-900 placeholder-gray-500/60 focus:bg-gradient-to-br focus:from-white focus:to-gray-50/90 focus:border-blue-400/70 focus:shadow-2xl focus:shadow-blue-500/20'}`;
+  const worldClassButton = `px-10 py-4 rounded-2xl text-sm font-bold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-2xl hover:shadow-3xl backdrop-blur-xl border ${isDark ? 'bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600 hover:from-blue-700 hover:via-cyan-600 hover:to-blue-700 text-white border-blue-400/30 shadow-blue-500/30 hover:shadow-blue-400/50' : 'bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 hover:from-blue-600 hover:via-cyan-500 hover:to-blue-600 text-white border-blue-300/50 shadow-blue-400/30 hover:shadow-blue-300/50'}`;
+  const worldClassSuccess = `inline-flex items-center px-6 py-3 rounded-full text-sm font-bold tracking-wide backdrop-blur-xl transition-all duration-300 transform hover:scale-105 ${isDark ? 'bg-gradient-to-r from-green-600/40 to-emerald-600/40 text-green-300 border border-green-500/40 shadow-green-500/30 hover:shadow-green-400/50' : 'bg-gradient-to-r from-green-100/90 to-emerald-100/90 text-green-700 border border-green-300/60 shadow-green-400/30 hover:shadow-green-300/50'}`;
+  const worldClassWarning = `inline-flex items-center px-6 py-3 rounded-full text-sm font-bold tracking-wide backdrop-blur-xl transition-all duration-300 transform hover:scale-105 ${isDark ? 'bg-gradient-to-r from-amber-600/40 to-yellow-600/40 text-amber-300 border border-amber-500/40 shadow-amber-500/30 hover:shadow-amber-400/50' : 'bg-gradient-to-r from-amber-100/90 to-yellow-100/90 text-amber-700 border border-amber-300/60 shadow-amber-400/30 hover:shadow-amber-300/50'}`;
+  const worldClassError = `inline-flex items-center px-6 py-3 rounded-full text-sm font-bold tracking-wide backdrop-blur-xl transition-all duration-300 transform hover:scale-105 ${isDark ? 'bg-gradient-to-r from-red-600/40 to-rose-600/40 text-red-300 border border-red-500/40 shadow-red-500/30 hover:shadow-red-400/50' : 'bg-gradient-to-r from-red-100/90 to-rose-100/90 text-red-700 border border-red-300/60 shadow-red-400/30 hover:shadow-red-300/50'}`;
+  const textPrimary = isDark ? 'text-gray-100' : 'text-gray-900';
   const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
   const textTertiary = isDark ? 'text-gray-500' : 'text-gray-500';
+  const premiumGradient = `bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700`;
+  const successGradient = `bg-gradient-to-br from-green-500 via-emerald-600 to-green-600`;
+  const warningGradient = `bg-gradient-to-br from-yellow-500 via-orange-600 to-yellow-600`;
+  const errorGradient = `bg-gradient-to-br from-red-500 via-pink-600 to-red-600`;
 
   // Form State
   const [formData, setFormData] = useState<FormData>({
@@ -1556,7 +1567,12 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                     )}
                     <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                       {(() => {
-                        const formatAmount = (value: number) => value.toLocaleString('en-IN');
+                        // Helper function to format amounts
+                        const formatAmount = (amount: number | string | null | undefined): string => {
+                          const num = Number(amount || 0);
+                          return num.toLocaleString('en-IN');
+                        };
+
                         const getStructureAmount = (structure: any) => {
                           const balance = feeTypeBalances[structure.id]?.totalAmount;
                           return typeof balance === 'number' ? balance : Number(structure.amount || 0);
