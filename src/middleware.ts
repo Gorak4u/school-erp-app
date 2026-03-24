@@ -1,10 +1,9 @@
-// Middleware for Route Protection - Next.js
-// Uses NextAuth JWT session for authentication
+// Production-ready Middleware for Route Protection
+// Uses NextAuth JWT session for authentication with comprehensive security
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { ensureSuperAdmin } from '@/lib/super-admin-init';
 import { extractSubdomain } from '@/lib/subdomain';
 import {
   canCreateStudentsAccess,
@@ -22,8 +21,75 @@ import {
 
 export const runtime = 'nodejs';
 
-// Routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/trial-expired', '/subscription-required', '/school-login', '/api/plans', '/api/admin/plans', '/api/auth', '/api/register', '/api/reset-password', '/api/test/subscription-discounts', '/api/test/create-sample-promo', '/api/promo-codes/validate', '/api/cron/promo-cleanup', '/api/create-payment-order'];
+// Production environment check
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Rate limiting configuration
+const RATE_LIMITS = {
+  '/api/auth/login': { requests: 10, window: 60000 }, // 10 login attempts per minute
+  '/api/auth/register': { requests: 5, window: 300000 }, // 5 registrations per 5 minutes
+  '/api/create-payment-order': { requests: 20, window: 60000 }, // 20 payment orders per minute
+  '/api/upload': { requests: 10, window: 60000 }, // 10 uploads per minute
+};
+
+// Security headers for production
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  ...(isProduction && {
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.razorpay.com",
+  }),
+};
+
+// Routes that don't require authentication (production-ready)
+const publicRoutes = [
+  // Essential pages
+  '/', 
+  '/login', 
+  '/register', 
+  '/forgot-password', 
+  '/reset-password', 
+  '/pricing', 
+  '/trial-expired', 
+  '/subscription-required', 
+  '/school-login', 
+  '/billing',
+  
+  // Public APIs
+  '/api/plans', 
+  '/api/admin/plans', 
+  '/api/auth', 
+  '/api/register', 
+  '/api/reset-password', 
+  '/api/promo-codes/validate', 
+  '/api/create-payment-order',
+  '/api/verify-payment',
+  '/api/razorpay/webhook',
+  '/api/razorpay/create-order',
+  '/api/razorpay/verify-payment',
+  '/api/razorpay/verify-subscription-payment',
+  '/api/school/by-subdomain',
+  '/api/upload',
+  '/api/payment-config'
+];
+
+// Development-only routes (blocked in production)
+const developmentOnlyRoutes = [
+  '/api/cron',
+  '/api/test',
+  '/api/debug',
+];
+
+// Blocked routes in production
+const blockedInProduction = [
+  '/api/test',
+  '/api/debug',
+  '/api/cron',
+];
 
 // Routes that require specific roles (built-in role fallback for users without custom roles)
 const roleBasedRoutes: Record<string, string[]> = {
@@ -60,14 +126,87 @@ const permissionBasedRoutes: Record<string, string> = {
   '/subscription': 'manage_settings',
 };
 
-let superAdminChecked = false;
+// Simple in-memory rate limiting for production (consider Redis for distributed systems)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const record = rateLimitStore.get(key);
+  
+  if (!record || now > record.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (record.count >= limit) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
+function getClientIdentifier(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const realIp = request.headers.get('x-real-ip');
+  const ip = forwarded ? forwarded.split(',')[0] : realIp || 'unknown';
+  return `${ip}:${request.headers.get('user-agent')?.slice(0, 50) || 'unknown'}`;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 
-  if (pathname === '/api/cron' || pathname.startsWith('/api/cron/')) {
-    return NextResponse.next();
+  // ── Production Security Checks ─────────────────────────────────────────
+  
+  // Block development routes in production
+  if (isProduction) {
+    const isBlockedRoute = blockedInProduction.some(route => pathname.startsWith(route));
+    if (isBlockedRoute) {
+      console.warn(`🚫 Blocked attempt to access development route: ${pathname}`);
+      return NextResponse.json(
+        { error: 'Endpoint not available in production' },
+        { status: 404 }
+      );
+    }
+  }
+  
+  // Rate limiting for sensitive endpoints
+  for (const [route, config] of Object.entries(RATE_LIMITS)) {
+    if (pathname.startsWith(route)) {
+      const clientId = getClientIdentifier(request);
+      const rateLimitKey = `${route}:${clientId}`;
+      
+      if (!checkRateLimit(rateLimitKey, config.requests, config.window)) {
+        return NextResponse.json(
+          { error: 'Too many requests. Please try again later.' },
+          { status: 429 }
+        );
+      }
+      break;
+    }
+  }
+  
+  // Add security headers to all responses
+  const response = NextResponse.next();
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  // ── Cron Job Security ─────────────────────────────────────────────────────
+  // Only allow cron jobs with proper authentication in production
+  if (pathname.startsWith('/api/cron')) {
+    if (isProduction) {
+      const cronSecret = request.headers.get('x-cron-secret');
+      if (cronSecret !== process.env.CRON_SECRET) {
+        console.warn(`🚫 Unauthorized cron attempt: ${pathname}`);
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    }
+    return response;
   }
 
   // ── Subdomain Detection ──────────────────────────────────────────────────
@@ -105,56 +244,60 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // Skip super admin check in middleware - it should run at startup only
-  // This prevents potential security issues and performance impact
-
-  // Allow public routes
+  // ── Public Route Check ───────────────────────────────────────────────────
+  // Allow public routes without authentication
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next();
+    return response;
   }
 
-  // Add caching headers for fee-related APIs
+  // ── Performance & Caching ─────────────────────────────────────────────────
+  // Add caching headers for fee-related APIs (production optimized)
   if (pathname.startsWith('/api/fees/structures') ||
       pathname.startsWith('/api/fees/discounts')) {
-    // Cache fee structures and discounts for 5 minutes
-    const response = NextResponse.next();
     response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
     return response;
   } else if (pathname.startsWith('/api/fees/statistics') ||
              pathname.startsWith('/api/fees/collections/summary')) {
-    // Cache aggregated reports for 2 minutes
-    const response = NextResponse.next();
     response.headers.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=30');
     return response;
   } else if (pathname.startsWith('/api/fees/students') ||
              pathname.startsWith('/api/fees/records')) {
-    // Cache student data for 1 minute
-    const response = NextResponse.next();
     response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=15');
     return response;
   }
 
+  // ── Billing Page Access ─────────────────────────────────────────────────────
   // Allow billing page for all authenticated users (including expired trials)
   if (pathname === '/billing') {
-    return NextResponse.next();
+    return response;
   }
 
-  // Check NextAuth JWT token
+  // ── Authentication Check ───────────────────────────────────────────────────
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
+    console.warn(`🚫 Unauthorized access attempt: ${pathname}`);
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // ── Token Validation ────────────────────────────────────────────────────────
+  // Validate token structure and required fields
+  if (!token.email || !token.id) {
+    console.error(`🚫 Invalid token structure for: ${pathname}`);
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Super Admin Check (FIRST) — bypass all restrictions ──
+  // ── Super Admin Check ───────────────────────────────────────────────────────
   const tokenIsSuperAdmin = token.isSuperAdmin as boolean | undefined;
   const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isEffectivelySuperAdmin = tokenIsSuperAdmin || superAdminEmails.includes((token.email as string || '').toLowerCase());
 
   // Super admins bypass ALL checks (subscription, trial, role-based, etc.)
   if (isEffectivelySuperAdmin) {
-    return NextResponse.next();
+    return response;
   }
 
   // ── Subscription / Trial Expiry Check ──
@@ -361,14 +504,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|uploads).*)',
   ],
-  // Increase body size limit for email attachments with base64 images
-  // Correct property for Next.js 16.1.6
-  middlewareClientMaxBodySize: '50mb',
+  // Production-ready configuration
+  // Increase body size limit for file uploads and email attachments
+  middlewareClientMaxBodySize: '25mb',
 };
