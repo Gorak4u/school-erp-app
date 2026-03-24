@@ -283,13 +283,28 @@ export async function middleware(request: NextRequest) {
 
   // ── Token Validation ────────────────────────────────────────────────────────
   // Validate token structure and required fields
-  // Some APIs (like school-config) use empty string fallbacks for ID
-  const isSystemApi = pathname.startsWith('/api/school-config') || 
-                      pathname.startsWith('/api/subscription') ||
-                      pathname.startsWith('/api/auth/');
+  // Most APIs need email, some can work with just email for identification
+  if (!token.email) {
+    console.error(`🚫 Invalid token structure for: ${pathname} - missing email`);
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
   
-  if (!isSystemApi && (!token.email || !token.id)) {
-    console.error(`🚫 Invalid token structure for: ${pathname}`);
+  // Only require ID for user-specific operations (not system APIs)
+  const isUserSpecificApi = pathname.startsWith('/api/students') ||
+                           pathname.startsWith('/api/teachers') ||
+                           pathname.startsWith('/api/fees') ||
+                           pathname.startsWith('/api/attendance') ||
+                           pathname.startsWith('/api/assignments') ||
+                           pathname.startsWith('/api/alumni') ||
+                           pathname.startsWith('/api/expenses') ||
+                           pathname.startsWith('/api/transport') ||
+                           pathname.startsWith('/api/leave') ||
+                           pathname.startsWith('/api/exams') ||
+                           pathname.startsWith('/api/budgets');
+  
+  if (isUserSpecificApi && !token.id) {
+    console.error(`🚫 Invalid token structure for: ${pathname} - missing ID for user-specific operation`);
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
