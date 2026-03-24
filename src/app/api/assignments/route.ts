@@ -27,6 +27,14 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10));
     const pageSize = Math.min(50, Math.max(1, Number.parseInt(searchParams.get('pageSize') || '12', 10)));
+    const cursor = searchParams.get('cursor') || null;
+    
+    // Date range filters
+    const dueDateFrom = searchParams.get('dueDateFrom') || '';
+    const dueDateTo = searchParams.get('dueDateTo') || '';
+    const createdFrom = searchParams.get('createdFrom') || '';
+    const createdTo = searchParams.get('createdTo') || '';
+
     const today = getToday();
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
@@ -37,6 +45,30 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (classId) where.classId = classId;
     if (type) where.type = type;
+
+    // Add date range filters
+    const dateFilters: any = {};
+    if (dueDateFrom || dueDateTo) {
+      dateFilters.dueDate = {};
+      if (dueDateFrom) dateFilters.dueDate.gte = dueDateFrom;
+      if (dueDateTo) dateFilters.dueDate.lte = dueDateTo;
+    }
+    if (createdFrom || createdTo) {
+      dateFilters.createdAt = {};
+      if (createdFrom) dateFilters.createdAt.gte = new Date(createdFrom);
+      if (createdTo) dateFilters.createdAt.lte = new Date(createdTo + 'T23:59:59.999Z');
+    }
+    
+    Object.assign(where, dateFilters);
+
+    // Add search filter
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { subject: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
 
     if (ctx.role === 'teacher') {
       const teacher = await (schoolPrisma as any).teacher.findFirst({
@@ -77,24 +109,32 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [assignments, total, activeAssignments, gradedAssignments, overdueAssignments, dueSoonAssignments, submissionCount, pendingReviewCount] = await Promise.all([
-      (schoolPrisma as any).assignment.findMany({
-        where,
-        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          teacher: {
-            select: {
-              id: true,
-              name: true,
-              department: true,
-              designation: true,
-            },
+    // Optimized query with cursor-based pagination
+    const queryOptions: any = {
+      where,
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      take: pageSize + 1, // Fetch one extra to check if there are more records
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            designation: true,
           },
-          _count: { select: { submissions: true } },
         },
-      }),
+        _count: { select: { submissions: true } },
+      },
+    };
+
+    // Add cursor if provided
+    if (cursor) {
+      queryOptions.cursor = { id: cursor };
+      queryOptions.skip = 1; // Skip the cursor item
+    }
+
+    const [assignments, total, activeAssignments, gradedAssignments, overdueAssignments, dueSoonAssignments, submissionCount, pendingReviewCount] = await Promise.all([
+      (schoolPrisma as any).assignment.findMany(queryOptions),
       (schoolPrisma as any).assignment.count({ where }),
       (schoolPrisma as any).assignment.count({ where: { ...(where as any), status: 'active' } }),
       (schoolPrisma as any).assignment.count({ where: { ...(where as any), status: 'graded' } }),
@@ -113,8 +153,13 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Check if there are more records
+    const hasMore = assignments.length > pageSize;
+    const actualAssignments = hasMore ? assignments.slice(0, -1) : assignments;
+    const nextCursor = hasMore ? actualAssignments[actualAssignments.length - 1].id : null;
+
     const enriched = await Promise.all(
-      assignments.map(async (assignment: any) => {
+      actualAssignments.map(async (assignment: any) => {
         const [submitted, graded, pending] = await Promise.all([
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'submitted' } }),
           (schoolPrisma as any).assignmentSubmission.count({ where: { assignmentId: assignment.id, status: 'graded' } }),
@@ -145,6 +190,11 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      pagination: {
+        hasMore,
+        nextCursor,
+        cursor,
+      },
       summary: {
         totalAssignments: total,
         activeAssignments,

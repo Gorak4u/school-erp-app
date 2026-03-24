@@ -48,8 +48,23 @@ export default function AssignmentsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filters, setFilters] = useState({ status: '', classId: '', teacherId: '', search: '', mediumId: '' });
+  const [filters, setFilters] = useState({ 
+    status: '', 
+    classId: '', 
+    teacherId: '', 
+    search: '', 
+    mediumId: '',
+    dueDateFrom: '',      // NEW
+    dueDateTo: '',        // NEW
+    createdFrom: '',      // NEW
+    createdTo: ''         // NEW
+  });
   const [form, setForm] = useState({ title: '', subject: '', classId: '', mediumId: '', dueDate: TODAY, description: '', type: 'homework', teacherId: '' });
+  
+  // Cursor-based pagination state
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
@@ -57,29 +72,54 @@ export default function AssignmentsWorkspace() {
   const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}`;
   const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
 
-  const loadAssignments = async () => {
+  const loadAssignments = async (reset = true) => {
     try {
-      setLoading(true);
+      if (reset) {
+        setLoading(true);
+        setCursor(null);
+        setHasMore(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+      
       const query = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) query.set(key, value);
       });
+      
+      // Add cursor for pagination
+      if (cursor && !reset) {
+        query.set('cursor', cursor);
+      }
+      
       query.set('pageSize', '12');
       const response = await fetch(`/api/assignments?${query.toString()}`, { credentials: 'include' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to fetch assignments');
-      setAssignments(data.assignments || []);
+      
+      if (reset) {
+        setAssignments(data.assignments || []);
+      } else {
+        setAssignments(prev => [...prev, ...(data.assignments || [])]);
+      }
+      
       setSummary(data.summary || null);
+      setHasMore(data.pagination?.hasMore || false);
+      if (data.pagination?.nextCursor) {
+        setCursor(data.pagination.nextCursor);
+      }
     } catch (e: any) {
-      showErrorToast('Assignments', e.message || 'Failed to fetch assignments');
+      console.error('Failed to load assignments:', e);
+      showErrorToast('Error loading assignments', e.message);
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
   useEffect(() => {
     loadAssignments();
-  }, [filters.status, filters.classId, filters.teacherId, filters.search, filters.mediumId]);
+  }, [filters.status, filters.classId, filters.teacherId, filters.search, filters.mediumId, filters.dueDateFrom, filters.dueDateTo, filters.createdFrom, filters.createdTo]);
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -156,7 +196,18 @@ export default function AssignmentsWorkspace() {
         </div>
 
         <div className={`${card} p-5`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="mb-4">
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Filters</h3>
+            <button 
+              onClick={() => setFilters({ status: '', classId: '', teacherId: '', search: '', mediumId: '', dueDateFrom: '', dueDateTo: '', createdFrom: '', createdTo: '' })}
+              className={`text-sm ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+            >
+              Clear all filters
+            </button>
+          </div>
+          
+          {/* Basic Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             <div>
               <label className={label}>Search</label>
               <input className={input} value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} placeholder="Title, subject, description" />
@@ -188,6 +239,49 @@ export default function AssignmentsWorkspace() {
               <select className={input} value={filters.teacherId} onChange={(e) => setFilters((current) => ({ ...current, teacherId: e.target.value }))}><option value="">All teachers</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select>
             </div>
           </div>
+          
+          {/* Date Range Filters */}
+          <div className="border-t pt-4">
+            <h4 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Date Range Filters</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className={label}>Due Date From</label>
+                <input 
+                  type="date" 
+                  className={input} 
+                  value={filters.dueDateFrom} 
+                  onChange={(e) => setFilters((current) => ({ ...current, dueDateFrom: e.target.value }))} 
+                />
+              </div>
+              <div>
+                <label className={label}>Due Date To</label>
+                <input 
+                  type="date" 
+                  className={input} 
+                  value={filters.dueDateTo} 
+                  onChange={(e) => setFilters((current) => ({ ...current, dueDateTo: e.target.value }))} 
+                />
+              </div>
+              <div>
+                <label className={label}>Created From</label>
+                <input 
+                  type="date" 
+                  className={input} 
+                  value={filters.createdFrom} 
+                  onChange={(e) => setFilters((current) => ({ ...current, createdFrom: e.target.value }))} 
+                />
+              </div>
+              <div>
+                <label className={label}>Created To</label>
+                <input 
+                  type="date" 
+                  className={input} 
+                  value={filters.createdTo} 
+                  onChange={(e) => setFilters((current) => ({ ...current, createdTo: e.target.value }))} 
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className={`${card} overflow-hidden`}>
@@ -204,6 +298,19 @@ export default function AssignmentsWorkspace() {
             </table>
           </div>
         </div>
+
+        {/* Load More Button */}
+        {!loading && hasMore && assignments.length > 0 && (
+          <div className="text-center py-4">
+            <button
+              onClick={() => loadAssignments(false)}
+              disabled={isLoadingMore}
+              className={`${btnPrimary} ${isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isLoadingMore ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )}
 
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>

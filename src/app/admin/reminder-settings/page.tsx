@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 import { ReminderSchedule, DEFAULT_REMINDER_CONFIG, getReminderConfigClient, updateReminderConfigClient } from '@/lib/reminder-config-client';
@@ -16,8 +15,6 @@ export default function ReminderSettingsPage() {
   const isDark = theme === 'dark';
   const card = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
   const input = `w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`;
-  const btnPrimary = 'px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all';
-  const btnSecondary = 'px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-all';
 
   useEffect(() => {
     fetchReminderConfig();
@@ -152,24 +149,6 @@ export default function ReminderSettingsPage() {
           />
         </div>
 
-        {/* Timezone */}
-        <div className="mb-4">
-          <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Timezone
-          </label>
-          <select
-            value={config[type].timezone}
-            onChange={(e) => updateConfig(type, 'timezone', e.target.value)}
-            className={input}
-          >
-            <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
-            <option value="UTC">UTC (UTC+0)</option>
-            <option value="America/New_York">America/New_York (UTC-5)</option>
-            <option value="Europe/London">Europe/London (UTC+0)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-          </select>
-        </div>
-
         {/* Subject Template */}
         <div className="mb-4">
           <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -189,65 +168,64 @@ export default function ReminderSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="max-w-6xl mx-auto space-y-4">
+        <div className={`h-10 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'} animate-pulse`} />
+        <div className={`h-64 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'} animate-pulse`} />
       </div>
     );
   }
 
   return (
-    <AppLayout currentPage="admin" theme={theme}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Reminder Settings
-              </h1>
-              <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Configure automated email and SMS reminders for pending fees and trial expirations.
-              </p>
-            </div>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className={`px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-sm text-sm disabled:opacity-50 flex items-center gap-2`}
-            >
-              {saving ? 'Saving...' : 'Save Settings'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ReminderConfigCard
-              type="trialExpiry"
-              title="Trial Expiry Reminders"
-              description="Notifies users before their trial period ends"
-              color="bg-yellow-500"
-            />
-            
-            <ReminderConfigCard
-              type="subscriptionRenewal"
-              title="Subscription Renewal"
-              description="Reminds users before subscription renewal"
-              color="bg-blue-500"
-            />
-            
-            <ReminderConfigCard
-              type="paymentFailed"
-              title="Payment Failed"
-              description="Notifies when automatic payment fails"
-              color="bg-red-500"
-            />
-            
-            <ReminderConfigCard
-              type="serviceSuspension"
-              title="Service Suspension"
-              description="Notifies users before service suspension"
-              color="bg-orange-500"
-            />
-          </div>
+    <div className="max-w-6xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Reminder Settings
+          </h1>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Configure automated email and SMS reminders for pending fees and trial expirations.
+          </p>
         </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-sm text-sm disabled:opacity-50 flex items-center gap-2`}
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
       </div>
-    </AppLayout>
+
+      {/* Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <ReminderConfigCard
+          type="trialExpiry"
+          title="Trial Expiry Reminders"
+          description="Notifies users before their trial period ends"
+          color="bg-yellow-500"
+        />
+        
+        <ReminderConfigCard
+          type="subscriptionRenewal"
+          title="Subscription Renewal"
+          description="Notifies users before subscription renewal"
+          color="bg-green-500"
+        />
+        
+        <ReminderConfigCard
+          type="paymentFailed"
+          title="Payment Failed"
+          description="Notifies users about failed payment attempts"
+          color="bg-red-500"
+        />
+        
+        <ReminderConfigCard
+          type="serviceSuspension"
+          title="Service Suspension"
+          description="Notifies users before service suspension"
+          color="bg-orange-500"
+        />
+      </div>
+    </div>
   );
 }

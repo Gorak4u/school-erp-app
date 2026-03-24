@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toastUtils';
 
@@ -147,64 +146,63 @@ export default function AdminPaymentsPage() {
   const cardCls = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`;
 
   if (loading) return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className={`h-10 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'} animate-pulse`} />
       <div className={`h-64 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'} animate-pulse`} />
     </div>
   );
 
   return (
-    <AppLayout currentPage="admin" theme={theme}>
-      <div className="max-w-4xl mx-auto space-y-5">
-        {/* Header */}
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment & Email Config</h1>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Platform-level settings for billing, SMTP, and business identity</p>
-          </div>
-          <div className={`text-xs px-3 py-2 rounded-xl border flex items-center gap-2 ${isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
-            <span>ℹ️</span>
-            <span>These are platform settings — not per-school settings</span>
-          </div>
+    <div className="max-w-6xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment & Email Config</h1>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Platform-level settings for billing, SMTP, and business identity</p>
         </div>
-
-        {/* Status chips */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-            <span className="text-sm">✉️ SMTP</span>
-            <StatusBadge enabled={config.smtp_enabled === 'true'} isDark={isDark} />
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-            <span className="text-sm">💳 Razorpay</span>
-            <StatusBadge enabled={config.razorpay_enabled === 'true'} isDark={isDark} />
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-            <span className="text-sm">🏦 Bank</span>
-            <StatusBadge enabled={!!config.bank_account_number} isDark={isDark} />
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-            <span className="text-sm">🏢 Business</span>
-            <StatusBadge enabled={!!config.company_name} isDark={isDark} />
-          </div>
+        <div className={`text-xs px-3 py-2 rounded-xl border flex items-center gap-2 ${isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+          <span>ℹ️</span>
+          <span>These are platform settings — not per-school settings</span>
         </div>
+      </div>
 
-        {/* Tab bar */}
-        <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
-                activeTab === t.id
-                  ? isDark ? 'bg-gray-900 text-white shadow' : 'bg-white text-gray-900 shadow'
-                  : isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
-              }`}>
-              <span>{t.icon}</span>
-              <span className="hidden sm:inline">{t.label}</span>
-            </button>
+      {/* Status chips */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+          <span className="text-sm">✉️ SMTP</span>
+          <StatusBadge enabled={config.smtp_enabled === 'true'} isDark={isDark} />
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+          <span className="text-sm">💳 Razorpay</span>
+          <StatusBadge enabled={config.razorpay_enabled === 'true'} isDark={isDark} />
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+          <span className="text-sm">🏦 Bank</span>
+          <StatusBadge enabled={!!config.bank_account_number} isDark={isDark} />
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+          <span className="text-sm">🏢 Business</span>
+          <StatusBadge enabled={!!config.company_name} isDark={isDark} />
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
+              activeTab === t.id
+                ? isDark ? 'bg-gray-900 text-white shadow' : 'bg-white text-gray-900 shadow'
+                : isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            <span>{t.icon}</span>
+            <span className="hidden sm:inline">{t.label}</span>
+          </button>
           ))}
-        </div>
+      </div>
 
-        {/* Tab content */}
-        <div className={`${cardCls} p-6 space-y-5`}>
+      {/* Tab content */}
+      <div className={`${cardCls} p-6 space-y-5`}>
           {/* SMTP */}
           {activeTab === 'smtp' && (
             <>
@@ -547,6 +545,5 @@ export default function AdminPaymentsPage() {
         </button>
       </div>
     </div>
-  </AppLayout>
   );
 }
