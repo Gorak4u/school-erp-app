@@ -110,51 +110,49 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      try {
-        const [feeRes, classRes, sectionRes, mediumRes, transportRes, yearRes] = await Promise.all([
-          fetch('/api/fees/structures'),
-          fetch('/api/school-structure/classes'),
-          fetch('/api/school-structure/sections'),
-          fetch('/api/school-structure/mediums'),
-          fetch('/api/transport/routes'),
-          fetch('/api/school-structure/academic-years')
-        ]);
-
-        if (feeRes.ok) {
-          const feeData = await feeRes.json();
-          const allFeeStructures = feeData.feeStructures || feeData.structures || [];
-          setFeeStructures(allFeeStructures);
+      
+      // Load fee structures
+      const feeRes = await fetch('/api/fees/structures');
+      if (feeRes.ok) {
+        const feeData = await feeRes.json();
+        const allFeeStructures = feeData.feeStructures || [];
+        setFeeStructures(allFeeStructures);
+      } else {
+        console.error('Failed to load fee structures:', await feeRes.text());
+      }
+      
+      // Load school config
+      const configRes = await fetch('/api/school-config');
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        setClasses(configData.classes || []);
+        setSections(configData.sections || []);
+        setMediums(configData.mediums || []);
+        setAcademicYears(configData.academicYears || []);
+        
+        // Set default academic year
+        if (configData.academicYears?.length > 0) {
+          const currentYear = new Date().getFullYear();
+          const activeYear = configData.academicYears.find((year: any) => 
+            year.isActive || year.year.includes(String(currentYear))
+          ) || configData.academicYears[0];
+          setFormData(prev => ({ ...prev, academicYear: activeYear.year || activeYear.name }));
         }
-        if (classRes.ok) {
-          const classData = await classRes.json();
-          setClasses(classData.classes || []);
+      }
+      
+      // Load transport routes separately
+      const transportRes = await fetch('/api/transport/routes');
+      if (transportRes.ok) {
+        const transportData = await transportRes.json();
+        const routes = transportData.routes || [];
+        setTransportRoutes(routes);
+      } else {
+        console.error('Failed to load transport routes:', await transportRes.text());
+        // Fallback to school config transport routes
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setTransportRoutes(configData.transportRoutes || []);
         }
-        if (sectionRes.ok) {
-          const sectionData = await sectionRes.json();
-          setSections(sectionData.sections || []);
-        }
-        if (mediumRes.ok) {
-          const mediumData = await mediumRes.json();
-          setMediums(mediumData.mediums || []);
-        }
-        if (transportRes.ok) {
-          const transportData = await transportRes.json();
-          setTransportRoutes(transportData.routes || []);
-        }
-        if (yearRes.ok) {
-          const yearData = await yearRes.json();
-          setAcademicYears(yearData.academicYears || []);
-          // Set default academic year
-          if (yearData.academicYears?.length > 0) {
-            const currentYear = new Date().getFullYear();
-            const currentAcademicYear = yearData.academicYears.find((ay: any) => ay.year.includes(currentYear.toString())) || yearData.academicYears[0];
-            setFormData(prev => ({ ...prev, academicYear: currentAcademicYear.year }));
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-      } finally {
-        setIsLoading(false);
       }
     };
     
@@ -175,10 +173,10 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
     setFormData(prev => ({
       ...prev,
       scope: initialScope || 'student',
-      studentIds: prev.studentIds.includes(initialStudent.id) ? prev.studentIds : [initialStudent.id],
-      feeStructureIds: prev.studentIds.includes(initialStudent.id) ? prev.feeStructureIds : [],
+      studentIds: [initialStudent.id],
     }));
-  }, [initialStudent, initialScope]);
+    setSearchTerm(initialStudent.name || '');
+  }, [initialStudent?.id]);
 
   useEffect(() => {
     if (searchTerm.length >= 2) {
@@ -254,6 +252,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
   const visibleFeeStructures = useMemo(() => {
     const filtered = feeStructures.filter((structure: any) => {
       const structureAcademicYear = structure.academicYear?.year || structure.academicYear?.name || structure.academicYear || '';
+      
       if (formData.academicYear && structureAcademicYear && structureAcademicYear !== formData.academicYear) {
         return false;
       }
@@ -283,17 +282,24 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
       const structureClassName = structure.class?.name || structure.className || '';
       const structureClassId = structure.class?.id || structure.classId || '';
 
+      // For student scope, if no students selected yet, show all applicable fee structures
       if (formData.scope === 'student') {
-        if (selectedStudentClassNames.length === 0) {
-          return false;
+        // If no students selected, show fee structures that could apply
+        if (selectedStudentClassNames.length === 0 && formData.classIds.length === 0) {
+          // Show fee structures that are not class-specific or are for common classes
+          return !structureClassId || structureClassName === '' || structureClassName === 'All';
         }
-        const matches = selectedStudentClassNames.includes(structureClassName) || formData.classIds.includes(structureClassId);
+        // If students selected, match their classes OR show school-wide fee structures
+        const matches = selectedStudentClassNames.includes(structureClassName) || 
+                       formData.classIds.includes(structureClassId) ||
+                       !structureClassId; // Show school-wide fee structures
         return matches;
       }
 
       if (formData.scope === 'class') {
         if (selectedClassNames.length === 0 && formData.classIds.length === 0) {
-          return false;
+          // Show all fee structures when no classes selected
+          return true;
         }
         const matches = formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
         return matches;
@@ -318,14 +324,14 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
       // Calculate total fees from all structures for this class
       const monthlyFees = classFeeStructures
         .filter((fs: any) => fs.category === 'monthly' || fs.frequency === 'monthly')
-        .reduce((sum: number, fs: any) => sum + (parseFloat(fs.amount) || 0), 0);
+        .reduce((sum: number, fs: any) => sum + (Number(fs.amount) || 0), 0);
       
       const yearlyFees = classFeeStructures
         .filter((fs: any) => fs.category === 'yearly' || fs.frequency === 'yearly')
-        .reduce((sum: number, fs: any) => sum + (parseFloat(fs.amount) || 0), 0);
+        .reduce((sum: number, fs: any) => sum + (Number(fs.amount) || 0), 0);
       
       const totalFees = classFeeStructures
-        .reduce((sum: number, fs: any) => sum + (parseFloat(fs.amount) || 0), 0);
+        .reduce((sum: number, fs: any) => sum + (Number(fs.amount) || 0), 0);
 
       return {
         ...cls,
@@ -434,7 +440,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
         targetDetails = `${studentNames[0]} +${formData.studentIds.length - 1} more`;
       }
     } else if (formData.scope === 'class' && formData.classIds.length > 0) {
-      const classNames = formData.classIds.slice(0, 3).map(id => {
+      const classNames = formData.classIds.slice(0, 2).map(id => {
         const cls = classes.find(c => c.id === id);
         return cls ? cls.name : '';
       }).filter(Boolean);
@@ -443,40 +449,29 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
         targetDetails = classNames[0];
       } else if (classNames.length === 2) {
         targetDetails = `${classNames[0]} & ${classNames[1]}`;
-      } else if (classNames.length === 3) {
-        targetDetails = `${classNames[0]}, ${classNames[1]} & ${classNames[2]}`;
       } else {
         targetDetails = `${classNames[0]} +${formData.classIds.length - 1} more`;
       }
     } else if (formData.scope === 'transport' && formData.transportRouteIds.length > 0) {
-      const routeNames = formData.transportRouteIds.slice(0, 3).map(id => {
-        const route = transportRoutes.find(r => r.id === id);
-        return route ? (route.routeName || route.name || `Route ${route.routeNumber}`) : '';
-      }).filter(Boolean);
-      
-      if (routeNames.length === 1) {
-        targetDetails = routeNames[0];
-      } else if (routeNames.length === 2) {
-        targetDetails = `${routeNames[0]} & ${routeNames[1]}`;
-      } else if (routeNames.length === 3) {
-        targetDetails = `${routeNames[0]}, ${routeNames[1]} & ${routeNames[2]}`;
-      } else {
-        targetDetails = `${routeNames[0]} +${formData.transportRouteIds.length - 1} more`;
+      targetDetails = `${formData.transportRouteIds.length} route(s)`;
+    }
+    
+    const discountText = formData.discountType === 'percentage' ? `${formData.discountValue}%` :
+                        formData.discountType === 'fixed' ? `₹${formData.discountValue}` :
+                        formData.discountType === 'full_waiver' ? 'Full Waiver' : 'Discount';
+    
+    return `${scopeText}${targetDetails ? ' - ' + targetDetails : ''} - ${discountText}`;
+  };
+
+  // Auto-update name when form data changes
+  useEffect(() => {
+    if (formData.scope && (formData.studentIds.length > 0 || formData.classIds.length > 0 || formData.transportRouteIds.length > 0)) {
+      const autoName = generateDiscountName();
+      if (autoName && autoName !== formData.name) {
+        setFormData(prev => ({ ...prev, name: autoName }));
       }
     }
-    
-    // Generate discount type text
-    const discountTypeText = formData.discountType === 'percentage' ? `${formData.discountValue}%` :
-                           formData.discountType === 'fixed' ? `₹${formData.discountValue}` :
-                           formData.discountType === 'full_waiver' ? 'Full Waiver' : 'Discount';
-    
-    // Combine all parts
-    if (targetDetails) {
-      return `${scopeText} ${targetDetails} - ${discountTypeText}`;
-    } else {
-      return `${scopeText} Discount - ${discountTypeText}`;
-    }
-  };
+  }, [formData.scope, formData.studentIds, formData.classIds, formData.transportRouteIds, formData.discountType, formData.discountValue, selectedStudentLookup, classes]);
 
   const validateStep = (step: number): { isValid: boolean; errors: string[]; warnings: string[] } => {
     const errors: string[] = [];
@@ -496,10 +491,10 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
       
       if (!targetType) errors.push('Target type selection is required');
       if (targetType === 'fee_structure' && formData.feeStructureIds.length === 0) errors.push('Please select at least one fee structure');
-      if (formData.discountType !== 'full_waiver' && (!formData.discountValue || parseFloat(formData.discountValue) <= 0)) {
+      if (formData.discountType !== 'full_waiver' && (!formData.discountValue || Number(formData.discountValue) <= 0)) {
         errors.push('Discount value must be greater than 0');
       }
-      if (formData.discountType === 'percentage' && parseFloat(formData.discountValue) > 100) {
+      if (formData.discountType === 'percentage' && Number(formData.discountValue) > 100) {
         errors.push('Percentage discount cannot exceed 100%');
       }
       if (!formData.validFrom || !formData.validTo) errors.push('Validity dates are required');
@@ -511,6 +506,73 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
     }
 
     return { isValid: errors.length === 0, errors, warnings };
+  };
+  const isFormValid = () => {
+    // Basic required fields validation
+    if (!formData.name.trim()) {
+      return false;
+    }
+    if (!formData.reason.trim()) {
+      return false;
+    }
+    if (!formData.academicYear) {
+      return false;
+    }
+    if (!formData.scope) {
+      return false;
+    }
+    
+    // Scope-specific validations
+    if (formData.scope === 'student') {
+      // Student scope requires students to be selected
+      if (formData.studentIds.length === 0) {
+        return false;
+      }
+    } else if (formData.scope === 'class') {
+      // Class scope requires classes to be selected
+      if (formData.classIds.length === 0) {
+        return false;
+      }
+    } else if (formData.scope === 'transport') {
+      // Transport scope requires routes to be selected
+      if (formData.transportRouteIds.length === 0) {
+        return false;
+      }
+    }
+    
+    // Fee structure validation
+    if (formData.feeStructureIds.length === 0 && formData.scope !== 'transport') {
+      return false;
+    }
+    
+    // Discount value validation
+    if (formData.discountType !== 'full_waiver') {
+      const discountValue = Number(formData.discountValue);
+      if (isNaN(discountValue) || discountValue <= 0) {
+        return false;
+      }
+      if (formData.discountType === 'percentage' && discountValue > 100) {
+        return false;
+      }
+    }
+    
+    // Date validation
+    const fromDate = new Date(formData.validFrom);
+    const toDate = new Date(formData.validTo);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return false;
+    }
+    if (fromDate > toDate) {
+      return false;
+    }
+    if (fromDate < today) {
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async () => {
@@ -1135,13 +1197,32 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                     route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                     route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    route.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                                    route.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    route.area?.toLowerCase().includes(searchTerm.toLowerCase())
                                   )
                                   .map((route: any) => route.id);
+                                
+                                // For transport scope, auto-select transport fee structures
+                                let newFeeStructureIds = formData.feeStructureIds;
+                                if (formData.scope === 'transport') {
+                                  const transportFeeStructures = visibleFeeStructures.filter((fs: any) => {
+                                    const name = (fs.name || '').toLowerCase();
+                                    const category = (fs.category || '').toLowerCase();
+                                    const description = (fs.description || '').toLowerCase();
+                                    return name.includes('transport') || name.includes('bus') || name.includes('van') || name.includes('vehicle') ||
+                                           name.includes('conveyance') || name.includes('commute') || name.includes('travel') ||
+                                           category.includes('transport') || category.includes('bus') || category.includes('conveyance') ||
+                                           description.includes('transport') || description.includes('bus') || description.includes('vehicle') ||
+                                           description.includes('conveyance') || description.includes('commute');
+                                  });
+                                  
+                                  newFeeStructureIds = [...new Set([...formData.feeStructureIds, ...transportFeeStructures.map(fs => fs.id)])];
+                                }
+                                
                                 setFormData({
                                   ...formData, 
                                   transportRouteIds: [...new Set([...formData.transportRouteIds, ...visibleRouteIds])], 
-                                  feeStructureIds: []
+                                  feeStructureIds: newFeeStructureIds
                                 });
                               }}
                               disabled={transportRoutes.filter((route: any) => !searchTerm || 
@@ -1171,12 +1252,14 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                           {/* Search Results */}
                           <div className={`max-h-56 overflow-y-auto p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                             <div className="space-y-1">
+                              
                               {transportRoutes
                                 .filter((route: any) => !searchTerm || 
                                   route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  route.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                                  route.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.area?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                                 .map((route: any) => (
                                 <label key={route.id} className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
@@ -1187,7 +1270,31 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                       const newIds = e.target.checked
                                         ? [...formData.transportRouteIds, route.id]
                                         : formData.transportRouteIds.filter(id => id !== route.id);
-                                      setFormData({...formData, transportRouteIds: newIds, feeStructureIds: []});
+                                      
+                                      // For transport scope, auto-select transport fee structures
+                                      let newFeeStructureIds = formData.feeStructureIds;
+                                      if (formData.scope === 'transport') {
+                                        const transportFeeStructures = visibleFeeStructures.filter((fs: any) => {
+                                          const name = (fs.name || '').toLowerCase();
+                                          const category = (fs.category || '').toLowerCase();
+                                          const description = (fs.description || '').toLowerCase();
+                                          return name.includes('transport') || name.includes('bus') || name.includes('van') || name.includes('vehicle') ||
+                                                 name.includes('conveyance') || name.includes('commute') || name.includes('travel') ||
+                                                 category.includes('transport') || category.includes('bus') || category.includes('conveyance') ||
+                                                 description.includes('transport') || description.includes('bus') || description.includes('vehicle') ||
+                                                 description.includes('conveyance') || description.includes('commute');
+                                        });
+                                        
+                                        if (e.target.checked) {
+                                          // Add transport fee structures when route is selected
+                                          newFeeStructureIds = [...new Set([...formData.feeStructureIds, ...transportFeeStructures.map(fs => fs.id)])];
+                                        } else if (newIds.length === 0) {
+                                          // Clear fee structures only if no routes selected
+                                          newFeeStructureIds = [];
+                                        }
+                                      }
+                                      
+                                      setFormData({...formData, transportRouteIds: newIds, feeStructureIds: newFeeStructureIds});
                                     }}
                                     className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                   />
@@ -1196,6 +1303,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                     <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
                                       {route.routeNumber && <span>No: {route.routeNumber}</span>}
                                       {route.description && <span>{route.description}</span>}
+                                      {route.area && <span>{route.area}</span>}
                                       <span>{route.students?.length || 0}st</span>
                                     </div>
                                     <div className="flex gap-2 truncate">
@@ -1216,14 +1324,16 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                               
                               {transportRoutes.length === 0 && (
                                 <div className="text-center p-3 text-gray-500 text-xs">
-                                  No transport routes found
+                                  No transport routes found. Please check if transport routes are configured in the system.
                                 </div>
                               )}
                               
                               {transportRoutes.length > 0 && transportRoutes.filter((route: any) => 
-                                searchTerm && (
+                                searchTerm && !(
                                   route.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.routeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  route.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   route.area?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                               ).length === 0 && (
@@ -1482,7 +1592,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                       className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                     />
                                     <div>
-                                      <span className="font-medium text-green-700 dark:text-green-300">🚌 Transport Fees</span>
+                                      <span className="font-medium text-orange-700 dark:text-orange-300">🚌 Transport Fees</span>
                                       <div className="text-xs text-gray-500">
                                         {transportStructures.length} fee structure{transportStructures.length > 1 ? 's' : ''}
                                       </div>
@@ -1508,13 +1618,12 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                       </div>
                                       <div className="text-xs text-right text-gray-500">
                                         <div className="font-medium text-blue-600 dark:text-blue-400">
-                                          Amount: ₹{formatAmount(getStructureAmount(fs))}
+                                          {formData.scope === 'student' ? 'Outstanding:' : 'Total Fee:'} ₹{formatAmount(
+                                            formData.scope === 'student' 
+                                              ? Number(feeTypeBalances[fs.id]?.pendingAmount || 0)
+                                              : Number(fs.amount || 0)
+                                          )}
                                         </div>
-                                        {formData.scope === 'student' && feeTypeBalances[fs.id]?.pendingAmount != null && (
-                                          <div>
-                                            Outstanding: ₹{formatAmount(feeTypeBalances[fs.id].pendingAmount)}
-                                          </div>
-                                        )}
                                       </div>
                                     </label>
                                   ))}
@@ -1564,10 +1673,11 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                       </div>
                                       <div className="text-xs text-right text-gray-500">
                                         <div className="font-medium text-blue-600 dark:text-blue-400">
-                                          Amount: ₹{formatAmount(getStructureAmount(fs))}
-                                        </div>
-                                        <div>
-                                          Outstanding: ₹{formatAmount(Number(feeTypeBalances[fs.id]?.pendingAmount || 0))}
+                                          {formData.scope === 'student' ? 'Outstanding:' : 'Total Fee:'} ₹{formatAmount(
+                                            formData.scope === 'student' 
+                                              ? Number(feeTypeBalances[fs.id]?.pendingAmount || 0)
+                                              : Number(fs.amount || 0)
+                                          )}
                                         </div>
                                       </div>
                                     </label>
@@ -1576,28 +1686,102 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                               </div>
                             )}
 
+                            {/* Unified Fee Summary Table */}
                             {(transportStructures.length > 0 || tuitionStructures.length > 0) && (
-                              <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                                <div className="text-sm font-medium mb-2">Summary:</div>
-                                <div className="space-y-1 text-xs">
-                                  {transportStructures.length > 0 && (
-                                    <div className="flex justify-between">
-                                      <span>Transport Fees Total:</span>
-                                      <span>₹{transportStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
-                                    </div>
-                                  )}
-                                  {tuitionStructures.length > 0 && (
-                                    <div className="flex justify-between">
-                                      <span>Tuition Fees Total:</span>
-                                      <span>₹{tuitionStructures.reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between font-bold border-t pt-1 mt-1">
-                                    <span>Selected Total:</span>
-                                    <span>₹{visibleFeeStructures
-                                      .filter(fs => formData.feeStructureIds.includes(fs.id))
-                                      .reduce((sum, fs) => sum + (parseFloat(fs.amount) || 0), 0).toLocaleString('en-IN')}</span>
+                              <div className={`mt-4 p-3 rounded-lg border ${
+                                isDark 
+                                  ? 'bg-gray-700 border-gray-600' 
+                                  : 'bg-gray-50 border-gray-200'
+                              }`}>
+                                <div className="text-sm font-medium mb-3">Fee Summary & Discount Impact</div>
+                                <div className="space-y-2">
+                                  {/* Table Header */}
+                                  <div className="grid grid-cols-4 gap-2 text-xs font-semibold text-gray-600 dark:text-gray-400 pb-2 border-b border-gray-200 dark:border-gray-600">
+                                    <div>Fee Type</div>
+                                    <div className="text-right">Pending</div>
+                                    <div className="text-center">Selected</div>
+                                    <div className="text-right">After Discount</div>
                                   </div>
+                                  
+                                  {/* Fee Rows */}
+                                  {(() => {
+                                    const allStructures = visibleFeeStructures;
+                                    const selectedIds = formData.feeStructureIds;
+                                    let totalPending = 0;
+                                    let totalAfterDiscount = 0;
+                                    let totalDiscount = 0;
+                                    
+                                    const rows = allStructures.map((fs: any) => {
+                                      // Use different amount calculation based on scope
+                                      const pending = formData.scope === 'student' 
+                                        ? Number(feeTypeBalances[fs.id]?.pendingAmount || 0)
+                                        : Number(fs.amount || 0); // Use total fee amount for bulk discounts
+                                      
+                                      const isSelected = selectedIds.includes(fs.id);
+                                      let discount = 0;
+                                      let afterDiscount = pending;
+                                      
+                                      if (isSelected && formData.discountType && formData.discountValue) {
+                                        if (formData.discountType === 'fixed') {
+                                          // Fixed amount applies to EACH selected fee structure
+                                          discount = Math.min(Number(formData.discountValue), pending);
+                                        } else if (formData.discountType === 'percentage') {
+                                          discount = Math.min((pending * Number(formData.discountValue)) / 100, pending);
+                                        } else if (formData.discountType === 'full_waiver') {
+                                          discount = pending;
+                                        }
+                                        afterDiscount = Math.max(0, pending - discount);
+                                      }
+                                      
+                                      totalPending += pending;
+                                      totalAfterDiscount += afterDiscount;
+                                      totalDiscount += discount;
+                                      
+                                      return (
+                                        <div key={fs.id} className="grid grid-cols-4 gap-2 text-xs items-center py-1">
+                                          <div className="font-medium">{fs.name}</div>
+                                          <div className="text-right">₹{pending.toLocaleString('en-IN')}</div>
+                                          <div className="text-center">
+                                            {isSelected && (
+                                              <span className="inline-block w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                                <span className="text-white text-xs">✓</span>
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-right font-semibold">
+                                            ₹{afterDiscount.toLocaleString('en-IN')}
+                                            {discount > 0 && (
+                                              <div className="text-green-600 dark:text-green-400 text-xs">
+                                                -₹{discount.toLocaleString('en-IN')}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    });
+                                    
+                                    return (
+                                      <>
+                                        {rows}
+                                        {/* Total Row */}
+                                        <div className="grid grid-cols-4 gap-2 text-xs font-bold pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+                                          <div>Total</div>
+                                          <div className="text-right">₹{totalPending.toLocaleString('en-IN')}</div>
+                                          <div className="text-center text-blue-600 dark:text-blue-400">
+                                            {selectedIds.length > 0 && `${selectedIds.length} selected`}
+                                          </div>
+                                          <div className="text-right text-green-600 dark:text-green-400">
+                                            ₹{totalAfterDiscount.toLocaleString('en-IN')}
+                                            {totalDiscount > 0 && (
+                                              <div className="text-xs">
+                                                (Saved ₹{totalDiscount.toLocaleString('en-IN')})
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             )}
@@ -1618,83 +1802,70 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                   <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-300 bg-gray-50'}`}>
                     <div className="text-center">
                       <span className="text-2xl mb-2">🚌</span>
-                      <div className="font-semibold text-green-700 dark:text-green-300">Transport-Wide Discount</div>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className={`font-semibold text-green-700 dark:text-green-300`}>Transport-Wide Discount</div>
+                      <div className={`text-sm text-gray-500 dark:text-gray-400 mt-1`}>
                         This discount will apply to all students using the selected transport services
                       </div>
-                      
-                      {/* Show selected transport routes */}
-                      {formData.transportRouteIds.length > 0 && (
-                        <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
-                          <div className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                            📍 Selected Transport Routes ({formData.transportRouteIds.length}):
-                          </div>
-                          <div className="space-y-2">
-                            {formData.transportRouteIds.map((routeId: string) => {
-                              const route = transportRoutes.find((r: any) => r.id === routeId);
-                              return route ? (
-                                <div key={routeId} className={`p-2 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2">
-                                      <span className="text-green-600 dark:text-green-400">🚌</span>
-                                      <div>
-                                        <div className="font-medium text-sm text-gray-800 dark:text-gray-200">
-                                          {route.name || route.routeName || `Route ${route.routeNumber}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                          {route.routeNumber && `Route #: ${route.routeNumber}`}
-                                          {route.vehicleNumber && ` • Vehicle: ${route.vehicleNumber}`}
-                                          {route.driverName && ` • Driver: ${route.driverName}`}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                        ₹{route.fare || route.monthlyFee || route.yearlyFee || '0'}
-                                      </div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        {route.fare && 'per student'}
-                                        {route.monthlyFee && '/month'}
-                                        {route.yearlyFee && '/year'}
-                                      </div>
-                                    </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {formData.transportRouteIds.map((routeId: string) => {
+                        const route = transportRoutes.find((r: any) => r.id === routeId);
+                        return route ? (
+                          <div key={routeId} className={`p-2 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-green-600 dark:text-green-400">🚌</span>
+                                <div>
+                                  <div className={`font-medium text-sm text-gray-800 dark:text-gray-200`}>
+                                    {route.name || route.routeName || `Route ${route.routeNumber}`}
+                                  </div>
+                                  <div className={`text-xs text-gray-500 dark:text-gray-400`}>
+                                    {route.routeNumber && `Route #: ${route.routeNumber}`}
+                                    {route.vehicleNumber && ` • Vehicle: ${route.vehicleNumber}`}
+                                    {route.driverName && ` • Driver: ${route.driverName}`}
                                   </div>
                                 </div>
-                              ) : null;
-                            })}
-                          </div>
-                          
-                          {/* Show total students affected */}
-                          <div className={`mt-3 pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600 dark:text-gray-400">
-                                👥 Total Students Using These Routes:
-                              </span>
-                              <span className="font-semibold text-green-600 dark:text-green-400">
-                                {/* This would need to be calculated from actual data */}
-                                {formData.transportRouteIds.length} route(s) selected
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {formData.transportRouteIds.length === 0 && (
-                        <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-amber-900/20 border-amber-600' : 'bg-amber-50 border-amber-200'}`}>
-                          <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-300">
-                            <span className="text-lg">⚠️</span>
-                            <div className="text-sm">
-                              <div className="font-semibold">No Transport Routes Selected</div>
-                              <div className="text-xs mt-1">
-                                Please go back to Step 1 and select at least one transport route
+                              </div>
+                              <div className="text-right">
+                                <div className={`text-sm font-semibold text-gray-700 dark:text-gray-300`}>
+                                  ₹{route.fare || route.monthlyFee || route.yearlyFee || '0'}
+                                </div>
+                                <div className={`text-xs text-gray-500 dark:text-gray-400`}>
+                                  {route.fare && 'per student'}
+                                  {route.monthlyFee && '/month'}
+                                  {route.yearlyFee && '/year'}
+                                </div>
                               </div>
                             </div>
                           </div>
+                        ) : null;
+                      })}
+                    </div>
+                    
+                    {/* Show total students affected */}
+                    <div className={`mt-3 pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className={`text-gray-600 dark:text-gray-400`}>
+                          👥 Total Students Using These Routes:
+                        </span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          {formData.transportRouteIds.length} route(s) selected
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {formData.scope === 'transport' && formData.transportRouteIds.length === 0 && (
+                  <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-amber-900/20 border-amber-600' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-300">
+                      <span className="text-lg">⚠️</span>
+                      <div className="text-sm">
+                        <div className="font-semibold">No Transport Routes Selected</div>
+                        <div className="text-xs mt-1">
+                          Please go back to Step 1 and select at least one transport route
                         </div>
-                      )}
-                      
-                      <div className="text-xs text-gray-400 mt-3">
-                        💡 This discount will be applied to ALL students using the selected transport routes above
                       </div>
                     </div>
                   </div>
@@ -1791,6 +1962,14 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                             <div className={`font-medium ${textPrimary}`}>Scenario:</div>
                             <div className={textSecondary}>Total Fee: ₹10,000 | Already Paid: ₹5,000 | Outstanding: ₹5,000</div>
                             <div className={textSecondary}>Fixed Discount: ₹1,000 | New Outstanding: ₹4,000</div>
+                          </div>
+                          <div className="mt-2 p-2 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
+                            <div className={`font-medium text-amber-700 dark:text-amber-300`}>⚠️ Important:</div>
+                            <div className="text-amber-600 dark:text-amber-400 text-xs">
+                              • Fixed amount applies to <span className="font-bold">EACH selected fee structure</span><br/>
+                              • Selecting 3 fee structures with ₹500 discount = ₹1,500 total discount per student<br/>
+                              • Be careful with bulk selections - discount multiplies quickly!
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1894,14 +2073,83 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                     </div>
                     <div>
                       <span className="opacity-70">Target:</span>
-                      <p className="font-medium capitalize">{formData.targetType}</p>
-                    </div>
-                    <div>
-                      <span className="opacity-70">Discount:</span>
                       <p className="font-medium">
-                        {formData.discountType === 'percentage' ? `${formData.discountValue}%` : 
-                         formData.discountType === 'fixed' ? `₹${formData.discountValue}` : 'Full Waiver'}
-                        {formData.maxCapAmount && ` (max ₹${formData.maxCapAmount})`}
+                        {(() => {
+                          if (formData.scope === 'student') {
+                            const studentCount = formData.studentIds.length;
+                            return `${studentCount} Student${studentCount !== 1 ? 's' : ''}`;
+                          } else if (formData.scope === 'class') {
+                            const classCount = formData.classIds.length;
+                            return `${classCount} Class${classCount !== 1 ? 'es' : ''}`;
+                          } else if (formData.scope === 'transport') {
+                            const routeCount = formData.transportRouteIds.length;
+                            return `${routeCount} Transport Route${routeCount !== 1 ? 's' : ''}`;
+                          }
+                          return formData.targetType;
+                        })()}
+                      </p>
+                    </div>
+                    {formData.feeStructureIds.length > 0 && (
+                      <div>
+                        <span className="opacity-70">Selected Fee Types:</span>
+                        <p className="font-medium">
+                          {(() => {
+                            const selectedStructures = visibleFeeStructures.filter(fs => formData.feeStructureIds.includes(fs.id));
+                            const feeNames = selectedStructures.map(fs => fs.name);
+                            
+                            if (feeNames.length === 0) {
+                              return 'No fee structures selected';
+                            } else if (feeNames.length <= 2) {
+                              return feeNames.join(', ');
+                            } else {
+                              return `${feeNames.slice(0, 2).join(', ')} +${feeNames.length - 2} more`;
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <span className="opacity-70">Discount Impact:</span>
+                      <p className="font-medium">
+                        {(() => {
+                          if (formData.discountType === 'percentage') {
+                            // Calculate based on scope - bulk vs individual
+                            const selectedStructures = visibleFeeStructures.filter(fs => formData.feeStructureIds.includes(fs.id));
+                            
+                            if (formData.scope === 'class' || formData.scope === 'transport') {
+                              // Bulk discount - calculate on total fee amounts
+                              const totalFeeAmount = selectedStructures.reduce((sum, fs) => {
+                                return sum + (Number(fs.amount) || 0);
+                              }, 0);
+                              
+                              const discountAmount = (totalFeeAmount * Number(formData.discountValue)) / 100;
+                              const cappedAmount = formData.maxCapAmount ? Math.min(discountAmount, Number(formData.maxCapAmount)) : discountAmount;
+                              
+                              return `${formData.discountValue}% = ₹${cappedAmount.toLocaleString('en-IN')}`;
+                            } else {
+                              // Individual student discount - calculate on pending amounts
+                              const totalPending = selectedStructures.reduce((sum, fs) => sum + (Number(feeTypeBalances[fs.id]?.pendingAmount || 0)), 0);
+                              const discountAmount = (totalPending * Number(formData.discountValue)) / 100;
+                              const cappedAmount = formData.maxCapAmount ? Math.min(discountAmount, Number(formData.maxCapAmount)) : discountAmount;
+                              
+                              return `${formData.discountValue}% = ₹${cappedAmount.toLocaleString('en-IN')}`;
+                            }
+                          } else if (formData.discountType === 'full_waiver') {
+                            return 'Full Waiver';
+                          } else if (formData.discountType === 'fixed') {
+                            // Calculate total impact for fixed amount
+                            if (formData.feeStructureIds.length === 0) {
+                              return 'No fee structures selected';
+                            }
+                            const totalImpact = Number(formData.discountValue) * formData.feeStructureIds.length;
+                            return `₹${formData.discountValue} × ${formData.feeStructureIds.length} fee${formData.feeStructureIds.length !== 1 ? 's' : ''} = ₹${totalImpact.toLocaleString('en-IN')}`;
+                          }
+                          return formData.discountValue;
+                        })()}
+                        {formData.maxCapAmount && formData.discountType === 'percentage' && (
+                          <span className="text-xs opacity-70 ml-1">(capped)</span>
+                        )}
+                        {formData.maxCapAmount && formData.discountType !== 'percentage' && ` (max ₹${formData.maxCapAmount})`}
                       </p>
                     </div>
                     <div>
@@ -1976,7 +2224,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
         ) : (
           <motion.button
             onClick={handleSubmit}
-            disabled={isSubmitting || !formData.name.trim() || !formData.reason.trim()}
+            disabled={isSubmitting || !isFormValid()}
             className={`${btnPrimary} disabled:opacity-50 disabled:cursor-not-allowed`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

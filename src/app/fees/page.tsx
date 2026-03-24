@@ -48,6 +48,7 @@ import FeeInvoiceManagerOptimized from './components/FeeInvoiceManager-Optimized
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';
 import StudentFinancialProfile from './components/StudentFinancialProfile';
+import BulkFeeAssignmentForm from './components/BulkFeeAssignmentForm';
 import FeeWorkflows from './components/FeeWorkflows';
 import DiscountManagement from './components/discount/DiscountManagement';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -58,6 +59,7 @@ export default function FeesPage() {
   const { theme } = useTheme();
   const state = useFeeState();
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
+  const [showBulkAssignmentModal, setShowBulkAssignmentModal] = useState(false);
   
   // Fee Collection Modal State
   const [feeCollectionModal, setFeeCollectionModal] = useState<{
@@ -151,6 +153,7 @@ export default function FeesPage() {
     { id: 'fee-records', label: '📋 Fee Records', permission: 'manage_fees' },
     { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
     { id: 'collections', label: '💵 Collections', permission: 'manage_fees' },
+    { id: 'bulk-assign', label: '🏛️ Bulk Assign', permission: 'manage_fees' },
     { id: 'discounts', label: '🎁 Discounts', permission: 'manage_fees' },
     { id: 'reports', label: '📈 Reports', permission: 'manage_fees' },
     { id: 'invoices', label: '🧾 Invoices', permission: 'manage_fees' },
@@ -247,6 +250,28 @@ export default function FeesPage() {
           <FeeFinancialAnalytics theme={theme} />
         ) : activeTab === 'notifications' ? (
           <FeeNotificationManager theme={theme} />
+        ) : activeTab === 'bulk-assign' ? (
+          <div className="text-center py-12">
+            <div className={`inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4`}>
+              <span className="text-2xl">🏛️</span>
+            </div>
+            <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              Bulk Fee/Fine Assignment
+            </h3>
+            <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              Assign fees or fines to students, classes, mediums, or the entire school in bulk
+            </p>
+            <button
+              onClick={() => setShowBulkAssignmentModal(true)}
+              className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
+                theme === 'dark' 
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+              }`}
+            >
+              Start Bulk Assignment
+            </button>
+          </div>
         ) : activeTab === 'discounts' ? (
           <DiscountManagement theme={theme} />
         ) : (
@@ -382,6 +407,18 @@ export default function FeesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bulk Fee Assignment Modal */}
+      {showBulkAssignmentModal && (
+        <BulkFeeAssignmentForm
+          theme={theme}
+          onClose={() => setShowBulkAssignmentModal(false)}
+          onSuccess={() => {
+            setShowBulkAssignmentModal(false);
+            // Refresh data or show success message
+          }}
+        />
       )}
 
       {/* Search Performance Monitor */}

@@ -76,7 +76,7 @@ export default function DiscountAnalytics({ theme }: DiscountAnalyticsProps) {
         <div className={`p-6 rounded-xl border ${bgCard}`}>
           <DollarSign className="w-8 h-8 text-green-600 mb-2" />
           <p className={`text-sm ${textSecondary}`}>Total Discounted</p>
-          <p className={`text-3xl font-bold ${textPrimary}`}>₹{parseFloat(data.summary.totalAmountDiscounted).toLocaleString()}</p>
+          <p className={`text-3xl font-bold ${textPrimary}`}>₹{Number(data.summary.totalAmountDiscounted).toLocaleString()}</p>
         </div>
         <div className={`p-6 rounded-xl border ${bgCard}`}>
           <CheckCircle className="w-8 h-8 text-green-600 mb-2" />

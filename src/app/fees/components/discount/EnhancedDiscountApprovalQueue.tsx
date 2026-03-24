@@ -75,17 +75,16 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
   const fetchStudentsAndClasses = async () => {
     try {
       const [studRes, configRes] = await Promise.all([
-        fetch('/api/students?page=1&limit=500'), // Changed from /api/fees/students to /api/students
+        fetch('/api/students?page=1&limit=500'), 
         fetch('/api/school-config'),
       ]);
       if (studRes.ok) {
         const d = await studRes.json();
-        console.log('Students data from API:', d); // Debug log
         setStudents((d.students || []).map((s: any) => ({ 
           id: s.id, 
           name: s.name, 
-          class: s.class?.name || s.className, 
-          section: s.section?.name || s.sectionName 
+          class: s.class?.name || s.class, 
+          section: s.section?.name || s.section 
         })));
       }
       if (configRes.ok) {
@@ -152,21 +151,8 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
     try { classIds = JSON.parse(request.classIds || '[]'); } catch { classIds = []; }
     try { transportRouteIds = JSON.parse(request.transportRouteIds || '[]'); } catch { transportRouteIds = []; }
     
-    // Debug logging
-    console.log('getTargetDisplay debug:', {
-      studentIds,
-      classIds,
-      transportRouteIds,
-      studentsCount: students.length,
-      classesCount: classes.length,
-      transportRoutesCount: transportRoutes.length
-    });
-    
     const studentNames = studentIds.slice(0, 3).map(id => {
       const student = students.find(s => s.id === id);
-      if (!student) {
-        console.log('Student not found for ID:', id, 'Available students:', students.map(s => ({ id: s.id, name: s.name })));
-      }
       return student ? student.name : `Student (${id.slice(0, 8)}...)`;
     });
     const classNames = classIds.slice(0, 3).map(id => {
@@ -553,9 +539,87 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                 </td>
                 <td className="px-4 py-3">
                   <span className={`font-medium ${textPrimary}`}>
-                    {request.discountType === 'percentage' ? `${request.discountValue}%` : `₹${request.discountValue}`}
+                    {(() => {
+                      if (request.discountType === 'percentage') {
+                        // Calculate based on scope - bulk vs individual
+                        let feeStructureIds: string[] = [];
+                        try {
+                          feeStructureIds = JSON.parse(request.feeStructureIds || '[]');
+                        } catch (e) {
+                          feeStructureIds = [];
+                        }
+                        
+                        // Get fee structures to calculate amounts
+                        const structures = feeStructureIds.map(id => {
+                          const structure = feeStructures.find(fs => fs.id === id);
+                          return structure ? structure : null;
+                        }).filter(Boolean);
+                        
+                        // Calculate total fee amounts for bulk discounts
+                        const totalFeeAmount = structures.reduce((sum, structure: any) => {
+                          return sum + (Number(structure?.amount) || 0);
+                        }, 0);
+                        
+                        // For bulk discounts (class/bus level), use total fee amount
+                        // For individual student discounts, we can't calculate exact amount without pending data
+                        if (request.scope === 'class' || request.scope === 'transport') {
+                          // Bulk discount - calculate on total fee amount
+                          const discountAmount = (totalFeeAmount * Number(request.discountValue)) / 100;
+                          const cappedAmount = request.maxCapAmount ? Math.min(discountAmount, Number(request.maxCapAmount)) : discountAmount;
+                          return `${request.discountValue}% = ₹${cappedAmount.toLocaleString('en-IN')}`;
+                        } else {
+                          // Individual student discount - show context
+                          return `${request.discountValue}% of ${structures.length} fee${structures.length !== 1 ? 's' : ''}`;
+                        }
+                      } else if (request.discountType === 'full_waiver') {
+                        return 'Full Waiver';
+                      } else if (request.discountType === 'fixed') {
+                        // Calculate total impact for fixed amount
+                        let feeStructureIds: string[] = [];
+                        try {
+                          feeStructureIds = JSON.parse(request.feeStructureIds || '[]');
+                        } catch (e) {
+                          feeStructureIds = [];
+                        }
+                        
+                        if (feeStructureIds.length === 0) {
+                          return 'No fee structures selected';
+                        }
+                        const totalImpact = Number(request.discountValue) * feeStructureIds.length;
+                        return `₹${request.discountValue} × ${feeStructureIds.length} fee${feeStructureIds.length !== 1 ? 's' : ''} = ₹${totalImpact.toLocaleString('en-IN')}`;
+                      }
+                      return request.discountValue;
+                    })()}
                   </span>
-                  {request.maxCapAmount && (
+                  {request.discountType === 'percentage' && (request.scope === 'class' || request.scope === 'transport') && (
+                    <span className={`text-xs ${textSecondary} block`}>
+                      Bulk discount on total fee amounts
+                    </span>
+                  )}
+                  {request.discountType === 'percentage' && request.scope === 'student' && (
+                    <span className={`text-xs ${textSecondary} block`}>
+                      Amount calculated per student based on pending balance
+                    </span>
+                  )}
+                  {request.discountType === 'percentage' && request.maxCapAmount && (
+                    <span className={`text-xs ${textSecondary} block`}>
+                      Max cap: ₹{request.maxCapAmount}
+                    </span>
+                  )}
+                  {request.discountType === 'fixed' && (() => {
+                    let feeStructureIds: string[] = [];
+                    try {
+                      feeStructureIds = JSON.parse(request.feeStructureIds || '[]');
+                    } catch (e) {
+                      feeStructureIds = [];
+                    }
+                    return feeStructureIds.length > 0 && (
+                      <span className={`text-xs ${textSecondary} block`}>
+                        ₹{request.discountValue} × {feeStructureIds.length} fee{feeStructureIds.length !== 1 ? 's' : ''}
+                      </span>
+                    );
+                  })()}
+                  {request.maxCapAmount && request.discountType !== 'percentage' && (
                     <span className={`text-xs ${textSecondary} block`}>Max: ₹{request.maxCapAmount}</span>
                   )}
                 </td>
@@ -781,14 +845,99 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                     <div className={`p-1.5 rounded-lg ${isDark ? 'bg-blue-800/50' : 'bg-blue-200/50'}`}>
                       <span className="text-sm">💰</span>
                     </div>
-                    <h4 className={`font-semibold text-sm ${textPrimary}`}>Discount Value</h4>
+                    <h4 className={`font-semibold text-sm ${textPrimary}`}>Discount Impact</h4>
                   </div>
                   <p className={`text-lg font-bold ${textPrimary}`}>
-                    {selectedRequest.discountType === 'percentage' ? `${selectedRequest.discountValue}%` : `₹${selectedRequest.discountValue}`}
+                    {(() => {
+                      if (selectedRequest.discountType === 'percentage') {
+                        // Calculate based on scope - bulk vs individual
+                        let feeStructureIds: string[] = [];
+                        try {
+                          feeStructureIds = JSON.parse(selectedRequest.feeStructureIds || '[]');
+                        } catch (e) {
+                          feeStructureIds = [];
+                        }
+                        
+                        // Get fee structures to calculate amounts
+                        const structures = feeStructureIds.map(id => {
+                          const structure = feeStructures.find(fs => fs.id === id);
+                          return structure ? structure : null;
+                        }).filter(Boolean);
+                        
+                        // Calculate total fee amounts for bulk discounts
+                        const totalFeeAmount = structures.reduce((sum, structure: any) => {
+                          return sum + (Number(structure?.amount) || 0);
+                        }, 0);
+                        
+                        // For bulk discounts (class/bus level), use total fee amount
+                        // For individual student discounts, we can't calculate exact amount without pending data
+                        if (selectedRequest.scope === 'class' || selectedRequest.scope === 'transport') {
+                          // Bulk discount - calculate on total fee amount
+                          const discountAmount = (totalFeeAmount * Number(selectedRequest.discountValue)) / 100;
+                          const cappedAmount = selectedRequest.maxCapAmount ? Math.min(discountAmount, Number(selectedRequest.maxCapAmount)) : discountAmount;
+                          return `${selectedRequest.discountValue}% = ₹${cappedAmount.toLocaleString('en-IN')}`;
+                        } else {
+                          // Individual student discount - show context
+                          return `${selectedRequest.discountValue}% of ${structures.length} fee${structures.length !== 1 ? 's' : ''}`;
+                        }
+                      } else if (selectedRequest.discountType === 'full_waiver') {
+                        return 'Full Waiver';
+                      } else if (selectedRequest.discountType === 'fixed') {
+                        // Calculate total impact for fixed amount
+                        let feeStructureIds: string[] = [];
+                        try {
+                          feeStructureIds = JSON.parse(selectedRequest.feeStructureIds || '[]');
+                        } catch (e) {
+                          feeStructureIds = [];
+                        }
+                        
+                        let studentIds: string[] = [];
+                        try {
+                          studentIds = JSON.parse(selectedRequest.studentIds || '[]');
+                        } catch (e) {
+                          studentIds = [];
+                        }
+                        
+                        if (feeStructureIds.length === 0) {
+                          return 'No fee structures selected';
+                        }
+                        const totalImpact = Number(selectedRequest.discountValue) * feeStructureIds.length;
+                        return `₹${selectedRequest.discountValue} × ${feeStructureIds.length} fee${feeStructureIds.length !== 1 ? 's' : ''} = ₹${totalImpact.toLocaleString('en-IN')}`;
+                      }
+                      return selectedRequest.discountValue;
+                    })()}
                   </p>
+                  {selectedRequest.discountType === 'percentage' && (selectedRequest.scope === 'class' || selectedRequest.scope === 'transport') && (
+                    <p className={`text-xs ${textSecondary} mt-1`}>
+                      Bulk discount on total fee amounts
+                    </p>
+                  )}
+                  {selectedRequest.discountType === 'percentage' && selectedRequest.scope === 'student' && (
+                    <p className={`text-xs ${textSecondary} mt-1`}>
+                      Amount calculated per student based on pending balance
+                    </p>
+                  )}
+                  {selectedRequest.discountType === 'percentage' && selectedRequest.maxCapAmount && (
+                    <p className={`text-xs ${textSecondary} mt-1`}>
+                      Max cap: ₹{selectedRequest.maxCapAmount}
+                    </p>
+                  )}
                   {selectedRequest.maxCapAmount && (
                     <p className={`text-xs ${textSecondary} mt-1`}>Max: ₹{selectedRequest.maxCapAmount}</p>
                   )}
+                  {selectedRequest.discountType === 'fixed' && (() => {
+                    let studentIds: string[] = [];
+                    try {
+                      studentIds = JSON.parse(selectedRequest.studentIds || '[]');
+                    } catch (e) {
+                      studentIds = [];
+                    }
+                    return studentIds.length > 0 && (
+                      <p className={`text-xs ${textSecondary} mt-1`}>
+                        For {studentIds.length} student{studentIds.length !== 1 ? 's' : ''}
+                      </p>
+                    );
+                  })()}
                 </div>
                 
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-gradient-to-br from-purple-900/30 to-purple-800/30 border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200/50'} border`}>
