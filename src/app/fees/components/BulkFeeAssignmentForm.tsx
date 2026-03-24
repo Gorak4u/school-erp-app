@@ -639,11 +639,11 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
                               <div className={`text-xs ${textSecondary} flex items-center gap-3 mt-1`}>
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100/60 dark:bg-gray-700/40">
                                   <span className="text-xs opacity-70">📚</span>
-                                  {target.class || 'N/A'}
+                                  <span className="text-gray-700 dark:text-gray-300">{target.class || 'N/A'}</span>
                                 </span>
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100/60 dark:bg-gray-700/40">
                                   <span className="text-xs opacity-70">🎫</span>
-                                  {target.admissionNo}
+                                  <span className="text-gray-700 dark:text-gray-300">{target.admissionNo}</span>
                                 </span>
                                 {target.status && (
                                   <motion.span 
