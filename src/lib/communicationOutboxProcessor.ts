@@ -65,6 +65,21 @@ export async function processCommunicationOutboxBatch(input: ProcessCommunicatio
           attachments: payload.attachments,
         });
 
+        if (result?.skipped) {
+          await (schoolPrisma as any).communicationOutbox.update({
+            where: { id: item.id },
+            data: {
+              status: 'skipped',
+              attemptCount: (item.attemptCount || 0) + 1,
+              nextAttemptAt: null,
+              lastError: result?.reason || 'Email notifications disabled',
+            },
+          });
+
+          summary.skipped += 1;
+          continue;
+        }
+
         if (!result?.success) {
           throw new Error(result?.error || 'Email delivery failed');
         }

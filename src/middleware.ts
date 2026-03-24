@@ -66,6 +66,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 
+  if (pathname === '/api/cron' || pathname.startsWith('/api/cron/')) {
+    return NextResponse.next();
+  }
+
   // ── Subdomain Detection ──────────────────────────────────────────────────
   const schoolSubdomain = extractSubdomain(hostname);
 

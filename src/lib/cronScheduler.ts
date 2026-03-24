@@ -82,6 +82,8 @@ const DEFAULT_JOBS = [
   },
 ];
 
+const DEFAULT_JOB_MAP = new Map(DEFAULT_JOBS.map((job) => [job.jobName, job]));
+
 // ─── DB helpers ─────────────────────────────────────────────────────────────
 
 const db = () => (saasPrisma as any);
@@ -102,7 +104,11 @@ async function seedDefaultConfigs() {
   for (const job of DEFAULT_JOBS) {
     await db().cronJobConfig.upsert({
       where: { jobName: job.jobName },
-      update: {}, // never overwrite user edits on restart
+      update: {
+        scope: job.scope,
+        category: job.category,
+        description: job.description,
+      },
       create: job,
     });
   }
@@ -127,6 +133,7 @@ async function markRunFinish(
   status: 'success' | 'failed',
   durationMs: number,
   processed: number,
+  failed: number,
   output: string,
   error?: string,
 ) {
@@ -134,7 +141,7 @@ async function markRunFinish(
   await Promise.all([
     db().cronJobRun.update({
       where: { id: runId },
-      data: { status, finishedAt: now, durationMs, processed, output, error },
+      data: { status, finishedAt: now, durationMs, processed, failed, output, error },
     }),
     db().cronJobConfig.update({
       where: { jobName },
@@ -152,6 +159,8 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
   let output = '';
   let error = '';
   let processed = 0;
+  let failed = 0;
+  let message = '';
 
   try {
     const url = `${BASE_URL}/api/cron/${jobName}`;
@@ -165,13 +174,14 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
     });
 
     const body = await res.json().catch(() => ({}));
+    output = JSON.stringify(body).slice(0, 4000);
+    processed = body.processed ?? body.result?.processed ?? body.results?.processed ?? 0;
+    failed = body.failed ?? body.result?.failed ?? body.results?.failed ?? 0;
+    message = body.message || body.error || '';
 
-    if (!res.ok) {
+    if (!res.ok || body?.success === false) {
       status = 'failed';
-      error = body.error || `HTTP ${res.status}`;
-    } else {
-      processed = body.result?.processed ?? body.processed ?? body.results?.processed ?? 0;
-      output = JSON.stringify(body).slice(0, 4000);
+      error = body.error || body.message || `HTTP ${res.status}`;
     }
   } catch (err: any) {
     status = 'failed';
@@ -179,12 +189,20 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
   }
 
   const durationMs = Date.now() - start;
-  await markRunFinish(run.id, jobName, status, durationMs, processed, output, error || undefined);
+  await markRunFinish(run.id, jobName, status, durationMs, processed, failed, output, error || undefined);
 
   console.log(
     `[Cron][${scope}] ${jobName} → ${status} in ${durationMs}ms` +
       (processed ? ` (${processed} records)` : ''),
   );
+
+  return {
+    success: status === 'success',
+    message: error || message || `Job "${jobName}" ${status}`,
+    processed,
+    failed,
+    runId: run.id,
+  };
 }
 
 // ─── Scheduler lifecycle ─────────────────────────────────────────────────────
@@ -239,9 +257,8 @@ export async function triggerJobNow(jobName: string): Promise<{ success: boolean
   const config = await db().cronJobConfig.findUnique({ where: { jobName } });
   if (!config) return { success: false, message: `Job "${jobName}" not found` };
 
-  // Fire without blocking the API response
-  dispatchJob(jobName, config.scope, 'manual').catch(console.error);
-  return { success: true, message: `Job "${jobName}" triggered` };
+  const result = await dispatchJob(jobName, config.scope, 'manual');
+  return { success: result.success, message: result.message };
 }
 
 export async function setJobEnabled(jobName: string, enabled: boolean): Promise<boolean> {
@@ -301,10 +318,16 @@ export async function getCronStatus() {
   });
 
   return {
-    jobs: configs.map((c: any) => ({
-      ...c,
-      running: activeTasks.has(c.jobName),
-    })),
+    jobs: configs.map((c: any) => {
+      const meta = DEFAULT_JOB_MAP.get(c.jobName);
+      return {
+        ...c,
+        scope: meta?.scope || c.scope,
+        category: meta?.category || c.category,
+        description: meta?.description || c.description,
+        running: activeTasks.has(c.jobName),
+      };
+    }),
     recentRuns,
     activeCount: activeTasks.size,
   };

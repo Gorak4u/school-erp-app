@@ -283,7 +283,7 @@ export async function sendSchoolEmail({
       subject,
       reason: 'Email notifications disabled'
     });
-    return { success: true, skipped: true, reason: 'Email notifications disabled' };
+    return { success: false, skipped: true, reason: 'Email notifications disabled' };
   }
   
   // Apply school branding to the email
@@ -335,7 +335,7 @@ export async function sendSchoolEmail({
       html_length: html.length,
       schoolId
     });
-    return { success: true, devMode: true };
+    return { success: false, devMode: true, error: 'School SMTP not configured' };
   }
 
   const transporter = nodemailer.createTransport({
