@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform data for export
-    const exportData = fines.map(fine => ({
+    const exportData = fines.map((fine: any) => ({
       'Fine Number': fine.fineNumber,
       'Student Name': fine.student?.name || 'N/A',
       'Admission Number': fine.student?.admissionNo || 'N/A',

@@ -15,7 +15,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Plus, Search, Filter, Eye, Edit, Ban, Trash2, 
   Clock, AlertCircle, CheckCircle, XCircle, CreditCard,
-  Download, ChevronDown, CheckSquare, Square, Users
+  Download, ChevronDown, CheckSquare, Square, Users,
+  Wifi, WifiOff
 } from 'lucide-react';
 
 export default function FinesPage() {
@@ -26,6 +27,13 @@ export default function FinesPage() {
 
   // WebSocket and notifications
   const { isConnected, notifications: wsNotifications, sendMessage } = useFinesWebSocket('school-1'); // TODO: Get actual school ID
+  const [isClient, setIsClient] = useState(false);
+  const [clientIsConnected, setClientIsConnected] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+    setClientIsConnected(isConnected);
+  }, [isConnected]);
   const { 
     notifications, 
     addNotification, 
@@ -758,14 +766,20 @@ export default function FinesPage() {
                 </div>
                 
                 {/* WebSocket Status Indicator */}
-                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${
-                  isConnected 
-                    ? isDark ? 'border-green-500/20 bg-green-500/10 text-green-300' : 'border-green-100 bg-green-50 text-green-700'
-                    : isDark ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-red-100 bg-red-50 text-red-700'
-                }`}>
-                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-                  {isConnected ? 'Live Updates' : 'Offline'}
-                </div>
+                {isClient && (
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${
+                    clientIsConnected
+                      ? isDark ? 'border-green-500/20 bg-green-500/10 text-green-300' : 'border-green-100 bg-green-50 text-green-700'
+                      : isDark ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-red-100 bg-red-50 text-red-700'
+                  }`}>
+                    {clientIsConnected ? (
+                      <Wifi className="w-3 h-3 text-green-500" />
+                    ) : (
+                      <WifiOff className="w-3 h-3 text-red-500 animate-pulse" />
+                    )}
+                    {clientIsConnected ? 'Live Updates' : 'Offline'}
+                  </div>
+                )}
               </div>
               <h1 className={`mt-4 text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Fines Management</h1>
               <p className={`mt-3 text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Manage student fines, payments, and waiver requests with automated tracking.</p>
