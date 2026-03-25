@@ -265,7 +265,7 @@ export default function EnhancedFeeCollection({
   };
 
   const handleUpiConfirmation = async () => {
-    await handleUpiPaymentConfirmation();
+    await handleUpiPaymentConfirmation(stats, fines);
   };
 
   const handleShareQr = async () => {
