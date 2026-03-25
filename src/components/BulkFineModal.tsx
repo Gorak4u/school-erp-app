@@ -67,7 +67,7 @@ export default function BulkFineModal({
   useEffect(() => {
     if (formData.targetType === 'school') {
       setFormData(prev => ({ ...prev, targetValue: 'all-students' }));
-    } else if (formData.targetType !== 'school' && formData.targetValue === 'all-students') {
+    } else if (formData.targetValue === 'all-students') {
       setFormData(prev => ({ ...prev, targetValue: '' }));
     }
   }, [formData.targetType]);
