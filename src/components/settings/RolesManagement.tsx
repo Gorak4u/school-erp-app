@@ -279,57 +279,57 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
 
   const activeDrafts = Object.entries(roleDrafts).filter(([_, d]) => !d.isDeleted);
 
-  const cardClasses = `rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} shadow-lg`;
-  const headingClasses = `text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`;
-  const subtextClasses = `text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:scale-105 ${isDark ? 'bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200'}`;
+  const cardClasses = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-sm`;
+  const headingClasses = `text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`;
+  const subtextClasses = `text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
+  const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+  const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${isDark ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'}`;
 
   return (
-    <div className={cardClasses + " p-6"}>
-      <div className="flex justify-between items-center mb-6">
+    <div className={cardClasses + " p-3"}>
+      <div className="flex justify-between items-center mb-3">
         <div>
-          <h3 className={headingClasses}>Custom Roles Management</h3>
-          <p className={subtextClasses}>Manage custom user roles and their permissions</p>
+          <h3 className={headingClasses}>Custom Roles</h3>
+          <p className={subtextClasses}>Manage roles and permissions</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button 
             className={btnSecondary} 
             onClick={addRoleRow}
           >
-            <span className="font-bold text-blue-500 mr-1">+</span> Add Role
+            <span className="font-bold text-blue-500 mr-1">+</span> Add
           </button>
           <button 
             className={btnPrimary} 
             disabled={saving || !hasUnsavedChanges} 
             onClick={bulkSave}
           >
-            {saving ? 'Saving...' : '💾 Bulk Save'}
+            {saving ? '...' : 'Save'}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading roles...</div>
+        <div className="text-center py-6 text-gray-500 text-xs">Loading...</div>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-          <div className="min-w-[1500px]">
-            <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+          <div className="min-w-[1200px]">
+            <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <thead>
               <tr>
-                <th className={`px-4 py-3 text-left font-semibold border min-w-[300px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[2px_0_0_0_#374151]' : ''}`}>
-                  Role Name
+                <th className={`px-3 py-2 text-left font-semibold border min-w-[200px] bg-clip-padding ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-gray-50/80 text-gray-700'} sticky left-0 z-20 shadow-[2px_0_0_0_#e5e7eb] ${isDark ? 'shadow-[2px_0_0_0_#374151]' : ''}`}>
+                  Role
                 </th>
                 {/* Individual Permission Columns */}
                 {Object.values(PERMISSION_LABELS).map((label) => (
-                  <th key={label} className={`px-4 py-6 text-center font-semibold border w-40 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
-                    <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-10 mt-10 mb-6 text-xs leading-relaxed">
+                  <th key={label} className={`px-2 py-4 text-center font-semibold border w-28 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                    <div className="transform -rotate-45 whitespace-nowrap origin-bottom-left ml-6 mt-8 mb-4 text-[10px] leading-relaxed">
                       {label}
                     </div>
                   </th>
                 ))}
-                <th className={`px-4 py-2 text-center border w-20 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
-                  Actions
+                <th className={`px-2 py-2 text-center border w-16 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                  Del
                 </th>
               </tr>
             </thead>
@@ -343,7 +343,7 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                       value={draft.name}
                       onChange={(e) => handleNameChange(id, e.target.value)}
                       placeholder="Role Name"
-                      className={`w-full h-full min-h-[48px] px-4 py-3 bg-transparent outline-none text-ellipsis ${isDark ? 'text-gray-200 placeholder-gray-600 focus:bg-gray-800' : 'text-gray-900 placeholder-gray-400 focus:bg-blue-50'} transition-colors font-medium`}
+                      className={`w-full h-full min-h-[36px] px-3 py-2 bg-transparent outline-none text-ellipsis text-xs ${isDark ? 'text-gray-200 placeholder-gray-600 focus:bg-gray-800' : 'text-gray-900 placeholder-gray-400 focus:bg-blue-50'} transition-colors font-medium`}
                       title={draft.name || 'Role Name'}
                     />
                   </td>
@@ -351,23 +351,23 @@ export default function RolesManagement({ theme, isDark }: RolesManagementProps)
                   {Object.entries(PERMISSION_LABELS).map(([permissionKey, label]) => {
                     const hasPermission = draft.permissions.has(permissionKey as Permission);
                     return (
-                      <td key={permissionKey} className={`px-2 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <td key={permissionKey} className={`px-2 py-1 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                         <input
                           type="checkbox"
                           checked={hasPermission}
                           onChange={() => handleTogglePermission(id, permissionKey as Permission)}
-                          className={`w-4 h-4 rounded cursor-pointer ${isDark ? 'accent-blue-500 bg-gray-700 border-gray-600' : 'accent-blue-600 bg-white border-gray-300'}`}
+                          className={`w-3.5 h-3.5 rounded cursor-pointer ${isDark ? 'accent-blue-500 bg-gray-700 border-gray-600' : 'accent-blue-600 bg-white border-gray-300'}`}
                         />
                       </td>
                     );
                   })}
-                  <td className={`px-4 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <td className={`px-2 py-1 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <button
                       onClick={() => deleteRole(id)}
                       title="Delete Role"
-                      className={`p-1.5 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'}`}
+                      className={`p-1 rounded transition-colors ${isDark ? 'text-red-400 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'}`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>

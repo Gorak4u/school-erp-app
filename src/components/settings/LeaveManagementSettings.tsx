@@ -116,12 +116,12 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
   });
 
   // CSS Variables
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
+  const card = `rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-sm`;
+  const input = `w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
+  const label = `block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`;
+  const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+  const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isDark ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'}`;
+  const btnDanger = `px-2 py-1 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200'}`;
 
   useEffect(() => {
     fetchAcademicYears();
@@ -489,19 +489,19 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Tabs */}
-      <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex space-x-0.5 border-b border-gray-200 dark:border-gray-700">
         {[
-          { id: 'types', label: 'Leave Types' },
-          { id: 'balances', label: 'Leave Balances' },
+          { id: 'types', label: 'Types' },
+          { id: 'balances', label: 'Balances' },
           { id: 'settings', label: 'Settings' },
-          { id: 'workflow', label: 'Approval Workflow' },
+          { id: 'workflow', label: 'Workflow' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${
               activeTab === tab.id
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -515,12 +515,12 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       {/* Leave Types Tab */}
       {activeTab === 'types' && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="space-y-3"
         >
           <div className="flex justify-between items-center">
-            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Leave Types
             </h3>
             <button
@@ -541,27 +541,22 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
               }}
               className={btnPrimary}
             >
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Leave Type
-              </span>
+              + Add Type
             </button>
           </div>
 
           {/* Leave Types List */}
-          <div className="grid gap-4">
+          <div className="grid gap-2">
             {leaveTypes.map((leaveType) => (
               <div key={leaveType.id} className={card}>
-                <div className="p-6">
+                <div className="p-3">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {leaveType.name}
                         </h4>
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                           leaveType.isActive
                             ? isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-700'
                             : isDark ? 'bg-gray-600/20 text-gray-400' : 'bg-gray-100 text-gray-600'
@@ -569,33 +564,34 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                           {leaveType.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                        Code: {leaveType.code}
-                        {leaveType.maxDaysPerYear && ` • Max: ${leaveType.maxDaysPerYear} days/year`}
+                      <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
+                        {leaveType.code}
+                        {leaveType.maxDaysPerYear && ` • Max: ${leaveType.maxDaysPerYear}d/year`}
                         {leaveType.isPaid && ` • Paid`}
-                        {leaveType.requiresDocument && ` • Document required`}
+                        {leaveType.requiresDocument && ` • Doc req`}
                       </p>
                       {leaveType.description && (
-                        <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-3`}>
+                        <p className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                           {leaveType.description}
                         </p>
                       )}
-                      <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {leaveType._count.leaveApplications} application{leaveType._count.leaveApplications !== 1 ? 's' : ''}
-                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 ml-2 flex-shrink-0">
                       <button
                         onClick={() => editLeaveType(leaveType)}
-                        className={btnSecondary}
+                        className={`p-1.5 rounded text-xs ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                       >
-                        Edit
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
                       </button>
                       <button
                         onClick={() => deleteLeaveType(leaveType.id)}
-                        className={btnDanger}
+                        className={`p-1.5 rounded text-xs ${isDark ? 'hover:bg-red-600/20 text-red-400' : 'hover:bg-red-50 text-red-500'}`}
                       >
-                        Delete
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -609,15 +605,15 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
       {/* Leave Balances Tab */}
       {activeTab === 'balances' && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="space-y-3"
         >
           <div className="flex justify-between items-center">
-            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Leave Balances
             </h3>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   setBulkBalanceForm({
@@ -630,12 +626,7 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                 }}
                 className={btnSecondary}
               >
-                <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  Bulk Allocate
-                </span>
+                Bulk
               </button>
               <button
                 onClick={() => {
@@ -649,29 +640,24 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                 }}
                 className={btnPrimary}
               >
-                <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Allocate Leave Balance
-                </span>
+                + Allocate
               </button>
             </div>
           </div>
 
           {/* Academic Year Selection */}
           <div className={card}>
-            <div className="p-4">
+            <div className="p-2.5">
               <label className={label}>Academic Year</label>
               <select
                 value={selectedAcademicYear}
                 onChange={(e) => setSelectedAcademicYear(e.target.value)}
                 className={input}
               >
-                <option value="">Select Academic Year</option>
+                <option value="">Select Year</option>
                 {academicYears.map((year) => (
                   <option key={year.id} value={year.id}>
-                    {year.name} ({year.year})
+                    {year.name}
                   </option>
                 ))}
               </select>
@@ -680,45 +666,40 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
 
           {/* Leave Balances List */}
           {selectedAcademicYear && (
-            <div className="grid gap-4">
+            <div className="grid gap-2">
               {leaveBalances.map((balance) => (
                 <div key={balance.id} className={card}>
-                  <div className="p-6">
+                  <div className="p-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {balance.staff?.name}
                           </h4>
-                          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                             isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-700'
                           }`}>
                             {balance.staff?.employeeId}
                           </span>
                         </div>
-                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                          {balance.leaveType?.name} ({balance.leaveType?.code})
+                        <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
+                          {balance.leaveType?.name}
                           {balance.leaveType?.isPaid && ' • Paid'}
                         </p>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Allocated:</span>
-                            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}> {balance.totalAllocated} days</span>
-                          </div>
-                          <div>
-                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Used:</span>
-                            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}> {balance.used} days</span>
-                          </div>
-                          <div>
-                            <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Balance:</span>
-                            <span className={`font-bold ${balance.balance > 5 ? 'text-green-600' : balance.balance > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
-                              {balance.balance} days
-                            </span>
-                          </div>
+                        <div className="flex gap-3 text-xs">
+                          <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                            Alloc: <b>{balance.totalAllocated}d</b>
+                          </span>
+                          <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                            Used: <b>{balance.used}d</b>
+                          </span>
+                          <span className={`font-bold ${balance.balance > 5 ? 'text-green-600' : balance.balance > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            Bal: {balance.balance}d
+                          </span>
                         </div>
                         {balance.carriedForward > 0 && (
-                          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-2`}>
-                            Carried Forward: {balance.carriedForward} days
+                          <p className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                            CF: {balance.carriedForward}d
                           </p>
                         )}
                       </div>
@@ -727,8 +708,8 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                 </div>
               ))}
               {leaveBalances.length === 0 && (
-                <div className={`p-8 text-center rounded-xl border border-dashed ${isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
-                  No leave balances allocated for this academic year. Click "Allocate Leave Balance" to get started.
+                <div className={`p-4 text-center rounded-lg border border-dashed ${isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
+                  No leave balances allocated
                 </div>
               )}
             </div>
@@ -1029,35 +1010,35 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`relative w-full max-w-2xl rounded-2xl border shadow-2xl ${card} max-h-[90vh] overflow-y-auto`}
+            className={`relative w-full max-w-lg rounded-xl border shadow-2xl ${card} max-h-[90vh] overflow-y-auto`}
           >
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+            <div className={`px-3 py-2.5 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
               <div className="flex items-center justify-between">
-                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {editingLeaveType ? 'Edit Leave Type' : 'Add Leave Type'}
+                <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {editingLeaveType ? 'Edit Type' : 'Add Type'}
                 </h3>
                 <button
                   onClick={() => setShowLeaveTypeForm(false)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
                     isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className={label}>Name *</label>
                   <input
                     value={leaveTypeForm.name}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, name: e.target.value })}
                     className={input}
-                    placeholder="e.g., Sick Leave"
+                    placeholder="Sick Leave"
                   />
                 </div>
                 <div>
@@ -1066,95 +1047,112 @@ export default function LeaveManagementSettings({ theme, isDark }: LeaveManageme
                     value={leaveTypeForm.code}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, code: e.target.value.toUpperCase() })}
                     className={input}
-                    placeholder="e.g., SL"
+                    placeholder="SL"
                   />
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 mt-2">
                 <div>
-                  <label className={label}>Max Days Per Year</label>
+                  <label className={label}>Max Days/Year</label>
                   <input
                     type="number"
                     value={leaveTypeForm.maxDaysPerYear}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, maxDaysPerYear: e.target.value })}
                     className={input}
-                    placeholder="e.g., 12"
+                    placeholder="12"
                   />
                 </div>
                 <div>
-                  <label className={label}>Accrual Rate (days/month)</label>
+                  <label className={label}>Accrual Rate</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.1"
                     value={leaveTypeForm.accrualRate}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, accrualRate: e.target.value })}
                     className={input}
-                    placeholder="e.g., 1.5"
+                    placeholder="1.0"
                   />
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 mt-2">
                 <div>
-                  <label className={label}>Max Carry Forward Days</label>
+                  <label className={label}>Max Carry Forward</label>
                   <input
                     type="number"
                     value={leaveTypeForm.maxCarryForwardDays}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, maxCarryForwardDays: e.target.value })}
                     className={input}
-                    placeholder="e.g., 6"
+                    placeholder="5"
                   />
                 </div>
-                <div>
-                  <label className={label}>Description</label>
-                  <textarea
-                    value={leaveTypeForm.description}
-                    onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, description: e.target.value })}
-                    className={`${input} resize-none`}
-                    rows={1}
-                    placeholder="Optional description"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                <label className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mt-4">
                   <input
                     type="checkbox"
+                    id="isPaid"
                     checked={leaveTypeForm.isPaid}
                     onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, isPaid: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-3 h-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Paid Leave</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={leaveTypeForm.requiresDocument}
-                    onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, requiresDocument: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Requires Document</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={leaveTypeForm.canCarryForward}
-                    onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, canCarryForward: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Can Carry Forward</span>
+                  <label htmlFor="isPaid" className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Paid Leave
+                  </label>
+                </div>
+              </div>
+              
+              <div className="mt-2">
+                <label className={label}>Description</label>
+                <textarea
+                  value={leaveTypeForm.description}
+                  onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, description: e.target.value })}
+                  className={input}
+                  rows={2}
+                  placeholder="Optional description"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="requiresDocument"
+                  checked={leaveTypeForm.requiresDocument}
+                  onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, requiresDocument: e.target.checked })}
+                  className="w-3 h-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="requiresDocument" className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Requires Document
                 </label>
               </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowLeaveTypeForm(false)}
-                  className={btnSecondary}
-                >
-                  Cancel
-                </button>
+              
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="canCarryForward"
+                  checked={leaveTypeForm.canCarryForward}
+                  onChange={(e) => setLeaveTypeForm({ ...leaveTypeForm, canCarryForward: e.target.checked })}
+                  className="w-3 h-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="canCarryForward" className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Can Carry Forward
+                </label>
+              </div>
+            </div>
+            
+            <div className={`px-3 py-2.5 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex gap-2">
                 <button
                   onClick={saveLeaveType}
                   disabled={loading}
-                  className={btnPrimary}
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
                 >
                   {loading ? 'Saving...' : (editingLeaveType ? 'Update' : 'Create')}
+                </button>
+                <button
+                  onClick={() => setShowLeaveTypeForm(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                >
+                  Cancel
                 </button>
               </div>
             </div>

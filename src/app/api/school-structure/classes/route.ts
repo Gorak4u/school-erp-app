@@ -108,8 +108,15 @@ export async function PUT(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
-    const { id, code, name, level, mediumId, academicYearId, isActive } = body;
+    const { code, name, level, mediumId, academicYearId, isActive } = body;
     const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const existingClass = await (schoolPrisma as any).class.findFirst({

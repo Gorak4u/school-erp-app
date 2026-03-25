@@ -74,12 +74,12 @@ export async function POST(request: NextRequest) {
 
     const section = await schoolPrisma.section.create({
       data: {
-        code,
+        code: code || `${name.toUpperCase()}-SECTION`,
         name,
         classId,
-        academicYearId: resolvedAcademicYearId,
-        capacity,
-        roomNumber,
+        academicYearId: resolvedAcademicYearId || '',
+        capacity: capacity || 0,
+        roomNumber: roomNumber || '',
         isActive: isActive ?? true,
         schoolId: records.class?.schoolId ?? records.academicYear?.schoolId ?? ctx.schoolId,
       } as any,
@@ -103,8 +103,15 @@ export async function PUT(request: NextRequest) {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Section ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
-    const { id, code, name, classId, academicYearId, capacity, roomNumber, isActive } = body;
+    const { code, name, classId, academicYearId, capacity, roomNumber, isActive } = body;
     const schoolFilter = ctx.isSuperAdmin && !ctx.schoolId ? {} : ctxSchoolWhere(ctx);
 
     const existing = await schoolPrisma.section.findFirst({ where: { id, ...schoolFilter } });

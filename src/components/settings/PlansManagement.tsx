@@ -178,160 +178,160 @@ export default function PlansManagement() {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white dark:bg-gray-800 rounded-xl p-3 max-w-lg w-full max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {plan ? 'Edit Plan' : 'Add New Plan'}
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              {plan ? 'Edit Plan' : 'Add Plan'}
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
             >
               ✕
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Plan Name (Internal)
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Plan Name
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Display Name
                 </label>
                 <input
                   type="text"
                   value={formData.displayName}
                   onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
                 value={formData.description}
                 onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                rows={3}
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
+                rows={2}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Monthly Price (₹)
                 </label>
                 <input
                   type="number"
                   value={formData.priceMonthly}
                   onChange={e => setFormData(prev => ({ ...prev, priceMonthly: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="0"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Yearly Price (₹)
                 </label>
                 <input
                   type="number"
                   value={formData.priceYearly}
                   onChange={e => setFormData(prev => ({ ...prev, priceYearly: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="0"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Max Students
                 </label>
                 <input
                   type="number"
                   value={formData.maxStudents}
                   onChange={e => setFormData(prev => ({ ...prev, maxStudents: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="1"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Max Teachers
                 </label>
                 <input
                   type="number"
                   value={formData.maxTeachers}
                   onChange={e => setFormData(prev => ({ ...prev, maxTeachers: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="1"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Trial Days
                 </label>
                 <input
                   type="number"
                   value={formData.trialDays}
                   onChange={e => setFormData(prev => ({ ...prev, trialDays: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="0"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Features
               </label>
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-1 mb-2">
                 <input
                   type="text"
                   value={featureInput}
                   onChange={e => setFeatureInput(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                  placeholder="Add a feature"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Add feature"
+                  className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                 />
                 <button
                   type="button"
                   onClick={addFeature}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
                 >
                   Add
                 </button>
               </div>
               <div className="space-y-1">
                 {formData.features.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{feature}</span>
+                  <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded">
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{feature}</span>
                     <button
                       type="button"
                       onClick={() => removeFeature(index)}
-                      className="text-red-500 hover:text-red-700 text-sm"
+                      className="text-red-500 hover:text-red-700 text-[10px]"
                     >
                       Remove
                     </button>
@@ -340,16 +340,16 @@ export default function PlansManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Sort Order
                 </label>
                 <input
                   type="number"
                   value={formData.sortOrder}
                   onChange={e => setFormData(prev => ({ ...prev, sortOrder: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
                   min="0"
                 />
               </div>
@@ -359,26 +359,26 @@ export default function PlansManagement() {
                   id="isActive"
                   checked={formData.isActive}
                   onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="mr-2"
+                  className="w-3 h-3 mr-1"
                 />
-                <label htmlFor="isActive" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="isActive" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Active
                 </label>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-xs"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-xs"
               >
                 {saving ? 'Saving...' : (plan ? 'Update' : 'Create')}
               </button>
@@ -405,28 +405,28 @@ export default function PlansManagement() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Plans Management</h1>
-        <div className="flex gap-3">
+    <div className="p-3">
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-lg font-bold text-gray-900 dark:text-white">Plans</h1>
+        <div className="flex gap-2">
           <button
             onClick={seedDefaultPlans}
             disabled={saving}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            className="px-2 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs font-medium"
           >
-            {saving ? 'Seeding...' : 'Seed Default Plans'}
+            {saving ? 'Seeding...' : 'Seed Defaults'}
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
           >
-            Add Plan
+            + Add Plan
           </button>
         </div>
       </div>
 
       {message && (
-        <div className={`mb-4 p-4 rounded-lg ${
+        <div className={`mb-3 p-2 rounded-lg text-xs ${
           message.type === 'success' 
             ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
             : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
@@ -436,25 +436,25 @@ export default function PlansManagement() {
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="w-full">
+        <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Plan
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Pricing
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Limits
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Trial
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -462,44 +462,44 @@ export default function PlansManagement() {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {plans.map((plan) => (
               <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="text-xs font-medium text-gray-900 dark:text-white">
                       {plan.displayName}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400">
                       {plan.name}
                     </div>
                     {plan.description && (
-                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
                         {plan.description}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 dark:text-white">
+                <td className="px-3 py-2">
+                  <div className="text-xs text-gray-900 dark:text-white">
                     ₹{plan.priceMonthly}/mo
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">
                     ₹{plan.priceYearly}/yr
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 dark:text-white">
+                <td className="px-3 py-2">
+                  <div className="text-xs text-gray-900 dark:text-white">
                     {plan.maxStudents} students
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">
                     {plan.maxTeachers} teachers
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 dark:text-white">
+                <td className="px-3 py-2">
+                  <div className="text-xs text-gray-900 dark:text-white">
                     {plan.trialDays} days
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                <td className="px-3 py-2">
+                  <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-semibold rounded-full ${
                     plan.isActive 
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                       : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -507,17 +507,17 @@ export default function PlansManagement() {
                     {plan.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
+                <td className="px-3 py-2 text-right">
+                  <div className="flex justify-end gap-1">
                     <button
                       onClick={() => setEditingPlan(plan)}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-[10px]"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => deletePlan(plan.id)}
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm"
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-[10px]"
                     >
                       Delete
                     </button>
@@ -529,13 +529,13 @@ export default function PlansManagement() {
         </table>
 
         {plans.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-500 dark:text-gray-400 mb-4">
+          <div className="text-center py-8">
+            <div className="text-gray-500 dark:text-gray-400 mb-3 text-xs">
               No plans found. Seed default plans or create your first plan.
             </div>
             <button
               onClick={seedDefaultPlans}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
             >
               Seed Default Plans
             </button>

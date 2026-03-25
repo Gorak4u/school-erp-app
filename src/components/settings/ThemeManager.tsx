@@ -28,14 +28,14 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
   const [activeTab, setActiveTab] = useState<'preset' | 'custom'>('preset');
   const [previewMode, setPreviewMode] = useState(false);
 
-  // CSS classes
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const themeTile = `p-3 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${isDark ? 'border-gray-600 hover:border-blue-500' : 'border-gray-300 hover:border-blue-400'}`;
-  const themeTileSelected = `p-3 rounded-lg border-2 transition-all cursor-pointer ring-2 ring-blue-200 border-blue-500`;
+  // CSS classes - Compact
+  const card = `rounded-xl border shadow-sm ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`;
+  const input = `w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
+  const label = `block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`;
+  const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+  const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
+  const themeTile = `p-2 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${isDark ? 'border-gray-600 hover:border-blue-500' : 'border-gray-300 hover:border-blue-400'}`;
+  const themeTileSelected = `p-2 rounded-lg border-2 transition-all cursor-pointer ring-2 ring-blue-200 border-blue-500`;
 
   // Load current theme
   useEffect(() => {
@@ -144,11 +144,11 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
   };
 
   const PreviewCard = ({ theme, title }: { theme: SchoolTheme; title: string }) => (
-    <div className="p-4 rounded-xl border-2 border-dashed border-gray-300">
-      <div className="text-sm font-medium mb-3 text-gray-600">{title}</div>
-      <div className="space-y-3">
+    <div className="p-3 rounded-lg border border-dashed border-gray-300">
+      <div className="text-xs font-medium mb-2 text-gray-600">{title}</div>
+      <div className="space-y-2">
         <div 
-          className="p-3 rounded-lg text-white text-center text-sm"
+          className="p-2 rounded text-white text-center text-xs"
           style={{
             background: theme.gradient,
             borderColor: theme.primaryColor,
@@ -156,24 +156,12 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
           }}
         >
           <div className="font-bold">Login Preview</div>
-          <div className="text-xs opacity-90 mt-1">See your theme in action</div>
+          <div className="text-[10px] opacity-90 mt-0.5">See your theme in action</div>
         </div>
-        <div className="flex gap-2">
-          <div 
-            className="w-4 h-4 rounded"
-            style={{ backgroundColor: theme.primaryColor }}
-            title="Primary"
-          />
-          <div 
-            className="w-4 h-4 rounded"
-            style={{ backgroundColor: theme.secondaryColor }}
-            title="Secondary"
-          />
-          <div 
-            className="w-4 h-4 rounded"
-            style={{ backgroundColor: theme.accentColor }}
-            title="Accent"
-          />
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: theme.primaryColor }} title="Primary" />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: theme.secondaryColor }} title="Secondary" />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: theme.accentColor }} title="Accent" />
         </div>
       </div>
     </div>
@@ -188,26 +176,26 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Theme Customization
           </h3>
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Customize your school's login page appearance
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5">
             <input
               type="checkbox"
               checked={previewMode}
               onChange={(e) => setPreviewMode(e.target.checked)}
               className="rounded"
             />
-            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Live Preview
             </span>
           </label>
@@ -216,29 +204,29 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
 
       {/* Theme Type Selection */}
       <div className={card}>
-        <div className="p-6">
-          <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <div className="p-3">
+          <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Theme Type
           </h4>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {[
-              { value: 'auto', label: 'Auto Generate', desc: 'Based on school name' },
-              { value: 'preset', label: 'Preset Themes', desc: 'Choose from templates' },
-              { value: 'custom', label: 'Custom Colors', desc: 'Design your own' }
+              { value: 'auto', label: 'Auto', desc: 'From school name' },
+              { value: 'preset', label: 'Preset', desc: 'Templates' },
+              { value: 'custom', label: 'Custom', desc: 'Design your own' }
             ].map((type) => (
               <button
                 key={type.value}
                 onClick={() => setThemeType(type.value as any)}
-                className={`p-3 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${
+                className={`p-2 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${
                   themeType === type.value
                     ? themeTileSelected
                     : themeTile
                 }`}
               >
-                <div className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`font-medium text-xs ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {type.label}
                 </div>
-                <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {type.desc}
                 </div>
               </button>
@@ -250,28 +238,28 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
       {/* Preset Themes */}
       {themeType === 'preset' && (
         <div className={card}>
-          <div className="p-6">
-            <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Choose a Theme
+          <div className="p-3">
+            <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Choose Theme
             </h4>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
               {THEME_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   onClick={() => handlePresetSelect(preset.id)}
-                  className={`p-3 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${
+                  className={`p-2 rounded-lg border-2 transition-all cursor-pointer hover:scale-105 ${
                     selectedPreset === preset.id
                       ? themeTileSelected
                       : themeTile
                   }`}
                 >
                   <div 
-                    className="h-8 rounded mb-2"
+                    className="h-6 rounded mb-1.5"
                     style={{
                       background: `linear-gradient(135deg, ${preset.colors.primary} 0%, ${preset.colors.secondary} 100%)`
                     }}
                   />
-                  <div className={`text-xs font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <div className={`text-[10px] font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {preset.name}
                   </div>
                 </button>
@@ -284,22 +272,22 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
       {/* Custom Colors */}
       {themeType === 'custom' && (
         <div className={card}>
-          <div className="p-6">
-            <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <div className="p-3">
+            <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Custom Colors
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {Object.entries(customColors).map(([key, value]) => (
                 <div key={key}>
                   <label className={label}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)} Color
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <input
                       type="color"
                       value={value}
                       onChange={(e) => handleColorChange(key as keyof typeof customColors, e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300"
+                      className="h-8 w-12 rounded border border-gray-300"
                     />
                     <input
                       type="text"
@@ -319,11 +307,11 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
       {/* Preview */}
       {previewMode && (
         <div className={card}>
-          <div className="p-6">
-            <h4 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <div className="p-3">
+            <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Live Preview
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {themeType === 'preset' && selectedPreset && (() => {
                 const preset = THEME_PRESETS.find(p => p.id === selectedPreset);
                 return preset ? (
@@ -342,7 +330,7 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-4">
+      <div className="flex justify-end gap-2">
         <button className={btnSecondary} onClick={loadCurrentTheme}>
           Reset
         </button>

@@ -198,136 +198,115 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
   };
 
   return (
-    <div className="space-y-8">
-      {/* Modern Header */}
-      <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-8 shadow-lg`}>
+    <div className="space-y-3">
+      {/* Header */}
+      <div className={`rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} p-3 shadow-sm`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+              <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
             <div>
-              <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Users & Access Management</h3>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Manage user accounts and assign custom roles</p>
+              <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Users & Access</h3>
+              <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{users.length} users</p>
             </div>
           </div>
           <button 
             onClick={openCreate}
-            className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 ${
-              isDark 
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
-                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
-            }`}
+            className={`px-2 py-1 rounded-lg text-xs font-medium ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
           >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              Add User
-            </span>
+            + Add User
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className={`text-center py-12 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
-          <svg className={`mx-auto h-12 w-12 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24">
+        <div className={`text-center py-6 rounded-lg border border-dashed ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
+          <svg className={`mx-auto h-8 w-8 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className={`mt-4 text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading users...</p>
+          <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-2">
           {users.map(user => (
             <div 
               key={user.id} 
-              className={`rounded-2xl border p-6 shadow-lg transition-all ${
+              className={`rounded-xl border p-3 shadow-sm transition-all ${
                 isDark 
-                  ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 hover:border-gray-600' 
-                  : 'bg-gradient-to-br from-white to-gray-50 border-gray-200 hover:border-gray-300'
+                  ? 'bg-gray-900 border-gray-700 hover:border-gray-600' 
+                  : 'bg-white border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      user.isActive 
-                        ? isDark ? 'bg-green-600/20' : 'bg-green-100'
-                        : isDark ? 'bg-gray-700' : 'bg-gray-100'
-                    }`}>
-                      <svg className={`w-6 h-6 ${
-                        user.isActive ? 'text-green-500' : isDark ? 'text-gray-400' : 'text-gray-500'
-                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {user.firstName} {user.lastName}
-                      </h4>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {user.email}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {getRoleBadge(user)}
-                      <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                        user.isActive 
-                          ? isDark ? 'bg-green-600/20 text-green-300' : 'bg-green-100 text-green-700'
-                          : isDark ? 'bg-gray-600/20 text-gray-300' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {user.isActive ? '🟢 Active' : '⚪ Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                    user.isActive 
+                      ? isDark ? 'bg-green-600/20' : 'bg-green-100'
+                      : isDark ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <svg className={`w-4 h-4 ${
+                      user.isActive ? 'text-green-500' : isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Joined {new Date(user.createdAt).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {user.firstName} {user.lastName}
+                    </h4>
+                    <p className={`text-[10px] truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {user.email}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {getRoleBadge(user)}
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                      user.isActive 
+                        ? isDark ? 'bg-green-600/20 text-green-300' : 'bg-green-100 text-green-700'
+                        : isDark ? 'bg-gray-600/20 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex gap-1 ml-2 flex-shrink-0">
                   <button 
                     onClick={() => openEdit(user)} 
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      isDark 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }`}
+                    className={`p-1.5 rounded-lg text-xs ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
                   >
-                    Edit
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
                   </button>
                   <button 
                     onClick={() => toggleStatus(user)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    className={`p-1.5 rounded-lg text-xs ${
                       user.isActive 
-                        ? isDark 
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                          : 'bg-orange-500 hover:bg-orange-600 text-white'
-                        : isDark 
-                          ? 'bg-green-600 hover:bg-green-700 text-white' 
-                          : 'bg-green-500 hover:bg-green-600 text-white'
+                        ? isDark ? 'hover:bg-orange-600/20 text-orange-400' : 'hover:bg-orange-50 text-orange-500'
+                        : isDark ? 'hover:bg-green-600/20 text-green-400' : 'hover:bg-green-50 text-green-500'
                     }`}
                   >
-                    {user.isActive ? 'Deactivate' : 'Activate'}
+                    {user.isActive ? (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
                   </button>
                   <button 
                     onClick={() => deleteUser(user)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      isDark 
-                        ? 'bg-red-600 hover:bg-red-700 text-white' 
-                        : 'bg-red-500 hover:bg-red-600 text-white'
-                    }`}
+                    className={`p-1.5 rounded-lg text-xs ${isDark ? 'hover:bg-red-600/20 text-red-400' : 'hover:bg-red-50 text-red-500'}`}
                   >
-                    Delete
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -339,36 +318,36 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowForm(false)}>
           <div 
-            className={`w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl shadow-2xl ${
+            className={`w-full max-w-xl max-h-[85vh] overflow-hidden rounded-xl shadow-2xl ${
               isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
             }`}
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
+            <div className={`px-3 py-2.5 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                    <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {editingUser ? 'Edit User Account' : 'Create New User'}
+                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {editingUser ? 'Edit User' : 'New User'}
                     </h3>
-                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {editingUser ? 'Update user information and role assignment' : 'Add a new user and assign their role'}
+                    <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {editingUser ? 'Update user details' : 'Add new user'}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowForm(false)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
                     isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -376,17 +355,17 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
             </div>
 
             {/* Modal Body */}
-            <div className="px-6 py-6 max-h-[calc(85vh-140px)] overflow-y-auto">
-              <div className="space-y-6">
+            <div className="px-3 py-3 max-h-[calc(85vh-120px)] overflow-y-auto">
+              <div className="space-y-3">
                 <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Email Address <span className="text-red-500">*</span>
+                  <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                    className={`w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
@@ -395,15 +374,15 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={form.firstName}
                       onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                      className={`w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${
                         isDark 
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
@@ -412,13 +391,13 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                     />
                   </div>
                   <div>
-                    <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={form.lastName}
                       onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                      className={`w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${
                         isDark 
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
@@ -429,13 +408,13 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                 </div>
                 
                 <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Base Access Level <span className="text-red-500">*</span>
+                  <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Role <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={form.role}
                     onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                    className={`w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${
                       isDark
                         ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
@@ -450,13 +429,13 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Custom Role Permissions
+                  <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Custom Role
                   </label>
                   {customRoles.length > 0 ? (
-                    <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                      <div className="space-y-3">
-                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className="space-y-2">
+                        <label className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
                           !form.customRoleId
                             ? isDark
                               ? 'border-blue-500 bg-blue-600/20'
@@ -470,19 +449,19 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                             name="customRole"
                             checked={!form.customRoleId}
                             onChange={() => setForm(f => ({ ...f, customRoleId: '' }))}
-                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            className="w-3 h-3 text-blue-600 focus:ring-blue-500"
                           />
                           <div className="flex-1">
-                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              Use Base Role Only
+                            <div className={`text-xs font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              Base Role Only
                             </div>
-                            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              No custom permission overrides. User will use the selected base role defaults.
+                            <div className={`text-[9px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              No custom permissions
                             </div>
                           </div>
                         </label>
                         {customRoles.map((role, index) => (
-                          <label key={role.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          <label key={role.id} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
                             form.customRoleId === role.id
                               ? isDark 
                                 ? 'border-blue-500 bg-blue-600/20' 
@@ -496,17 +475,17 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                               name="customRole"
                               checked={form.customRoleId === role.id}
                               onChange={() => setForm(f => ({ ...f, customRoleId: role.id }))}
-                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                              className="w-3 h-3 text-blue-600 focus:ring-blue-500"
                             />
                             <div className="flex-1">
-                              <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              <div className={`text-xs font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                 {role.name}
                               </div>
-                              <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {role.description || 'Custom role with specific permissions'}
+                              <div className={`text-[9px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {role.description || 'Custom permissions'}
                               </div>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRoleColor(index)}`}>
+                            <span className={`px-1.5 py-0.5 text-[9px] font-semibold rounded-full border ${getRoleColor(index)}`}>
                               Custom
                             </span>
                           </label>
@@ -514,16 +493,16 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                       </div>
                     </div>
                   ) : (
-                    <div className={`p-4 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
+                    <div className={`p-3 rounded-lg border border-dashed ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}>
                       <div className="text-center">
-                        <svg className={`mx-auto h-12 w-12 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`mx-auto h-8 w-8 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        <p className={`mt-2 text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          No Custom Roles Available
+                        <p className={`mt-1 text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          No Custom Roles
                         </p>
-                        <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
-                          Create custom roles in the Roles tab first, or continue with the base role only.
+                        <p className={`text-[9px] ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-0.5`}>
+                          Create custom roles first
                         </p>
                       </div>
                     </div>
@@ -531,38 +510,38 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
                 </div>
                 
                 <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Password {editingUser && <span className="font-normal text-gray-500">(leave blank to keep current)</span>}
+                  <label className={`block text-[11px] font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Password {editingUser && <span className="text-[9px] text-gray-500">(leave blank to keep)</span>}
                     {!editingUser && <span className="text-red-500"> *</span>}
                   </label>
                   <input
                     type="password"
                     value={form.password}
                     onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${
+                    className={`w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                     }`}
-                    placeholder={editingUser ? '••••••••' : 'Enter secure password'}
+                    placeholder={editingUser ? '••••••••' : 'Enter password'}
                   />
                 </div>
                 
-                <div className={`p-4 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                  <label className={`flex items-center gap-3 cursor-pointer`}>
+                <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                  <label className={`flex items-center gap-2 cursor-pointer`}>
                     <input
                       type="checkbox"
                       id="isActive"
                       checked={form.isActive}
                       onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))}
-                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                      className="w-3 h-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <span className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Active User Account
+                      <span className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Active Account
                       </span>
-                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
-                        User can login and access the system
+                      <p className={`text-[9px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        User can login
                       </p>
                     </div>
                   </label>
@@ -571,37 +550,37 @@ export default function UsersManagement({ theme, isDark }: UsersManagementProps)
             </div>
             
             {/* Modal Footer */}
-            <div className={`px-6 py-4 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-              <div className="flex gap-3">
+            <div className={`px-3 py-2.5 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex gap-2">
                 <button 
                   onClick={save} 
                   disabled={saving}
-                  className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     isDark 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg' 
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
                   {saving ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <span className="flex items-center justify-center gap-1">
+                      <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                       Saving...
                     </span>
                   ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex items-center justify-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      {editingUser ? 'Update User' : 'Create User'}
+                      {editingUser ? 'Update' : 'Create'}
                     </span>
                   )}
                 </button>
                 <button 
                   onClick={() => setShowForm(false)} 
-                  className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     isDark 
                       ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
