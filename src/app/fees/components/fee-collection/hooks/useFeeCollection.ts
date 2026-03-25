@@ -61,6 +61,7 @@ export function useFeeCollection(
   const [showDetailedReceipt, setShowDetailedReceipt] = useState(false);
   const [showHistoryReceipt, setShowHistoryReceipt] = useState(false);
   const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Payment processing states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -376,6 +377,8 @@ export function useFeeCollection(
     loadingPaymentHistory,
     discountHistoryData,
     loadingDiscountHistory,
+    showSuccessModal,
+    setShowSuccessModal,
     showReceipt,
     setShowReceipt,
     showDetailedReceipt,

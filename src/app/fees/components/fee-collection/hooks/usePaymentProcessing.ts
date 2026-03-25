@@ -20,6 +20,7 @@ export function usePaymentProcessing(
   setSelectedFees: (fees: string[]) => void,
   setCustomAmounts: (amounts: {[key: string]: number}) => void,
   setShowReceipt: (show: boolean) => void,
+  setShowSuccessModal: (show: boolean) => void,
   setShowUpiQr: (show: boolean) => void,
   setUpiQrCode: (code: string) => void,
   setUpiPaymentStatus: (status: 'pending' | 'checking' | 'confirmed') => void,
@@ -316,14 +317,8 @@ School Administration
       setSelectedFees([]);
       setCustomAmounts({});
 
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'success',
-          title: 'Payment Successful',
-          message: `Payment of ₹${stats.selectedFeesTotal.toLocaleString()} processed successfully`,
-          action: { label: 'View Receipt', onClick: () => setShowReceipt(true) }
-        });
-      }
+      // Show success modal instead of toast
+      setShowSuccessModal(true);
       
       if (onPaymentSuccess) {
         onPaymentSuccess();
@@ -331,7 +326,6 @@ School Administration
       
       fetchFines();
       sendPaymentConfirmationEmail(receiptPayload, 'cash');
-      setShowReceipt(true);
       
     } catch (err: any) {
       if ((window as any).toast) {
@@ -387,6 +381,21 @@ School Administration
   };
 
   const handleUpiPaymentConfirmation = async (stats: any, fines: any[]) => {
+    // Validate inputs before processing any payments
+    if (!stats || typeof stats.selectedFeesTotal !== 'number') {
+      if ((window as any).toast) {
+        (window as any).toast({ 
+          type: 'error', 
+          title: 'Payment Failed', 
+          message: 'Invalid payment statistics. Please refresh and try again.' 
+        });
+      }
+      return;
+    }
+    
+    // Ensure fines is an array (can be empty but not undefined)
+    const safeFines = Array.isArray(fines) ? fines : [];
+    
     setCheckingPayment(true);
     setUpiPaymentStatus('checking');
     
@@ -438,23 +447,14 @@ School Administration
         throw new Error('No unpaid fee selected for payment');
       }
 
-      const receiptPayload = buildLatestReceiptPayload(processedPayments, fines);
+      const receiptPayload = buildLatestReceiptPayload(processedPayments, safeFines);
       setLatestReceipt(receiptPayload);
       setSelectedFees([]);
       setCustomAmounts({});
       setUpiPaymentStatus('confirmed');
 
-      if ((window as any).toast) {
-        (window as any).toast({
-          type: 'success',
-          title: 'UPI Payment Confirmed',
-          message: `UPI payment of ₹${stats.selectedFeesTotal.toLocaleString()} processed successfully`,
-          action: { label: 'View Receipt', onClick: () => {
-            setShowUpiQr(false);
-            setShowReceipt(true);
-          }}
-        });
-      }
+      // Show success modal instead of toast
+      setShowSuccessModal(true);
       
       if (onPaymentSuccess) {
         onPaymentSuccess();
@@ -465,7 +465,6 @@ School Administration
       
       setTimeout(() => {
         setShowUpiQr(false);
-        setShowReceipt(true);
       }, 2000);
       
     } catch (err: any) {
@@ -666,21 +665,14 @@ School Administration
               setSelectedFees([]);
               setCustomAmounts({});
 
-              if ((window as any).toast) {
-                (window as any).toast({
-                  type: 'success',
-                  title: 'Payment Successful',
-                  message: `Payment of ₹${stats.selectedFeesTotal.toLocaleString()} processed successfully via Razorpay`,
-                  action: { label: 'View Receipt', onClick: () => setShowReceipt(true) }
-                });
-              }
+              // Show success modal instead of toast
+              setShowSuccessModal(true);
               
               if (onPaymentSuccess) {
                 onPaymentSuccess();
               }
               
               sendPaymentConfirmationEmail(receiptPayload, paymentMethod);
-              setShowReceipt(true);
             } else {
               throw new Error('Payment verification failed');
             }

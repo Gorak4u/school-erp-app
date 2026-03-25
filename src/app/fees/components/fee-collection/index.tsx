@@ -25,6 +25,7 @@ import DiscountsTab from './components/DiscountsTab';
 import HistoryTab from './components/HistoryTab';
 import FinesTab from './components/FinesTab';
 import ReceiptModals from './components/ReceiptModals';
+import SuccessModal from './components/SuccessModal';
 
 export default function EnhancedFeeCollection({ 
   theme, 
@@ -64,6 +65,8 @@ export default function EnhancedFeeCollection({
     loadingPaymentHistory,
     discountHistoryData,
     loadingDiscountHistory,
+    showSuccessModal,
+    setShowSuccessModal,
     showReceipt,
     setShowReceipt,
     showDetailedReceipt,
@@ -137,6 +140,7 @@ export default function EnhancedFeeCollection({
     setSelectedFees,
     setCustomAmounts,
     setShowReceipt,
+    setShowSuccessModal,
     setShowUpiQr,
     setUpiQrCode,
     setUpiPaymentStatus,
@@ -451,6 +455,18 @@ export default function EnhancedFeeCollection({
           )}
         </div>
       </div>
+
+      <SuccessModal
+        showSuccessModal={showSuccessModal}
+        setShowSuccessModal={setShowSuccessModal}
+        setShowDetailedReceipt={setShowDetailedReceipt}
+        latestReceipt={latestReceipt}
+        paymentMethod={paymentMethod}
+        isDark={isDark}
+        cardCls={cardCls}
+        textPrimary={textPrimary}
+        textSecondary={textSecondary}
+      />
 
       <ReceiptModals
         showReceipt={showReceipt}
