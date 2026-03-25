@@ -43,7 +43,7 @@ import FeeStructureModal from './components/FeeStructureModal';
 import EnhancedFeeStructureModal from './components/EnhancedFeeStructureModal';
 import FeeColumnSettingsModal from './components/FeeColumnSettingsModal';
 import StudentWorkflows from './components/StudentWorkflows';
-import EnhancedFeeCollection from './components/EnhancedFeeCollection';
+import EnhancedFeeCollection from './components/fee-collection';
 import FeeInvoiceManagerOptimized from './components/FeeInvoiceManager-Optimized';
 import FeeFinancialAnalytics from './components/FeeFinancialAnalytics';
 import FeeNotificationManager from './components/FeeNotificationManager';

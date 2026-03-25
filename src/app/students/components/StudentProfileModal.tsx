@@ -8,7 +8,7 @@ import StudentProfileTabs from './StudentProfileTabs';
 import StudentAnalytics from './StudentAnalytics';
 import StudentMedicalInfo from './StudentMedicalInfo';
 import StudentFines from './StudentFines';
-import EnhancedFeeCollection from '../../fees/components/EnhancedFeeCollection';
+import EnhancedFeeCollection from '../../fees/components/fee-collection';
 import AttendanceCalendar from '../../../components/attendance/AttendanceCalendar';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
@@ -874,6 +874,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                   <StudentProfileTabs
                     activeTab={activeTab}
                     selectedStudent={selectedStudent}
+                    feeData={feeData}
                     setFeeManagement={setFeeManagement}
                     setAttendanceTracking={setAttendanceTracking}
                     setParentPortal={setParentPortal}

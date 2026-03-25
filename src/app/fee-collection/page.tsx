@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { RequirePermission } from '@/components/PermissionGuard';
 import { useTheme } from '@/contexts/ThemeContext';
-import EnhancedFeeCollection from '../fees/components/EnhancedFeeCollection';
+import EnhancedFeeCollection from '../fees/components/fee-collection';
 
 export default function FeeCollectionPage() {
   const { theme } = useTheme();

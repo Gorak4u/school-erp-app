@@ -203,8 +203,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "school"."Student" s ON f."studentId" = s.id
       WHERE f."schoolId" = $1
       ${studentId ? `AND f."studentId" = $2` : ''}
-      ${studentClass ? `AND s.class = $${studentId ? 3 : 2}` : ''}
-      ${status ? `AND f.status = $${studentId ? (studentClass ? 4 : 3) : (studentClass ? 3 : 2)}` : ''}
+      ${status ? `AND f.status = $${studentId ? 3 : 2}` : ''}
     `;
 
     // Execute optimized queries in parallel
@@ -212,7 +211,7 @@ export async function GET(request: NextRequest) {
       schoolPrisma.$queryRawUnsafe(query),
       schoolPrisma.$queryRawUnsafe(countQuery),
       schoolPrisma.$queryRawUnsafe(summaryQuery),
-      schoolPrisma.$queryRawUnsafe(finesSummaryQuery, ctx.schoolId, ...(studentId ? [studentId] : []), ...(studentClass ? [studentClass] : []), ...(status ? [status] : []))
+      schoolPrisma.$queryRawUnsafe(finesSummaryQuery, ctx.schoolId, ...(studentId ? [studentId] : []), ...(status ? [status] : []))
     ]);
 
     console.log('DEBUG - Fee Records Results:', {

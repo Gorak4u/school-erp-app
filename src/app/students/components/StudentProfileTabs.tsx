@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 interface StudentProfileTabsProps {
   activeTab: string;
   selectedStudent: any;
+  feeData?: any; // Fee data with fines-inclusive totals
   setFeeManagement: any;
   setAttendanceTracking: any;
   setParentPortal: any;
@@ -61,7 +62,7 @@ function StatusBadge({ status, theme }: { status: string; theme: string }) {
 }
 
 export default function StudentProfileTabs({
-  activeTab, selectedStudent, setFeeManagement, setAttendanceTracking,
+  activeTab, selectedStudent, feeData, setFeeManagement, setAttendanceTracking,
   setParentPortal, setCommunicationCenter, theme, setShowCalendarModal, setCalendarStudent
 }: StudentProfileTabsProps) {
   const { isAdmin, hasPermission } = usePermissions();
@@ -86,7 +87,37 @@ export default function StudentProfileTabs({
 
   if (!selectedStudent) return null;
 
+  // Use feeData if available (has fines-inclusive totals from API)
+  // Otherwise fall back to selectedStudent properties
+  const dataSource = feeData || selectedStudent;
+  
+  // Fines-inclusive totals from API response
+  const totalFees = dataSource.totalFees || 0;
+  const totalPaid = dataSource.totalPaid || 0;
+  const totalPending = dataSource.totalPending || 0;
+  const totalDiscount = dataSource.totalDiscount || 0;
+  const totalOverdue = dataSource.totalOverdue || 0;
+  
+  // Fines breakdown (separate from fees)
+  const finesTotal = dataSource.finesTotal || 0;
+  const finesPaid = dataSource.finesPaid || 0;
+  const finesPending = dataSource.finesPending || 0;
+  const finesWaived = dataSource.finesWaived || 0;
+  const pendingFinesCount = dataSource.pendingFinesCount || 0;
+  
+  // Legacy fallback for backward compatibility
   const fees = selectedStudent.fees || {};
+  const legacyTotal = fees.total || 0;
+  const legacyPaid = fees.paid || 0;
+  const legacyPending = fees.pending || 0;
+  const legacyDiscount = fees.discount || 0;
+  
+  // Use new fines-inclusive values if available, otherwise fall back to legacy
+  const displayTotal = totalFees || legacyTotal;
+  const displayPaid = totalPaid || legacyPaid;
+  const displayPending = totalPending || legacyPending;
+  const displayDiscount = totalDiscount || legacyDiscount;
+  
   const att = selectedStudent.attendance || {};
   const totalDays = (att.present || 0) + (att.absent || 0) + (att.late || 0);
 
@@ -109,13 +140,49 @@ export default function StudentProfileTabs({
             )}
           </div>
 
-          {/* Summary from student object — always present */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard title="Total Fees" val={`₹${(fees.total || 0).toLocaleString()}`} color={theme === 'dark' ? 'text-white' : 'text-gray-900'} theme={theme} />
-            <StatCard title="Paid" val={`₹${(fees.paid || 0).toLocaleString()}`} color="text-green-500" theme={theme} />
-            <StatCard title="Pending" val={`₹${(fees.pending || 0).toLocaleString()}`} color="text-yellow-500" theme={theme} />
-            <StatCard title="Discount" val={`₹${(fees.discount || 0).toLocaleString()}`} color="text-blue-500" theme={theme} />
+          {/* Summary — includes fines in totals with fines breakdown */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatCard title="Total" val={`₹${displayTotal.toLocaleString()}`} color={theme === 'dark' ? 'text-white' : 'text-gray-900'} theme={theme} />
+            <StatCard title="Paid" val={`₹${displayPaid.toLocaleString()}`} color="text-green-500" theme={theme} />
+            <StatCard title="Pending" val={`₹${displayPending.toLocaleString()}`} color="text-yellow-500" theme={theme} />
+            <StatCard title="Discount" val={`₹${displayDiscount.toLocaleString()}`} color="text-blue-500" theme={theme} />
+            {finesPending > 0 && (
+              <StatCard title="Fines Pending" val={`₹${finesPending.toLocaleString()}`} color="text-orange-500" theme={theme} />
+            )}
+            {totalOverdue > 0 && (
+              <StatCard title="Overdue" val={`₹${totalOverdue.toLocaleString()}`} color="text-red-500" theme={theme} />
+            )}
           </div>
+
+          {/* Fines breakdown section */}
+          {(finesTotal > 0) && (
+            <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'border-orange-800 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>📝 Fines Summary</h4>
+                <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-orange-800 text-orange-200' : 'bg-orange-100 text-orange-700'}`}>
+                  {pendingFinesCount} pending
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Total:</span>
+                  <span className={`ml-2 font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>₹{finesTotal.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Paid:</span>
+                  <span className="ml-2 font-medium text-green-500">₹{finesPaid.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Pending:</span>
+                  <span className="ml-2 font-medium text-orange-500">₹{finesPending.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Waived:</span>
+                  <span className="ml-2 font-medium text-purple-500">₹{finesWaived.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {fees.lastPaymentDate && (
             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
