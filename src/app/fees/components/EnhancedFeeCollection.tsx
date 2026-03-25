@@ -1426,22 +1426,45 @@ School Administration
 
             {/* Fines Tile Card - Only show if fines are present */}
             {finesStats && (
-              <div className={`${cardCls} p-6 rounded-xl border`}>
+              <div className={`${cardCls} p-3 rounded-lg border`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={`text-sm ${textSecondary}`}>Fines</p>
-                    <p className={`text-2xl font-bold ${textPrimary}`}>₹{finesStats.totalFinesPending.toLocaleString()}</p>
-                    <p className={`text-xs ${textSecondary}`}>{finesStats.pendingFinesCount} pending</p>
+                    <p className={`text-[10px] ${textSecondary}`}>Fines</p>
+                    <p className={`text-lg font-bold ${textPrimary}`}>₹{finesStats.totalFinesPending.toLocaleString()}</p>
+                    <p className={`text-[9px] ${textSecondary}`}>
+                      Total: ₹{finesStats.totalFines.toLocaleString()}
+                    </p>
                   </div>
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <FileText className="w-6 h-6 text-orange-600" />
+                  <div className={`p-1.5 rounded ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+                    <FileText className="w-4 h-4 text-orange-600" />
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between text-xs">
-                    <span className={textSecondary}>Total: ₹{finesStats.totalFines.toLocaleString()}</span>
-                    <span className={textSecondary}>Paid: ₹{finesStats.totalFinesPaid.toLocaleString()}</span>
-                    <span className={textSecondary}>Waived: ₹{finesStats.totalFinesWaived.toLocaleString()}</span>
+                
+                {/* Progress Bar */}
+                <div className="mt-2 space-y-1">
+                  <div className="h-1.5 w-full rounded-full overflow-hidden flex">
+                    {finesStats.totalFinesPaid > 0 && (
+                      <div className="bg-green-500 h-full" style={{ width: `${(finesStats.totalFinesPaid / finesStats.totalFines) * 100}%` }} />
+                    )}
+                    {finesStats.totalFinesWaived > 0 && (
+                      <div className="bg-purple-500 h-full" style={{ width: `${(finesStats.totalFinesWaived / finesStats.totalFines) * 100}%` }} />
+                    )}
+                    {finesStats.totalFinesPending > 0 && (
+                      <div className="bg-orange-500 h-full" style={{ width: `${(finesStats.totalFinesPending / finesStats.totalFines) * 100}%` }} />
+                    )}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-2 text-[9px] leading-tight">
+                    {finesStats.totalFinesPending > 0 && (
+                      <span className="text-orange-600 font-medium">Pending: ₹{finesStats.totalFinesPending.toLocaleString()}</span>
+                    )}
+                    {finesStats.totalFinesPaid > 0 && (
+                      <span className="text-green-600">Paid: ₹{finesStats.totalFinesPaid.toLocaleString()}</span>
+                    )}
+                    {finesStats.totalFinesWaived > 0 && (
+                      <span className="text-purple-600">Waived: ₹{finesStats.totalFinesWaived.toLocaleString()}</span>
+                    )}
                   </div>
                 </div>
               </div>
