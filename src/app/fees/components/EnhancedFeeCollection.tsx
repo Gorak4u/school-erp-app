@@ -2331,57 +2331,6 @@ School Administration
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className={`${cardCls} p-6 rounded-xl border`}>
-              <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => {
-                    // Handle create new fine
-                  }}
-                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
-                    isDark 
-                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
-                  }`}
-                >
-                  <FileText className="w-6 h-6 mb-2 mx-auto text-orange-500" />
-                  <p className="font-medium">Create New Fine</p>
-                  <p className={`text-sm ${textSecondary}`}>Issue a new fine</p>
-                </button>
-
-                <button
-                  onClick={() => {
-                    // Handle bulk payment
-                  }}
-                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
-                    isDark 
-                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
-                  }`}
-                >
-                  <DollarSign className="w-6 h-6 mb-2 mx-auto text-green-500" />
-                  <p className="font-medium">Pay All Pending</p>
-                  <p className={`text-sm ${textSecondary}`}>Pay ₹{finesStats?.totalFinesPending?.toLocaleString() || 0}</p>
-                </button>
-
-                <button
-                  onClick={() => {
-                    // Handle export
-                  }}
-                  className={`p-4 rounded-lg border transition-all hover:scale-105 ${
-                    isDark 
-                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-900'
-                  }`}
-                >
-                  <Calendar className="w-6 h-6 mb-2 mx-auto text-blue-500" />
-                  <p className="font-medium">Export Report</p>
-                  <p className={`text-sm ${textSecondary}`}>Download fines report</p>
-                </button>
-              </div>
-            </div>
-
             {/* Fines History */}
             <div className={`${cardCls} p-6 rounded-xl border`}>
               <div className="flex items-center justify-between mb-6">
@@ -2405,67 +2354,55 @@ School Administration
                   </div>
                 </div>
               ) : fines && fines.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {fines.map((fine: any) => (
                     <motion.div
                       key={fine.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className={`p-4 rounded-lg border transition-all hover:scale-[1.02] ${
+                      className={`p-1.5 rounded border transition-all hover:scale-[1.02] ${
                         fine.status === 'paid' 
-                          ? 'border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-800' 
+                          ? isDark ? 'border-green-800 bg-green-900/20' : 'border-green-200 bg-green-50'
                           : fine.status === 'waived'
-                          ? 'border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800'
-                          : 'border-orange-200 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-800'
+                          ? isDark ? 'border-purple-800 bg-purple-900/20' : 'border-purple-200 bg-purple-50'
+                          : isDark ? 'border-orange-800 bg-orange-900/20' : 'border-orange-200 bg-orange-50'
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`font-mono text-sm font-semibold ${
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-mono text-[10px] font-semibold ${
                               fine.status === 'paid' ? 'text-green-600' :
                               fine.status === 'waived' ? 'text-purple-600' : 'text-orange-600'
                             }`}>
                               {fine.fineNumber}
                             </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            <span className={`px-1 py-0 rounded-full text-[9px] font-medium ${
                               fine.status === 'paid' ? 'bg-green-100 text-green-700' :
                               fine.status === 'waived' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
                             }`}>
                               {fine.status.charAt(0).toUpperCase() + fine.status.slice(1)}
                             </span>
                           </div>
-                          <h4 className={`font-medium ${textPrimary} mb-1`}>{fine.description}</h4>
-                          <p className={`text-sm ${textSecondary} mb-2`}>{fine.category}</p>
-                          <div className="flex items-center gap-4 text-xs">
+                          <h4 className={`font-medium ${textPrimary} text-xs truncate leading-tight`}>{fine.description}</h4>
+                          <div className="flex items-center gap-2 text-[9px] leading-none">
                             <span className={`${textSecondary}`}>
-                              <Calendar className="w-3 h-3 inline mr-1" />
-                              Issued: {new Date(fine.issuedAt).toLocaleDateString()}
+                              <Calendar className="w-2.5 h-2.5 inline mr-0.5" />
+                              {new Date(fine.issuedAt).toLocaleDateString()}
                             </span>
                             <span className={`${textSecondary}`}>
-                              <Clock className="w-3 h-3 inline mr-1" />
-                              Due: {new Date(fine.dueDate).toLocaleDateString()}
+                              <Clock className="w-2.5 h-2.5 inline mr-0.5" />
+                              {new Date(fine.dueDate).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-lg font-bold ${textPrimary}`}>₹{fine.amount.toLocaleString()}</p>
-                          <p className={`text-sm ${fine.status === 'paid' ? 'text-green-600' : fine.status === 'waived' ? 'text-purple-600' : 'text-orange-600'}`}>
+                        <div className="text-right flex-shrink-0 leading-tight">
+                          <p className={`font-bold ${textPrimary} text-xs`}>₹{fine.amount.toLocaleString()}</p>
+                          <p className={`text-[9px] ${fine.status === 'paid' ? 'text-green-600' : fine.status === 'waived' ? 'text-purple-600' : 'text-orange-600'}`}>
                             {fine.status === 'paid' ? 'Paid' : 
                              fine.status === 'waived' ? 'Waived' : 
-                             `₹${fine.pendingAmount.toLocaleString()} pending`}
+                             `₹${fine.pendingAmount.toLocaleString()}`}
                           </p>
-                          {fine.pendingAmount > 0 && (
-                            <button
-                              className={`mt-2 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                                isDark 
-                                  ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                                  : 'bg-orange-500 hover:bg-orange-600 text-white'
-                              }`}
-                            >
-                              Pay Now
-                            </button>
-                          )}
                         </div>
                       </div>
                     </motion.div>
