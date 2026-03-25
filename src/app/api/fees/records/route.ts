@@ -19,16 +19,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '25');
 
-    console.log('DEBUG - Fee Records API:', {
-      studentId,
-      status,
-      academicYear,
-      search,
-      page,
-      pageSize,
-      requestUrl: request.url
-    });
-
     // Build WHERE conditions for optimized querying
     const whereConditions = [];
     const havingConditions = [];
@@ -154,12 +144,6 @@ export async function GET(request: NextRequest) {
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
     `;
 
-    console.log('DEBUG - Fee Records SQL:', {
-      whereClause,
-      havingClause,
-      query: query.substring(0, 200) + '...'
-    });
-
     const countQuery = `
       SELECT COUNT(*) as total
       FROM (
@@ -213,17 +197,6 @@ export async function GET(request: NextRequest) {
       schoolPrisma.$queryRawUnsafe(summaryQuery),
       schoolPrisma.$queryRawUnsafe(finesSummaryQuery, ctx.schoolId, ...(studentId ? [studentId] : []), ...(status ? [status] : []))
     ]);
-
-    console.log('DEBUG - Fee Records Results:', {
-      recordsCount: recordsResult.length,
-      sampleRecords: recordsResult.slice(0, 2).map((r: any) => ({
-        id: r.id,
-        academicYear: r.academicYear,
-        studentName: r.studentName,
-        feeStructureName: r.feeStructureName,
-        amount: r.amount
-      }))
-    });
 
     // Handle BigInt serialization
     const safeParseInt = (value: any) => {
