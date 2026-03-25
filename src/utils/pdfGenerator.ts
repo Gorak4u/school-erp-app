@@ -77,52 +77,64 @@ export class PDFGenerator {
       className: '',
       fatherName: '',
       feeItems: [],
+      fines: [],
       totalAmount: 0
     };
 
-    // Try to extract data from common selectors
-    const titleElement = element.querySelector('h1, .title, .school-name');
-    if (titleElement) data.schoolName = titleElement.textContent || '';
+    // Try to extract data from common selectors (matching UnifiedPaymentReceipt classes)
+    const titleElement = element.querySelector('.school-name, h1');
+    if (titleElement) data.schoolName = titleElement.textContent?.trim() || '';
 
-    const receiptNumberElement = element.querySelector('.receipt-number, .reference, [data-receipt]');
-    if (receiptNumberElement) data.receiptNumber = receiptNumberElement.textContent || '';
+    const receiptNumberElement = element.querySelector('.receipt-number, [data-receipt]');
+    if (receiptNumberElement) data.receiptNumber = receiptNumberElement.textContent?.trim() || '';
 
-    const dateElement = element.querySelector('.date, .payment-date, [data-date]');
-    if (dateElement) data.paymentDate = dateElement.textContent || '';
+    const dateElement = element.querySelector('.payment-date, [data-date]');
+    if (dateElement) data.paymentDate = dateElement.textContent?.trim() || '';
 
-    const methodElement = element.querySelector('.method, .payment-method, [data-method]');
-    if (methodElement) data.paymentMethod = methodElement.textContent || '';
+    const methodElement = element.querySelector('.payment-method, [data-method]');
+    if (methodElement) data.paymentMethod = methodElement.textContent?.trim() || '';
 
-    const studentNameElement = element.querySelector('.student-name, .name, [data-student]');
-    if (studentNameElement) data.studentName = studentNameElement.textContent || '';
+    const studentNameElement = element.querySelector('.student-name, [data-student]');
+    if (studentNameElement) data.studentName = studentNameElement.textContent?.trim() || '';
 
-    const admissionElement = element.querySelector('.admission-no, .admission, [data-admission]');
-    if (admissionElement) data.admissionNo = admissionElement.textContent || '';
+    const admissionElement = element.querySelector('.admission-no, [data-admission]');
+    if (admissionElement) data.admissionNo = admissionElement.textContent?.trim() || '';
 
-    const classElement = element.querySelector('.class, .grade, [data-class]');
-    if (classElement) data.className = classElement.textContent || '';
+    const classElement = element.querySelector('.class-name, [data-class]');
+    if (classElement) data.className = classElement.textContent?.trim() || '';
 
-    const fatherElement = element.querySelector('.father-name, .parent-name, [data-father]');
-    if (fatherElement) data.fatherName = fatherElement.textContent || '';
+    const fatherElement = element.querySelector('.father-name, [data-father]');
+    if (fatherElement) data.fatherName = fatherElement.textContent?.trim() || '';
 
-    // Extract fee items from table rows
-    const tableRows = element.querySelectorAll('table tr, .fee-row, .payment-row');
-    tableRows.forEach((row, index) => {
-      if (index === 0) return; // Skip header
+    // Extract fee items from table rows (Payment Captured table - first table with fee details)
+    const feeTables = element.querySelectorAll('table');
+    feeTables.forEach((table) => {
+      const headerText = table.textContent?.toLowerCase() || '';
+      const rows = table.querySelectorAll('tbody tr');
       
-      const cells = row.querySelectorAll('td, .fee-cell, .payment-cell');
-      if (cells.length >= 2) {
-        (data.feeItems as any).push({
-          description: cells[0].textContent || 'Fee Payment',
-          amount: this.extractAmount(cells[1].textContent),
-          paid: this.extractAmount(cells[2]?.textContent || cells[1].textContent),
-          balance: this.extractAmount(cells[3]?.textContent || '0')
+      // Check if this is the payment/paid items table
+      if (headerText.includes('payment captured') || headerText.includes('fee') || headerText.includes('paid')) {
+        rows.forEach((row) => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 2) {
+            const description = cells[1]?.textContent?.trim() || ''; // Fee Head column
+            const amount = this.extractAmount(cells[5]?.textContent); // Collected column
+            const isFine = description.toLowerCase().includes('fine');
+            
+            if (description && amount > 0) {
+              (data.feeItems as any).push({
+                description,
+                amount,
+                isFine
+              });
+            }
+          }
         });
       }
     });
 
-    // Calculate total
-    data.totalAmount = (data.feeItems as any).reduce((sum: number, item: Record<string, unknown>) => sum + ((item.paid as number) || 0), 0);
+    // Calculate total from fee items
+    data.totalAmount = (data.feeItems as any).reduce((sum: number, item: Record<string, unknown>) => sum + ((item.amount as number) || 0), 0);
 
     return data;
   }
@@ -199,16 +211,41 @@ export class PDFGenerator {
             </tr>
           </thead>
           <tbody>
-            ${(data.feeItems as any)?.map((item: Record<string, unknown>) => `
+            ${(data.feeItems as any)?.filter((item: any) => !item.isFine).map((item: Record<string, unknown>) => `
               <tr>
                 <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">${item.description || 'Fee Payment'}</td>
                 <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.paid || 0).toLocaleString('en-IN')}</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.paid || item.amount || 0).toLocaleString('en-IN')}</td>
                 <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.balance || 0).toLocaleString('en-IN')}</td>
               </tr>
             `).join('') || '<tr><td colspan="4" style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">No fee details available</td></tr>'}
           </tbody>
         </table>
+        
+        <!-- Fines Section (if any) -->
+        ${(data.feeItems as any)?.some((item: any) => item.isFine) ? `
+        <div style="margin-bottom: 30px;">
+          <div style="font-size: 16px; font-weight: bold; color: #000000; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb;">Fines & Penalties</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Description</th>
+                <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Amount</th>
+                <th style="background: #f3f4f6; color: #000000; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(data.feeItems as any)?.filter((item: any) => item.isFine).map((item: Record<string, unknown>) => `
+                <tr>
+                  <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">${item.description || 'Fine'}</td>
+                  <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                  <td style="padding: 12px; border: 1px solid #e5e7eb; color: #000000;">Paid</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
         
         <!-- Total -->
         <div style="text-align: right; font-size: 18px; font-weight: bold; color: #000000; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">

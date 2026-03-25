@@ -154,7 +154,7 @@ export default function UnifiedPaymentReceipt({
         className={`w-full max-w-[900px] mx-auto overflow-hidden ${card}`}
         style={{ width: '100%', maxWidth: '900px', overflowX: 'hidden' }}
       >
-        <div className={`p-8 pb-6 border-b ${isDark ? 'border-gray-700 bg-gradient-to-br from-gray-800 via-blue-950/20 to-indigo-950/20' : 'border-gray-200 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/60'}`}>
+        <div className={`p-8 pb-6 border-b ${isDark ? 'border-gray-700 bg-gradient-to-br from-gray-800 via-blue-950/20 to-indigo-950/20' : 'border-gray-200 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/60'} receipt-header`}>
           <SchoolHeader variant="print" className="mb-6" />
 
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -162,30 +162,30 @@ export default function UnifiedPaymentReceipt({
               <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${isDark ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
                 Fee Statement Receipt
               </div>
-              <h1 className={`mt-3 text-3xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{schoolName}</h1>
+              <h1 className={`mt-3 text-3xl font-black ${isDark ? 'text-white' : 'text-gray-900'} school-name`}>{schoolName}</h1>
               {paymentMeta.length > 0 && (
                 <p className={`mt-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>{paymentMeta.join(' • ')}</p>
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 min-w-[260px]">
+            <div className="grid grid-cols-1 gap-3 min-w-[260px] payment-info">
               <div className={subtleCard}>
                 <div className="p-4">
                   <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Receipt Reference</p>
-                  <p className={`mt-1 text-lg font-bold font-mono break-all ${isDark ? 'text-white' : 'text-gray-900'}`}>{primaryReference}</p>
+                  <p className={`mt-1 text-lg font-bold font-mono break-all ${isDark ? 'text-white' : 'text-gray-900'} receipt-number`}>{primaryReference}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className={subtleCard}>
                   <div className="p-4">
                     <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Date</p>
-                    <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{normalizedReceiptDate}</p>
+                    <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'} payment-date`}>{normalizedReceiptDate}</p>
                   </div>
                 </div>
                 <div className={subtleCard}>
                   <div className="p-4">
                     <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Method</p>
-                    <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{payMethodLabel(paymentMethod)}</p>
+                    <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'} payment-method`}>{payMethodLabel(paymentMethod)}</p>
                   </div>
                 </div>
               </div>
@@ -194,18 +194,18 @@ export default function UnifiedPaymentReceipt({
         </div>
 
         <div className={`px-8 py-6 border-b ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-gray-200 bg-white'}`}>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 student-info-section">
             {[
-              { label: 'Student Name', value: studentName },
-              { label: 'Class & Section', value: studentClass },
-              { label: 'Admission / Roll', value: rollNo },
-              { label: 'Parent / Guardian', value: parentName },
-              { label: 'Received By', value: collectedBy },
-            ].map(({ label, value }) => (
+              { label: 'Student Name', value: studentName, className: 'student-name' },
+              { label: 'Class & Section', value: studentClass, className: 'class-name' },
+              { label: 'Admission / Roll', value: rollNo, className: 'admission-no' },
+              { label: 'Parent / Guardian', value: parentName, className: 'father-name' },
+              { label: 'Received By', value: collectedBy, className: 'collected-by' },
+            ].map(({ label, value, className }) => (
               <div key={label} className={subtleCard}>
                 <div className="px-4 py-3">
                   <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
-                  <p className={`mt-1 text-sm font-semibold break-words ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+                  <p className={`mt-1 text-sm font-semibold break-words ${isDark ? 'text-white' : 'text-gray-900'} ${className}`}>{value}</p>
                 </div>
               </div>
             ))}
