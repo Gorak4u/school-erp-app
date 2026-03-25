@@ -8,13 +8,14 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useFinesWebSocket } from '@/hooks/useWebSocket';
 import { useNotifications } from '@/components/RealTimeNotifications';
 import RealTimeNotifications from '@/components/RealTimeNotifications';
+import BulkFineModal from '@/components/BulkFineModal';
 import { ALL_PERMISSIONS } from '@/lib/permissions';
 import { showSuccess, showError, showWarning, showInfo } from '@/components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Plus, Search, Filter, Eye, Edit, Ban, Trash2, 
   Clock, AlertCircle, CheckCircle, XCircle, CreditCard,
-  Download, ChevronDown, CheckSquare, Square
+  Download, ChevronDown, CheckSquare, Square, Users
 } from 'lucide-react';
 
 export default function FinesPage() {
@@ -52,8 +53,10 @@ export default function FinesPage() {
   const [pendingWaiverCount, setPendingWaiverCount] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [showBulkFineModal, setShowBulkFineModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [waiverLoading, setWaiverLoading] = useState(false);
+  const [bulkFineLoading, setBulkFineLoading] = useState(false);
   const [selectedFineForWaiver, setSelectedFineForWaiver] = useState<any>(null);
   
   // Bulk operations state
@@ -296,6 +299,81 @@ export default function FinesPage() {
       showError('Creation Failed', error.message || 'Failed to create fine');
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const handleBulkFine = async (bulkData: any) => {
+    setBulkFineLoading(true);
+    try {
+      const response = await fetch('/api/fines/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bulkData),
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create bulk fines');
+      }
+      
+      // Refresh fines list
+      fetchFines();
+      
+      // Close modal
+      setShowBulkFineModal(false);
+      
+      // Show success message with error details if any
+      if (data.data.errorCount > 0) {
+        // Log detailed errors for debugging
+        console.group('🔍 Bulk Fine Operation Details');
+        console.log('📊 Summary:', {
+          totalProcessed: data.data.totalProcessed,
+          successCount: data.data.successCount,
+          errorCount: data.data.errorCount
+        });
+        console.log('✅ Successfully Created:', data.data.fines);
+        console.log('❌ Errors:', data.data.errors);
+        console.groupEnd();
+        
+        // Show user-friendly message
+        if (data.data.successCount > 0) {
+          showWarning(
+            'Bulk Fines - Partial Success', 
+            `${data.data.successCount} fines created successfully, ${data.data.errorCount} failed. Check console for details.`
+          );
+        } else {
+          showError(
+            'Bulk Fines Failed', 
+            `All ${data.data.errorCount} fines failed to create. Check console for details.`
+          );
+        }
+      } else {
+        showSuccess(
+          'Bulk Fines Created Successfully', 
+          `Successfully created ${data.data.successCount} fines`
+        );
+      }
+      
+      // Send real-time notification
+      addNotification({
+        type: 'fine_created',
+        title: 'Bulk Fines Created',
+        message: `${data.data.successCount} fines created for ${bulkData.targetType}: ${bulkData.targetValue}`,
+        data: {
+          targetType: bulkData.targetType,
+          targetValue: bulkData.targetValue,
+          successCount: data.data.successCount,
+          totalAmount: data.data.successCount * parseFloat(bulkData.amount)
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('Error creating bulk fines:', error);
+      showError('Bulk Creation Failed', error.message || 'Failed to create bulk fines');
+    } finally {
+      setBulkFineLoading(false);
     }
   };
 
@@ -694,10 +772,16 @@ export default function FinesPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 w-full xl:w-auto">
               {canManageFines && (
-                <button className={btnPrimary} onClick={handleCreateFine}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Fine
-                </button>
+                <>
+                  <button className={btnPrimary} onClick={handleCreateFine}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Fine
+                  </button>
+                  <button className={`${btnSecondary} border-blue-500 text-blue-600 hover:bg-blue-50`} onClick={() => setShowBulkFineModal(true)}>
+                    <Users className="w-4 h-4 mr-2" />
+                    Bulk Fine
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1012,7 +1096,7 @@ export default function FinesPage() {
                               {fine.student?.name || 'Unknown Student'}
                             </div>
                             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {fine.student?.admissionNo || 'N/A'} • {fine.student?.class || 'N/A'} - {fine.student?.section || 'N/A'}
+                              {fine.student?.admissionNo || 'N/A'} • {fine.student?.class || 'N/A'}{fine.student?.section && fine.student?.section.trim() !== '' ? ` - ${fine.student?.section}` : ''}
                             </div>
                           </div>
                         </td>
@@ -1146,7 +1230,7 @@ export default function FinesPage() {
                               {request.fine?.student?.name || 'Unknown Student'}
                             </div>
                             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {request.fine?.student?.admissionNo || 'N/A'} • {request.fine?.student?.class || 'N/A'} - {request.fine?.student?.section || 'N/A'}
+                              {request.fine?.student?.admissionNo || 'N/A'} • {request.fine?.student?.class || 'N/A'}{request.fine?.student?.section && request.fine?.student?.section.trim() !== '' ? ` - ${request.fine?.student?.section}` : ''}
                             </div>
                           </div>
                         </td>
@@ -1156,10 +1240,10 @@ export default function FinesPage() {
                               {request.fine?.fineNumber || 'N/A'}
                             </div>
                             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {request.fine?.type || 'N/A'} • {request.fine?.category || 'N/A'}
+                              {request.fine?.type || request.fineType || 'Fine'}{request.fine?.category || request.fineCategory ? ` • ${request.fine?.category || request.fineCategory}` : ''}
                             </div>
                             <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} truncate max-w-xs`}>
-                              {request.fine?.description || 'No description'}
+                              {request.fine?.description || request.reason || 'Waiver request'}
                             </div>
                           </div>
                         </td>
@@ -1355,7 +1439,7 @@ export default function FinesPage() {
                                 {student.name}
                               </div>
                               <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {student.admissionNo || student.rollNo || 'N/A'} • {student.class || 'N/A'} - {student.section || 'N/A'}
+                                {student.admissionNo || student.rollNo || 'N/A'} • {student.class || 'N/A'}{student.section && student.section.trim() !== '' ? ` - ${student.section}` : ''}
                               </div>
                             </button>
                           ))}
@@ -1669,6 +1753,15 @@ export default function FinesPage() {
         onClear={clearNotifications}
         onMarkAsRead={markAsRead}
         onRemove={removeNotification}
+        theme={theme}
+      />
+      
+      {/* Bulk Fine Modal */}
+      <BulkFineModal
+        isOpen={showBulkFineModal}
+        onClose={() => setShowBulkFineModal(false)}
+        onSubmit={handleBulkFine}
+        loading={bulkFineLoading}
         theme={theme}
       />
     </AppLayout>
