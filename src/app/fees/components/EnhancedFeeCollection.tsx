@@ -628,8 +628,8 @@ School Administration
       name: 'UPI Payment', 
       icon: <Zap className="w-5 h-5" />, 
       color: colors.cyan,
-      description: 'Instant UPI transfer (1% processing fee)',
-      fee: 25
+      description: 'Instant UPI transfer (0% processing fee)',
+      fee: 0
     },
     { 
       id: 'netbanking', 
