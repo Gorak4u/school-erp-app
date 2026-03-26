@@ -675,7 +675,12 @@ export default function StudentsPageRefactored() {
                 onPromoteBulk={handlePromoteBulk} 
                 onPromoteClass={handlePromoteClass} 
                 canPromoteStudents={canPromoteStudents} 
-                canManageStudentBulk={canManageStudentBulk} 
+                canManageStudentBulk={canManageStudentBulk}
+                themeConfig={themeConfig}
+                getCardClass={getCardClass}
+                getInputClass={getInputClass}
+                getBtnClass={getBtnClass}
+                getTextClass={getTextClass}
               />
 
               <StudentTable 

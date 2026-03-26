@@ -1,8 +1,37 @@
-// @ts-nocheck
 'use client';
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Search,
+  Filter,
+  X,
+  Plus,
+  Download,
+  Settings,
+  ChevronDown,
+  Calendar,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Save,
+  Trash2,
+  Eye,
+  EyeOff,
+  SlidersHorizontal,
+  Zap,
+  Hash,
+  Heart,
+  BarChart3,
+  TrendingUp
+} from 'lucide-react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 
@@ -53,6 +82,11 @@ interface StudentFiltersProps {
   onPromoteClass?: (cls: string, section: string) => void;
   canPromoteStudents?: boolean;
   canManageStudentBulk?: boolean;
+  themeConfig?: any;
+  getCardClass?: () => string;
+  getInputClass?: () => string;
+  getBtnClass?: (type?: 'primary' | 'secondary' | 'danger' | 'success') => string;
+  getTextClass?: (type?: 'primary' | 'secondary' | 'muted' | 'accent') => string;
 }
 
 export default function StudentFilters({
@@ -67,146 +101,368 @@ export default function StudentFilters({
   setSelectedLanguage, setSelectedStatus, setSelectedStudents, includeArchivedStudents, setIncludeArchivedStudents,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowColumnSettings,
   setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme,
-  onPromoteBulk, onPromoteClass
+  onPromoteBulk, onPromoteClass,
+  themeConfig,
+  getCardClass,
+  getInputClass,
+  getBtnClass,
+  getTextClass
 }: StudentFiltersProps) {
   const { dropdowns } = useSchoolConfig();
   const dbClasses = dropdowns.classes;
   const dbMediums = dropdowns.mediums;
-
-  const selectClass = `w-full px-3 py-2 rounded-lg text-sm border transition-colors ${
-    theme === 'dark'
-      ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
-      : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
-  } outline-none`;
-
-  const inputClass = `w-full px-3 py-2 rounded-lg text-sm border transition-colors ${
-    theme === 'dark'
-      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-  } outline-none`;
+  const isDark = theme === 'dark';
+  
+  // Use provided theme functions or fallback
+  const cardClass = getCardClass?.() || (isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200');
+  const inputClass = getInputClass?.() || (isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400');
+  const primaryBtnClass = getBtnClass?.('primary') || 'bg-gradient-to-r from-blue-600 to-purple-600 text-white';
+  const secondaryBtnClass = getBtnClass?.('secondary') || (isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800');
+  const dangerBtnClass = getBtnClass?.('danger') || 'bg-red-600 text-white';
+  const successBtnClass = getBtnClass?.('success') || 'bg-green-600 text-white';
+  const primaryTextClass = getTextClass?.('primary') || (isDark ? 'text-white' : 'text-gray-900');
+  const secondaryTextClass = getTextClass?.('secondary') || (isDark ? 'text-gray-400' : 'text-gray-600');
+  const mutedTextClass = getTextClass?.('muted') || (isDark ? 'text-gray-500' : 'text-gray-500');
+  
+  const selectClass = `${inputClass} cursor-pointer`;
+  const labelClass = `block text-sm font-semibold mb-2 ${secondaryTextClass}`;
 
   return (
     <>
-      {/* Advanced Filters Section */}
+      {/* Modern Advanced Filters Section */}
       <AnimatePresence>
         {showAdvancedFilters && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`mb-4 rounded-xl border overflow-hidden ${
-              theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-            }`}
+            className={`mb-6 rounded-2xl overflow-hidden ${cardClass} shadow-lg border-2 ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
           >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  🔍 Advanced Filters
-                </h3>
-                <div className="flex gap-2">
-                  <button onClick={clearAdvancedFilters} className="px-3 py-1 text-sm rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${isDark ? 'from-blue-600 to-purple-600' : 'from-blue-500 to-purple-500'}`}>
+                    <SlidersHorizontal className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className={`text-xl font-bold ${primaryTextClass}`}>Advanced Filters</h3>
+                    <p className={`text-sm ${secondaryTextClass}`}>Refine your search with specific criteria</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={clearAdvancedFilters} 
+                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all transform ${dangerBtnClass} shadow-lg flex items-center gap-2`}
+                  >
+                    <RefreshCw className="w-4 h-4" />
                     Clear All
-                  </button>
-                  <button onClick={() => setShowSaveFilterModal(true)} className="px-3 py-1 text-sm rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors">
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowSaveFilterModal(true)} 
+                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all transform ${successBtnClass} shadow-lg flex items-center gap-2`}
+                  >
+                    <Save className="w-4 h-4" />
                     Save Filter
-                  </button>
-                  <button onClick={() => setShowAdvancedFilters(false)} className="px-3 py-1 text-sm rounded-lg bg-gray-500/10 text-gray-500 hover:bg-gray-500/20 transition-colors">
-                    ✕ Close
-                  </button>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAdvancedFilters(false)} 
+                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all transform ${secondaryBtnClass} border-2 flex items-center gap-2`}
+                  >
+                    <X className="w-4 h-4" />
+                    Close
+                  </motion.button>
                 </div>
               </div>
 
-              {/* Filter Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Student Name</label>
-                  <input type="text" value={advancedFilters.name} onChange={e => setAdvancedFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search by name..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission No</label>
-                  <input type="text" value={advancedFilters.admissionNo} onChange={e => setAdvancedFilters(prev => ({ ...prev, admissionNo: e.target.value }))} placeholder="Admission number..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Parent Name</label>
-                  <input type="text" value={advancedFilters.parentName} onChange={e => setAdvancedFilters(prev => ({ ...prev, parentName: e.target.value }))} placeholder="Parent name..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Phone</label>
-                  <input type="text" value={advancedFilters.phone} onChange={e => setAdvancedFilters(prev => ({ ...prev, phone: e.target.value }))} placeholder="Phone number..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Email</label>
-                  <input type="text" value={advancedFilters.email} onChange={e => setAdvancedFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Email..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Blood Group</label>
-                  <select value={advancedFilters.bloodGroup} onChange={e => setAdvancedFilters(prev => ({ ...prev, bloodGroup: e.target.value }))} className={selectClass}>
-                    <option value="all">All</option>
+              {/* Modern Filter Fields Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <label className={labelClass}>
+                    <User className="w-4 h-4 inline mr-2" />
+                    Student Name
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.name} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, name: e.target.value }))} 
+                    placeholder="Search by name..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <label className={labelClass}>
+                    <Hash className="w-4 h-4 inline mr-2" />
+                    Admission No
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.admissionNo} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionNo: e.target.value }))} 
+                    placeholder="Admission number..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <label className={labelClass}>
+                    <Users className="w-4 h-4 inline mr-2" />
+                    Parent Name
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.parentName} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, parentName: e.target.value }))} 
+                    placeholder="Parent name..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <label className={labelClass}>
+                    <Phone className="w-4 h-4 inline mr-2" />
+                    Phone
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.phone} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, phone: e.target.value }))} 
+                    placeholder="Phone number..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <label className={labelClass}>
+                    <Mail className="w-4 h-4 inline mr-2" />
+                    Email
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.email} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, email: e.target.value }))} 
+                    placeholder="Email..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <label className={labelClass}>
+                    <Heart className="w-4 h-4 inline mr-2" />
+                    Blood Group
+                  </label>
+                  <select 
+                    value={advancedFilters.bloodGroup} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, bloodGroup: e.target.value }))} 
+                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
+                  >
+                    <option value="all">All Blood Groups</option>
                     <option value="A+">A+</option><option value="A-">A-</option>
                     <option value="B+">B+</option><option value="B-">B-</option>
                     <option value="AB+">AB+</option><option value="AB-">AB-</option>
                     <option value="O+">O+</option><option value="O-">O-</option>
                   </select>
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Fee Status</label>
-                  <select value={advancedFilters.feeStatus} onChange={e => setAdvancedFilters(prev => ({ ...prev, feeStatus: e.target.value }))} className={selectClass}>
-                    <option value="all">All</option>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  <label className={labelClass}>
+                    <CreditCard className="w-4 h-4 inline mr-2" />
+                    Fee Status
+                  </label>
+                  <select 
+                    value={advancedFilters.feeStatus} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, feeStatus: e.target.value }))} 
+                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
+                  >
+                    <option value="all">All Status</option>
                     <option value="paid">Paid</option>
                     <option value="pending">Pending</option>
                     <option value="overdue">Overdue</option>
                   </select>
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Category</label>
-                  <select value={advancedFilters.category} onChange={e => setAdvancedFilters(prev => ({ ...prev, category: e.target.value }))} className={selectClass}>
-                    <option value="all">All</option>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                >
+                  <label className={labelClass}>
+                    <Users className="w-4 h-4 inline mr-2" />
+                    Category
+                  </label>
+                  <select 
+                    value={advancedFilters.category} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, category: e.target.value }))} 
+                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
+                  >
+                    <option value="all">All Categories</option>
                     <option value="general">General</option>
                     <option value="obc">OBC</option>
                     <option value="sc">SC</option>
                     <option value="st">ST</option>
                   </select>
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Attendance Min %</label>
-                  <input type="number" value={advancedFilters.attendanceMin} onChange={e => setAdvancedFilters(prev => ({ ...prev, attendanceMin: e.target.value }))} placeholder="0" className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Attendance Max %</label>
-                  <input type="number" value={advancedFilters.attendanceMax} onChange={e => setAdvancedFilters(prev => ({ ...prev, attendanceMax: e.target.value }))} placeholder="100" className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>City</label>
-                  <input type="text" value={advancedFilters.city} onChange={e => setAdvancedFilters(prev => ({ ...prev, city: e.target.value }))} placeholder="City..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>State</label>
-                  <input type="text" value={advancedFilters.state} onChange={e => setAdvancedFilters(prev => ({ ...prev, state: e.target.value }))} placeholder="State..." className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Date of Birth</label>
-                  <input type="date" value={advancedFilters.dateOfBirth} onChange={e => setAdvancedFilters(prev => ({ ...prev, dateOfBirth: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission From</label>
-                  <input type="date" value={advancedFilters.admissionDateFrom} onChange={e => setAdvancedFilters(prev => ({ ...prev, admissionDateFrom: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Admission To</label>
-                  <input type="date" value={advancedFilters.admissionDateTo} onChange={e => setAdvancedFilters(prev => ({ ...prev, admissionDateTo: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex items-center space-x-2 pt-6 lg:col-span-2">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                >
+                  <label className={labelClass}>
+                    <BarChart3 className="w-4 h-4 inline mr-2" />
+                    Attendance Min %
+                  </label>
+                  <input 
+                    type="number" 
+                    value={advancedFilters.attendanceMin} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, attendanceMin: e.target.value }))} 
+                    placeholder="0" 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.0 }}
+                >
+                  <label className={labelClass}>
+                    <TrendingUp className="w-4 h-4 inline mr-2" />
+                    Attendance Max %
+                  </label>
+                  <input 
+                    type="number" 
+                    value={advancedFilters.attendanceMax} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, attendanceMax: e.target.value }))} 
+                    placeholder="100" 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.1 }}
+                >
+                  <label className={labelClass}>
+                    <MapPin className="w-4 h-4 inline mr-2" />
+                    City
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.city} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, city: e.target.value }))} 
+                    placeholder="City..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                >
+                  <label className={labelClass}>
+                    <MapPin className="w-4 h-4 inline mr-2" />
+                    State
+                  </label>
+                  <input 
+                    type="text" 
+                    value={advancedFilters.state} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, state: e.target.value }))} 
+                    placeholder="State..." 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.3 }}
+                >
+                  <label className={labelClass}>
+                    <Calendar className="w-4 h-4 inline mr-2" />
+                    Date of Birth
+                  </label>
+                  <input 
+                    type="date" 
+                    value={advancedFilters.dateOfBirth} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, dateOfBirth: e.target.value }))} 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.4 }}
+                >
+                  <label className={labelClass}>
+                    <Calendar className="w-4 h-4 inline mr-2" />
+                    Admission From
+                  </label>
+                  <input 
+                    type="date" 
+                    value={advancedFilters.admissionDateFrom} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionDateFrom: e.target.value }))} 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.5 }}
+                >
+                  <label className={labelClass}>
+                    <Calendar className="w-4 h-4 inline mr-2" />
+                    Admission To
+                  </label>
+                  <input 
+                    type="date" 
+                    value={advancedFilters.admissionDateTo} 
+                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionDateTo: e.target.value }))} 
+                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.6 }}
+                  className="flex items-center space-x-3 pt-6 lg:col-span-2"
+                >
                   <input
                     type="checkbox"
                     id="includeArchivedStudents"
                     checked={includeArchivedStudents}
                     onChange={e => setIncludeArchivedStudents(e.target.checked)}
-                    className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : ''}`}
+                    className={`w-5 h-5 rounded border-2 text-blue-600 focus:ring-2 focus:ring-blue-500/20 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
                   />
-                  <label htmlFor="includeArchivedStudents" className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <label htmlFor="includeArchivedStudents" className={`text-sm font-semibold ${primaryTextClass} cursor-pointer`}>
+                    <EyeOff className="w-4 h-4 inline mr-2" />
                     Include Exited/Graduated Students
                   </label>
-                </div>
+                </motion.div>
               </div>
 
               {/* Saved Filters */}
@@ -246,7 +502,7 @@ export default function StudentFilters({
               value={advancedSearch.enabled ? advancedSearch.query : searchTerm}
               onChange={e => {
                 if (advancedSearch.enabled) {
-                  setAdvancedSearch(prev => ({ ...prev, query: e.target.value }));
+                  setAdvancedSearch((prev: any) => ({ ...prev, query: e.target.value }));
                   performAdvancedSearch(e.target.value);
                 } else {
                   setSearchTerm(e.target.value);
@@ -264,7 +520,7 @@ export default function StudentFilters({
 
           {/* Search Mode Toggle */}
           <button
-            onClick={() => setAdvancedSearch(prev => ({ ...prev, enabled: !prev.enabled }))}
+            onClick={() => setAdvancedSearch((prev: any) => ({ ...prev, enabled: !prev.enabled }))}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
               advancedSearch.enabled
                 ? 'bg-purple-600 text-white'
@@ -287,7 +543,7 @@ export default function StudentFilters({
               <button
                 onClick={() => {
                   // Clear search history
-                  setAdvancedSearch(prev => ({
+                  setAdvancedSearch((prev: any) => ({
                     ...prev,
                     searchAnalytics: {
                       totalSearches: prev.searchAnalytics?.totalSearches || 0,
@@ -306,7 +562,7 @@ export default function StudentFilters({
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(advancedSearch.searchAnalytics?.recentSearches || []).slice(0, 5).map((search, index) => (
+              {(advancedSearch.searchAnalytics?.recentSearches || []).slice(0, 5).map((search: any, index: number) => (
                 <button
                   key={index}
                   onClick={() => {
