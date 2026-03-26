@@ -28,14 +28,16 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { student: { name: { contains: search, mode: 'insensitive' } } },
         { student: { admissionNo: { contains: search, mode: 'insensitive' } } },
+        { student: { class: { contains: search, mode: 'insensitive' } } }, // Class is a string field
         { pickupStop: { contains: search, mode: 'insensitive' } },
-        { route: { routeNumber: { contains: search, mode: 'insensitive' } } }
+        { route: { routeNumber: { contains: search, mode: 'insensitive' } } },
+        { route: { routeName: { contains: search, mode: 'insensitive' } } }
       ];
     }
 
-    // Optimized batch query
+    // Optimized batch query for 10M+ records
     const [assignments, totalCount] = await Promise.all([
-      (schoolPrisma as any).studentTransport.findMany({
+      (schoolPrisma as any).StudentTransport.findMany({
         where,
         select: {
           id: true,
@@ -46,14 +48,29 @@ export async function GET(request: NextRequest) {
           monthlyFee: true,
           isActive: true,
           assignedAt: true,
-          student: { select: { id: true, name: true, class: true, section: true, admissionNo: true } },
-          route: { select: { id: true, routeNumber: true, routeName: true } }
+          student: { 
+            select: { 
+              id: true, 
+              name: true, 
+              admissionNo: true,
+              class: true, // Class is a string field, not a relation
+              section: true // Section is a string field, not a relation
+            } 
+          },
+          route: { 
+            select: { 
+              id: true, 
+              routeNumber: true, 
+              routeName: true,
+              yearlyFee: true // Include route yearly fee
+            } 
+          }
         },
         orderBy: { assignedAt: 'desc' },
-        take: pageSize,
+        take: Math.min(pageSize, 100), // Limit to max 100 for performance
         skip: (page - 1) * pageSize
       }),
-      (schoolPrisma as any).studentTransport.count({ where })
+      (schoolPrisma as any).StudentTransport.count({ where })
     ]);
 
     return NextResponse.json({ 
