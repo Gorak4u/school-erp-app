@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { showToast } from '../utils';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toastUtils';
 import { LEVELS } from '../constants';
 import { Board, Medium, Class, Section, AcademicYear } from '../types';
 
@@ -22,13 +23,6 @@ interface StructureTabProps {
   mediumsApi: any;
   classesApi: any;
   sectionsApi: any;
-  card: string;
-  heading: string;
-  btnPrimary: string;
-  btnSecondary: string;
-  btnDanger: string;
-  input: string;
-  label: string;
 }
 
 export const StructureTab: React.FC<StructureTabProps> = ({
@@ -48,14 +42,53 @@ export const StructureTab: React.FC<StructureTabProps> = ({
   mediumsApi,
   classesApi,
   sectionsApi,
-  card,
-  heading,
-  btnPrimary,
-  btnSecondary,
-  btnDanger,
-  input,
-  label,
 }) => {
+  // Centralized theme object
+  const theme = useMemo(() => ({
+    bg: isDark ? 'bg-gray-900' : 'bg-white',
+    border: isDark ? 'border-gray-700' : 'border-gray-200',
+    text: {
+      primary: isDark ? 'text-white' : 'text-gray-900',
+      secondary: isDark ? 'text-gray-400' : 'text-gray-600',
+      muted: isDark ? 'text-gray-500' : 'text-gray-500',
+    },
+    card: isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50/50 border-gray-200',
+    input: isDark 
+      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400',
+    hover: isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50',
+    gradients: {
+      primary: 'from-indigo-500 to-purple-600',
+      secondary: 'from-blue-500 to-cyan-600',
+      success: 'from-green-500 to-emerald-600',
+      warning: 'from-orange-500 to-red-600',
+    }
+  }), [isDark]);
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  };
+
   // ─── Boards ─────────────────────────────────────────────────────────────────
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [savingBoards, setSavingBoards] = useState(false);
@@ -67,16 +100,15 @@ export const StructureTab: React.FC<StructureTabProps> = ({
       await boardsApi.update(board.id, { ...board, name: editingBoard.name.trim(), code: editingBoard.code.trim() });
       await fetchAll();
       setEditingBoard(null);
-      showToast({ type: 'success', title: 'Board updated' });
+      showSuccessToast('Success', 'Board updated successfully');
     } catch {
-      showToast({ type: 'error', title: 'Failed to update board' });
+      showErrorToast('Error', 'Failed to update board');
     } finally {
       setSavingBoards(false);
     }
   };
 
   const deleteBoardRow = async (board: Board) => {
-    // Use the main handleDelete function to get cascade delete functionality
     handleDelete('board', board.id, board.name);
   };
 
@@ -92,16 +124,15 @@ export const StructureTab: React.FC<StructureTabProps> = ({
       await mediumsApi.update(medium.id, { ...medium, name: editingMedium.name.trim(), code: editingMedium.code.trim() });
       await fetchAll();
       setEditingMedium(null);
-      showToast({ type: 'success', title: 'Medium updated' });
+      showSuccessToast('Success', 'Medium updated successfully');
     } catch {
-      showToast({ type: 'error', title: 'Failed to update medium' });
+      showErrorToast('Error', 'Failed to update medium');
     } finally {
       setSavingMediums(false);
     }
   };
 
   const deleteMediumRow = async (medium: Medium) => {
-    // Use the main handleDelete function to get cascade delete functionality
     handleDelete('medium', medium.id, medium.name);
   };
 
@@ -152,8 +183,10 @@ export const StructureTab: React.FC<StructureTabProps> = ({
       })));
       await fetchAll();
       setNewRows(prev => prev.filter((r: any) => r.id !== rowId));
+      showSuccessToast('Success', 'Class created successfully');
     } catch {
       setNewRows(prev => prev.map((r: any) => r.id === rowId ? { ...r, saving: false } : r));
+      showErrorToast('Error', 'Failed to create class');
     }
   };
 
@@ -220,9 +253,9 @@ export const StructureTab: React.FC<StructureTabProps> = ({
       
       await fetchAll();
       setEditingClassRow(null);
-      showToast({ type: 'success', title: 'Class updated successfully' });
+      showSuccessToast('Success', 'Class updated successfully');
     } catch {
-      showToast({ type: 'error', title: 'Failed to update class' });
+      showErrorToast('Error', 'Failed to update class');
     } finally {
       setSavingClasses(false);
     }
@@ -235,32 +268,24 @@ export const StructureTab: React.FC<StructureTabProps> = ({
     try {
       await Promise.all(rowClasses.map((c: Class) => classesApi.delete(c.id)));
       await fetchAll();
-      showToast({ type: 'success', title: 'Class row deleted' });
+      showSuccessToast('Success', 'Class row deleted');
     } catch {
-      showToast({ type: 'error', title: 'Failed to delete class row' });
+      showErrorToast('Error', 'Failed to delete class row');
     } finally {
       setSavingClasses(false);
     }
   };
 
   const bulkSaveClasses = async () => {
-    console.log('Bulk save button clicked!');
-    if (!canManageSettings) {
-      console.log('Cannot manage settings, returning');
-      return;
-    }
+    if (!canManageSettings) return;
     setSavingClasses(true);
     try {
       const promises: Promise<any>[] = [];
-      console.log('Bulk save - newRows:', newRows);
       
       for (const nr of newRows) {
-        console.log('Processing row:', nr);
         if (nr.name.trim()) {
           const selectedMediums = nr.selectedMediums || new Set();
-          console.log('Selected mediums for row:', selectedMediums);
           const toCreate = gridMediums.filter((m: Medium) => selectedMediums.has(m.id));
-          console.log('Mediums to create:', toCreate);
           
           for (const m of toCreate) {
             promises.push(classesApi.create({
@@ -275,18 +300,17 @@ export const StructureTab: React.FC<StructureTabProps> = ({
         }
       }
       
-      console.log('Total promises:', promises.length);
       if (promises.length > 0) {
         await Promise.all(promises);
-        showToast({ type: 'success', title: 'Classes saved successfully' });
+        showSuccessToast('Success', 'Classes saved successfully');
         await fetchAll();
         setNewRows([]);
       } else {
-        showToast({ type: 'warning', title: 'No classes to save', message: 'Please add class names and select at least one medium for each.' });
+        showWarningToast('No classes to save', 'Please add class names and select at least one medium for each');
       }
     } catch (e: any) {
       console.error('Bulk save error:', e);
-      showToast({ type: 'error', title: 'Failed to save classes', message: e.message });
+      showErrorToast('Failed to save classes', e.message);
     } finally {
       setSavingClasses(false);
     }
@@ -301,7 +325,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
   const [savingSections, setSavingSections] = useState(false);
 
   // Set default academic year when activeAY is available
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeAY?.id && !selectedSectionAY) {
       setSelectedSectionAY(activeAY.id);
     }
@@ -362,8 +386,10 @@ export const StructureTab: React.FC<StructureTabProps> = ({
         const { [rowId]: _, ...rest } = prev;
         return rest;
       });
+      showSuccessToast('Success', 'Section created successfully');
     } catch {
       setSectionRows(prev => prev.map((r: any) => r.id === rowId ? { ...r, saving: false } : r));
+      showErrorToast('Error', 'Failed to create section');
     }
   };
 
@@ -419,9 +445,9 @@ export const StructureTab: React.FC<StructureTabProps> = ({
       
       await fetchAll();
       setEditingSectionRow(null);
-      showToast({ type: 'success', title: 'Section updated successfully' });
+      showSuccessToast('Success', 'Section updated successfully');
     } catch {
-      showToast({ type: 'error', title: 'Failed to update section' });
+      showErrorToast('Error', 'Failed to update section');
     } finally {
       setSavingSections(false);
     }
@@ -444,234 +470,441 @@ export const StructureTab: React.FC<StructureTabProps> = ({
     try {
       await Promise.all(rowSections.map((s: Section) => sectionsApi.delete(s.id)));
       await fetchAll();
-      showToast({ type: 'success', title: 'Section row deleted' });
+      showSuccessToast('Success', 'Section row deleted');
     } catch {
-      showToast({ type: 'error', title: 'Failed to delete section row' });
+      showErrorToast('Error', 'Failed to delete section row');
     } finally {
       setSavingSections(false);
     }
   };
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className={`rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} p-3 shadow-sm`}>
-        <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-indigo-600/20' : 'bg-indigo-100'}`}>
-            <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <div>
-            <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>School Structure</h3>
-            <p className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{boards.length} boards • {mediums.length} mediums • {classes.length} classes • {sections.length} sections</p>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="space-y-6"
+    >
+      {/* Beautiful Header Section */}
+      <motion.div
+        variants={itemVariants}
+        className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.bg} shadow-lg`}
+      >
+        {/* Gradient Background */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradients.primary} opacity-10`}></div>
+        
+        {/* Content */}
+        <div className="relative p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Animated Icon Container */}
+              <motion.div
+                animate={{
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br ${theme.gradients.primary} shadow-lg`}
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </motion.div>
+              
+              <div>
+                <h1 className={`text-2xl font-bold bg-gradient-to-r ${theme.gradients.primary} bg-clip-text text-transparent`}>
+                  Advanced School Structure
+                </h1>
+                <p className={`text-sm ${theme.text.secondary} mt-1`}>
+                  Manage boards, mediums, classes, and sections • {boards.length} boards • {mediums.length} mediums • {classes.length} classes • {sections.length} sections
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.secondary} text-white shadow-lg hover:shadow-xl transition-all`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export Structure
+                </span>
+              </motion.button>
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Boards - Compact Card Grid */}
-      <div className={`rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} p-3 shadow-sm`}>
-        <div className="flex justify-between items-center mb-2">
-          <h3 className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Boards</h3>
-          <button 
-            className={`px-2 py-1 rounded text-[10px] font-medium ${isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-            disabled={!canManageSettings} 
+      {/* Boards - Advanced Card Grid */}
+      <motion.div
+        variants={itemVariants}
+        className={`rounded-2xl border ${theme.border} ${theme.bg} shadow-lg p-6`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className={`text-lg font-semibold ${theme.text.primary}`}>Educational Boards</h3>
+            <p className={`text-sm ${theme.text.secondary} mt-1`}>Manage examination boards and educational standards</p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all`}
+            disabled={!canManageSettings}
             onClick={() => openCreate('board', { name: '', code: '', description: '', isActive: true })}
           >
-            + Add
-          </button>
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Board
+            </span>
+          </motion.button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {boards.map((board: Board) => (
-            <div key={board.id} className={`p-4 rounded-xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex justify-between items-start mb-2">
-                {editingBoard?.id === board.id ? (
-                  <div className="flex-1 space-y-2">
-                    <input 
-                      className={input} 
-                      value={editingBoard.name} 
-                      onChange={e => setEditingBoard({ ...editingBoard, name: e.target.value })} 
-                      placeholder="Board name"
-                    />
-                    <input 
-                      className={input} 
-                      value={editingBoard.code} 
-                      onChange={e => setEditingBoard({ ...editingBoard, code: e.target.value })} 
-                      placeholder="Code"
-                    />
-                    <div className="flex gap-2">
-                      <button 
-                        className={`${btnPrimary} text-xs px-3 py-1`} 
-                        disabled={!editingBoard.name.trim() || savingBoards}
-                        onClick={() => saveBoardRowEdit(board)}
-                      >
-                        ✓
-                      </button>
-                      <button 
-                        className={`${btnSecondary} text-xs px-3 py-1`}
-                        onClick={() => setEditingBoard(null)}
-                      >
-                        ✕
-                      </button>
-                    </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {boards.map((board: Board, index) => (
+            <motion.div
+              key={board.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.card} p-6 shadow-sm hover:shadow-lg transition-all`}
+            >
+              {editingBoard?.id === board.id ? (
+                <div className="space-y-4">
+                  <input 
+                    className={`w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all ${theme.input}`}
+                    value={editingBoard.name} 
+                    onChange={e => setEditingBoard({ ...editingBoard, name: e.target.value })} 
+                    placeholder="Board name"
+                  />
+                  <input 
+                    className={`w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all ${theme.input}`}
+                    value={editingBoard.code} 
+                    onChange={e => setEditingBoard({ ...editingBoard, code: e.target.value })} 
+                    placeholder="Code"
+                  />
+                  <div className="flex gap-2">
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all`}
+                      disabled={!editingBoard.name.trim() || savingBoards}
+                      onClick={() => saveBoardRowEdit(board)}
+                    >
+                      Save
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium ${theme.hover} ${theme.text.primary} border ${theme.border} transition-all`}
+                      onClick={() => setEditingBoard(null)}
+                    >
+                      Cancel
+                    </motion.button>
                   </div>
-                ) : (
-                  <>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{board.name}</h4>
-                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{board.code}</p>
+                      <h4 className={`font-semibold ${theme.text.primary}`}>{board.name}</h4>
+                      <p className={`text-sm ${theme.text.secondary} mt-1`}>{board.code}</p>
                     </div>
                     <div className="flex gap-1">
-                      <button 
-                        className={`${btnSecondary} text-xs px-2 py-1`}
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className={`p-2 rounded-lg ${theme.hover} ${theme.text.secondary} transition-all`}
                         onClick={() => setEditingBoard(board)}
                       >
-                        ✎
-                      </button>
-                      <button 
-                        className={`${btnDanger} text-xs px-2 py-1`}
-                        onClick={() => deleteBoardRow(board)}
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{board.description || 'No description'}</p>
-            </div>
-          ))}
-          {boards.length === 0 && (
-            <div className={`col-span-full text-center py-8 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-700 text-gray-500' : 'border-gray-300 text-gray-400'}`}>
-              No boards configured yet
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mediums */}
-      <div className={`rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} p-3 shadow-sm`}>
-        <div className="flex justify-between items-center mb-2">
-          <h3 className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Mediums</h3>
-          <button 
-            className={`px-2 py-1 rounded text-[10px] font-medium ${isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-            disabled={!canManageSettings || !activeAY} 
-            onClick={() => openCreate('medium', { name: '', code: '', academicYearId: activeAY?.id, isActive: true })}
-          >
-            + Add
-          </button>
-        </div>
-        {!activeAY && (
-          <div className={`mb-2 p-2 rounded text-[10px] ${isDark ? 'bg-yellow-900/20 text-yellow-400' : 'bg-yellow-50 text-yellow-700'}`}>
-            ⚠️ Create academic year first
-          </div>
-        )}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {mediums.map((medium: Medium) => (
-            <div key={medium.id} className={`p-2.5 rounded-lg border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex justify-between items-start">
-                {editingMedium?.id === medium.id ? (
-                  <div className="flex-1 space-y-1.5">
-                    <input 
-                      className={`w-full px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                      value={editingMedium.name} 
-                      onChange={e => setEditingMedium({ ...editingMedium, name: e.target.value })} 
-                      placeholder="Name"
-                    />
-                    <input 
-                      className={`w-full px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                      value={editingMedium.code} 
-                      onChange={e => setEditingMedium({ ...editingMedium, code: e.target.value })} 
-                      placeholder="Code"
-                    />
-                    <div className="flex gap-1">
-                      <button 
-                        className={`flex-1 px-2 py-1 rounded text-[10px] ${isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-                        disabled={!editingMedium.name.trim() || savingMediums}
-                        onClick={() => saveMediumRowEdit(medium)}
-                      >
-                        ✓
-                      </button>
-                      <button 
-                        className={`flex-1 px-2 py-1 rounded text-[10px] ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-300 hover:bg-gray-400'} text-white`}
-                        onClick={() => setEditingMedium(null)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="min-w-0">
-                      <h4 className={`font-medium text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{medium.name}</h4>
-                      <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{medium.code}</p>
-                    </div>
-                    <div className="flex gap-0.5 flex-shrink-0">
-                      <button 
-                        className={`p-1 rounded ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
-                        onClick={() => setEditingMedium(medium)}
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
-                      </button>
-                      <button 
-                        className={`p-1 rounded ${isDark ? 'hover:bg-red-900/30 text-red-400' : 'hover:bg-red-50 text-red-500'}`}
-                        onClick={() => deleteMediumRow(medium)}
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className={`p-2 rounded-lg ${theme.hover} text-red-400 transition-all`}
+                        onClick={() => deleteBoardRow(board)}
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      </button>
+                      </motion.button>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
+                  </div>
+                  <p className={`text-sm ${theme.text.secondary}`}>{board.description || 'No description available'}</p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${board.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className={`text-xs ${theme.text.muted}`}>
+                      {board.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
           ))}
-          {mediums.length === 0 && (
-            <div className={`col-span-full text-center py-4 rounded-lg border border-dashed text-xs ${isDark ? 'border-gray-700 text-gray-500' : 'border-gray-300 text-gray-400'}`}>
-              No mediums
-            </div>
+          
+          {boards.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`col-span-full text-center py-12 rounded-2xl border-2 border-dashed ${theme.border} ${theme.card}`}
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h3 className={`text-lg font-semibold ${theme.text.primary} mb-2`}>No Boards Configured</h3>
+              <p className={`text-sm ${theme.text.secondary} mb-4`}>Start by adding your first educational board</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all`}
+                onClick={() => openCreate('board', { name: '', code: '', description: '', isActive: true })}
+              >
+                Add Your First Board
+              </motion.button>
+            </motion.div>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Classes - Compact */}
-      <div className={`rounded-xl border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} p-3 shadow-sm`}>
-        <div className="flex justify-between items-center mb-2">
-          <h3 className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Classes</h3>
-          <div className="flex items-center gap-1.5">
+      {/* Mediums - Advanced Card Grid */}
+      <motion.div
+        variants={itemVariants}
+        className={`rounded-2xl border ${theme.border} ${theme.bg} shadow-lg p-6`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className={`text-lg font-semibold ${theme.text.primary}`}>Mediums of Instruction</h3>
+            <p className={`text-sm ${theme.text.secondary} mt-1`}>Manage language mediums and teaching methods</p>
+          </div>
+          <div className="flex items-center gap-3">
             <select
-              className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              className={`px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${theme.input}`}
               value={selectedMediumAY}
               onChange={e => setSelectedMediumAY(e.target.value)}
             >
-              <option value="">All Years</option>
+              <option value="">All Academic Years</option>
               {academicYears.map((ay: AcademicYear) => (
                 <option key={ay.id} value={ay.id}>{ay.name}</option>
               ))}
             </select>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all`}
+              disabled={!canManageSettings || !activeAY}
+              onClick={() => openCreate('medium', { name: '', code: '', academicYearId: activeAY?.id, isActive: true })}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Medium
+              </span>
+            </motion.button>
           </div>
         </div>
+        
         {!activeAY && (
-          <div className={`mb-2 p-2 rounded text-[10px] ${isDark ? 'bg-yellow-900/20 text-yellow-400' : 'bg-yellow-50 text-yellow-700'}`}>
-            ⚠️ Create academic year first
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mb-4 p-4 rounded-xl border-l-4 bg-gradient-to-r ${theme.gradients.warning} bg-opacity-10 border-orange-500`}
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className={`text-sm font-medium ${theme.text.primary}`}>Create an academic year first to add mediums</p>
+            </div>
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {mediums.map((medium: Medium, index) => (
+            <motion.div
+              key={medium.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.card} p-5 shadow-sm hover:shadow-lg transition-all`}
+            >
+              {editingMedium?.id === medium.id ? (
+                <div className="space-y-3">
+                  <input 
+                    className={`w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${theme.input}`}
+                    value={editingMedium.name} 
+                    onChange={e => setEditingMedium({ ...editingMedium, name: e.target.value })} 
+                    placeholder="Medium name"
+                  />
+                  <input 
+                    className={`w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${theme.input}`}
+                    value={editingMedium.code} 
+                    onChange={e => setEditingMedium({ ...editingMedium, code: e.target.value })} 
+                    placeholder="Code"
+                  />
+                  <div className="flex gap-2">
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all`}
+                      disabled={!editingMedium.name.trim() || savingMediums}
+                      onClick={() => saveMediumRowEdit(medium)}
+                    >
+                      Save
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium ${theme.hover} ${theme.text.primary} border ${theme.border} transition-all`}
+                      onClick={() => setEditingMedium(null)}
+                    >
+                      Cancel
+                    </motion.button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="min-w-0 flex-1">
+                      <h4 className={`font-semibold ${theme.text.primary} truncate`}>{medium.name}</h4>
+                      <p className={`text-sm ${theme.text.secondary}`}>{medium.code}</p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className={`p-2 rounded-lg ${theme.hover} ${theme.text.secondary} transition-all`}
+                        onClick={() => setEditingMedium(medium)}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className={`p-2 rounded-lg ${theme.hover} text-red-400 transition-all`}
+                        onClick={() => deleteMediumRow(medium)}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </motion.button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${medium.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className={`text-xs ${theme.text.muted}`}>
+                      {medium.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ))}
+          
+          {mediums.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`col-span-full text-center py-12 rounded-2xl border-2 border-dashed ${theme.border} ${theme.card}`}
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <h3 className={`text-lg font-semibold ${theme.text.primary} mb-2`}>No Mediums Configured</h3>
+              <p className={`text-sm ${theme.text.secondary} mb-4`}>Add instruction mediums for your academic programs</p>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Classes - Advanced Excel-like Grid */}
+      <motion.div
+        variants={itemVariants}
+        className={`rounded-2xl border ${theme.border} ${theme.bg} shadow-lg p-6`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className={`text-lg font-semibold ${theme.text.primary}`}>Class Management</h3>
+            <p className={`text-sm ${theme.text.secondary} mt-1`}>Excel-like interface for bulk class creation and management</p>
           </div>
+          <div className="flex items-center gap-3">
+            <select
+              className={`px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all ${theme.input}`}
+              value={selectedMediumAY}
+              onChange={e => setSelectedMediumAY(e.target.value)}
+            >
+              <option value="">All Academic Years</option>
+              {academicYears.map((ay: AcademicYear) => (
+                <option key={ay.id} value={ay.id}>{ay.name}</option>
+              ))}
+            </select>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all`}
+              disabled={!canManageSettings}
+              onClick={addNewRow}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Class Row
+              </span>
+            </motion.button>
+          </div>
+        </div>
+
+        {!activeAY && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mb-4 p-4 rounded-xl border-l-4 bg-gradient-to-r ${theme.gradients.warning} bg-opacity-10 border-orange-500`}
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className={`text-sm font-medium ${theme.text.primary}`}>Create an academic year first to manage classes</p>
+            </div>
+          </motion.div>
         )}
 
         <div className="overflow-x-auto">
-          <table className={`w-full text-sm border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+          <table className={`w-full text-sm border-collapse ${theme.text.primary}`}>
             <thead>
               <tr>
-                <th className={`px-4 py-2 text-left font-semibold border ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>Class Name</th>
-                <th className={`px-4 py-2 text-left font-semibold border ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>Level</th>
+                <th className={`px-4 py-3 text-left font-semibold border ${theme.border} ${theme.card}`}>Class Name</th>
+                <th className={`px-4 py-3 text-left font-semibold border ${theme.border} ${theme.card}`}>Level</th>
                 {gridMediums.map((m: Medium) => (
-                  <th key={m.id} className={`px-4 py-2 text-center font-semibold border ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>
-                    {m.name}
+                  <th key={m.id} className={`px-4 py-3 text-center font-semibold border ${theme.border} ${theme.card}`}>
+                    <div className="flex items-center justify-center gap-2">
+                      <span>{m.name}</span>
+                      <div className={`w-2 h-2 rounded-full ${m.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    </div>
                   </th>
                 ))}
-                <th className={`px-4 py-2 text-center border ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`} />
+                <th className={`px-4 py-3 text-center border ${theme.border} ${theme.card}`}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -681,32 +914,38 @@ export const StructureTab: React.FC<StructureTabProps> = ({
                 const first = rowClasses[0];
                 const isEditingRow = editingClassRow?.oldName === className;
                 return (
-                  <tr key={className} className={`${isDark ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
-                    <td className={`px-4 py-2 border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <motion.tr 
+                    key={className} 
+                    className={`${theme.hover} transition-colors`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 }}
+                  >
+                    <td className={`px-4 py-3 border ${theme.border}`}>
                       {isEditingRow ? (
                         <input
                           autoFocus
                           value={editingClassRow.name}
                           onChange={e => setEditingClassRow({ ...editingClassRow, name: e.target.value })}
-                          className={input}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all ${theme.input}`}
                         />
                       ) : (
                         <span className="font-medium">{className}</span>
                       )}
                     </td>
-                    <td className={`px-4 py-2 border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <td className={`px-4 py-3 border ${theme.border}`}>
                       {isEditingRow ? (
                         <select
                           value={editingClassRow.level || 'primary'}
                           onChange={e => setEditingClassRow({ ...editingClassRow, level: e.target.value })}
-                          className={`px-2 py-1 rounded text-xs border ${isDark ? 'bg-gray-800 border-gray-600 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}
+                          className={`px-3 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all ${theme.input}`}
                         >
                           {LEVELS.map((l: any) => (
-                          <option key={l.value} value={l.value}>{l.label}</option>
-                        ))}
+                            <option key={l.value} value={l.value}>{l.label}</option>
+                          ))}
                         </select>
                       ) : (
-                        <span className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                        <span className={`px-3 py-1 rounded-lg text-xs font-medium ${isDark ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'}`}>
                           {first?.level}
                         </span>
                       )}
@@ -714,7 +953,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
                     {gridMediums.map((m: Medium) => {
                       const cls = rowClasses.find((c: Class) => c.mediumId === m.id);
                       return (
-                        <td key={m.id} className={`px-4 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <td key={m.id} className={`px-4 py-3 border ${theme.border} text-center`}>
                           {isEditingRow ? (
                             <div className="flex items-center justify-center">
                               <input
@@ -728,85 +967,116 @@ export const StructureTab: React.FC<StructureTabProps> = ({
                                     setEditingClassRow({ ...editingClassRow, selectedMediums: selectedMediums.filter(id => id !== m.id) });
                                   }
                                 }}
-                                className="w-4 h-4 rounded accent-blue-500"
+                                className="w-4 h-4 rounded text-green-500 focus:ring-green-500"
                               />
                             </div>
                           ) : cls ? (
                             <div className="flex items-center justify-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${cls.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
-                              <button onClick={() => openEdit('class', cls)} className="text-blue-500 hover:text-blue-600">✎</button>
+                              <div className={`w-2 h-2 rounded-full ${cls.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => openEdit('class', cls)} 
+                                className={`p-1 rounded ${theme.hover} text-blue-500 transition-all`}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </motion.button>
                             </div>
                           ) : (
-                            <span className={isDark ? 'text-gray-600' : 'text-gray-300'}>-</span>
+                            <span className={theme.text.muted}>-</span>
                           )}
                         </td>
                       );
                     })}
-                    <td className={`px-4 py-2 border text-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <td className={`px-4 py-3 border ${theme.border} text-center`}>
                       {isEditingRow ? (
-                        <div className="flex gap-1 justify-center">
-                          <button 
+                        <div className="flex gap-2 justify-center">
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => saveClassRowEdit(className)}
                             disabled={!editingClassRow.name.trim() || savingClasses}
-                            className={`${btnPrimary} text-xs px-2 py-1`}
+                            className={`p-2 rounded-lg bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50`}
                           >
-                            ✓
-                          </button>
-                          <button 
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </motion.button>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => setEditingClassRow(null)}
-                            className={`${btnSecondary} text-xs px-2 py-1`}
+                            className={`p-2 rounded-lg ${theme.hover} ${theme.text.primary} border ${theme.border} transition-all`}
                           >
-                            ✕
-                          </button>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </motion.button>
                         </div>
                       ) : (
-                        <div className="flex gap-1 justify-center">
-                          <button 
+                        <div className="flex gap-2 justify-center">
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => {
-  const rowClasses = classes.filter((c: Class) => c.name === className && (!selectedMediumAY || c.academicYearId === selectedMediumAY));
-  const currentMediumIds = rowClasses.map((c: Class) => c.mediumId);
-  const first = rowClasses[0];
-  setEditingClassRow({ 
-    oldName: className, 
-    name: className, 
-    selectedMediums: currentMediumIds,
-    level: first?.level || 'primary'
-  });
-}}
-                            className={`${btnSecondary} text-xs px-2 py-1`}
+                              const rowClasses = classes.filter((c: Class) => c.name === className && (!selectedMediumAY || c.academicYearId === selectedMediumAY));
+                              const currentMediumIds = rowClasses.map((c: Class) => c.mediumId);
+                              const first = rowClasses[0];
+                              setEditingClassRow({ 
+                                oldName: className, 
+                                name: className, 
+                                selectedMediums: currentMediumIds,
+                                level: first?.level || 'primary'
+                              });
+                            }}
+                            className={`p-2 rounded-lg ${theme.hover} ${theme.text.primary} border ${theme.border} transition-all`}
                           >
-                            ✎
-                          </button>
-                          <button 
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </motion.button>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => deleteClassRow(className)}
-                            className={`${btnDanger} text-xs px-2 py-1`}
+                            className={`p-2 rounded-lg ${theme.hover} text-red-400 transition-all`}
                           >
-                            🗑
-                          </button>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </motion.button>
                         </div>
                       )}
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
 
               {/* New Draft Rows */}
-              {newRows.map((row: any) => (
-                <tr key={row.id} className={isDark ? 'bg-blue-900/10' : 'bg-blue-50'}>
-                  <td className={`px-4 py-2 border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
+              {newRows.map((row: any, index) => (
+                <motion.tr 
+                  key={row.id} 
+                  className={`${isDark ? 'bg-green-900/15' : 'bg-green-50/80'} transition-colors`}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <td className={`px-4 py-3 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
                     <input
                       autoFocus
                       value={row.name || ''}
                       onChange={e => handleDraftChange(row.id, 'name', e.target.value)}
                       placeholder="e.g. Class 1"
-                      className={input}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all ${theme.input}`}
                     />
                   </td>
-                  <td className={`px-4 py-2 border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
+                  <td className={`px-4 py-3 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
                     <select
                       value={row.level || 'primary'}
                       onChange={e => handleDraftChange(row.id, 'level', e.target.value)}
-                      className={`${input} py-1`}
+                      className={`px-3 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all ${theme.input}`}
                     >
                       {LEVELS.map((l: any) => (
                         <option key={l.value} value={l.value}>{l.label}</option>
@@ -814,296 +1084,473 @@ export const StructureTab: React.FC<StructureTabProps> = ({
                     </select>
                   </td>
                   {gridMediums.map((m: Medium) => (
-                    <td key={m.id} className={`px-4 py-2 border text-center ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
+                    <td key={m.id} className={`px-4 py-3 border ${isDark ? 'border-green-700' : 'border-green-300'} text-center`}>
                       <input
                         type="checkbox"
                         checked={(row.selectedMediums || new Set()).has(m.id)}
                         onChange={() => toggleMedium(row.id, m.id)}
-                        className="w-4 h-4 rounded accent-blue-500"
+                        className="w-4 h-4 rounded text-green-500 focus:ring-green-500"
                       />
                     </td>
                   ))}
-                  <td className={`px-4 py-2 border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
-                    <div className="flex gap-1 justify-center">
-                      <button
+                  <td className={`px-4 py-3 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                    <div className="flex gap-2 justify-center">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         disabled={!row.name?.trim() || (row.selectedMediums || new Set()).size === 0}
                         onClick={() => saveRow(row.id)}
-                        className={`${btnPrimary} text-xs px-2 py-1 disabled:opacity-50`}
+                        className={`p-2 rounded-lg bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50`}
                       >
-                        ✓
-                      </button>
-                      <button
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={() => setNewRows(prev => prev.filter((r: any) => r.id !== row.id))}
-                        className={`${btnSecondary} text-xs px-2 py-1`}
+                        className={`p-2 rounded-lg ${theme.hover} ${theme.text.primary} border ${theme.border} transition-all`}
                       >
-                        ✕
-                      </button>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </motion.button>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
 
               {/* Action buttons row */}
               <tr>
-                <td colSpan={gridMediums.length + 3} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                <td colSpan={gridMediums.length + 3} className={`px-4 py-4 border-t ${theme.border} ${theme.card}`}>
                   <div className="flex items-center justify-between gap-4">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       disabled={!canManageSettings}
                       onClick={addNewRow}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40 ${theme.hover} ${theme.text.primary} border ${theme.border}`}
                     >
-                      <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
-                      Add class
-                    </button>
-                    <button 
-                      className={btnPrimary} 
+                      <span className="w-5 h-5 flex items-center justify-center rounded bg-gradient-to-r ${theme.gradients.success} text-white font-bold text-sm">+</span>
+                      Add Class Row
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`px-6 py-3 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50`}
                       disabled={!canManageSettings || savingClasses || newRows.length === 0}
-                      onClick={() => {
-                        console.log('Button clicked! canManageSettings:', canManageSettings, 'savingClasses:', savingClasses, 'newRows.length:', newRows.length);
-                        bulkSaveClasses();
-                      }}
+                      onClick={bulkSaveClasses}
                     >
-                      {savingClasses ? 'Saving...' : '💾 Bulk Save Classes'}
-                    </button>
+                      <span className="flex items-center gap-2">
+                        {savingClasses ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-4 h-4"
+                            >
+                              <svg fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            </motion.div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                            </svg>
+                            Bulk Save Classes
+                          </>
+                        )}
+                      </span>
+                    </motion.button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Sections — 2D Excel Grid */}
-      <div className={card}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className={heading}>Sections</h3>
-          <div className="flex items-center gap-2">
+      {/* Sections — Advanced Excel Grid */}
+      <motion.div
+        variants={itemVariants}
+        className={`rounded-2xl border ${theme.border} ${theme.bg} shadow-lg p-6`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className={`text-lg font-semibold ${theme.text.primary}`}>Section Management</h3>
+            <p className={`text-sm ${theme.text.secondary} mt-1`}>Advanced section assignment and management system</p>
+          </div>
+          <div className="flex items-center gap-3">
             <select
-              className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              className={`px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all ${theme.input}`}
               value={selectedSectionAY} 
               onChange={e => setSelectedSectionAY(e.target.value)}
             >
-              <option value="">All Years</option>
+              <option value="">All Academic Years</option>
               {academicYears.map((ay: AcademicYear) => (
                 <option key={ay.id} value={ay.id}>{ay.name}</option>
               ))}
             </select>
             <select
-              className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              className={`px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all ${theme.input}`}
               value={filterSectionMedium} 
               onChange={e => setFilterSectionMedium(e.target.value)}
             >
               <option value="">All Mediums</option>
               {gridMediums.map((m: Medium) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.secondary} text-white shadow-lg hover:shadow-xl transition-all`}
+              disabled={!canManageSettings}
+              onClick={addSectionRow}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Section
+              </span>
+            </motion.button>
           </div>
         </div>
         
         <div className="overflow-x-auto">
-          <table className={`w-full text-xs border-collapse ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+          <table className={`w-full text-xs border-collapse ${theme.text.primary}`}>
             <thead>
               <tr>
-                <th className={`px-3 py-1.5 text-left font-semibold border min-w-[120px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>
+                <th className={`px-4 py-3 text-left font-semibold border min-w-[150px] ${theme.border} ${theme.card}`}>
                   Section Name
                 </th>
                 {sectionGridClasses.map((cls: Class) => (
-                  <th key={cls.id} className={`px-2 py-1.5 text-center font-semibold border w-24 ${isDark ? 'border-gray-500 bg-gray-700 text-green-300' : 'border-gray-400 bg-green-100 text-green-800'}`}>
-                    {cls.name}
+                  <th key={cls.id} className={`px-3 py-3 text-center font-semibold border w-32 ${theme.border} ${theme.card}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{cls.name}</span>
+                      <div className={`w-2 h-2 rounded-full ${cls.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    </div>
                   </th>
                 ))}
                 {sectionGridClasses.length === 0 && (
-                  <th className={`px-2 py-1.5 text-center border ${isDark ? 'border-gray-500 bg-gray-700 text-gray-500' : 'border-gray-400 bg-gray-100 text-gray-400'}`}>
+                  <th className={`px-3 py-3 text-center border ${theme.border} ${theme.card} ${theme.text.muted}`}>
                     ← Add classes first
                   </th>
                 )}
-                <th className={`px-2 py-1.5 text-center border w-14 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
+                <th className={`px-3 py-3 text-center border w-20 ${theme.border} ${theme.card}`}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {/* Existing Section Rows */}
-              {uniqueSectionNames.map((sectionName: string) => {
+              {uniqueSectionNames.map((sectionName: string, index) => {
                 const isEditingRow = editingSectionRow?.oldName === sectionName;
                 return (
-                <tr key={sectionName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
-                  <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/40 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
-                    {isEditingRow ? (
-                      <input
-                        autoFocus
-                        value={editingSectionRow?.name || ''}
-                        onChange={e => editingSectionRow && setEditingSectionRow({ ...editingSectionRow, name: e.target.value })}
-                        className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                      />
-                    ) : (
-                      sectionName
-                    )}
-                  </td>
-                  {sectionGridClasses.map((cls: Class) => {
-                    const section = sections.find((s: Section) => s.name === sectionName && s.classId === cls.id);
-                    return (
-                      <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                        {isEditingRow ? (
-                          <div className="flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={editingSectionRow.selectedClasses?.includes(cls.id) || false}
-                              onChange={e => {
-                                const selectedClasses = editingSectionRow.selectedClasses || [];
-                                if (e.target.checked) {
-                                  setEditingSectionRow({ ...editingSectionRow, selectedClasses: [...selectedClasses, cls.id] });
-                                } else {
-                                  setEditingSectionRow({ ...editingSectionRow, selectedClasses: selectedClasses.filter(id => id !== cls.id) });
+                  <motion.tr 
+                    key={sectionName} 
+                    className={`${theme.hover} transition-colors`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <td className={`px-4 py-3 border font-medium ${theme.border} ${theme.card}`}>
+                      {isEditingRow ? (
+                        <input
+                          autoFocus
+                          value={editingSectionRow?.name || ''}
+                          onChange={e => editingSectionRow && setEditingSectionRow({ ...editingSectionRow, name: e.target.value })}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all ${theme.input}`}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{sectionName}</span>
+                          <div className={`w-2 h-2 rounded-full bg-purple-500`}></div>
+                        </div>
+                      )}
+                    </td>
+                    {sectionGridClasses.map((cls: Class) => {
+                      const section = sections.find((s: Section) => s.name === sectionName && s.classId === cls.id);
+                      return (
+                        <td key={cls.id} className={`px-3 py-3 border text-center ${theme.border}`}>
+                          {isEditingRow ? (
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={editingSectionRow.selectedClasses?.includes(cls.id) || false}
+                                onChange={e => {
+                                  const selectedClasses = editingSectionRow.selectedClasses || [];
+                                  if (e.target.checked) {
+                                    setEditingSectionRow({ ...editingSectionRow, selectedClasses: [...selectedClasses, cls.id] });
+                                  } else {
+                                    setEditingSectionRow({ ...editingSectionRow, selectedClasses: selectedClasses.filter(id => id !== cls.id) });
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-purple-500 focus:ring-purple-500"
+                              />
+                            </div>
+                          ) : section ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <div className={`w-2 h-2 rounded-full ${section.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => openEdit('section', section)} 
+                                title="Edit details" 
+                                className={`p-1 rounded ${theme.hover} text-blue-500 transition-all`}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleDelete('section', section.id, section.name)} 
+                                title="Delete cell section" 
+                                className={`p-1 rounded ${theme.hover} text-red-400 transition-all`}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </motion.button>
+                            </div>
+                          ) : (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              disabled={!canManageSettings}
+                              onClick={() => {
+                                if (!cls.id) {
+                                  console.error('Class ID is missing:', cls);
+                                  showErrorToast('Error', 'Class ID is missing');
+                                  return;
                                 }
+                                
+                                const classCode = cls.code || `CLASS${cls.id.slice(-4)}`;
+                                const sectionData = {
+                                  name: sectionName,
+                                  code: `${classCode}-${sectionName}`.toUpperCase(),
+                                  classId: cls.id,
+                                  academicYearId: selectedSectionAY || cls.academicYearId || activeAY?.id || '',
+                                  isActive: true,
+                                };
+                                
+                                // Try direct fetch call
+                                fetch('/api/school-structure/sections', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(sectionData)
+                                }).then(r => r.json()).then(() => fetchAll()).catch((e: any) => {
+                                  console.error('Direct fetch error:', e);
+                                  showErrorToast('Failed to add section', e.message);
+                                });
                               }}
-                              onToggle={() => toggleEditingSectionClass(cls.id)}
-                              className="w-4 h-4 rounded accent-blue-500"
-                            />
-                          </div>
-                        ) : section ? (
-                          <div className="flex items-center justify-center gap-0.5">
-                            <button onClick={() => openEdit('section', section)} title="Edit details" className={`text-blue-500 font-bold text-sm hover:text-blue-600 transition-colors px-1`}>✎</button>
-                            <button onClick={() => handleDelete('section', section.id, section.name)} title="Delete cell section" className="text-red-400 hover:text-red-500 text-xs leading-none px-1">✕</button>
-                          </div>
-                        ) : (
-                          <button
-                            disabled={!canManageSettings}
+                              title={`Add ${sectionName} to ${cls.name}`}
+                              className={`p-1 rounded border border-dashed transition-all disabled:opacity-30 ${theme.border} ${theme.text.muted} hover:border-purple-500 hover:text-purple-500`}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </motion.button>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className={`px-3 py-3 border text-center ${theme.border}`}>
+                      {isEditingRow ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => saveSectionRowEdit(sectionName)} 
+                            disabled={!editingSectionRow?.name?.trim() || savingSections} 
+                            title="Save Row" 
+                            className={`w-6 h-6 flex items-center justify-center rounded bg-gradient-to-r ${theme.gradients.success} text-white text-xs font-bold disabled:opacity-40 transition-all`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </motion.button>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setEditingSectionRow(null)} 
+                            title="Cancel" 
+                            className={`w-6 h-6 flex items-center justify-center rounded ${theme.hover} ${theme.text.primary} border ${theme.border} text-xs font-bold transition-all`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </motion.button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => {
-                              if (!cls.id) {
-                                console.error('Class ID is missing:', cls);
-                                showToast({ type: 'error', title: 'Error', message: 'Class ID is missing' });
-                                return;
-                              }
-                              
-                              const classCode = cls.code || `CLASS${cls.id.slice(-4)}`;
-                              const sectionData = {
-                                name: sectionName,
-                                code: `${classCode}-${sectionName}`.toUpperCase(),
-                                classId: cls.id,
-                                academicYearId: selectedSectionAY || cls.academicYearId || activeAY?.id || '',
-                                isActive: true,
-                              };
-                              
-                              // Try direct fetch call
-                              fetch('/api/school-structure/sections', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(sectionData)
-                              }).then(r => r.json()).then(() => fetchAll()).catch((e: any) => {
-                                console.error('Direct fetch error:', e);
-                                showToast({ type: 'error', title: 'Failed to add section', message: e.message });
+                              const rowSections = sections.filter((s: Section) => s.name === sectionName && (!selectedSectionAY || s.academicYearId === selectedSectionAY));
+                              const currentClassIds = rowSections.map((s: Section) => s.classId);
+                              setEditingSectionRow({ 
+                                oldName: sectionName, 
+                                name: sectionName, 
+                                selectedClasses: currentClassIds
                               });
-                            }}
-                            title={`Add ${sectionName} to ${cls.name}`}
-                            className={`text-xs px-1 py-0.5 rounded border border-dashed transition-all disabled:opacity-30 ${isDark ? 'border-gray-600 text-gray-600 hover:border-green-500 hover:text-green-400' : 'border-gray-300 text-gray-400 hover:border-green-400 hover:text-green-500'}`}
-                          >+</button>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                    {isEditingRow ? (
-                      <div className="flex items-center justify-center gap-0.5">
-                        <button onClick={() => saveSectionRowEdit(sectionName)} disabled={!editingSectionRow?.name?.trim() || savingSections} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
-                        <button onClick={() => setEditingSectionRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-0.5">
-                        <button onClick={() => {
-  const rowSections = sections.filter((s: Section) => s.name === sectionName && (!selectedSectionAY || s.academicYearId === selectedSectionAY));
-  const currentClassIds = rowSections.map((s: Section) => s.classId);
-  setEditingSectionRow({ 
-    oldName: sectionName, 
-    name: sectionName, 
-    selectedClasses: currentClassIds
-  });
-}} title="Rename Row" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
-                        <button onClick={() => deleteSectionRow(sectionName)} title="Delete Row" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                            }} 
+                            title="Rename Row" 
+                            className={`p-1 rounded ${theme.hover} ${theme.text.primary} transition-all`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </motion.button>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => deleteSectionRow(sectionName)} 
+                            title="Delete Row" 
+                            className={`p-1 rounded ${theme.hover} text-red-400 transition-all`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </motion.button>
+                        </div>
+                      )}
+                    </td>
+                  </motion.tr>
                 );
               })}
 
               {/* New Draft Rows */}
-              {sectionRows.map((row: any) => {
-                const draft: any = (sectionDrafts as any)[row.id];
+              {sectionRows.map((row: any, index) => {
+                const draft: any = sectionDrafts[row.id];
                 return (
-                  <tr key={row.id} className={isDark ? 'bg-green-900/15' : 'bg-green-50/80'}>
-                    <td className={`px-1 py-1 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                  <motion.tr 
+                    key={row.id} 
+                    className={`${isDark ? 'bg-purple-900/15' : 'bg-purple-50/80'} transition-colors`}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <td className={`px-3 py-3 border ${isDark ? 'border-purple-700' : 'border-purple-300'}`}>
                       <input
                         autoFocus
                         value={draft?.name || ''}
                         onChange={e => handleSectionDraftChange(row.id, 'name', e.target.value)}
                         placeholder="e.g. A, B, C"
-                        className={`w-full px-2 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all ${theme.input}`}
                       />
                     </td>
                     {sectionGridClasses.map((cls: Class) => (
-                      <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-green-700' : 'border-green-300'}`}>
+                      <td key={cls.id} className={`px-3 py-3 border text-center ${isDark ? 'border-purple-700' : 'border-purple-300'}`}>
                         <input
                           type="checkbox"
                           checked={draft?.selectedClasses?.has(cls.id) || false}
                           onChange={() => toggleSectionClass(row.id, cls.id)}
-                          className="w-3.5 h-3.5 rounded cursor-pointer accent-green-500"
+                          className="w-4 h-4 rounded text-purple-500 focus:ring-purple-500"
                         />
                       </td>
                     ))}
-                    <td className={`px-1 py-1 border ${isDark ? 'border-green-700' : 'border-green-300'}`}>
-                      <div className="flex items-center justify-center gap-0.5">
-                        <button
+                    <td className={`px-3 py-3 border ${isDark ? 'border-purple-700' : 'border-purple-300'}`}>
+                      <div className="flex items-center justify-center gap-1">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           disabled={!draft?.name?.trim() || draft?.selectedClasses?.size === 0}
                           onClick={() => saveSectionRow(row.id)}
                           title="Save"
-                          className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
-                        >✓</button>
-                        <button
+                          className={`w-6 h-6 flex items-center justify-center rounded bg-gradient-to-r ${theme.gradients.secondary} text-white text-xs font-bold disabled:opacity-40 transition-all`}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => {
                             setSectionRows(prev => prev.filter((r: any) => r.id !== row.id));
                             setSectionDrafts(prev => {
                               const newDrafts = { ...prev };
-                              delete (newDrafts as any)[row.id];
+                              delete newDrafts[row.id];
                               return newDrafts;
                             });
                           }}
                           title="Cancel"
-                          className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
-                        >✕</button>
+                          className={`w-6 h-6 flex items-center justify-center rounded ${theme.hover} ${theme.text.primary} border ${theme.border} text-xs font-bold transition-all`}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </motion.button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
 
               {/* Action buttons row */}
               <tr>
-                <td colSpan={sectionGridClasses.length + 2} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
+                <td colSpan={sectionGridClasses.length + 2} className={`px-4 py-4 border-t ${theme.border} ${theme.card}`}>
                   <div className="flex items-center justify-between gap-4">
-                    <button 
-                      className={btnSecondary} 
-                      disabled={!canManageSettings} 
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${theme.hover} ${theme.text.primary} border ${theme.border}`}
+                      disabled={!canManageSettings}
                       onClick={addSectionRow}
                     >
-                      + Add Section
-                    </button>
-                    <button 
-                      className={btnPrimary} 
+                      <span className="w-5 h-5 flex items-center justify-center rounded bg-gradient-to-r ${theme.gradients.secondary} text-white font-bold text-sm">+</span>
+                      Add Section Row
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`px-6 py-3 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.secondary} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50`}
                       disabled={!canManageSettings || savingSections || (sectionRows.length === 0 && Object.keys(sectionDrafts).length === 0)} 
                       onClick={() => {
                         const promises = sectionRows.map((row: any) => saveSectionRow(row.id));
                         Promise.all(promises).then(() => {
-                          showToast({ type: 'success', title: 'Sections saved successfully' });
+                          showSuccessToast('Success', 'Sections saved successfully');
                         });
                       }}
                     >
-                      {savingSections ? 'Saving...' : '💾 Bulk Save'}
-                    </button>
+                      <span className="flex items-center gap-2">
+                        {savingSections ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-4 h-4"
+                            >
+                              <svg fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            </motion.div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                            </svg>
+                            Bulk Save Sections
+                          </>
+                        )}
+                      </span>
+                    </motion.button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

@@ -338,7 +338,7 @@ export const TimingsTab: React.FC<TimingsTabProps> = ({
               <h1 className={`text-4xl font-bold bg-gradient-to-r ${
                 isDark ? 'from-blue-400 via-purple-400 to-pink-400' : 'from-blue-600 via-indigo-600 to-purple-600'
               } bg-clip-text text-transparent`}>
-                School Timings
+                Schedule & Timings
               </h1>
               <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
                 Manage your school's daily schedule with ease

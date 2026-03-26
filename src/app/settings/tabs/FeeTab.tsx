@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { showToast } from '../utils';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { showErrorToast, showSuccessToast, showWarningToast } from '@/lib/toastUtils';
 import { AcademicYear, FeeStructure } from '../types';
 
 interface FeeTabProps {
@@ -19,12 +19,6 @@ interface FeeTabProps {
   getSetting: (category: string, key: string, defaultValue: string) => string;
   saving: boolean;
   fetchAll: () => void;
-  card: string;
-  heading: string;
-  subtext: string;
-  btnPrimary: string;
-  input: string;
-  label: string;
 }
 
 export const FeeTab: React.FC<FeeTabProps> = ({
@@ -41,13 +35,53 @@ export const FeeTab: React.FC<FeeTabProps> = ({
   getSetting,
   saving,
   fetchAll,
-  card,
-  heading,
-  subtext,
-  btnPrimary,
-  input,
-  label,
 }) => {
+  // Centralized theme object
+  const theme = useMemo(() => ({
+    bg: isDark ? 'bg-gray-900' : 'bg-white',
+    border: isDark ? 'border-gray-700' : 'border-gray-200',
+    text: {
+      primary: isDark ? 'text-white' : 'text-gray-900',
+      secondary: isDark ? 'text-gray-400' : 'text-gray-600',
+      muted: isDark ? 'text-gray-500' : 'text-gray-500',
+    },
+    card: isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50/50 border-gray-200',
+    input: isDark 
+      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
+      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400',
+    hover: isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50',
+    gradients: {
+      primary: 'from-indigo-500 to-purple-600',
+      secondary: 'from-blue-500 to-cyan-600',
+      success: 'from-green-500 to-emerald-600',
+      warning: 'from-orange-500 to-red-600',
+    }
+  }), [isDark]);
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  };
+
   const [filterAY, setFilterAY] = useState(activeAY?.id || '');
   const [filterBoard, setFilterBoard] = useState('');
   const [filterMedium, setFilterMedium] = useState('');
@@ -115,9 +149,9 @@ export const FeeTab: React.FC<FeeTabProps> = ({
       } as any)));
       await fetchAll();
       setEditingFeeRow(null);
-      showToast({ type: 'success', title: 'Fee row updated' });
+      showSuccessToast('Success', 'Fee row updated');
     } catch {
-      showToast({ type: 'error', title: 'Failed to update fee row' });
+      showErrorToast('Failed', 'Failed to update fee row');
     } finally {
       setSavingFees(false);
     }
@@ -130,9 +164,9 @@ export const FeeTab: React.FC<FeeTabProps> = ({
     try {
       await Promise.all(rowFs.map(fs => feeStructuresApi.delete(fs.id)));
       await fetchAll();
-      showToast({ type: 'success', title: 'Fee row deleted' });
+      showSuccessToast('Success', 'Fee row deleted');
     } catch {
-      showToast({ type: 'error', title: 'Failed to delete fee row' });
+      showErrorToast('Failed', 'Failed to delete fee row');
     } finally {
       setSavingFees(false);
     }
@@ -151,7 +185,7 @@ export const FeeTab: React.FC<FeeTabProps> = ({
         mediumId: cls.mediumId, classId: cls.id,
       } as any);
       await fetchAll();
-    } catch { showToast({ type: 'error', title: 'Add failed' }); }
+    } catch { showErrorToast('Failed', 'Add failed'); }
     setAddingCell(null);
   };
 
@@ -202,16 +236,11 @@ export const FeeTab: React.FC<FeeTabProps> = ({
     try {
       await feeStructuresApi.update(fs.id, { ...fs, amount: parseFloat((editingCell as any).amount) || 0 });
       await fetchAll();
-    } catch { showToast({ type: 'error', title: 'Update failed' }); }
+    } catch { showErrorToast('Failed', 'Update failed'); }
     setEditingCell(null);
   };
 
   const bulkSaveFees = async () => {
-    console.log('Bulk save clicked! newFeeRows length:', newFeeRows.length);
-    console.log('editingCell:', editingCell);
-    console.log('canManageSettings:', canManageSettings);
-    console.log('savingFees:', savingFees);
-    
     if (!canManageSettings) return;
     setSavingFees(true);
     try {
@@ -219,7 +248,6 @@ export const FeeTab: React.FC<FeeTabProps> = ({
       
       // Save edited cell first
       if (editingCell && (editingCell as any).fsId && (editingCell as any).amount) {
-        console.log('Saving edited cell:', editingCell);
         const fs = feeStructures.find(f => f.id === (editingCell as any).fsId);
         if (fs) {
           promises.push(feeStructuresApi.update(fs.id, { ...fs, amount: parseFloat((editingCell as any).amount) || 0 }));
@@ -228,10 +256,8 @@ export const FeeTab: React.FC<FeeTabProps> = ({
       
       // Save all new fee rows
       for (const nr of newFeeRows as any[]) {
-        console.log('Processing new fee row:', nr);
         if (nr.name.trim()) {
           const toCreate = gridClsForFee.filter(cls => parseFloat(nr.amounts[cls.id] || '0') > 0);
-          console.log('Classes to create for:', nr.name, toCreate.length);
           for (const cls of toCreate) {
             promises.push(feeStructuresApi.create({
               name: nr.name.trim(),
@@ -252,15 +278,15 @@ export const FeeTab: React.FC<FeeTabProps> = ({
 
       if (promises.length > 0) {
         await Promise.all(promises);
-        showToast({ type: 'success', title: 'Fee structures saved successfully' });
+        showSuccessToast('Success', 'Fee structures saved successfully');
         await fetchAll();
         setNewFeeRows([]);
-        setEditingCell(null); // Clear editing cell after save
+        setEditingCell(null);
       } else {
-        showToast({ type: 'info', title: 'No fees to save', message: 'Add some fee amounts first' });
+        showWarningToast('No fees to save', 'Add some fee amounts first');
       }
     } catch (e: any) {
-      showToast({ type: 'error', title: 'Failed to save fee structures', message: e.message });
+      showErrorToast('Failed', 'Failed to save fee structures');
     } finally {
       setSavingFees(false);
     }
@@ -289,15 +315,15 @@ export const FeeTab: React.FC<FeeTabProps> = ({
       const payload = { ...feeForm };
       if (editingFee) {
         await feeStructuresApi.update(editingFee.id, payload);
-        showToast({ type: 'success', title: 'Fee structure updated' });
+        showSuccessToast('Success', 'Fee structure updated');
       } else {
         await feeStructuresApi.create(payload);
-        showToast({ type: 'success', title: 'Fee structure created' });
+        showSuccessToast('Success', 'Fee structure created');
       }
       setShowFeeModal(false);
       fetchAll();
     } catch (e: any) {
-      showToast({ type: 'error', title: 'Save failed', message: e.message });
+      showErrorToast('Failed', 'Save failed');
     }
   };
 
@@ -305,20 +331,22 @@ export const FeeTab: React.FC<FeeTabProps> = ({
     if (!confirm(`Delete "${fs.name}"?`)) return;
     try {
       await feeStructuresApi.delete(fs.id);
-      showToast({ type: 'success', title: 'Deleted' });
+      showSuccessToast('Success', 'Deleted');
       fetchAll();
-    } catch (e: any) { showToast({ type: 'error', title: 'Failed', message: e.message }); }
+    } catch (e: any) { 
+      showErrorToast('Failed', 'Failed'); 
+    }
   };
 
   const handleClone = async () => {
     if (!cloneSource || !cloneTarget) return;
     try {
       const res = await feeStructuresApi.clone(cloneSource, cloneTarget);
-      showToast({ type: 'success', title: `${(res as any).cloned} fee structures cloned` });
+      showSuccessToast('Success', `${(res as any).cloned} fee structures cloned`);
       setShowCloneModal(false);
       fetchAll();
     } catch (e: any) {
-      showToast({ type: 'error', title: 'Clone failed', message: e.message });
+      showErrorToast('Failed', 'Clone failed');
     }
   };
 
@@ -335,281 +363,753 @@ export const FeeTab: React.FC<FeeTabProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Global Fee Config */}
-      <div className={card}>
-        <div className="flex justify-between items-center mb-4">
-          <div><h3 className={heading}>Global Fee Settings</h3><p className={subtext}>Late fee, grace period, receipt prefix</p></div>
-          <button className={btnPrimary} disabled={saving || !canManageSettings} onClick={() => saveBatchSettings('fee_config', globalConfig)}>{saving ? 'Saving...' : 'Save'}</button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.entries(globalConfig).map(([key, val]) => (
-            <div key={key}>
-              <label className={label}>{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</label>
-              <input className={input} value={val} onChange={e => setGlobalConfig({ ...globalConfig, [key]: e.target.value })} />
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="space-y-6"
+    >
+      {/* Beautiful Header Section */}
+      <motion.div
+        variants={itemVariants}
+        className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.bg} shadow-lg`}
+      >
+        {/* Gradient Background */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradients.primary} opacity-10`}></div>
+        
+        {/* Content */}
+        <div className="relative p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Animated Icon Container */}
+              <motion.div
+                animate={{
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br ${theme.gradients.primary} shadow-lg`}
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </motion.div>
+              
+              <div>
+                <h1 className={`text-2xl font-bold bg-gradient-to-r ${theme.gradients.primary} bg-clip-text text-transparent`}>
+                  Advanced Fee Structure Management
+                </h1>
+                <p className={`text-sm ${theme.text.secondary} mt-1`}>
+                  Comprehensive fee configuration • {filteredFS.length} structures • {academicYears.length} academic years
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Fee Structures — Multi-Level Excel Grid */}
-      <div className={card}>
-        {/* Toolbar */}
-        <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
-          <div>
-            <h3 className={heading}>Fee Structures</h3>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Click ₹ amount to edit inline · + to add new fee type</p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <select className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} value={filterAY} onChange={e => setFilterAY(e.target.value)}>
-              <option value="">All Years</option>
-              {academicYears.map(ay => <option key={ay.id} value={ay.id}>{ay.name}</option>)}
-            </select>
-            {activeAY && filterAY === activeAY.id && <span className="px-2 py-0.5 rounded text-xs font-bold bg-yellow-400 text-gray-900">Active AY</span>}
-            <select className={`px-2 py-1 rounded border text-xs ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} value={filterMedium} onChange={e => { setFilterMedium(e.target.value); setFilterClass(''); }}>
-              <option value="">All Mediums</option>
-              {mediums.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            <button className={`px-2 py-1 rounded border text-xs transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`} onClick={() => setShowCloneModal(true)}>📋 Clone</button>
-            <button className={`px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'}`} onClick={openCreateFee} title="Full form with all fields">⚙ Detail</button>
+            
+            <div className="flex items-center gap-3">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r ${theme.gradients.secondary} text-white shadow-lg hover:shadow-xl transition-all`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export Fee Structure
+                </span>
+              </motion.button>
+            </div>
           </div>
         </div>
+      </motion.div>
 
-        {/* Grid */}
-        <div className="overflow-x-auto">
-          <table className={`text-xs border-collapse w-full ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            <thead>
-              {/* Level 1: Medium group headers */}
-              <tr>
-                <th rowSpan={2} className={`px-3 py-1.5 text-left border font-semibold min-w-[130px] ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>Fee Name</th>
-                <th rowSpan={2} className={`px-2 py-1.5 text-center border font-semibold w-16 ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>Category</th>
-                <th rowSpan={2} className={`px-2 py-1.5 text-center border font-semibold w-16 ${isDark ? 'border-gray-500 bg-gray-700 text-gray-200' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>Freq</th>
-                {gridClsForFee.length === 0 && <th rowSpan={2} className={`px-3 py-1.5 text-center border ${isDark ? 'border-gray-500 bg-gray-700 text-gray-500' : 'border-gray-400 bg-gray-50 text-gray-400'}`}>← Select AY & configure classes</th>}
-                {medGroupList.map(([medId, med]: any) => (
-                  <th key={medId} colSpan={med.classes.length} className={`px-2 py-1.5 text-center border font-semibold ${isDark ? 'border-gray-500 bg-gray-700 text-blue-300' : 'border-gray-400 bg-blue-100 text-blue-800'}`}>
-                    {med.name}
-                  </th>
-                ))}
-                <th rowSpan={2} className={`px-1 py-1.5 text-center border w-10 ${isDark ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200'}`} />
-              </tr>
-              {/* Level 2: Class name headers */}
-              <tr>
-                {gridClsForFee.map(cls => (
-                  <th key={cls.id} className={`px-2 py-1.5 text-center border font-medium w-20 ${isDark ? 'border-gray-500 bg-gray-800 text-gray-300' : 'border-gray-400 bg-gray-100 text-gray-600'}`}>
-                    {cls.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {/* Empty state */}
-              {feeRowNames.length === 0 && newFeeRows.length === 0 && (
-                <tr>
-                  <td colSpan={3 + gridClsForFee.length + 1} className={`px-3 py-6 text-center border ${isDark ? 'border-gray-600 text-gray-500' : 'border-gray-300 text-gray-400'}`}>
-                    No fee structures yet. Click <strong>+ Add fee type</strong> below.
-                  </td>
-                </tr>
+      {/* Global Fee Configuration */}
+      <motion.div
+        variants={itemVariants}
+        className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.card} shadow-lg`}
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-xl font-bold ${theme.text.primary}`}>Global Fee Configuration</h2>
+              <p className={`text-sm ${theme.text.secondary} mt-1`}>Late fees, grace periods, and receipt settings</p>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={saving || !canManageSettings}
+              onClick={() => saveBatchSettings('fee_config', globalConfig)}
+              className={`px-6 py-3 rounded-xl font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {saving ? 'Saving...' : 'Save Configuration'}
+            </motion.button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Object.entries(globalConfig).map(([key, val], index) => (
+              <motion.div
+                key={key}
+                variants={itemVariants}
+                className={`p-4 rounded-xl border ${theme.border} ${theme.hover} transition-all`}
+              >
+                <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>
+                  {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </label>
+                <motion.input
+                  whileFocus={{ scale: 1.02 }}
+                  className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                  value={val}
+                  onChange={e => setGlobalConfig({ ...globalConfig, [key]: e.target.value })}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Advanced Fee Structures Grid */}
+      <motion.div
+        variants={itemVariants}
+        className={`relative overflow-hidden rounded-2xl border ${theme.border} ${theme.card} shadow-lg`}
+      >
+        <div className="p-6">
+          {/* Toolbar */}
+          <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+              <h2 className={`text-xl font-bold ${theme.text.primary}`}>Fee Structures Matrix</h2>
+              <p className={`text-sm ${theme.text.secondary} mt-1`}>Click amounts to edit • + to add new • Real-time updates</p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <motion.select
+                whileHover={{ scale: 1.02 }}
+                className={`px-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                value={filterAY}
+                onChange={e => setFilterAY(e.target.value)}
+              >
+                <option value="">All Academic Years</option>
+                {academicYears.map(ay => <option key={ay.id} value={ay.id}>{ay.name}</option>)}
+              </motion.select>
+              {activeAY && filterAY === activeAY.id && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white"
+                >
+                  Active AY
+                </motion.span>
               )}
+              <motion.select
+                whileHover={{ scale: 1.02 }}
+                className={`px-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                value={filterMedium}
+                onChange={e => { setFilterMedium(e.target.value); setFilterClass(''); }}
+              >
+                <option value="">All Mediums</option>
+                {mediums.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </motion.select>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCloneModal(true)}
+                className={`px-4 py-2 rounded-lg border ${theme.border} ${theme.text.secondary} hover:bg-gradient-to-r hover:from-blue-500 hover:to-cyan-500 hover:text-white transition-all`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Clone
+                </span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={openCreateFee}
+                className={`px-4 py-2 rounded-lg bg-gradient-to-r ${theme.gradients.secondary} text-white shadow-lg hover:shadow-xl transition-all`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  Advanced
+                </span>
+              </motion.button>
+            </div>
+          </div>
 
-              {/* Existing fee name rows */}
-              {feeRowNames.map(feeName => {
-                const rowFs = feeStructures.filter(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
-                const first = rowFs[0];
-                const isEditingRow = editingFeeRow?.oldName === feeName;
-                return (
-                  <tr key={feeName} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`}>
-                    <td className={`px-3 py-1 border font-medium ${isDark ? 'border-gray-600 bg-gray-800/30 text-gray-200' : 'border-gray-300 bg-gray-50 text-gray-800'}`}>
-                      {isEditingRow ? (
-                        <input
-                          autoFocus
-                          value={editingFeeRow.name}
-                          onChange={e => setEditingFeeRow({ ...editingFeeRow, name: e.target.value })}
-                          className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                        />
-                      ) : (
-                        feeName
-                      )}
-                    </td>
-                    <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                      {isEditingRow ? (
-                        <select value={editingFeeRow.category} onChange={e => setEditingFeeRow({ ...editingFeeRow, category: e.target.value })} className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                          {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
-                      ) : (
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>{first?.category}</span>
-                      )}
-                    </td>
-                    <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
-                      {isEditingRow ? (
-                        <select value={editingFeeRow.frequency} onChange={e => setEditingFeeRow({ ...editingFeeRow, frequency: e.target.value })} className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                          {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                        </select>
-                      ) : (
-                        first?.frequency?.replace('_', ' ')
-                      )}
-                    </td>
-                    {gridClsForFee.map(cls => {
-                      const fs = rowFs.find(f => f.classId === cls.id);
-                      return (
-                        <td key={cls.id} className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                          {fs ? (
-                            (editingCell as any)?.fsId === fs.id ? (
-                              <input
-                                autoFocus type="number"
-                                value={(editingCell as any).amount}
-                                onChange={e => setEditingCell({ ...(editingCell as any), amount: e.target.value })}
-                                onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(fs); if (e.key === 'Escape') setEditingCell(null); }}
-                                className={`w-16 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                              />
-                            ) : (
-                              <div className="group flex items-center justify-center gap-1">
-                                <button
-                                  onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) } as any)}
-                                  className={`text-xs font-semibold hover:underline ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-700 hover:text-green-800'}`}
-                                  title="Edit cell amount"
-                                >₹{fs.amount?.toLocaleString()}</button>
-                                <button onClick={() => deleteFee(fs)} className="opacity-0 group-hover:opacity-100 text-red-500 text-[10px] hover:bg-red-500/20 rounded px-1 transition-all" title="Delete cell fee">✕</button>
-                              </div>
-                            )
-                          ) : (
-                            (addingCell as any)?.feeName === feeName && (addingCell as any)?.classId === cls.id ? (
-                              <input
-                                autoFocus type="number"
-                                value={(addingCell as any).amount}
-                                onChange={e => setAddingCell({ ...(addingCell as any), amount: e.target.value })}
-                                onKeyDown={e => { if (e.key === 'Enter') saveAddingCell(feeName, cls); if (e.key === 'Escape') setAddingCell(null); }}
-                                placeholder="₹"
-                                className={`w-14 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-600' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-300'}`}
-                              />
-                            ) : (
-                              <button
-                                onClick={() => setAddingCell({ feeName, classId: cls.id, amount: '' } as any)}
-                                title={`Add ${feeName} for ${cls.name}`}
-                                className={`text-xs px-1 rounded border border-dashed transition-all ${isDark ? 'border-gray-700 text-gray-700 hover:border-blue-600 hover:text-blue-500' : 'border-gray-300 text-gray-300 hover:border-blue-400 hover:text-blue-500'}`}
-                              >+</button>
-                            )
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className={`px-1 py-1 border text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                      {isEditingRow ? (
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => saveFeeRowEdit(feeName)} disabled={!editingFeeRow.name.trim() || savingFees} title="Save Row" className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all">✓</button>
-                          <button onClick={() => setEditingFeeRow(null)} title="Cancel" className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-gray-500 text-white text-xs font-bold transition-all">✕</button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => setEditingFeeRow({ oldName: feeName, name: feeName, category: first?.category || 'tuition', frequency: first?.frequency || 'monthly' })} title="Edit Row" className={`text-xs px-0.5 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600'}`}>✎</button>
-                          <button onClick={() => deleteFeeRow(feeName)} title="Delete Row" className={`text-xs px-0.5 ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'}`}>✕</button>
-                        </div>
-                      )}
+          {/* Advanced Grid */}
+          <div className="overflow-x-auto">
+            <table className={`w-full text-sm border-collapse ${theme.text.secondary}`}>
+              <thead>
+                {/* Level 1: Medium group headers */}
+                <tr>
+                  <th rowSpan={2} className={`px-4 py-3 text-left border font-semibold min-w-[150px] ${theme.border} ${theme.card} ${theme.text.primary}`}>Fee Name</th>
+                  <th rowSpan={2} className={`px-3 py-3 text-center border font-semibold w-20 ${theme.border} ${theme.card} ${theme.text.primary}`}>Category</th>
+                  <th rowSpan={2} className={`px-3 py-3 text-center border font-semibold w-20 ${theme.border} ${theme.card} ${theme.text.primary}`}>Frequency</th>
+                  {gridClsForFee.length === 0 && (
+                    <th rowSpan={2} className={`px-4 py-3 text-center border ${theme.border} ${theme.card} ${theme.text.muted}`}>
+                      ← Select Academic Year & Configure Classes
+                    </th>
+                  )}
+                  {medGroupList.map(([medId, med]: any) => (
+                    <th key={medId} colSpan={med.classes.length} className={`px-3 py-3 text-center border font-semibold ${theme.border} ${theme.card} text-blue-600`}>
+                      {med.name}
+                    </th>
+                  ))}
+                  <th rowSpan={2} className={`px-2 py-3 text-center border w-12 ${theme.border} ${theme.card}`} />
+                </tr>
+                {/* Level 2: Class name headers */}
+                <tr>
+                  {gridClsForFee.map(cls => (
+                    <th key={cls.id} className={`px-3 py-2 text-center border font-medium w-24 ${theme.border} ${theme.card} ${theme.text.secondary}`}>
+                      {cls.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {/* Empty state */}
+                {feeRowNames.length === 0 && newFeeRows.length === 0 && (
+                  <tr>
+                    <td colSpan={3 + gridClsForFee.length + 1} className={`px-6 py-8 text-center border ${theme.border} ${theme.text.muted}`}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-2"
+                      >
+                        <div className="text-lg font-medium">No fee structures configured yet</div>
+                        <div className="text-sm">Click <strong>+ Add Fee Type</strong> below to get started</div>
+                      </motion.div>
                     </td>
                   </tr>
-                );
-              })}
+                )}
 
-              {/* New inline rows */}
-              {(newFeeRows as any).map((nr: any) => (
-                <tr key={nr.id} className={isDark ? 'bg-blue-900/15' : 'bg-blue-50/80'}>
-                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                    <input autoFocus value={nr.name}
-                      onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, name: e.target.value } : r))}
-                      placeholder="Fee name…"
-                      className={`w-full px-1.5 py-0.5 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
-                    />
-                  </td>
-                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                    <select value={nr.category} onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, category: e.target.value } : r))}
-                      className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                      {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                  </td>
-                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                    <select value={nr.frequency} onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, frequency: e.target.value } : r))}
-                      className={`w-full px-1 py-0.5 rounded border text-xs focus:outline-none ${isDark ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                      {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    </select>
-                  </td>
-                  {gridClsForFee.map(cls => (
-                    <td key={cls.id} className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                      <input type="number" min="0"
-                        value={nr.amounts[cls.id] || ''}
-                        onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, amounts: { ...r.amounts, [cls.id]: e.target.value } } : r))}
-                        placeholder="₹"
-                        className={`w-16 px-1 py-0.5 rounded border text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-400 ${isDark ? 'bg-gray-700 border-gray-500 text-white placeholder-gray-600' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-300'}`}
+                {/* Existing fee name rows */}
+                {feeRowNames.map(feeName => {
+                  const rowFs = feeStructures.filter(fs => fs.name === feeName && (!filterAY || fs.academicYearId === filterAY));
+                  const first = rowFs[0];
+                  const isEditingRow = editingFeeRow?.oldName === feeName;
+                  return (
+                    <motion.tr
+                      key={feeName}
+                      variants={itemVariants}
+                      className={`${theme.hover} transition-all`}
+                    >
+                      <td className={`px-4 py-2 border font-medium ${theme.border} ${theme.card} ${theme.text.primary}`}>
+                        {isEditingRow ? (
+                          <motion.input
+                            autoFocus
+                            whileFocus={{ scale: 1.02 }}
+                            value={editingFeeRow.name}
+                            onChange={e => setEditingFeeRow({ ...editingFeeRow, name: e.target.value })}
+                            className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                          />
+                        ) : (
+                          <span className="font-semibold">{feeName}</span>
+                        )}
+                      </td>
+                      <td className={`px-2 py-2 border text-center ${theme.border}`}>
+                        {isEditingRow ? (
+                          <motion.select
+                            whileFocus={{ scale: 1.02 }}
+                            value={editingFeeRow.category}
+                            onChange={e => setEditingFeeRow({ ...editingFeeRow, category: e.target.value })}
+                            className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                          >
+                            {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </motion.select>
+                        ) : (
+                          <motion.span
+                            whileHover={{ scale: 1.05 }}
+                            className={`px-2 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-blue-500 to-cyan-500 text-white`}
+                          >
+                            {first?.category}
+                          </motion.span>
+                        )}
+                      </td>
+                      <td className={`px-2 py-2 border text-center ${theme.border} ${theme.text.secondary}`}>
+                        {isEditingRow ? (
+                          <motion.select
+                            whileFocus={{ scale: 1.02 }}
+                            value={editingFeeRow.frequency}
+                            onChange={e => setEditingFeeRow({ ...editingFeeRow, frequency: e.target.value })}
+                            className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                          >
+                            {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </motion.select>
+                        ) : (
+                          <span className="text-xs">{first?.frequency?.replace('_', ' ')}</span>
+                        )}
+                      </td>
+                      {gridClsForFee.map(cls => {
+                        const fs = rowFs.find(f => f.classId === cls.id);
+                        return (
+                          <td key={cls.id} className={`px-2 py-2 border text-center ${theme.border}`}>
+                            {fs ? (
+                              (editingCell as any)?.fsId === fs.id ? (
+                                <motion.input
+                                  autoFocus
+                                  type="number"
+                                  whileFocus={{ scale: 1.05 }}
+                                  value={(editingCell as any).amount}
+                                  onChange={e => setEditingCell({ ...(editingCell as any), amount: e.target.value })}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(fs); if (e.key === 'Escape') setEditingCell(null); }}
+                                  className={`w-20 px-2 py-1 rounded-lg border ${theme.input} text-right focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                                />
+                              ) : (
+                                <motion.div
+                                  whileHover={{ scale: 1.02 }}
+                                  className="group flex items-center justify-center gap-2"
+                                >
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => setEditingCell({ fsId: fs.id, amount: String(fs.amount) } as any)}
+                                    className={`text-sm font-bold hover:underline bg-gradient-to-r from-green-500 to-emerald-500 text-transparent bg-clip-text`}
+                                    title="Edit cell amount"
+                                  >
+                                    ₹{fs.amount?.toLocaleString()}
+                                  </motion.button>
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => deleteFee(fs)}
+                                    className="opacity-0 group-hover:opacity-100 text-red-500 text-xs hover:bg-red-500/20 rounded px-1 transition-all"
+                                    title="Delete cell fee"
+                                  >
+                                    ✕
+                                  </motion.button>
+                                </motion.div>
+                              )
+                            ) : (
+                              (addingCell as any)?.feeName === feeName && (addingCell as any)?.classId === cls.id ? (
+                                <motion.input
+                                  autoFocus
+                                  type="number"
+                                  whileFocus={{ scale: 1.05 }}
+                                  value={(addingCell as any).amount}
+                                  onChange={e => setAddingCell({ ...(addingCell as any), amount: e.target.value })}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveAddingCell(feeName, cls); if (e.key === 'Escape') setAddingCell(null); }}
+                                  placeholder="₹"
+                                  className={`w-18 px-2 py-1 rounded-lg border ${theme.input} text-right focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                                />
+                              ) : (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => setAddingCell({ feeName, classId: cls.id, amount: '' } as any)}
+                                  title={`Add ${feeName} for ${cls.name}`}
+                                  className={`px-2 py-1 rounded-lg border border-dashed ${theme.border} ${theme.text.muted} hover:border-blue-500 hover:text-blue-500 transition-all`}
+                                >
+                                  +
+                                </motion.button>
+                              )
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className={`px-2 py-2 border text-center ${theme.border}`}>
+                        {isEditingRow ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => saveFeeRowEdit(feeName)}
+                              disabled={!editingFeeRow.name.trim() || savingFees}
+                              title="Save Row"
+                              className="w-6 h-6 flex items-center justify-center rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold disabled:opacity-40 transition-all"
+                            >
+                              ✓
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setEditingFeeRow(null)}
+                              title="Cancel"
+                              className="w-6 h-6 flex items-center justify-center rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 text-white text-xs font-bold transition-all"
+                            >
+                              ✕
+                            </motion.button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setEditingFeeRow({ oldName: feeName, name: feeName, category: first?.category || 'tuition', frequency: first?.frequency || 'monthly' })}
+                              title="Edit Row"
+                              className="text-blue-500 hover:text-blue-600 transition-colors"
+                            >
+                              ✎
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => deleteFeeRow(feeName)}
+                              title="Delete Row"
+                              className="text-red-500 hover:text-red-600 transition-colors"
+                            >
+                              ✕
+                            </motion.button>
+                          </div>
+                        )}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+
+                {/* New inline rows */}
+                {(newFeeRows as any).map((nr: any) => (
+                  <motion.tr
+                    key={nr.id}
+                    variants={itemVariants}
+                    className={`bg-gradient-to-r ${isDark ? 'from-blue-900/20 to-cyan-900/20' : 'from-blue-50/80 to-cyan-50/80'} transition-all`}
+                  >
+                    <td className={`px-2 py-2 border ${theme.border}`}>
+                      <motion.input
+                        autoFocus
+                        whileFocus={{ scale: 1.02 }}
+                        value={nr.name}
+                        onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, name: e.target.value } : r))}
+                        placeholder="Fee name…"
+                        className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
                       />
                     </td>
-                  ))}
-                  <td className={`px-1 py-1 border ${isDark ? 'border-blue-700' : 'border-blue-300'}`}>
-                    <div className="flex items-center justify-center gap-0.5">
-                      <button disabled={!nr.name.trim() || Object.values(nr.amounts).every((a: any) => !parseFloat(a)) || nr.saving}
-                        onClick={() => saveFeeRow(nr.id)} title="Save"
-                        className="w-5 h-5 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-40 transition-all"
-                      >{nr.saving ? '…' : '✓'}</button>
-                      <button onClick={() => setNewFeeRows((prev: any) => (prev as any).filter((r: any) => r.id !== nr.id))} title="Cancel"
-                        className="w-5 h-5 flex items-center justify-center rounded bg-gray-400 hover:bg-red-400 text-white text-xs font-bold transition-all"
-                      >✕</button>
+                    <td className={`px-2 py-2 border ${theme.border}`}>
+                      <motion.select
+                        whileFocus={{ scale: 1.02 }}
+                        value={nr.category}
+                        onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, category: e.target.value } : r))}
+                        className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                      >
+                        {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </motion.select>
+                    </td>
+                    <td className={`px-2 py-2 border ${theme.border}`}>
+                      <motion.select
+                        whileFocus={{ scale: 1.02 }}
+                        value={nr.frequency}
+                        onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, frequency: e.target.value } : r))}
+                        className={`w-full px-2 py-1 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                      >
+                        {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                      </motion.select>
+                    </td>
+                    {gridClsForFee.map(cls => (
+                      <td key={cls.id} className={`px-2 py-2 border ${theme.border}`}>
+                        <motion.input
+                          type="number"
+                          min="0"
+                          whileFocus={{ scale: 1.02 }}
+                          value={nr.amounts[cls.id] || ''}
+                          onChange={e => setNewFeeRows((prev: any) => (prev as any).map((r: any) => r.id === nr.id ? { ...r, amounts: { ...r.amounts, [cls.id]: e.target.value } } : r))}
+                          placeholder="₹"
+                          className={`w-20 px-2 py-1 rounded-lg border ${theme.input} text-right focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                        />
+                      </td>
+                    ))}
+                    <td className={`px-2 py-2 border ${theme.border}`}>
+                      <div className="flex items-center justify-center gap-1">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          disabled={!nr.name.trim() || Object.values(nr.amounts).every((a: any) => !parseFloat(a)) || nr.saving}
+                          onClick={() => saveFeeRow(nr.id)}
+                          title="Save"
+                          className="w-6 h-6 flex items-center justify-center rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold disabled:opacity-40 transition-all"
+                        >
+                          {nr.saving ? '…' : '✓'}
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setNewFeeRows((prev: any) => (prev as any).filter((r: any) => r.id !== nr.id))}
+                          title="Cancel"
+                          className="w-6 h-6 flex items-center justify-center rounded-lg bg-gradient-to-r from-gray-500 to-red-500 text-white text-xs font-bold transition-all"
+                        >
+                          ✕
+                        </motion.button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+
+                {/* Action buttons row */}
+                <tr>
+                  <td colSpan={3 + gridClsForFee.length + 1} className={`px-6 py-4 border-t ${theme.border} ${theme.card}`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={!canManageSettings}
+                        onClick={() => (setNewFeeRows as any)((prev: any) => [...(prev as any), { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <motion.div
+                          animate={{ rotate: [0, 180] }}
+                          transition={{ duration: 0.3 }}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-white/20 font-bold text-sm"
+                        >
+                          +
+                        </motion.div>
+                        Add Fee Type
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`px-6 py-3 rounded-lg font-medium bg-gradient-to-r ${theme.gradients.success} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                        disabled={!canManageSettings || savingFees || (newFeeRows.length === 0 && !editingCell)}
+                        onClick={bulkSaveFees}
+                      >
+                        {savingFees ? (
+                          <span className="flex items-center gap-2">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                            />
+                            Saving...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                            </svg>
+                            Bulk Save All Changes
+                          </span>
+                        )}
+                      </motion.button>
                     </div>
                   </td>
                 </tr>
-              ))}
-
-              {/* Action buttons row */}
-              <tr>
-                <td colSpan={3 + gridClsForFee.length + 1} className={`px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-300 bg-gray-50'}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <button disabled={!canManageSettings}
-                      onClick={() => (setNewFeeRows as any)((prev: any) => [...(prev as any), { id: Date.now().toString(), name: '', category: 'tuition', frequency: 'monthly', dueDate: 1, amounts: {}, saving: false }])}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-40 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                    >
-                      <span className="w-5 h-5 flex items-center justify-center rounded bg-blue-500 text-white font-bold text-sm leading-none">+</span>
-                      Add fee type
-                    </button>
-                    <button 
-                      className={btnPrimary} 
-                      disabled={!canManageSettings || savingFees || (newFeeRows.length === 0 && !editingCell)} 
-                      onClick={() => {
-                        console.log('Bulk save button clicked!');
-                        bulkSaveFees();
-                      }}
-                    >
-                      {savingFees ? 'Saving...' : '💾 Bulk Save'}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Fee Structure Create/Edit Modal */}
+      {/* Advanced Fee Structure Modal */}
       <AnimatePresence>
         {showFeeModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFeeModal(false)}>
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
-              <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {editingFee ? 'Edit' : 'Create'} Fee Structure
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={label}>Fee Name</label><input className={input} value={feeForm.name || ''} onChange={e => setFeeForm({ ...feeForm, name: e.target.value })} placeholder="e.g. Tuition Fee" /></div>
-                <div><label className={label}>Category</label><select className={input} value={feeForm.category || 'tuition'} onChange={e => setFeeForm({ ...feeForm, category: e.target.value })}>{categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}</select></div>
-                <div><label className={label}>Amount (₹)</label><input className={input} type="number" value={feeForm.amount || 0} onChange={e => setFeeForm({ ...feeForm, amount: parseFloat(e.target.value) || 0 })} /></div>
-                <div><label className={label}>Frequency</label><select className={input} value={feeForm.frequency || 'monthly'} onChange={e => setFeeForm({ ...feeForm, frequency: e.target.value })}>{frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select></div>
-                <div><label className={label}>Due Date (Day of Month)</label><input className={input} type="number" min={1} max={28} value={feeForm.dueDate || 1} onChange={e => setFeeForm({ ...feeForm, dueDate: parseInt(e.target.value) || 1 })} /></div>
-                <div><label className={label}>Late Fee (₹/day)</label><input className={input} type="number" value={feeForm.lateFee || 0} onChange={e => setFeeForm({ ...feeForm, lateFee: parseFloat(e.target.value) || 0 })} /></div>
-                <div className="md:col-span-2"><label className={label}>Description</label><input className={input} value={feeForm.description || ''} onChange={e => setFeeForm({ ...feeForm, description: e.target.value })} /></div>
-                <div><label className={label}>Academic Year *</label><select className={input} value={feeForm.academicYearId || ''} onChange={e => setFeeForm({ ...feeForm, academicYearId: e.target.value, mediumId: null, classId: null })}><option value="">Select...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-                <div><label className={label}>Board *</label><select className={input} value={feeForm.boardId || ''} onChange={e => setFeeForm({ ...feeForm, boardId: e.target.value || null })}><option value="">Select Board...</option>{boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
-                <div><label className={label}>Medium{modalLoading ? ' (loading...)' : ''} *</label><select className={input} value={feeForm.mediumId || ''} onChange={e => setFeeForm({ ...feeForm, mediumId: e.target.value || null, classId: null })} disabled={modalLoading}><option value="">Select Medium...</option>{modalMediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                <div><label className={label}>Class{modalLoading ? ' (loading...)' : ''} *</label><select className={input} value={feeForm.classId || ''} onChange={e => setFeeForm({ ...feeForm, classId: e.target.value || null })} disabled={modalLoading}><option value="">Select Class...</option>{(feeForm.mediumId ? modalClasses.filter((c: any) => c.mediumId === feeForm.mediumId) : modalClasses).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                <div><label className={label}>Applicable Categories</label><input className={input} value={feeForm.applicableCategories || 'all'} onChange={e => setFeeForm({ ...feeForm, applicableCategories: e.target.value })} placeholder="all, General, OBC, SC, ST" /></div>
-                <div className="flex items-center gap-2 pt-6"><input type="checkbox" checked={feeForm.isActive !== false} onChange={e => setFeeForm({ ...feeForm, isActive: e.target.checked })} /><span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Active</span></div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowFeeModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl p-8 ${theme.card} shadow-2xl`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className={`text-2xl font-bold ${theme.text.primary}`}>
+                  {editingFee ? 'Edit Fee Structure' : 'Create New Fee Structure'}
+                </h3>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowFeeModal(false)}
+                  className={`w-8 h-8 rounded-full ${theme.hover} ${theme.text.secondary} hover:text-red-500 transition-all`}
+                >
+                  ✕
+                </motion.button>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button className={btnPrimary} disabled={saving || !feeForm.name || !feeForm.academicYearId || !feeForm.boardId || !feeForm.mediumId || !feeForm.classId} onClick={saveFee}>{saving ? 'Saving...' : editingFee ? 'Update' : 'Create'}</button>
-                <button className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`} onClick={() => setShowFeeModal(false)}>Cancel</button>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Fee Name</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.name || ''}
+                    onChange={e => setFeeForm({ ...feeForm, name: e.target.value })}
+                    placeholder="e.g. Tuition Fee"
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Category</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.category || 'tuition'}
+                    onChange={e => setFeeForm({ ...feeForm, category: e.target.value })}
+                  >
+                    {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Amount (₹)</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.amount || 0}
+                    onChange={e => setFeeForm({ ...feeForm, amount: parseFloat(e.target.value) || 0 })}
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Frequency</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.frequency || 'monthly'}
+                    onChange={e => setFeeForm({ ...feeForm, frequency: e.target.value })}
+                  >
+                    {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Due Date (Day of Month)</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="number"
+                    min={1}
+                    max={28}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.dueDate || 1}
+                    onChange={e => setFeeForm({ ...feeForm, dueDate: parseInt(e.target.value) || 1 })}
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Late Fee (₹/day)</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.lateFee || 0}
+                    onChange={e => setFeeForm({ ...feeForm, lateFee: parseFloat(e.target.value) || 0 })}
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants} className="md:col-span-2">
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Description</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.description || ''}
+                    onChange={e => setFeeForm({ ...feeForm, description: e.target.value })}
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Academic Year *</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.academicYearId || ''}
+                    onChange={e => setFeeForm({ ...feeForm, academicYearId: e.target.value, mediumId: null, classId: null })}
+                  >
+                    <option value="">Select...</option>
+                    {academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Board *</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.boardId || ''}
+                    onChange={e => setFeeForm({ ...feeForm, boardId: e.target.value || null })}
+                  >
+                    <option value="">Select Board...</option>
+                    {boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Medium{modalLoading ? ' (loading...)' : ''} *</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.mediumId || ''}
+                    onChange={e => setFeeForm({ ...feeForm, mediumId: e.target.value || null, classId: null })}
+                    disabled={modalLoading}
+                  >
+                    <option value="">Select Medium...</option>
+                    {modalMediums.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Class{modalLoading ? ' (loading...)' : ''} *</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.classId || ''}
+                    onChange={e => setFeeForm({ ...feeForm, classId: e.target.value || null })}
+                    disabled={modalLoading}
+                  >
+                    <option value="">Select Class...</option>
+                    {(feeForm.mediumId ? modalClasses.filter((c: any) => c.mediumId === feeForm.mediumId) : modalClasses).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </motion.select>
+                </motion.div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Applicable Categories</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={feeForm.applicableCategories || 'all'}
+                    onChange={e => setFeeForm({ ...feeForm, applicableCategories: e.target.value })}
+                    placeholder="all, General, OBC, SC, ST"
+                  />
+                </motion.div>
+                
+                <motion.div variants={itemVariants} className="flex items-center gap-3 pt-6">
+                  <motion.input
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    type="checkbox"
+                    checked={feeForm.isActive !== false}
+                    onChange={e => setFeeForm({ ...feeForm, isActive: e.target.checked })}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className={theme.text.primary}>Active</span>
+                </motion.div>
+              </div>
+              
+              <div className="flex gap-4 mt-8">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={saving || !feeForm.name || !feeForm.academicYearId || !feeForm.boardId || !feeForm.mediumId || !feeForm.classId}
+                  onClick={saveFee}
+                >
+                  {saving ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                      />
+                      Saving...
+                    </span>
+                  ) : (
+                    editingFee ? 'Update Fee Structure' : 'Create Fee Structure'
+                  )}
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`px-6 py-3 rounded-lg font-medium ${theme.hover} ${theme.text.secondary} transition-all`}
+                  onClick={() => setShowFeeModal(false)}
+                >
+                  Cancel
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -619,23 +1119,113 @@ export const FeeTab: React.FC<FeeTabProps> = ({
       {/* Clone Modal */}
       <AnimatePresence>
         {showCloneModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCloneModal(false)}>
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`w-full max-w-md rounded-xl p-6 ${card}`} onClick={e => e.stopPropagation()}>
-              <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Clone Fee Structures</h3>
-              <p className={`${subtext} mb-4`}>Copy all fee structures from one academic year to another. Amounts, categories, board/medium/class assignments will be preserved.</p>
-              <div className="space-y-4">
-                <div><label className={label}>Source Academic Year</label><select className={input} value={cloneSource} onChange={e => setCloneSource(e.target.value)}><option value="">Select source...</option>{academicYears.map((a: any) => <option key={a.id} value={a.id}>{a.name} ({feeStructures.filter((f: any) => f.academicYearId === a.id).length} structures)</option>)}</select></div>
-                <div className="text-center text-2xl">⬇️</div>
-                <div><label className={label}>Target Academic Year</label><select className={input} value={cloneTarget} onChange={e => setCloneTarget(e.target.value)}><option value="">Select target...</option>{academicYears.filter((a: any) => a.id !== cloneSource).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCloneModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`w-full max-w-lg rounded-2xl p-8 ${theme.card} shadow-2xl`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className={`text-xl font-bold ${theme.text.primary}`}>Clone Fee Structures</h3>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowCloneModal(false)}
+                  className={`w-8 h-8 rounded-full ${theme.hover} ${theme.text.secondary} hover:text-red-500 transition-all`}
+                >
+                  ✕
+                </motion.button>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`} onClick={() => setShowCloneModal(false)}>Cancel</button>
-                <button className={btnPrimary} disabled={!cloneSource || !cloneTarget || saving} onClick={handleClone}>{saving ? 'Cloning...' : 'Clone'}</button>
+              
+              <p className={`${theme.text.secondary} mb-6`}>
+                Copy all fee structures from one academic year to another. Amounts, categories, and assignments will be preserved.
+              </p>
+              
+              <div className="space-y-6">
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Source Academic Year</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={cloneSource}
+                    onChange={e => setCloneSource(e.target.value)}
+                  >
+                    <option value="">Select source...</option>
+                    {academicYears.map((a: any) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({feeStructures.filter((f: any) => f.academicYearId === a.id).length} structures)
+                      </option>
+                    ))}
+                  </motion.select>
+                </motion.div>
+                
+                <div className="text-center text-2xl">
+                  <motion.div
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    ⬇️
+                  </motion.div>
+                </div>
+                
+                <motion.div variants={itemVariants}>
+                  <label className={`block text-sm font-medium ${theme.text.secondary} mb-2`}>Target Academic Year</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    value={cloneTarget}
+                    onChange={e => setCloneTarget(e.target.value)}
+                  >
+                    <option value="">Select target...</option>
+                    {academicYears.filter((a: any) => a.id !== cloneSource).map((a: any) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </motion.select>
+                </motion.div>
+              </div>
+              
+              <div className="flex gap-4 mt-8">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium ${theme.hover} ${theme.text.secondary} transition-all`}
+                  onClick={() => setShowCloneModal(false)}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium bg-gradient-to-r ${theme.gradients.primary} text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={!cloneSource || !cloneTarget || saving}
+                  onClick={handleClone}
+                >
+                  {saving ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                      />
+                      Cloning...
+                    </span>
+                  ) : (
+                    'Clone Structures'
+                  )}
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };

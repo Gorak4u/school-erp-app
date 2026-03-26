@@ -489,7 +489,7 @@ export default function SettingsPage() {
       case 'fees':
         return <FeeTab {...commonProps} />;
       case 'timings':
-        return <TimingsTab {...commonProps} onTimingsChange={refreshTimings} />;
+        return <TimingsTab {...commonProps} />;
       case 'integrations':
         return <IntegrationsTab {...commonProps} />;
       case 'theme':
@@ -543,35 +543,95 @@ export default function SettingsPage() {
     <AppLayout currentPage="settings" title="Settings" theme={theme}>
       <div className="min-h-screen p-4 md:p-6">
         <div className="space-y-8 pb-8">
-          {/* Modern Tabs */}
+          {/* Modern Advanced Tab Navigation */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className={`rounded-2xl border p-1.5 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm overflow-x-auto`}
+            className={`relative overflow-hidden rounded-2xl border p-2 ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} shadow-lg backdrop-blur-sm`}
           >
-            <div className="flex flex-nowrap md:flex-wrap gap-1 min-w-max md:min-w-0">
-              {TABS.map((tab, index) => (
-                <motion.button
-                  key={tab.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transform scale-100'
-                      : isDark 
-                        ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200' 
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                  whileHover={{ scale: activeTab === tab.id ? 1 : 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-sm">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </motion.button>
-              ))}
+            {/* Gradient Background */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${isDark ? 'from-blue-600/10 to-purple-600/10' : 'from-blue-500/5 to-purple-500/5'} pointer-events-none`}></div>
+            
+            {/* Tab Container */}
+            <div className="relative flex flex-nowrap md:flex-wrap gap-2 min-w-max md:min-w-0">
+              {TABS.map((tab, index) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: index * 0.05,
+                      type: "spring" as const,
+                      stiffness: 300,
+                      damping: 24
+                    }}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`group relative flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+                      isActive
+                        ? `bg-gradient-to-r ${isDark ? 'from-blue-600 to-purple-600 text-white shadow-lg' : 'from-blue-500 to-purple-500 text-white shadow-lg'} transform scale-105`
+                        : isDark 
+                          ? 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200' 
+                          : 'text-gray-600 hover:bg-gray-100/50 hover:text-gray-900'
+                    }`}
+                    whileHover={{ 
+                      scale: isActive ? 1.05 : 1.02,
+                      y: -2
+                    }}
+                    whileTap={{ 
+                      scale: 0.95,
+                      y: 0
+                    }}
+                  >
+                    {/* Active Tab Indicator */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className={`absolute inset-0 rounded-xl bg-gradient-to-r ${isDark ? 'from-blue-600/20 to-purple-600/20' : 'from-blue-500/20 to-purple-500/20'} shadow-lg`}
+                        transition={{
+                          type: "spring" as const,
+                          stiffness: 500,
+                          damping: 30
+                        }}
+                      />
+                    )}
+                    
+                    {/* Icon Container */}
+                    <motion.div
+                      animate={{
+                        rotate: isActive ? [0, 10, -10, 0] : 0,
+                        scale: isActive ? [1, 1.1, 1] : 1
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: isActive ? Infinity : 0,
+                        repeatType: "reverse" as const,
+                        ease: "easeInOut"
+                      }}
+                      className={`relative z-10 text-base ${isActive ? 'drop-shadow-sm' : ''}`}
+                    >
+                      {tab.icon}
+                    </motion.div>
+                    
+                    {/* Tab Label */}
+                    <span className="relative z-10 text-xs font-medium tracking-wide">
+                      {tab.label}
+                    </span>
+                    
+                    {/* Hover Effect */}
+                    {!isActive && (
+                      <motion.div
+                        className={`absolute inset-0 rounded-xl ${isDark ? 'bg-gray-700/30' : 'bg-gray-200/30'} opacity-0 group-hover:opacity-100 transition-opacity`}
+                        initial={false}
+                        whileHover={{ opacity: 1 }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
           </motion.div>
 

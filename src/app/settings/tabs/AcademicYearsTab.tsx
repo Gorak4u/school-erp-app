@@ -149,7 +149,7 @@ export const AcademicYearsTab: React.FC<AcademicYearsTabProps> = ({
           </motion.div>
           <div>
             <h3 className={`text-xl font-bold bg-gradient-to-r ${isDark ? 'from-purple-400 to-purple-300' : 'from-purple-600 to-purple-500'} bg-clip-text text-transparent`}>
-              Academic Years
+              Academic Calendar
             </h3>
             <div className="flex items-center gap-4 mt-1">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -215,7 +215,7 @@ export const AcademicYearsTab: React.FC<AcademicYearsTabProps> = ({
             No Academic Years
           </h4>
           <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Get started by creating your first academic year
+            Get started by creating your first academic calendar year
           </p>
           <motion.button
             whileHover={{ scale: 1.05 }}

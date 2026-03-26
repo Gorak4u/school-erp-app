@@ -9,15 +9,15 @@ export const LEVELS = [
 ];
 
 export const TABS = [
-  { id: 'school', label: 'School Details', icon: '🏫' },
-  { id: 'academic', label: 'Academic Years', icon: '📅' },
-  { id: 'structure', label: 'Board / Medium / Class / Section', icon: '🏛️' },
-  { id: 'fees', label: 'Fee Structure', icon: '💰' },
-  { id: 'timings', label: 'School Timings', icon: '🕐' },
-  { id: 'integrations', label: 'SMTP & Payments', icon: '🔌' },
-  { id: 'theme', label: 'Theme & Branding', icon: '🎨' },
-  { id: 'roles', label: 'Custom Roles', icon: '🎭' },
-  { id: 'users', label: 'Users & Access', icon: '👥' },
-  { id: 'leave', label: 'Leave Management', icon: '🏖️' },
-  { id: 'app', label: 'App Settings', icon: '⚙️' },
+  { id: 'school', label: 'School Overview', icon: '🏫' },
+  { id: 'academic', label: 'Academic Calendar', icon: '📅' },
+  { id: 'structure', label: 'Organizational Structure', icon: '🏛️' },
+  { id: 'fees', label: 'Fee Management', icon: '💰' },
+  { id: 'timings', label: 'Schedule & Timings', icon: '🕐' },
+  { id: 'integrations', label: 'Payment & Email Setup', icon: '🔌' },
+  { id: 'theme', label: 'Appearance & Branding', icon: '🎨' },
+  { id: 'roles', label: 'Role Management', icon: '🎭' },
+  { id: 'users', label: 'User Administration', icon: '👥' },
+  { id: 'leave', label: 'Leave & Attendance', icon: '🏖️' },
+  { id: 'app', label: 'System Configuration', icon: '⚙️' },
 ];

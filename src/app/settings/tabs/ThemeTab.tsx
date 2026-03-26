@@ -277,7 +277,7 @@ export const ThemeTab: React.FC<ThemeTabProps> = ({ isDark }) => {
               
               <div>
                 <h1 className={`text-2xl font-bold bg-gradient-to-r ${theme.gradients.primary} bg-clip-text text-transparent`}>
-                  Advanced Theme & Branding
+                  Advanced Appearance & Branding
                 </h1>
                 <p className={`text-sm ${theme.text.secondary} mt-1`}>
                   Customize your school's visual identity and user experience

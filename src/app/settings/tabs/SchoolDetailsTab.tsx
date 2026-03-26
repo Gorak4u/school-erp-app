@@ -271,7 +271,7 @@ export const SchoolDetailsTab: React.FC<SchoolDetailsTabProps> = ({
           </motion.div>
           <div>
             <h3 className={`text-xl font-bold bg-gradient-to-r ${isDark ? 'from-blue-400 to-blue-300' : 'from-blue-600 to-blue-500'} bg-clip-text text-transparent`}>
-              School Details
+              School Overview
             </h3>
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               Manage your school's basic information and branding
