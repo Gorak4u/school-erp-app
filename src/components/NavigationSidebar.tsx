@@ -262,7 +262,7 @@ export default function NavigationSidebar({
   const getThemeClasses = () => {
     const isDark = theme === 'dark';
     return {
-      sidebar: `fixed left-0 top-0 h-full w-72 z-40 transition-all duration-300 ${
+      sidebar: `fixed left-0 top-0 h-full w-64 z-40 transition-all duration-300 ${
         isDark 
           ? 'bg-gray-900 border-gray-700' 
           : 'bg-white border-gray-200'
@@ -368,8 +368,8 @@ export default function NavigationSidebar({
   return (
     <motion.aside
       className={`${themeClasses.sidebar} ${themeClasses.backdrop}`}
-      initial={{ x: -288 }}
-      animate={{ x: isSidebarOpen ? 0 : -288 }}
+      initial={{ x: -256 }}
+      animate={{ x: isSidebarOpen ? 0 : -256 }}
       transition={{ 
         duration: 0.4, 
         type: "spring" as const,
@@ -386,7 +386,7 @@ export default function NavigationSidebar({
           : 'bg-gradient-to-b from-white/50 to-blue-50/50'
       } pointer-events-none`} />
       
-      <div className="relative flex flex-col h-full p-6">
+      <div className="relative flex flex-col h-full p-4">
         {/* Enhanced Logo */}
         <Link 
           href="/dashboard" 
@@ -727,147 +727,7 @@ export default function NavigationSidebar({
           )}
         </nav>
 
-        {/* Enhanced Bottom Section - User Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className={`p-4 rounded-xl border backdrop-blur-sm ${
-            theme === 'dark'
-              ? 'bg-gray-800/50 border-gray-700/50'
-              : 'bg-gray-100/50 border-gray-200/50'
-          }`}
-        >
-          {/* User Avatar with Status */}
-          <div className="flex items-center gap-3">
-            <motion.div
-              className="relative"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg`}>
-                <Users className="w-5 h-5 text-white" />
               </div>
-              {/* Online Status Indicator */}
-              <motion.div
-                className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [1, 0.8, 1]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            </motion.div>
-            
-            <div className="flex-1 min-w-0">
-              <div className={`text-sm font-semibold truncate ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                {session?.user?.name || 'User'}
-              </div>
-              <div className={`text-xs font-medium truncate ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-              </div>
-              {/* Role Badge */}
-              <motion.div
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                  theme === 'dark' 
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' 
-                    : 'bg-blue-100 text-blue-700 border border-blue-200'
-                }`}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: "spring" as const }}
-              >
-                <motion.div
-                  className="w-1.5 h-1.5 rounded-full bg-current"
-                  animate={{
-                    opacity: [1, 0.5, 1]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-                {userRole === 'admin' ? 'Administrator' : userRole === 'superadmin' ? 'Super Admin' : userRole}
-              </motion.div>
-            </div>
-            
-            {/* Quick Actions */}
-            <motion.div
-              className="flex flex-col gap-1"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <motion.button
-                className={`p-1.5 rounded-lg transition-colors ${
-                  theme === 'dark' 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-200 text-gray-600'
-                }`}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </motion.button>
-              <motion.button
-                className={`p-1.5 rounded-lg transition-colors ${
-                  theme === 'dark' 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-200 text-gray-600'
-                }`}
-                whileHover={{ scale: 1.1, rotate: 180 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-                title="Logout"
-                onClick={() => signOut()}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </motion.button>
-            </motion.div>
-          </div>
-          
-          {/* Session Info */}
-          <motion.div
-            className={`mt-3 pt-3 border-t text-xs ${
-              theme === 'dark' 
-                ? 'border-gray-700 text-gray-500' 
-                : 'border-gray-200 text-gray-400'
-            }`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <div className="flex justify-between items-center">
-              <span>Session Active</span>
-              <motion.span
-                className="font-mono"
-                animate={{
-                  opacity: [0.5, 1, 0.5]
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
-                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </motion.span>
-            </div>
-          </motion.div>
-        </motion.div>
-      </div>
     </motion.aside>
   );
 }

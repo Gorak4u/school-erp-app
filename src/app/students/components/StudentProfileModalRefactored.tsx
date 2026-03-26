@@ -95,46 +95,104 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   const [idCardHtml, setIdCardHtml] = useState('');
   const [idCardBackHtml, setIdCardBackHtml] = useState('');
   
-  // Mouse tracking for world-class UI effects
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  
+  // Helper functions for professional styling with proper contrast
+  const getCardClass = () => {
+    const isDark = theme === 'dark';
+    return `rounded-2xl border p-6 shadow-lg ${
+      isDark 
+        ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' 
+        : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+    }`;
+  };
+
+  const getBtnPrimaryClass = () => {
+    const isDark = theme === 'dark';
+    return `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all transform hover:scale-105 shadow-lg ${
+      isDark 
+        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
+        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+    }`;
+  };
+
+  const getBtnSecondaryClass = () => {
+    const isDark = theme === 'dark';
+    return `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${
+      isDark 
+        ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' 
+        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+    }`;
+  };
+
+  const getRowClass = () => {
+    const isDark = theme === 'dark';
+    return `p-4 rounded-xl border ${
+      isDark ? 'border-gray-600/50 bg-gray-700/30' : 'border-gray-200 bg-gray-50/50'
+    }`;
+  };
+
+  const getHeadingClass = () => {
+    const isDark = theme === 'dark';
+    return `text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`;
+  };
+
+  const getSubtextClass = () => {
+    const isDark = theme === 'dark';
+    return `text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`;
+  };
+
+  const getLabelClass = () => {
+    const isDark = theme === 'dark';
+    return `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`;
+  };
+
+  const getGradientClass = (type: string) => {
+    const isDark = theme === 'dark';
+    const gradients = {
+      primary: isDark ? 'from-blue-600 to-blue-700' : 'from-blue-500 to-blue-600',
+      secondary: isDark ? 'from-gray-600 to-gray-700' : 'from-gray-500 to-gray-600',
+      success: isDark ? 'from-green-600 to-green-700' : 'from-green-500 to-green-600',
+      warning: isDark ? 'from-orange-600 to-orange-700' : 'from-orange-500 to-orange-600',
+      danger: isDark ? 'from-red-600 to-red-700' : 'from-red-500 to-red-600'
+    };
+    return gradients[type as keyof typeof gradients] || gradients.primary;
+  };
+
+  const getStatusColor = (status: string) => {
+    const isDark = theme === 'dark';
+    const colors = {
+      active: isDark ? 'text-green-400' : 'text-green-600',
+      inactive: isDark ? 'text-gray-400' : 'text-gray-600',
+      pending: isDark ? 'text-yellow-400' : 'text-yellow-600',
+      suspended: isDark ? 'text-red-400' : 'text-red-600'
+    };
+    return colors[status as keyof typeof colors] || colors.active;
+  };
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.6, ease: "easeOut" as const }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
+    visible: { 
+      opacity: 1, 
+      scale: 1, 
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" as const }
+    }
+  };
+
   // Modal states
   const [localFeeManagement, setLocalFeeManagement] = useState(feeManagement || { showFeeModal: false });
   const [localAttendanceTracking, setLocalAttendanceTracking] = useState(attendanceTracking || { showFeeModal: false });
   const [localCommunicationCenter, setLocalCommunicationCenter] = useState(communicationCenter || { showFeeModal: false });
   const [localParentPortal, setLocalParentPortal] = useState(parentPortal || { showFeeModal: false });
-  
-  // Mouse tracking effect
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Add shimmer CSS
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes shimmer {
-        0% { background-position: -200% center; }
-        100% { background-position: 200% center; }
-      }
-      .animate-shimmer {
-        background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6, #3b82f6);
-        background-size: 200% auto;
-        animation: shimmer 3s linear infinite;
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
   
   // Refs
   const idCardRef = useRef<HTMLDivElement>(null);
@@ -215,7 +273,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   // Action buttons configuration
   const actionButtons: ActionButton[] = [
     {
-      label: 'SMS',
+      label: 'Send SMS',
       icon: '📱',
       onClick: () => sendStudentSMS(selectedStudent),
       variant: 'primary'
@@ -227,7 +285,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
       variant: 'primary'
     },
     {
-      label: 'Print',
+      label: 'Print Profile',
       icon: '🖨️',
       onClick: () => printStudentProfile(selectedStudent),
       variant: 'secondary'
@@ -236,9 +294,18 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
 
   if (canEditStudentRecord) {
     actionButtons.push({
-      label: 'Edit',
+      label: 'Edit Student',
       icon: '✏️',
       onClick: () => setEditingStudent(selectedStudent),
+      variant: 'primary'
+    });
+  }
+
+  if (canRunLifecycleActions) {
+    actionButtons.push({
+      label: 'Promote',
+      icon: '⬆️',
+      onClick: () => onPromoteSingle?.(selectedStudent.id),
       variant: 'primary'
     });
   }
@@ -261,77 +328,44 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]"
             onClick={() => setSelectedStudent(null)}
           >
-            {/* Animated Background with Mouse Tracking */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/20 to-purple-900/20">
-              <div 
-                className="absolute inset-0 opacity-40"
-                style={{
-                  background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59,130,246,0.4) 0%, transparent 50%)`
-                }}
-              />
-              {/* Floating Particles */}
-              {[...Array(15)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-blue-400/30 rounded-full"
-                  animate={{
-                    x: [0, Math.random() * 100 - 50],
-                    y: [0, Math.random() * 100 - 50],
-                    opacity: [0, 1, 0],
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                />
-              ))}
-            </div>
-
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="relative w-full max-w-7xl h-[90vh] mx-4 overflow-hidden rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl"
+              className={`relative w-full max-w-7xl h-[90vh] mx-4 overflow-hidden rounded-2xl shadow-2xl ${
+                theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Profile Header */}
-              <div className="relative px-6 py-4 backdrop-blur-sm bg-white/5 border-b border-white/10">
-                {/* Close Button */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.6 }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setSelectedStudent(null)}
-                  className="absolute top-4 right-4 z-10 w-10 h-10 rounded-2xl backdrop-blur-sm bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-300 flex items-center justify-center group"
-                >
-                  <svg 
-                    className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+              {/* Modal Header */}
+              <div className={`px-8 py-6 border-b ${
+                theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <h2 className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Student Profile</h2>
+                  <button
+                    onClick={() => setSelectedStudent(null)}
+                    className={`p-3 rounded-xl transition-all hover:scale-105 ${
+                      theme === 'dark' 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                    }`}
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M6 18L18 6M6 6l12 12" 
-                    />
-                  </svg>
-                  {/* Hover glow effect */}
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </motion.button>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
 
+              {/* Profile Header */}
+              <div className="px-6 py-4">
                 <ProfileHeader
                   selectedStudent={selectedStudent}
                   theme={theme}
@@ -352,32 +386,29 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               />
 
               {/* Tab Navigation */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="px-6 py-4 backdrop-blur-sm bg-white/5 border-b border-white/10"
-              >
+              <div className={`px-8 py-6 border-b ${
+                theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+              }`}>
                 <TabNavigation
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   theme={theme}
                 />
-              </motion.div>
+              </div>
 
               {/* Profile Content */}
-              <div className="flex-1 overflow-y-auto" style={{ maxHeight: '70vh' }}>
-                <div className="p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+                <div className="p-8 space-y-8">
                   {/* Overview Tab */}
                   <AnimatePresence>
                     {activeTab === 'overview' && (
                       <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -30 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
                       >
-                        <div className="backdrop-blur-sm bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <div className={getCardClass()}>
                           <OverviewTab
                             selectedStudent={selectedStudent}
                             theme={theme}
@@ -391,12 +422,12 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                   <AnimatePresence>
                     {activeTab === 'academics' && (
                       <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -30 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
                       >
-                        <div className="backdrop-blur-sm bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <div className={getCardClass()}>
                           <AcademicsTab
                             selectedStudent={selectedStudent}
                             theme={theme}
@@ -407,7 +438,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                     )}
                   </AnimatePresence>
 
-                  {/* Other Tabs (existing components) */}
+                  {/* Other Tabs */}
                   <StudentProfileTabs
                     activeTab={activeTab}
                     selectedStudent={selectedStudent}
@@ -423,29 +454,50 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
 
                   {/* Analytics Tab */}
                   {activeTab === 'analytics' && (
-                    <StudentAnalytics
-                      theme={theme}
-                      students={selectedStudent ? [selectedStudent] : []}
-                      onClose={() => setActiveTab('overview')}
-                    />
+                    <motion.div
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className={getCardClass()}
+                    >
+                      <StudentAnalytics
+                        theme={theme}
+                        students={selectedStudent ? [selectedStudent] : []}
+                        onClose={() => setActiveTab('overview')}
+                      />
+                    </motion.div>
                   )}
 
                   {/* Medical Tab */}
                   {activeTab === 'medical' && (
-                    <StudentMedicalInfo
-                      theme={theme}
-                      student={selectedStudent}
-                      onClose={() => setActiveTab('overview')}
-                    />
+                    <motion.div
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className={getCardClass()}
+                    >
+                      <StudentMedicalInfo
+                        theme={theme}
+                        student={selectedStudent}
+                        onClose={() => setActiveTab('overview')}
+                      />
+                    </motion.div>
                   )}
 
                   {/* Fines Tab */}
                   {activeTab === 'fines' && (
-                    <StudentFines
-                      student={selectedStudent}
-                      theme={theme}
-                      onClose={() => setActiveTab('overview')}
-                    />
+                    <motion.div
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className={getCardClass()}
+                    >
+                      <StudentFines
+                        student={selectedStudent}
+                        theme={theme}
+                        onClose={() => setActiveTab('overview')}
+                      />
+                    </motion.div>
                   )}
                 </div>
               </div>
@@ -489,13 +541,13 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 20 }}
               className={`relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border ${
-                theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+                theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* ID Card Modal Header */}
-              <div className={`px-6 py-4 border-b ${
-                theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
+              <div className={`px-8 py-6 border-b ${
+                theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
               }`}>
                 <div className="flex items-center justify-between">
                   <h3 className={`text-xl font-bold ${
@@ -503,11 +555,13 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                   }`}>Student ID Card</h3>
                   <button
                     onClick={() => setShowIdCard(false)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    className={`p-3 rounded-xl transition-all hover:scale-105 ${
+                      theme === 'dark' 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -519,8 +573,8 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                 <div ref={idCardContainerRef} className="flex justify-center items-center gap-8 mb-6 flex-wrap">
                   {/* Front Side */}
                   <div className="text-center">
-                    <h4 className={`text-sm font-semibold mb-3 ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    <h4 className={`text-base font-semibold mb-4 ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
                     }`}>Front Side</h4>
                     <div dangerouslySetInnerHTML={{ 
                       __html: idCardHtml 
@@ -529,8 +583,8 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                   
                   {/* Back Side */}
                   <div className="text-center">
-                    <h4 className={`text-sm font-semibold mb-3 ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    <h4 className={`text-base font-semibold mb-4 ${
+                      theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
                     }`}>Back Side</h4>
                     <div dangerouslySetInnerHTML={{ 
                       __html: idCardBackHtml 
@@ -539,20 +593,16 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-4 mt-8">
                   <button
                     onClick={handlePrintIdCard}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform`}
+                    className={getBtnPrimaryClass()}
                   >
-                    🖨️ Print
+                    🖨️ Print ID Card
                   </button>
                   <button
                     onClick={() => setShowIdCard(false)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border ${
-                      theme === 'dark' 
-                        ? 'border-gray-600 text-gray-200 hover:bg-gray-800' 
-                        : 'border-gray-300 text-gray-700 hover:bg-white'
-                    }`}
+                    className={getBtnSecondaryClass()}
                   >
                     ✖️ Close
                   </button>
