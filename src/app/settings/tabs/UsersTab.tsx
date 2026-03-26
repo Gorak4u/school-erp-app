@@ -223,7 +223,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ isDark }) => {
     );
   }, [customRoles]);
 
-  const containerVariants = {
+  const containerVariants: any = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -233,13 +233,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ isDark }) => {
     }
   };
 
-  const itemVariants = {
+  const itemVariants: any = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 300,
         damping: 24
       }
