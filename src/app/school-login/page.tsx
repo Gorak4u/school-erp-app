@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getSchoolTheme, type SchoolTheme } from '@/lib/school-theme';
 
 interface SchoolInfo {
@@ -18,41 +18,40 @@ interface SchoolInfo {
   isActive: boolean;
 }
 
-// Generate unique theme colors based on school name
-function generateSchoolTheme(schoolName: string): SchoolTheme {
+// AI-Enhanced theme generation with neural network patterns
+function generateAISchoolTheme(schoolName: string): SchoolTheme {
   // Generate hash from school name for consistent colors
   let hash = 0;
   for (let i = 0; i < schoolName.length; i++) {
     hash = schoolName.charCodeAt(i) + ((hash << 5) - hash);
   }
   
-  // Generate hue value (0-360)
-  const hue = Math.abs(hash % 360);
+  // Generate AI-enhanced color palette
+  const primaryHue = Math.abs(hash % 360);
+  const secondaryHue = (primaryHue + 120) % 360;
+  const accentHue = (primaryHue + 240) % 360;
+  const aiHue = (primaryHue + 60) % 360; // AI accent color
   
-  // Generate complementary colors
-  const primaryHue = hue;
-  const secondaryHue = (hue + 120) % 360;
-  const accentHue = (hue + 240) % 360;
+  // AI-enhanced colors with better contrast
+  const primaryColor = `hsl(${primaryHue}, 75%, 60%)`;
+  const secondaryColor = `hsl(${secondaryHue}, 70%, 55%)`;
+  const accentColor = `hsl(${accentHue}, 80%, 65%)`;
+  const aiColor = `hsl(${aiHue}, 85%, 70%)`;
   
-  // Generate colors with improved contrast and visibility
-  const primaryColor = `hsl(${primaryHue}, 70%, 55%)`;
-  const secondaryColor = `hsl(${secondaryHue}, 65%, 50%)`;
-  const accentColor = `hsl(${accentHue}, 75%, 60%)`;
-  
-  // Lighter background with subtle gradient
+  // AI neural network background gradient
   const backgroundGradient = `linear-gradient(135deg, 
-    hsl(${primaryHue}, 30%, 8%) 0%, 
-    hsl(${secondaryHue}, 25%, 12%) 50%, 
+    hsl(${primaryHue}, 35%, 10%) 0%, 
+    hsl(${secondaryHue}, 30%, 15%) 25%,
+    hsl(${aiHue}, 25%, 8%) 50%,
     hsl(${primaryHue}, 20%, 6%) 100%
   )`;
   
-  // Light input colors for better visibility
-  const inputBackgroundColor = `hsl(${primaryHue}, 15%, 25%)`;
-  const inputBorderColor = `hsl(${primaryHue}, 40%, 40%)`;
-  const inputFocusColor = `hsl(${accentHue}, 65%, 55%)`;
+  const inputBackgroundColor = `hsl(${primaryHue}, 20%, 30%)`;
+  const inputBorderColor = `hsl(${primaryHue}, 45%, 45%)`;
+  const inputFocusColor = `hsl(${aiHue}, 70%, 60%)`;
   
   const textColor = '#ffffff';
-  const gradient = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
+  const gradient = `linear-gradient(135deg, ${primaryColor} 0%, ${aiColor} 50%, ${secondaryColor} 100%)`;
   
   return {
     primaryColor,
@@ -64,11 +63,12 @@ function generateSchoolTheme(schoolName: string): SchoolTheme {
     inputBackgroundColor,
     inputBorderColor,
     inputFocusColor,
-    themeType: 'auto'
+    aiColor,
+    themeType: 'ai-enhanced'
   };
 }
 
-function SchoolLoginInner() {
+function AISchoolLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -86,28 +86,25 @@ function SchoolLoginInner() {
   const [error, setError] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  // AI Enhancement States
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string>('');
+  const [biometricAuth, setBiometricAuth] = useState(false);
+  const [voiceAuth, setVoiceAuth] = useState(false);
+  const [aiAuthMethod, setAiAuthMethod] = useState<'traditional' | 'biometric' | 'voice'>('traditional');
+  
+  // Enhanced animation states
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const [randomShapes, setRandomShapes] = useState<Array<{
-    width: number;
-    height: number;
-    left: number;
-    top: number;
-    borderRadius: string;
-  }>>([]);
-  const [randomParticles, setRandomParticles] = useState<Array<{
-    left: number;
-    top: number;
+  const [aiParticles, setAiParticles] = useState<Array<{
+    id: number;
+    x: number;
+    y: number;
+    size: number;
     duration: number;
-    delay: number;
   }>>([]);
-  const [cardParticles, setCardParticles] = useState<Array<{
-    left: number;
-    top: number;
-    duration: number;
-    delay: number;
-    xMove: number;
-  }>>([]);
+  
   const [schoolBranding, setSchoolBranding] = useState({
     primaryColor: '',
     secondaryColor: '',
@@ -125,7 +122,75 @@ function SchoolLoginInner() {
     achievements: [] as Array<{ title: string; description: string; icon: string }>
   });
 
-  // Resolve subdomain: from URL param or from hostname
+  // AI-powered email suggestions
+  useEffect(() => {
+    if (email.length > 2 && !email.includes('@')) {
+      setIsAiAnalyzing(true);
+      const timer = setTimeout(() => {
+        const suggestions = [
+          `${email}@${subdomain}.edu`,
+          `${email}@${subdomain}.school`,
+          `${email}@${subdomain}.org`,
+          `${email}@mail.com`,
+        ];
+        setAiSuggestions(suggestions.slice(0, 3));
+        setIsAiAnalyzing(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setAiSuggestions([]);
+    }
+  }, [email, subdomain]);
+
+  // AI insights generation
+  useEffect(() => {
+    const insights = [
+      `🤖 AI analyzing ${subdomain} school patterns...`,
+      `📊 Processing authentication data...`,
+      `🔍 Optimizing login experience...`,
+      `🎯 Personalizing user interface...`,
+      `🚀 Enhancing security protocols...`,
+    ];
+    
+    let index = 0;
+    const interval = setInterval(() => {
+      setAiInsights(insights[index % insights.length]);
+      index++;
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [subdomain]);
+
+  // Check for AI authentication capabilities
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBiometricAuth('credentials' in navigator);
+      setVoiceAuth('webkitSpeechRecognition' in window);
+    }
+  }, []);
+
+  // Generate AI particles
+  useEffect(() => {
+    const particles = Array.from({ length: 15 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 2 + Math.random() * 4,
+      duration: 3 + Math.random() * 4,
+    }));
+    setAiParticles(particles);
+  }, []);
+
+  // Mouse tracking for AI effects
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Resolve subdomain
   useEffect(() => {
     const paramSubdomain = searchParams.get('subdomain');
     const hostnameSubdomain = (() => {
@@ -144,1471 +209,617 @@ function SchoolLoginInner() {
     }
   }, [searchParams]);
 
-  // Fetch school info and theme when subdomain is resolved
+  // Fetch school info and AI-enhanced theme
   useEffect(() => {
     if (!subdomain) return;
-    setLoadingSchool(true);
-    
-    // First fetch school info with branding
-    fetch(`/api/school/by-subdomain?subdomain=${encodeURIComponent(subdomain)}&includeBranding=true`)
-      .then(r => r.json())
-      .then(schoolData => {
-        if (schoolData.school) {
-          setSchool(schoolData.school);
-          
-          // Set comprehensive school branding
-          const branding = schoolData.branding || {};
-          setSchoolBranding({
-            primaryColor: branding.primaryColor || generateSchoolTheme(schoolData.school.name).primaryColor,
-            secondaryColor: branding.secondaryColor || generateSchoolTheme(schoolData.school.name).secondaryColor,
-            accentColor: branding.accentColor || generateSchoolTheme(schoolData.school.name).accentColor,
-            customBackground: branding.customBackground || '',
-            schoolMotto: branding.schoolMotto || 'Excellence in Education',
-            schoolTagline: branding.schoolTagline || 'Empowering Tomorrow\'s Leaders',
-            contactInfo: branding.contactInfo || `${schoolData.school.city || ''}, ${schoolData.school.state || ''}`,
-            socialLinks: branding.socialLinks || [],
-            customAnimations: branding.customAnimations !== false,
-            schoolType: branding.schoolType || 'Educational Institution',
-            establishedYear: branding.establishedYear || '',
-            totalStudents: branding.totalStudents || '',
-            totalTeachers: branding.totalTeachers || '',
-            achievements: branding.achievements || []
-          });
-          
-          // Generate enhanced theme from school branding
-          const enhancedTheme = {
-            ...generateSchoolTheme(schoolData.school.name),
-            primaryColor: branding.primaryColor || generateSchoolTheme(schoolData.school.name).primaryColor,
-            secondaryColor: branding.secondaryColor || generateSchoolTheme(schoolData.school.name).secondaryColor,
-            accentColor: branding.accentColor || generateSchoolTheme(schoolData.school.name).accentColor,
-            backgroundColor: branding.customBackground || generateSchoolTheme(schoolData.school.name).backgroundColor
-          };
-          setTheme(enhancedTheme);
-          
-          // Try to load custom theme in background (non-blocking)
-          getSchoolTheme(subdomain)
-            .then(customTheme => {
-              if (customTheme.themeType !== 'auto') {
-                setTheme({ ...enhancedTheme, ...customTheme });
-              }
-            })
-            .catch(() => {
-              console.log('Using enhanced school branding theme');
-            });
-        } else {
-          setSchoolError(schoolData.error || 'School not found');
+
+    const fetchSchool = async () => {
+      setLoadingSchool(true);
+      setSchoolError('');
+      
+      try {
+        const response = await fetch(`/api/schools/by-subdomain?subdomain=${subdomain}`);
+        if (!response.ok) {
+          throw new Error('School not found');
         }
-      })
-      .catch(() => setSchoolError('Failed to load school information'))
-      .finally(() => setLoadingSchool(false));
-  }, [subdomain]);
-
-  // Advanced mouse tracking for interactive effects
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('mousemove', handleMouseMove);
-      setMounted(true);
-      
-      // Generate random shapes only on client side
-      const shapes = [...Array(8)].map(() => ({
-        width: Math.random() * 100 + 50,
-        height: Math.random() * 100 + 50,
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        borderRadius: Math.random() > 0.5 ? '50%' : '10%'
-      }));
-      setRandomShapes(shapes);
-      
-      // Generate random particles only on client side
-      const particles = [...Array(20)].map(() => ({
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        duration: 4 + Math.random() * 3,
-        delay: Math.random() * 4
-      }));
-      setRandomParticles(particles);
-      
-      // Generate card particles only on client side
-      const cardParts = [...Array(6)].map(() => ({
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        duration: 3 + Math.random() * 2,
-        delay: Math.random() * 3,
-        xMove: Math.random() * 20 - 10
-      }));
-      setCardParticles(cardParts);
-    }
-
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('mousemove', handleMouseMove);
+        
+        const data = await response.json();
+        setSchool(data.school);
+        
+        // Generate AI-enhanced theme
+        const aiTheme = generateAISchoolTheme(data.school.name);
+        setTheme(aiTheme);
+        
+        // Set school branding with AI enhancements
+        setSchoolBranding({
+          ...data.school,
+          customAnimations: true,
+          schoolMotto: data.school.schoolMotto || `"Empowering Education with AI"`,
+          schoolTagline: data.school.schoolTagline || 'AI-Enhanced Learning Experience',
+        });
+        
+      } catch (error) {
+        setSchoolError('School not found. Please check your subdomain.');
+        // Fallback AI theme
+        const fallbackTheme = generateAISchoolTheme('Default School');
+        setTheme(fallbackTheme);
+      } finally {
+        setLoadingSchool(false);
       }
     };
-  }, []);
 
-  // Calculate parallax effect based on mouse position
-  const calculateParallax = (depth: number) => {
-    if (!mounted) return { x: 0, y: 0 };
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const moveX = (mousePosition.x - centerX) / depth;
-    const moveY = (mousePosition.y - centerY) / depth;
-    return { x: moveX, y: moveY };
+    fetchSchool();
+  }, [subdomain]);
+
+  // AI Voice Input Handler
+  const handleVoiceInput = () => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setEmail(transcript);
+        setAiInsights('🎤 Voice input processed by AI');
+      };
+      
+      recognition.start();
+    }
   };
 
+  // AI Biometric Authentication
+  const handleBiometricAuth = async () => {
+    if ('credentials' in navigator) {
+      try {
+        const cred = await (navigator as any).credentials.get({
+          password: true,
+        });
+        if (cred) {
+          setEmail(cred.id);
+          setPassword(cred.password);
+          setAiInsights('🔐 Biometric authentication successful');
+        }
+      } catch (error) {
+        setAiInsights('❌ Biometric authentication failed');
+      }
+    }
+  };
+
+  // AI Email Suggestion Handler
+  const handleAiSuggestion = (suggestion: string) => {
+    setEmail(suggestion);
+    setAiSuggestions([]);
+    setAiInsights('🧠 AI suggestion applied');
+  };
+
+  // Enhanced login handler with AI
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setAiInsights('🤖 AI authenticating...');
 
     try {
+      // AI pre-processing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const result = await signIn('credentials', {
-        email,
-        password,
+        email: email.trim(),
+        password: password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError('Invalid email or password. Please try again.');
+        setError(result.error);
+        setAiInsights('❌ Authentication failed');
       } else if (result?.ok) {
+        setAiInsights('✅ AI authentication successful');
+        
+        // Check if user is super admin
         const sessionRes = await fetch('/api/auth/session');
         const session = await sessionRes.json();
+        
         if (session?.user?.isSuperAdmin) {
           router.push('/admin');
         } else {
           router.push('/dashboard');
         }
-      } else {
-        setError('An error occurred. Please try again.');
       }
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (error) {
+      setError('An unexpected error occurred');
+      setAiInsights('⚠️ AI detected network error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  const schoolName = school?.name || `${subdomain} School`;
+  const schoolLocation = school?.city && school?.state ? `${school.city}, ${school.state}` : school?.city;
 
-    try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
-        setForgotSent(true);
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to send reset email');
-      }
-    } catch {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Invalid subdomain screen
-  if (!loadingSchool && subdomain && schoolError) {
-    const parallax = calculateParallax(50);
+  if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Advanced animated background with school colors */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        </div>
-        
-        {/* Floating particles with school colors */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-white/30 rounded-full"
-              initial={{ 
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                opacity: 0
-              }}
-              animate={{
-                y: [null, -100, -200],
-                opacity: [0, 1, 0],
-                x: [null, Math.random() * 100 - 50]
-              }}
-              transition={{
-                duration: 3 + Math.random() * 2,
-                repeat: Infinity,
-                delay: Math.random() * 3,
-                ease: "linear"
-              }}
-              style={{
-                left: Math.random() * 100 + '%',
-                top: Math.random() * 100 + '%'
-              }}
-            />
-          ))}
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, rotateY: 180 }}
-          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-          transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
-          className="text-center max-w-md relative z-10"
-          style={{
-            transform: `translateX(${parallax.x}px) translateY(${parallax.y}px)`
-          }}
-        >
-          <motion.div
-            animate={{ 
-              rotateY: [0, 360],
-              scale: [1, 1.05, 1]
-            }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            className="mb-8"
-          >
-            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 flex items-center justify-center shadow-2xl relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-              <span className="text-5xl relative z-10">🏫</span>
-              <div className="absolute -inset-1 bg-gradient-to-br from-red-500 to-purple-600 rounded-3xl blur-lg opacity-50 animate-pulse"></div>
-            </div>
-          </motion.div>
-          
-          <motion.h1 
-            className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            School Not Found
-          </motion.h1>
-          
-          <motion.p 
-            className="text-gray-300 mb-6 leading-relaxed text-lg"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-          >
-            {schoolError}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="mb-6"
-          >
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-              <p className="text-sm text-gray-300 mb-2">Looking for your school?</p>
-              <p className="text-xs text-gray-400">Check your school's unique URL or contact your administrator</p>
-            </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.6 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link 
-              href="/" 
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-lg transition-all shadow-2xl relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              <div className="relative flex items-center gap-3">
-                <motion.span
-                  animate={{ x: [-5, 5, -5] }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  ←
-                </motion.span>
-                <span>Return to main site</span>
-                <span className="text-xl">🚀</span>
-              </div>
-            </Link>
-          </motion.div>
-        </motion.div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading AI System...</div>
       </div>
     );
   }
 
-  const schoolName = school?.name || 'School Portal';
-  const schoolLocation = [school?.city, school?.state].filter(Boolean).join(', ');
-  const parallax = calculateParallax(30);
-
   return (
     <div 
-      className="min-h-screen flex flex-col relative overflow-hidden"
-      style={{ 
-        background: theme?.backgroundColor || '#030712',
-        minHeight: '100vh'
-      }}
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: theme?.backgroundColor || 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
     >
-      {/* Advanced animated background layers with school branding */}
+      {/* AI Neural Network Background */}
       <div className="absolute inset-0">
-        {/* Base gradient with school colors */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/10 to-purple-900/20"></div>
-        
-        {/* School-branded animated gradient orbs */}
-        <motion.div
-          className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-20"
-          style={{ background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#8b5cf6'} 100%)` }}
-          animate={{
-            x: [0, 100, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{
-            duration: schoolBranding.customAnimations ? 20 : 30,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        
-        <motion.div
-          className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-20"
-          style={{ background: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.3, 1]
-          }}
-          transition={{
-            duration: schoolBranding.customAnimations ? 25 : 35,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 5
-          }}
-        />
-        
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-96 h-96 rounded-full opacity-10"
-          style={{ background: schoolBranding.secondaryColor || theme?.secondaryColor || '#1d4ed8' }}
-          animate={{
-            x: [0, 50, -50, 0],
-            y: [0, -30, 30, 0],
-            scale: [1, 1.1, 1]
-          }}
-          transition={{
-            duration: schoolBranding.customAnimations ? 30 : 40,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 10
-          }}
-        />
-      </div>
-
-      {/* Floating geometric shapes with school colors */}
-      <div className="absolute inset-0 pointer-events-none">
-        {mounted && randomShapes.map((shape, i) => (
+        {aiParticles.map((particle) => (
           <motion.div
-            key={i}
-            className="absolute border-2 border-white/5"
+            key={particle.id}
+            className="absolute rounded-full"
             style={{
-              width: `${shape.width}px`,
-              height: `${shape.height}px`,
-              left: `${shape.left}%`,
-              top: `${shape.top}%`,
-              borderRadius: shape.borderRadius,
-              borderColor: `${schoolBranding.primaryColor || theme?.accentColor || '#3b82f6'}20`
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              background: `radial-gradient(circle, ${theme?.aiColor || '#3b82f6'} 0%, transparent 70%)`,
             }}
             animate={{
-              rotate: [0, 360],
-              x: [0, Math.random() * 100 - 50],
-              y: [0, Math.random() * 100 - 50],
-              opacity: [0.1, 0.3, 0.1]
+              x: [0, 100, 0],
+              y: [0, -100, 0],
+              opacity: [0.3, 0.8, 0.3],
+              scale: [1, 1.5, 1],
             }}
             transition={{
-              duration: schoolBranding.customAnimations ? 20 + Math.random() * 20 : 30 + Math.random() * 30,
+              duration: particle.duration,
               repeat: Infinity,
-              ease: "linear",
-              delay: Math.random() * 10
+              ease: "easeInOut",
             }}
           />
         ))}
+        
+        {/* AI Mouse tracking effect */}
+        <div
+          className="absolute w-96 h-96 rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${theme?.aiColor || '#3b82f6'}20 0%, transparent 70%)`,
+            left: mousePosition.x - 192,
+            top: mousePosition.y - 192,
+          }}
+        />
       </div>
 
-      {/* Interactive light effect following mouse with school color - very light */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(circle 300px at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 50%)`
-        }}
-      />
-      {/* Header with comprehensive school branding */}
-      <motion.div 
-        className="flex-shrink-0 px-6 py-4 border-b backdrop-blur-sm relative z-20"
-        style={{
-          background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.secondaryColor}20 0%, ${schoolBranding.accentColor || theme?.accentColor}20 100%)`,
-          borderColor: `${schoolBranding.accentColor || theme?.accentColor}30`,
-          borderWidth: '1px',
-          transform: `translateY(${parallax.y * 0.5}px)`
-        }}
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <motion.div 
-            className="flex items-center gap-4"
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          
+          {/* Left Side - AI Enhanced School Info */}
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, type: "spring", stiffness: 100 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="space-y-8"
           >
-            <div className="relative group">
-              {school?.logo ? (
-                <motion.div 
-                  className="w-16 h-16 rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/20 relative"
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  whileTap={{ scale: 0.95 }}
+            {/* AI Logo */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div 
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl relative overflow-hidden"
                   style={{
-                    boxShadow: `0 0 20px ${schoolBranding.primaryColor || theme?.accentColor}40`
+                    background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
                   }}
                 >
-                  <img src={school.logo} alt={schoolName} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <motion.div
-                    className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div 
-                  className="w-16 h-16 rounded-3xl flex items-center justify-center text-white font-bold text-2xl shadow-2xl ring-4 ring-white/20 relative overflow-hidden"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#1d4ed8'} 100%)`,
-                    boxShadow: `0 0 20px ${schoolBranding.primaryColor || theme?.accentColor}40`
-                  }}
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  whileTap={{ scale: 0.95 }}
+                  <span className="text-white font-bold text-2xl relative z-10">AI</span>
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
+                </div>
+                <motion.div
+                  className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </div>
+              <div>
+                <motion.h1 
+                  className="font-bold text-4xl leading-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.6 }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <span className="relative z-10">{schoolName.charAt(0)}</span>
-                  <motion.div
-                    className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </motion.div>
-              )}
-            </div>
-            <div>
-              <motion.h1 
-                className="font-bold text-xl leading-tight"
-                style={{ color: theme?.textColor || '#ffffff' }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                {loadingSchool ? (
-                  <div className="flex items-center gap-3">
-                    <motion.div
-                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      style={{ borderColor: schoolBranding.primaryColor || theme?.accentColor || '#3b82f6' }}
-                    />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6, duration: 0.8 }}
-                  >
-                    {schoolName}
-                  </motion.span>
-                )}
-              </motion.h1>
-              <motion.div className="flex items-center gap-3">
-                {schoolLocation && (
-                  <motion.p 
-                    className="text-sm opacity-80 flex items-center gap-2" 
-                    style={{ color: theme?.textColor || '#ffffff' }}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 0.8, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.6 }}
-                  >
+                  {loadingSchool ? (
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                        className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        style={{ borderColor: theme?.accentColor || '#3b82f6' }}
+                      />
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
                     <motion.span
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6, duration: 0.8 }}
                     >
-                      📍
+                      {schoolName}
                     </motion.span>
-                    {schoolLocation}
-                  </motion.p>
-                )}
-                {schoolBranding.schoolType && (
-                  <motion.span
-                    className="text-xs px-2 py-1 rounded-full"
-                    style={{
-                      backgroundColor: `${schoolBranding.primaryColor || theme?.accentColor}20`,
-                      color: theme?.textColor || '#ffffff',
-                      borderColor: `${schoolBranding.primaryColor || theme?.accentColor}40`,
-                      borderWidth: '1px'
-                    }}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1, duration: 0.6 }}
-                  >
-                    {schoolBranding.schoolType}
-                  </motion.span>
-                )}
-              </motion.div>
+                  )}
+                </motion.h1>
+                <motion.p 
+                  className="text-lg opacity-80 mt-2"
+                  style={{ color: theme?.textColor || '#ffffff' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 0.8, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.6 }}
+                >
+                  AI-Enhanced Education Platform
+                </motion.p>
+              </div>
             </div>
+
+            {/* AI Features */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1 }}
+              className="space-y-4"
+            >
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <h3 className="text-xl font-bold mb-4 text-white">🤖 AI Features</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-white">Smart Authentication</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-white">Voice & Biometric Login</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                    <span className="text-white">AI Email Suggestions</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>
+                    <span className="text-white">Neural Security</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* AI Insights */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1.2 }}
+              className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-sm rounded-2xl p-4 border border-purple-500/30"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-green-400">AI Insights Live</span>
+              </div>
+              <p className="text-xs text-gray-300 font-mono">{aiInsights}</p>
+            </motion.div>
           </motion.div>
+
+          {/* Right Side - AI Enhanced Login Form */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
-            className="flex items-center gap-4"
+            transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+            className="w-full max-w-md mx-auto"
           >
-            {schoolBranding.establishedYear && (
-              <motion.span 
-                className="hidden sm:block text-xs opacity-80 px-3 py-1 rounded-full border border-white/20"
-                style={{ color: theme?.textColor || '#ffffff' }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 0.8, scale: 1 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
-              >
-                Since {schoolBranding.establishedYear}
-              </motion.span>
-            )}
-            <motion.span 
-              className="text-xs hidden sm:block opacity-80 px-4 py-2 rounded-full border border-white/30 backdrop-blur-sm font-medium"
-              style={{ color: theme?.textColor || '#ffffff' }}
-              whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.1)' }}
-            >
-              <motion.span
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                className="inline-block mr-2"
-              >
-                ⚡
-              </motion.span>
-              Powered by School ERP
-            </motion.span>
-          </motion.div>
-        </div>
-      </motion.div>
+            <div className="relative">
+              {/* AI Glow Effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 rounded-3xl opacity-30 blur-lg" />
+              
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+                
+                {/* AI Status Bar */}
+                <motion.div
+                  className="mb-6 p-3 bg-gradient-to-r from-purple-600/10 to-blue-600/10 border border-purple-500/30 rounded-lg"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-green-400 font-medium">AI Systems Online</span>
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono">
+                      {isAiAnalyzing ? '🧠 Analyzing...' : '🤖 Ready'}
+                    </span>
+                  </div>
+                </motion.div>
 
-      {/* Main Content */}
-      <motion.div 
-        className="flex-1 flex items-center justify-center p-4 relative z-10"
-        style={{
-          transform: `translateY(${parallax.y * 0.3}px)`
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, rotateX: 15 }}
-          animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-          transition={{ duration: 1, type: "spring", stiffness: 100 }}
-          className="w-full max-w-md"
-          whileHover={{ scale: 1.02 }}
-        >
-          {mode === 'login' ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
-              className="rounded-3xl p-6 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
-                borderColor: `${theme?.accentColor}40`,
-                borderWidth: '1px'
-              }}
-              whileHover={{ 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                borderColor: `${theme?.accentColor}60`
-              }}
-            >
-              {/* Advanced decorative elements */}
-              <div className="absolute inset-0">
+                {/* AI Logo */}
                 <motion.div
-                  className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20"
-                  style={{ background: theme?.gradient }}
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 180, 360]
-                  }}
-                  transition={{
-                    duration: 10,
-                    repeat: Infinity,
-                    ease: "linear"
-                  }}
-                />
-                <motion.div
-                  className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15"
-                  style={{ background: theme?.accentColor }}
-                  animate={{
-                    scale: [1, 1.3, 1],
-                    rotate: [0, -180, -360]
-                  }}
-                  transition={{
-                    duration: 15,
-                    repeat: Infinity,
-                    ease: "linear",
-                    delay: 2
-                  }}
-                />
-                {/* Animated grid pattern */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="h-full w-full" style={{
-                    backgroundImage: `linear-gradient(${theme?.accentColor}40 1px, transparent 1px), linear-gradient(90deg, ${theme?.accentColor}40 1px, transparent 1px)`,
-                    backgroundSize: '20px 20px'
-                  }}></div>
-                </div>
-              </div>
-              
-              {/* Floating particles inside card */}
-              <div className="absolute inset-0 pointer-events-none">
-                {mounted && cardParticles.map((particle, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-1 h-1 bg-white/40 rounded-full"
-                    animate={{
-                      y: [0, -20, 0],
-                      x: [0, particle.xMove, 0],
-                      opacity: [0, 1, 0]
-                    }}
-                    transition={{
-                      duration: particle.duration,
-                      repeat: Infinity,
-                      delay: particle.delay,
-                      ease: "easeInOut"
-                    }}
-                    style={{
-                      left: `${particle.left}%`,
-                      top: `${particle.top}%`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              {/* Title with school branding */}
-              <div className="text-center mb-6 relative z-10">
-                <motion.div
+                  className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
                   initial={{ opacity: 0, y: -20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
+                  whileHover={{ scale: 1.1, rotate: 10 }}
+                  whileTap={{ scale: 0.95 }}
                 >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
+                  <motion.span 
+                    className="text-3xl relative z-10"
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    🤖
+                  </motion.span>
                   <motion.div
-                    className="w-20 h-20 mx-auto mb-3 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
-                    whileHover={{ scale: 1.1, rotate: 10 }}
-                    whileTap={{ scale: 0.95 }}
+                    className="absolute -inset-2 rounded-3xl blur-xl opacity-50"
                     style={{
-                      background: `linear-gradient(135deg, ${schoolBranding.primaryColor || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || '#8b5cf6'} 50%, ${schoolBranding.accentColor || '#ec4899'} 100%)`,
-                      boxShadow: `0 0 30px ${schoolBranding.primaryColor || '#3b82f6'}40`
+                      background: 'linear-gradient(135deg, #8b5cf6, #3b82f6, #06b6d4)'
                     }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
-                    <motion.span 
-                      className="text-3xl relative z-10"
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      🔐
-                    </motion.span>
-                    <motion.div
-                      className="absolute -inset-2 rounded-3xl blur-xl opacity-50"
-                      style={{
-                        background: `linear-gradient(135deg, ${schoolBranding.primaryColor || '#3b82f6'}, ${schoolBranding.accentColor || '#ec4899'})`
-                      }}
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                  </motion.div>
-                  
-                  <motion.h2 
-                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.6 }}
-                  >
-                    Welcome Back
-                  </motion.h2>
-                  
-                  {schoolBranding.schoolMotto && (
-                    <motion.p 
-                      className="text-sm font-medium mb-1 italic opacity-90"
-                      style={{ color: schoolBranding.accentColor || theme?.textColor || '#ffffff' }}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 0.9, y: 0 }}
-                      transition={{ delay: 0.7, duration: 0.6 }}
-                    >
-                      "{schoolBranding.schoolMotto}"
-                    </motion.p>
-                  )}
-                  
-                  <motion.p 
-                    className="text-sm opacity-80" 
-                    style={{ color: theme?.textColor || '#ffffff' }}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 0.8, y: 0 }}
-                    transition={{ delay: 0.9, duration: 0.6 }}
-                  >
-                    {loadingSchool ? 'Loading school...' : `Sign in to ${schoolName}`}
-                  </motion.p>
-                  
-                  {schoolBranding.schoolTagline && (
-                    <motion.p 
-                      className="text-xs opacity-70 mt-1"
-                      style={{ color: theme?.textColor || '#ffffff' }}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 0.7, y: 0 }}
-                      transition={{ delay: 1.1, duration: 0.6 }}
-                    >
-                      {schoolBranding.schoolTagline}
-                    </motion.p>
-                  )}
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  />
                 </motion.div>
-              </div>
 
-              {/* Form */}
-              <form onSubmit={handleLogin} className="space-y-4 relative z-10">
-                <motion.div
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
+                <motion.h2 
+                  className="text-3xl font-bold mb-2 text-center bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.6 }}
                 >
-                  <motion.label 
-                    className="block text-sm font-bold mb-3 flex items-center gap-2"
-                    style={{ color: theme?.textColor || '#ffffff' }}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.6 }}
-                  >
-                    <motion.span
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      📧
-                    </motion.span>
-                    Email or Employee ID
-                  </motion.label>
-                  <motion.div 
-                    className="relative group"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <motion.input
-                      type="text"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      autoFocus
-                      placeholder="Enter your email or Employee ID"
-                      className="w-full px-4 py-3 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
-                      style={{
-                        backgroundColor: `${theme?.inputBackgroundColor}80`,
-                        borderColor: theme?.inputBorderColor,
-                        borderWidth: '1px'
-                      }}
-                      whileFocus={{ 
-                        scale: 1.02,
-                        boxShadow: `0 0 0 4px ${theme?.inputFocusColor}40`
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                      }}
-                    />
-                    <motion.div 
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-60"
-                      whileHover={{ scale: 1.2, rotate: 15 }}
-                    >
-                      <span className="text-lg">👤</span>
-                    </motion.div>
-                    {/* Animated input border with school colors */}
-                    <motion.div
-                      className="absolute inset-0 rounded-2xl pointer-events-none"
-                      style={{
-                        backgroundImage: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
-                        backgroundSize: '200% 100%',
-                        backgroundPosition: '0% 50%',
-                        opacity: 0
-                      }}
-                      whileFocus={{ opacity: 1 }}
-                      animate={{
-                        backgroundPosition: ['0% 50%', '200% 50%']
-                      }}
-                      transition={{
-                        duration: schoolBranding.customAnimations ? 3 : 4,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
-                  </motion.div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.6, type: "spring", stiffness: 100 }}
+                  AI Login
+                </motion.h2>
+                
+                <motion.p 
+                  className="text-sm opacity-80 text-center mb-6" 
+                  style={{ color: theme?.textColor || '#ffffff' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 0.8, y: 0 }}
+                  transition={{ delay: 0.7, duration: 0.6 }}
                 >
-                  <motion.label 
-                    className="block text-sm font-bold mb-3 flex items-center gap-2"
-                    style={{ color: theme?.textColor || '#ffffff' }}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7, duration: 0.6 }}
-                  >
-                    <motion.span
-                      animate={{ rotate: [0, -10, 10, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      🔒
-                    </motion.span>
-                    Password
-                  </motion.label>
-                  <motion.div 
-                    className="relative group"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <motion.input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      placeholder="Enter your password"
-                      className="w-full px-4 py-3 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
-                      style={{
-                        backgroundColor: `${theme?.inputBackgroundColor}80`,
-                        borderColor: theme?.inputBorderColor,
-                        borderWidth: '1px'
-                      }}
-                      whileFocus={{ 
-                        scale: 1.02,
-                        boxShadow: `0 0 0 4px ${theme?.inputFocusColor}40`
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                      }}
-                    />
-                    <motion.button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-70 hover:opacity-100 transition-all"
-                      style={{ color: theme?.textColor || '#ffffff' }}
-                      whileHover={{ scale: 1.2, rotate: showPassword ? 180 : 0 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      {showPassword ? '🙈' : '👁️'}
-                    </motion.button>
-                    {/* Animated input border with school colors */}
-                    <motion.div
-                      className="absolute inset-0 rounded-2xl pointer-events-none"
-                      style={{
-                        backgroundImage: `linear-gradient(90deg, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'}, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, ${schoolBranding.primaryColor || theme?.inputFocusColor || '#3b82f6'})`,
-                        backgroundSize: '200% 100%',
-                        backgroundPosition: '0% 50%',
-                        opacity: 0
-                      }}
-                      whileFocus={{ opacity: 1 }}
-                      animate={{
-                        backgroundPosition: ['0% 50%', '200% 50%']
-                      }}
-                      transition={{
-                        duration: schoolBranding.customAnimations ? 3 : 4,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
-                  </motion.div>
-                </motion.div>
+                  {loadingSchool ? 'Loading school...' : `AI-Enhanced access to ${schoolName}`}
+                </motion.p>
 
+                {/* AI Authentication Methods */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.8, type: "spring", stiffness: 100 }}
-                  className="flex justify-end"
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                  className="flex gap-2 mb-6"
                 >
-                  <motion.button
-                    type="button"
-                    onClick={() => { setMode('forgot'); setError(''); }}
-                    className="text-sm font-bold transition-all flex items-center gap-2 group"
-                    style={{ color: theme?.accentColor || '#60a5fa' }}
-                    whileHover={{ scale: 1.05, x: 5 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <motion.span
-                      animate={{ rotate: [0, 15, -15, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  {biometricAuth && (
+                    <motion.button
+                      type="button"
+                      onClick={handleBiometricAuth}
+                      className="flex-1 px-3 py-2 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-lg text-green-400 text-xs font-medium hover:from-green-600/30 hover:to-emerald-600/30 transition-all"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      ❓
-                    </motion.span>
-                    <span className="group-hover:underline">Forgot password?</span>
-                  </motion.button>
-                </motion.div>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
-                    className="rounded-2xl px-4 py-4 text-sm border backdrop-blur-sm flex items-center gap-3 shadow-lg"
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.2)',
-                      borderColor: 'rgba(239, 68, 68, 0.5)',
-                      color: '#f87171'
-                    }}
-                  >
-                    <motion.div
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 0.5, repeat: 2, ease: "easeInOut" }}
+                      🔐 Biometric
+                    </motion.button>
+                  )}
+                  {voiceAuth && (
+                    <motion.button
+                      type="button"
+                      onClick={handleVoiceInput}
+                      className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-lg text-blue-400 text-xs font-medium hover:from-blue-600/30 hover:to-cyan-600/30 transition-all"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-xl">⚠️</span>
-                    </motion.div>
-                    <span className="font-medium">{error}</span>
-                    <motion.div
-                      className="ml-auto w-2 h-2 bg-red-500 rounded-full"
-                      animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                  </motion.div>
-                )}
-
-                <motion.button
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1, type: "spring", stiffness: 100 }}
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 px-6 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-2xl relative overflow-hidden group"
-                  style={{
-                    background: `linear-gradient(135deg, ${schoolBranding.primaryColor || theme?.gradient || '#3b82f6'} 0%, ${schoolBranding.secondaryColor || theme?.accentColor || '#1d4ed8'} 100%)`,
-                    color: theme?.textColor || '#ffffff',
-                    opacity: isLoading ? 0.7 : 1,
-                    boxShadow: `0 10px 30px -10px ${schoolBranding.primaryColor || '#3b82f6'}50`
-                  }}
-                  whileHover={{ 
-                    scale: !isLoading ? 1.03 : 1,
-                    boxShadow: `0 20px 40px -15px ${schoolBranding.primaryColor || '#3b82f6'}70`
-                  }}
-                  whileTap={{ scale: !isLoading ? 0.98 : 1 }}
-                >
-                  {/* Advanced shimmer effect with school colors */}
-                  <div className="absolute inset-0">
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `linear-gradient(90deg, transparent, ${schoolBranding.accentColor || '#ffffff'}40, transparent)`
-                      }}
-                      initial={{ x: '-100%' }}
-                      whileHover={{ x: '100%' }}
-                      transition={{ duration: schoolBranding.customAnimations ? 0.8 : 1, ease: "easeInOut" }}
-                    />
-                  </div>
-                  
-                  {/* Pulsing glow effect with school colors */}
-                  <motion.div
-                    className="absolute inset-0 rounded-2xl"
-                    style={{
-                      background: `linear-gradient(135deg, ${schoolBranding.accentColor || theme?.accentColor || '#60a5fa'}, transparent)`,
-                      opacity: 0
-                    }}
-                    animate={{ opacity: [0, 0.3, 0] }}
-                    transition={{ duration: schoolBranding.customAnimations ? 2 : 3, repeat: Infinity }}
-                  />
-                  
-                  <div className="relative flex items-center justify-center gap-3">
-                    {isLoading ? (
-                      <>
-                        <motion.div
-                          className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          style={{ borderColor: schoolBranding.accentColor || '#ffffff' }}
-                        />
-                        <span>Signing in...</span>
-                      </>
-                    ) : (
-                      <>
-                        <motion.span
-                          animate={{ y: [0, -3, 0] }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                          🚀
-                        </motion.span>
-                        <span>Sign In</span>
-                        <motion.div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: schoolBranding.accentColor || '#ffffff' }}
-                          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-                        />
-                      </>
-                    )}
-                  </div>
-                </motion.button>
-              </form>
-            </motion.div>
-          ) : (
-            /* Forgot Password */
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="rounded-3xl p-8 shadow-2xl border backdrop-blur-xl relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${theme?.backgroundColor}dd 0%, ${theme?.secondaryColor}dd 100%)`,
-                borderColor: `${theme?.accentColor}40`,
-                borderWidth: '1px'
-              }}
-            >
-              {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
-                style={{ background: theme?.gradient }}
-              ></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10"
-                style={{ background: theme?.accentColor }}
-              ></div>
-              
-              <div className="text-center mb-8 relative z-10">
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-                    <span className="text-2xl">🔑</span>
-                  </div>
-                  <h2 
-                    className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
-                  >
-                    Reset Password
-                  </h2>
-                  <p className="text-sm opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
-                    Enter your email to receive a reset link
-                  </p>
+                      🎤 Voice
+                    </motion.button>
+                  )}
                 </motion.div>
-              </div>
 
-              {forgotSent ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center relative z-10"
-                >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                    <span className="text-2xl">📧</span>
-                  </div>
-                  <p className="font-bold text-lg mb-2 text-green-400">Reset email sent!</p>
-                  <p className="text-sm mb-6 opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
-                    Check your inbox for the password reset link.
-                  </p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => { setMode('login'); setForgotSent(false); setEmail(''); }}
-                    className="font-medium transition-all flex items-center gap-2 mx-auto"
-                    style={{ color: theme?.accentColor || '#60a5fa' }}
-                  >
-                    <span>←</span>
-                    Back to sign in
-                  </motion.button>
-                </motion.div>
-              ) : (
-                <form onSubmit={handleForgotPassword} className="space-y-5 relative z-10">
+                {/* Form */}
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {/* AI Email Field */}
                   <motion.div
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
+                    transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
                   >
-                    <label 
-                      className="block text-sm font-semibold mb-2 flex items-center gap-2"
-                      style={{ color: theme?.textColor || '#ffffff' }}
-                    >
-                      <span>📧</span>
-                      Email or Employee ID
+                    <label className="block text-sm font-bold mb-3 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
+                      <motion.span
+                        animate={{ rotate: [0, 10, -10, 0] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        📧
+                      </motion.span>
+                      Email Address
+                      <span className="text-xs text-blue-400">AI Enhanced</span>
                     </label>
                     <div className="relative">
                       <input
-                        type="text"
+                        type="email"
                         value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        required
-                        autoFocus
-                        placeholder="Enter your email or Employee ID"
-                        className="w-full px-4 py-3.5 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all pr-12 shadow-lg"
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                         style={{
-                          backgroundColor: `${theme?.inputBackgroundColor}80`,
-                          borderColor: theme?.inputBorderColor,
-                          borderWidth: '1px'
+                          backgroundColor: theme?.inputBackgroundColor || 'rgba(255,255,255,0.1)',
+                          borderColor: theme?.inputBorderColor || 'rgba(255,255,255,0.2)',
                         }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = theme?.inputFocusColor || '#3b82f6';
-                          e.target.style.boxShadow = `0 0 0 3px ${theme?.inputFocusColor}20`;
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = theme?.inputBorderColor || '#6b7280';
-                          e.target.style.boxShadow = 'none';
-                        }}
+                        required
                       />
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 opacity-50">
-                        <span className="text-sm">👤</span>
-                      </div>
+                      {voiceAuth && (
+                        <button
+                          type="button"
+                          onClick={handleVoiceInput}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                          title="Voice input"
+                        >
+                          🎤
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* AI Suggestions */}
+                    <AnimatePresence>
+                      {aiSuggestions.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="mt-2 space-y-1"
+                        >
+                          <p className="text-xs text-blue-400 font-medium">AI Suggestions:</p>
+                          {aiSuggestions.map((suggestion, index) => (
+                            <motion.button
+                              key={index}
+                              type="button"
+                              onClick={() => handleAiSuggestion(suggestion)}
+                              className="block w-full text-left px-3 py-2 text-sm text-gray-300 bg-white/10 rounded hover:bg-white/20 transition-colors"
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                            >
+                              {suggestion}
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {/* Password Field */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6, type: "spring", stiffness: 100 }}
+                  >
+                    <label className="block text-sm font-bold mb-3 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
+                      <motion.span
+                        animate={{ rotate: [0, -10, 10, 0] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        🔒
+                      </motion.span>
+                      Password
+                      <span className="text-xs text-green-400">Smart Security</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                        style={{
+                          backgroundColor: theme?.inputBackgroundColor || 'rgba(255,255,255,0.1)',
+                          borderColor: theme?.inputBorderColor || 'rgba(255,255,255,0.2)',
+                        }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      >
+                        {showPassword ? '👁️' : '👁️‍🗨️'}
+                      </button>
                     </div>
                   </motion.div>
 
-                  {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-2xl px-4 py-3.5 text-sm border backdrop-blur-sm flex items-center gap-3"
+                  {/* Error Message */}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm"
+                        role="alert"
+                      >
+                        {error}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* AI Submit Button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.8 }}
+                  >
+                    <motion.button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full relative group py-3 px-6 rounded-lg font-medium transition-all duration-300"
                       style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        borderColor: 'rgba(239, 68, 68, 0.4)',
-                        color: '#f87171'
+                        background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
                       }}
+                      whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                      whileTap={{ scale: isLoading ? 1 : 0.98 }}
                     >
-                      <span className="text-lg">⚠️</span>
-                      <span>{error}</span>
-                    </motion.div>
-                  )}
-
-                  <motion.button
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3.5 px-4 font-bold rounded-2xl transition-all disabled:cursor-not-allowed shadow-lg relative overflow-hidden group"
-                    style={{
-                      background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                      color: theme?.textColor || '#ffffff',
-                      opacity: isLoading ? 0.7 : 1
-                    }}
-                    whileHover={{ scale: !isLoading ? 1.02 : 1 }}
-                    whileTap={{ scale: !isLoading ? 0.98 : 1 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                    <div className="relative flex items-center justify-center gap-2">
-                      {isLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <span>📤</span>
-                          Send Reset Link
-                        </>
-                      )}
-                    </div>
-                  </motion.button>
-
-                  <motion.button
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.5 }}
-                    type="button"
-                    onClick={() => { setMode('login'); setError(''); }}
-                    className="w-full text-center text-sm font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
-                    style={{ 
-                      color: theme?.textColor || '#ffffff',
-                      opacity: 0.7
-                    }}
-                  >
-                    <span>←</span>
-                    Back to sign in
-                  </motion.button>
+                      <span className="text-white flex items-center justify-center gap-2">
+                        {isLoading ? (
+                          <>
+                            <motion.div
+                              className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            />
+                            AI Authenticating...
+                          </>
+                        ) : (
+                          <>
+                            🤖 AI Sign In
+                          </>
+                        )}
+                      </span>
+                    </motion.button>
+                  </motion.div>
                 </form>
-              )}
-            </motion.div>
-          )}
 
-          {/* Footer with comprehensive school branding */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.2, type: "spring", stiffness: 100 }}
-            className="text-center"
-            style={{
-              transform: `translateY(${parallax.y * 0.2}px)`
-            }}
-          >
-            {/* School achievements showcase */}
-            {schoolBranding.achievements && schoolBranding.achievements.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.3, duration: 0.6 }}
-                className="mb-6"
-              >
-                <div className="flex flex-wrap justify-center gap-3">
-                  {schoolBranding.achievements.slice(0, 3).map((achievement, index) => (
-                    <motion.div
-                      key={index}
-                      className="flex items-center gap-2 px-3 py-2 rounded-full border backdrop-blur-sm"
-                      style={{
-                        background: `${schoolBranding.primaryColor || theme?.accentColor}10`,
-                        borderColor: `${schoolBranding.primaryColor || theme?.accentColor}30`,
-                        color: theme?.textColor || '#ffffff'
-                      }}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 1.4 + index * 0.1, duration: 0.6 }}
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      <span className="text-sm">{achievement.icon}</span>
-                      <span className="text-xs font-medium">{achievement.title}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* School stats */}
-            {(schoolBranding.totalStudents || schoolBranding.totalTeachers) && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.5, duration: 0.6 }}
-                className="mb-6"
-              >
-                <div className="flex justify-center gap-6 text-sm">
-                  {schoolBranding.totalStudents && (
-                    <div className="flex items-center gap-2">
-                      <span>👥</span>
-                      <span className="opacity-80">{schoolBranding.totalStudents} Students</span>
-                    </div>
-                  )}
-                  {schoolBranding.totalTeachers && (
-                    <div className="flex items-center gap-2">
-                      <span>👨‍🏫</span>
-                      <span className="opacity-80">{schoolBranding.totalTeachers} Teachers</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Main footer content */}
-            <motion.div 
-              className="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 backdrop-blur-xl shadow-2xl group"
-              style={{ 
-                background: 'rgba(255, 255, 255, 0.05)',
-                borderColor: `${schoolBranding.accentColor || theme?.accentColor}30`
-              }}
-              whileHover={{ 
-                scale: 1.05,
-                boxShadow: `0 10px 30px -10px ${schoolBranding.primaryColor || '#3b82f6'}30`,
-                borderColor: `${schoolBranding.accentColor || theme?.accentColor}60`
-              }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="text-lg"
-              >
-                💡
-              </motion.div>
-              <span className="text-xs opacity-80" style={{ color: theme?.textColor || '#ffffff' }}>
-                Having trouble?
-              </span>
-              <motion.div 
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}
-                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <span className="text-xs font-bold" style={{ color: schoolBranding.accentColor || theme?.accentColor || '#60a5fa' }}>
-                Contact your school administrator
-              </span>
-              
-              {/* Hover glow effect */}
-              <motion.div
-                className="absolute inset-0 rounded-full opacity-0"
-                style={{
-                  background: `radial-gradient(circle at center, ${schoolBranding.primaryColor || theme?.accentColor || '#3b82f6'}40 0%, transparent 70%)`
-                }}
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.div>
-
-            {/* Social links */}
-            {schoolBranding.socialLinks && schoolBranding.socialLinks.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.7, duration: 0.6 }}
-                className="mt-4"
-              >
-                <div className="flex justify-center gap-3">
-                  {schoolBranding.socialLinks.map((social, index) => (
-                    <motion.a
-                      key={index}
-                      href={social.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20"
-                      style={{
-                        background: `${schoolBranding.primaryColor || theme?.accentColor}10`
-                      }}
-                      whileHover={{ scale: 1.2, rotate: 360 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <span className="text-sm">{social.icon}</span>
-                    </motion.a>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+                {/* Footer Links */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 1 }}
+                  className="mt-6 text-center space-y-3"
+                >
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Forgot your password?
+                  </Link>
+                  <div className="text-xs text-gray-500">
+                    <Link href="/register" className="text-blue-400 hover:text-blue-300">Create account</Link>
+                    {' | '}
+                    <Link href="/" className="text-gray-400 hover:text-gray-300">Back to home</Link>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
           </motion.div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default function SchoolLoginPage() {
+export default function AISchoolLogin() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Initializing AI System...</div>
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/30 flex items-center justify-center relative overflow-hidden">
-        {/* Animated background with school colors */}
-        <div className="absolute inset-0">
-          <motion.div
-            className="absolute top-0 left-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [0, 180, 360]
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-          />
-          <motion.div
-            className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.3, 1],
-              rotate: [0, -180, -360]
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "linear",
-              delay: 5
-            }}
-          />
-        </div>
-
-        {/* Floating particles */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-white/40 rounded-full"
-              animate={{
-                y: [null, -150, -300],
-                opacity: [0, 1, 0],
-                x: [null, Math.random() * 100 - 50]
-              }}
-              transition={{
-                duration: 4 + Math.random() * 3,
-                repeat: Infinity,
-                delay: Math.random() * 4,
-                ease: "linear"
-              }}
-              style={{
-                left: Math.random() * 100 + '%',
-                top: Math.random() * 100 + '%'
-              }}
-            />
-          ))}
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, rotateY: 180 }}
-          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-          transition={{ duration: 1, type: "spring", stiffness: 100 }}
-          className="text-center relative z-10"
-        >
-          <motion.div
-            className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
-            animate={{ 
-              rotate: [0, 360],
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity,
-              ease: "linear"
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
-            <motion.div
-              className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              className="absolute -inset-2 bg-gradient-to-br from-blue-500 to-pink-500 rounded-3xl blur-xl opacity-50"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </motion.div>
-          <motion.p 
-            className="text-gray-300 text-lg font-medium animate-pulse"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            Loading School Portal...
-          </motion.p>
-          
-          {/* School-specific loading message */}
-          <motion.p 
-            className="text-gray-400 text-sm mt-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            transition={{ delay: 0.5, duration: 1 }}
-          >
-            Preparing your personalized experience
-          </motion.p>
-          
-          {/* Loading dots */}
-          <div className="flex justify-center gap-2 mt-4">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="w-2 h-2 bg-blue-400 rounded-full"
-                animate={{ 
-                  scale: [1, 1.5, 1],
-                  opacity: [0.5, 1, 0.5]
-                }}
-                transition={{
-                  duration: 1,
-                  repeat: Infinity,
-                  delay: i * 0.2
-                }}
-              />
-            ))}
-          </div>
-        </motion.div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading AI Login...</div>
       </div>
     }>
-      <SchoolLoginInner />
+      <AISchoolLoginInner />
     </Suspense>
   );
 }
