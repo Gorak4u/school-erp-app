@@ -10,6 +10,7 @@ import { TransportDashboard } from '@/components/transport/TransportDashboard';
 import { RouteList, RouteForm, RouteFilters } from '@/components/transport/RouteManagement';
 import { VehicleList, VehicleForm, VehicleFilters } from '@/components/transport/VehicleManagement';
 import { AssignmentList, AssignmentForm, BulkAssignment } from '@/components/transport/StudentAssignment';
+import TransportRefunds from '@/components/transport/TransportRefunds';
 
 // Import custom hooks
 import { 
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'routes', label: 'Routes', icon: '🗺️' },
   { id: 'vehicles', label: 'Vehicles', icon: '🚌' },
   { id: 'students', label: 'Students', icon: '👥' },
+  { id: 'refunds', label: 'Refunds', icon: '💸' },
 ];
 
 export default function TransportPageRefactored() {
@@ -282,6 +284,12 @@ export default function TransportPageRefactored() {
     if (confirm('Are you sure you want to remove this student assignment?')) {
       await deleteAssignment(id);
     }
+  };
+
+  const handleTransportCancelled = (result: any) => {
+    // Refresh the students list after transport cancellation
+    // This will trigger a refetch of the student assignments
+    window.location.reload();
   };
 
   const handleSelectStudent = (student: any) => {
@@ -574,6 +582,8 @@ export default function TransportPageRefactored() {
                     onEdit={handleEditAssignment}
                     onDelete={handleDeleteAssignment}
                     onToggleStatus={toggleAssignmentStatus}
+                    onTransportCancelled={handleTransportCancelled}
+                    theme={theme}
                     pagination={pagination}
                     onNextPage={nextPage}
                     onPrevPage={prevPage}
@@ -582,6 +592,20 @@ export default function TransportPageRefactored() {
                   />
                 )}
               </div>
+            )}
+
+            {/* Refunds Tab */}
+            {activeTab === 'refunds' && (
+              <TransportRefunds
+                isDark={isDark}
+                card={card}
+                text={text}
+                subtext={subtext}
+                btnPrimary={btnPrimary}
+                btnSecondary={btnSecondary}
+                btnDanger={btnDanger}
+                theme={theme}
+              />
             )}
           </div>
 

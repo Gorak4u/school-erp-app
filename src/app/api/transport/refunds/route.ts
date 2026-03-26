@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { getTransportRefundSummary } from '@/lib/transportFeeAnalyzer';
 
 // GET /api/transport/refunds - Transport-related refunds
 export async function GET(request: NextRequest) {
@@ -14,11 +15,21 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const routeId = searchParams.get('routeId');
     const studentTransportId = searchParams.get('studentTransportId');
+    const requestType = searchParams.get('requestType'); // 'refund', 'waiver', 'all'
 
     const where: any = { 
-      schoolId: ctx.schoolId,
-      type: 'transport_fee'
+      schoolId: ctx.schoolId
     };
+    
+    // Filter by request type
+    if (requestType === 'refund') {
+      where.type = 'transport_fee';
+    } else if (requestType === 'waiver') {
+      where.type = 'transport_fee_waiver';
+    } else {
+      // Default to both types
+      where.type = { in: ['transport_fee', 'transport_fee_waiver'] };
+    }
     
     if (status) where.status = status;
     if (studentTransportId) where.sourceId = studentTransportId;
@@ -27,78 +38,38 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).RefundRequest.findMany({
         where,
         include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              admissionNo: true,
-              class: true,
-              section: true
-            }
-          },
-          approvals: {
-            include: {
-              approver: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true
-                }
-              }
-            }
-          }
+          student: true // Include all student fields temporarily
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
-        take: pageSize,
+        take: pageSize
       }),
       (schoolPrisma as any).RefundRequest.count({ where })
     ]);
 
-    // Calculate transport-specific statistics
-    const stats = await (schoolPrisma as any).RefundRequest.aggregate({
-      where: { schoolId: ctx.schoolId, type: 'transport_fee' },
-      _sum: { amount: true, netAmount: true },
-      _count: true
-    });
-
-    // Get route-specific data if routeId is provided
-    let routeData = null;
-    if (routeId) {
-      routeData = await (schoolPrisma as any).TransportRoute.findFirst({
-        where: { id: routeId, schoolId: ctx.schoolId },
-        include: {
-          students: {
-            where: { isActive: true },
-            include: {
-              student: {
-                select: {
-                  id: true,
-                  name: true,
-                  admissionNo: true,
-                  class: true,
-                  section: true
-                }
-              }
-            }
-          }
-        }
-      });
-    }
+    console.log('🔍 Transport Refunds Query:', { 
+    schoolId: ctx.schoolId, 
+    where, 
+    page, 
+    pageSize, 
+    total, 
+    refundsFound: refunds.length,
+    sampleRefund: refunds[0] ? {
+      id: refunds[0].id,
+      type: refunds[0].type,
+      status: refunds[0].status,
+      hasStudent: !!refunds[0].student
+    } : null
+  });
 
     return NextResponse.json({
       refunds,
-      total,
-      stats: {
-        totalRefunds: stats._count,
-        totalAmount: stats._sum.amount || 0,
-        totalNetAmount: stats._sum.netAmount || 0
-      },
-      routeData,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize)
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
     });
   } catch (error) {
     console.error('GET /api/transport/refunds:', error);
@@ -106,108 +77,125 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/transport/refunds/bulk - Bulk transport refunds
+// POST /api/transport/refunds - Create transport cancellation refund
 export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
 
-    const { routeId, reason, adminFee = 0, refundMethod } = await request.json();
+    const body = await request.json();
+    const { studentTransportId, refundAmount, adminFee, reason, cancellationDate } = body;
 
-    if (!routeId || !reason || !refundMethod) {
-      return NextResponse.json({
-        error: 'routeId, reason, and refundMethod are required'
+    if (!studentTransportId) {
+      return NextResponse.json({ error: 'Student transport ID is required' }, { status: 400 });
+    }
+
+    // Get comprehensive refund analysis
+    const refundSummary = await getTransportRefundSummary(studentTransportId);
+
+    // Validate refund amount
+    const finalRefundAmount = refundAmount || refundSummary.eligibility.suggestedRefund;
+    const finalAdminFee = adminFee || 0;
+    const netAmount = finalRefundAmount - finalAdminFee;
+
+    if (finalRefundAmount > refundSummary.eligibility.maxRefundable) {
+      return NextResponse.json({ 
+        error: `Refund amount cannot exceed ₹${refundSummary.eligibility.maxRefundable}`,
+        refundSummary
       }, { status: 400 });
     }
 
-    // Get all active students on the route
-    const route = await (schoolPrisma as any).TransportRoute.findFirst({
-      where: { id: routeId, schoolId: ctx.schoolId },
-      include: {
-        students: {
-          where: { isActive: true },
-          include: {
-            student: true
-          }
-        }
+    // Create refund request
+    const refundStatus = netAmount < 1000 ? 'approved' : 'pending';
+    const refund = await (schoolPrisma as any).RefundRequest.create({
+      data: {
+        schoolId: ctx.schoolId,
+        studentId: refundSummary.feeAnalysis.feeRecords[0]?.studentId || 'unknown',
+        type: 'transport_fee',
+        sourceId: studentTransportId,
+        sourceType: 'StudentTransport',
+        amount: finalRefundAmount,
+        adminFee: finalAdminFee,
+        netAmount: netAmount,
+        reason: reason || 'Transport cancellation refund',
+        status: refundStatus,
+        priority: netAmount >= 5000 ? 'high' : netAmount >= 1000 ? 'normal' : 'low',
+        refundMethod: 'bank_transfer',
+        metadata: {
+          cancellationDate: cancellationDate || new Date(),
+          feeAnalysis: refundSummary.feeAnalysis,
+          eligibility: refundSummary.eligibility
+        },
+        createdBy: ctx.userId
       }
     });
 
-    if (!route) {
-      return NextResponse.json({ error: 'Route not found' }, { status: 404 });
-    }
-
-    // Create refund requests for all students
-    const refunds = [];
-    for (const studentTransport of route.students) {
-      const amount = studentTransport.monthlyFee;
-      const netAmount = amount - adminFee;
-      
-      // Auto-approve logic for amounts < 1000
-      const isAutoApproved = netAmount < 1000;
-      const status = isAutoApproved ? 'approved' : 'pending';
-      const approvedBy = isAutoApproved ? 'system' : null;
-      const approvedAt = isAutoApproved ? new Date() : null;
-      const priority = netAmount >= 5000 ? 'high' : netAmount >= 1000 ? 'normal' : 'low';
-
-      const refund = await (schoolPrisma as any).RefundRequest.create({
+    // Auto-approval workflow
+    if (refund.status === 'approved') {
+      await (schoolPrisma as any).RefundApproval.create({
         data: {
-          schoolId: ctx.schoolId,
-          studentId: studentTransport.studentId,
-          type: 'transport_fee',
-          sourceId: studentTransport.id,
-          sourceType: 'StudentTransport',
-          amount,
-          adminFee,
-          netAmount,
-          reason,
-          status,
-          priority,
-          refundMethod,
-          approvedBy,
-          approvedAt,
-          metadata: {
-            bulkRefund: true,
-            routeId,
-            routeName: route.routeName
-          },
-          createdBy: ctx.userId
-        },
-        include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              admissionNo: true,
-              class: true,
-              section: true
-            }
-          }
+          refundId: refund.id,
+          approverId: ctx.userId,
+          approverRole: ctx.role || 'admin',
+          action: 'approved',
+          comments: 'Auto-approved transport cancellation refund'
         }
       });
 
-      // Create approval record for auto-approved refunds
-      if (isAutoApproved) {
-        await (schoolPrisma as any).RefundApproval.create({
-          data: {
-            refundId: refund.id,
-            approverId: 'system',
-            approverRole: 'system',
-            action: 'approved',
-            comments: 'Auto-approved: Amount < ₹1000'
-          }
-        });
-      }
-
-      refunds.push(refund);
+      await (schoolPrisma as any).RefundTransaction.create({
+        data: {
+          refundId: refund.id,
+          amount: netAmount,
+          method: 'bank_transfer',
+          transactionId: `AUTO-${refund.id.slice(-8).toUpperCase()}`,
+          status: 'completed',
+          processedBy: 'system',
+          processedAt: new Date()
+        }
+      });
     }
 
+    // Send notification
+    const { sendRefundStatusNotification } = await import('@/lib/refundNotifications');
+    await sendRefundStatusNotification(refund.id, refund.status);
+
+    // Log audit action
+    const { logAuditAction } = await import('@/lib/auditLog');
+    await logAuditAction({
+      actorEmail: ctx.email,
+      action: 'create_transport_cancellation_refund',
+      target: 'RefundRequest',
+      targetName: refund.id,
+      details: {
+        studentTransportId,
+        refundAmount: finalRefundAmount,
+        adminFee: finalAdminFee,
+        netAmount: netAmount,
+        status: refund.status,
+        cancellationDate
+      },
+      ipAddress: request.headers.get('x-forwarded-for') || 'unknown'
+    });
+
+    return NextResponse.json({
+      success: true,
+      refund: {
+        id: refund.id,
+        amount: refund.amount,
+        adminFee: refund.adminFee,
+        netAmount: refund.netAmount,
+        status: refund.status,
+        refundNumber: `REF-${refund.id.slice(-8).toUpperCase()}`,
+        createdAt: refund.createdAt
+      },
+      refundSummary
+    });
+
+  } catch (error: any) {
+    console.error('POST /api/transport/refunds:', error);
     return NextResponse.json({ 
-      message: `Created ${refunds.length} refund requests`,
-      refunds 
-    }, { status: 201 });
-  } catch (error) {
-    console.error('POST /api/transport/refunds/bulk:', error);
-    return NextResponse.json({ error: 'Failed to create bulk refunds' }, { status: 500 });
+      error: 'Failed to create transport refund', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

@@ -36,36 +36,10 @@ export async function GET(request: NextRequest) {
               name: true,
               admissionNo: true,
               class: true,
-              section: true,
-              parentEmail: true,
-              parentPhone: true
+              section: true
             }
           },
-          approvals: {
-            include: {
-              approver: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  role: true
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          },
-          transactions: {
-            orderBy: { createdAt: 'desc' }
-          },
-          createdByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true
-            }
-          }
+          approvals: true // Simplified - just include approvals
         },
         orderBy: { [sortBy]: sortOrder },
         skip: (page - 1) * pageSize,
@@ -76,10 +50,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       refunds,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize)
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
     });
   } catch (error) {
     console.error('GET /api/refunds:', error);

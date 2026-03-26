@@ -7,6 +7,9 @@ interface TransportStats {
   totalVehicles: number;
   totalStudents: number;
   pendingTransportFees: number;
+  activeRefunds?: number;
+  totalRefunds?: number;
+  refundAmount?: number;
 }
 
 interface UseTransportStatsReturn {
@@ -23,7 +26,10 @@ export function useTransportStats(): UseTransportStatsReturn {
     totalRoutes: 0,
     totalVehicles: 0,
     totalStudents: 0,
-    pendingTransportFees: 0
+    pendingTransportFees: 0,
+    activeRefunds: 0,
+    totalRefunds: 0,
+    refundAmount: 0
   });
   const [statsRoutes, setStatsRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +54,28 @@ export function useTransportStats(): UseTransportStatsReturn {
       }
       const routesData = await routesResponse.json();
       
-      setStats(statsData.stats || statsData);
+      // Fetch transport refund statistics
+      let refundStats = { activeRefunds: 0, totalRefunds: 0, refundAmount: 0 };
+      try {
+        const refundsResponse = await fetch('/api/transport/refunds?pageSize=1');
+        if (refundsResponse.ok) {
+          const refundsData = await refundsResponse.json();
+          // Calculate refund statistics from the pagination data
+          refundStats = {
+            activeRefunds: refundsData.pagination?.total || 0,
+            totalRefunds: refundsData.pagination?.total || 0,
+            refundAmount: refundsData.refunds?.reduce((sum: number, refund: any) => sum + refund.netAmount, 0) || 0
+          };
+        }
+      } catch (refundErr) {
+        console.warn('Failed to fetch refund stats:', refundErr);
+        // Continue without refund stats
+      }
+      
+      setStats({
+        ...(statsData.stats || statsData),
+        ...refundStats
+      });
       setStatsRoutes(Array.isArray(routesData.routes) ? routesData.routes : Array.isArray(routesData) ? routesData : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

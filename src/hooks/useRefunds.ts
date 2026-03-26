@@ -38,7 +38,7 @@ export function useRefunds(options: UseRefundsOptions = {}): UseRefundsReturn {
 
   // Memoized filters and pagination
   const [filters, setFilters] = useState<RefundFilters>(() => ({
-    schoolId: '', // Will be set by context
+    schoolId: '', // Will be handled by API
     ...initialFilters
   }));
 
@@ -51,8 +51,6 @@ export function useRefunds(options: UseRefundsOptions = {}): UseRefundsReturn {
 
   // Optimized fetch function with debouncing
   const fetchRefunds = useCallback(async () => {
-    if (!filters.schoolId) return;
-    
     setLoading(true);
     setError(null);
     
@@ -72,10 +70,10 @@ export function useRefunds(options: UseRefundsOptions = {}): UseRefundsReturn {
 
   // Auto-fetch with dependency optimization
   useEffect(() => {
-    if (autoFetch && filters.schoolId) {
+    if (autoFetch) {
       fetchRefunds();
     }
-  }, [fetchRefunds, autoFetch, filters.schoolId]);
+  }, [fetchRefunds, autoFetch]);
 
   // Memoized filter update function
   const updateFilters = useCallback((newFilters: Partial<RefundFilters>) => {
@@ -167,7 +165,7 @@ export function useRefundAnalytics(schoolId: string, period: string = '30') {
       }
       
       const data = await response.json();
-      setAnalytics(data.analytics);
+      setAnalytics(data.analytics || data); // Handle both structures
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch analytics');
       setAnalytics(null);
@@ -177,10 +175,8 @@ export function useRefundAnalytics(schoolId: string, period: string = '30') {
   }, [period]);
 
   useEffect(() => {
-    if (schoolId) {
-      fetchAnalytics();
-    }
-  }, [fetchAnalytics, schoolId]);
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   return {
     analytics,

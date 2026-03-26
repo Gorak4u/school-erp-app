@@ -9,6 +9,9 @@ interface TransportStatsProps {
     totalVehicles: number;
     totalStudents: number;
     pendingTransportFees: number;
+    activeRefunds?: number;
+    totalRefunds?: number;
+    refundAmount?: number;
   };
   isDark: boolean;
   card: string;
@@ -49,11 +52,27 @@ export function TransportStats({ stats, isDark, card, text, subtext }: Transport
       color: isDark ? 'from-orange-600 to-orange-700' : 'from-orange-500 to-orange-600',
       bgColor: isDark ? 'bg-orange-600/20' : 'bg-orange-100',
       textColor: isDark ? 'text-orange-400' : 'text-orange-600'
-    }
+    },
+    ...(stats.activeRefunds !== undefined ? [{
+      title: 'Active Refunds',
+      value: stats.activeRefunds,
+      icon: '🔄',
+      color: isDark ? 'from-red-600 to-red-700' : 'from-red-500 to-red-600',
+      bgColor: isDark ? 'bg-red-600/20' : 'bg-red-100',
+      textColor: isDark ? 'text-red-400' : 'text-red-600'
+    }] : []),
+    ...(stats.totalRefunds !== undefined ? [{
+      title: 'Total Refunds',
+      value: stats.totalRefunds,
+      icon: '💸',
+      color: isDark ? 'from-indigo-600 to-indigo-700' : 'from-indigo-500 to-indigo-600',
+      bgColor: isDark ? 'bg-indigo-600/20' : 'bg-indigo-100',
+      textColor: isDark ? 'text-indigo-400' : 'text-indigo-600'
+    }] : [])
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${statCards.length >= 6 ? 6 : 4} xl:grid-cols-${statCards.length >= 6 ? 6 : 4} gap-4 mb-6`}>
       {statCards.map((stat, index) => (
         <motion.div
           key={stat.title}

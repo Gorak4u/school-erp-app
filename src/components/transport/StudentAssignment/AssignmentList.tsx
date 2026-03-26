@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import TransportCancellationModal from '@/components/transport/TransportCancellationModal';
 
 interface AssignmentListProps {
   students: any[];
@@ -14,6 +15,8 @@ interface AssignmentListProps {
   onEdit: (assignment: any) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string, isActive: boolean) => void;
+  onTransportCancelled?: (result: any) => void;
+  theme?: 'light' | 'dark';
   pagination?: {
     page: number;
     pageSize: number;
@@ -37,6 +40,8 @@ export function AssignmentList({
   onEdit,
   onDelete,
   onToggleStatus,
+  onTransportCancelled,
+  theme = 'light',
   pagination,
   onNextPage,
   onPrevPage,
@@ -46,6 +51,8 @@ export function AssignmentList({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   // Get unique routes for filter dropdown
   const uniqueRoutes = useMemo(() => {
@@ -56,23 +63,35 @@ export function AssignmentList({
   // Filter students
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      const matchesSearch = !searchTerm || 
-        student.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.student?.admissionNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.student?.class?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.student?.section?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.route?.routeNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.route?.routeName?.toLowerCase().includes(searchTerm.toLowerCase());
-
+      const matchesSearch = 
+        (student.student?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.student?.admissionNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.route?.routeName || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesStatus = statusFilter === 'all' || 
         (statusFilter === 'active' && student.isActive) ||
         (statusFilter === 'inactive' && !student.isActive);
-
+      
       const matchesRoute = routeFilter === 'all' || student.route?.routeName === routeFilter;
-
+      
       return matchesSearch && matchesStatus && matchesRoute;
     });
   }, [students, searchTerm, statusFilter, routeFilter]);
+
+  // Handle transport cancellation
+  const handleCancelTransport = (student: any) => {
+    setSelectedStudent(student);
+    setShowCancellationModal(true);
+  };
+
+  // Handle cancellation success
+  const handleCancellationSuccess = (result: any) => {
+    setShowCancellationModal(false);
+    setSelectedStudent(null);
+    if (onTransportCancelled) {
+      onTransportCancelled(result);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -277,6 +296,13 @@ export function AssignmentList({
                         >
                           Edit
                         </button>
+                        <button
+                          onClick={() => handleCancelTransport(student)}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-all bg-red-100 text-red-600 hover:bg-red-200`}
+                          title="Cancel Transport Assignment"
+                        >
+                          Cancel
+                        </button>
                         {student.isActive && student.monthlyFee > 0 && (
                           <button
                             onClick={() => window.open(`/refunds?studentId=${student.studentId}&studentTransportId=${student.id}&type=transport_fee`, '_blank')}
@@ -286,12 +312,6 @@ export function AssignmentList({
                             Refund
                           </button>
                         )}
-                        <button
-                          onClick={() => onDelete(student.id)}
-                          className={btnDanger}
-                        >
-                          Remove
-                        </button>
                       </div>
                     </td>
                   </motion.tr>
@@ -390,6 +410,20 @@ export function AssignmentList({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transport Cancellation Modal */}
+      {showCancellationModal && selectedStudent && (
+        <TransportCancellationModal
+          isOpen={showCancellationModal}
+          onClose={() => {
+            setShowCancellationModal(false);
+            setSelectedStudent(null);
+          }}
+          studentTransport={selectedStudent}
+          onSuccess={handleCancellationSuccess}
+          theme={theme}
+        />
       )}
     </div>
   );
