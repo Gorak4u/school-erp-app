@@ -85,6 +85,9 @@ import StudentForm from './components/StudentForm';
 import StudentDashboard from './components/StudentDashboard';
 import StudentFilters from './components/StudentFilters';
 import StudentTable from './components/StudentTable';
+import StudentAnalytics from './components/StudentAnalytics';
+import StudentReports from './components/StudentReports';
+import StudentSettings from './components/StudentSettings';
 import ImportModal from './components/ImportModal';
 import ExportModal from './components/ExportModal';
 import DocumentModal from './components/DocumentModal';
@@ -915,16 +918,22 @@ export default function StudentsPageRefactored() {
                 </div>
                 <div>
                   <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Analytics</h2>
-                  <p className={`text-sm ${getTextClass('secondary')}`}>Advanced analytics and insights</p>
+                  <p className={`text-sm ${getTextClass('secondary')}`}>AI-powered insights and advanced analytics</p>
                 </div>
               </div>
-              <div className={`text-center py-12 ${getCardClass()} rounded-2xl`}>
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <BarChart3 className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className={`text-lg font-semibold ${getTextClass('primary')} mb-2`}>Analytics Coming Soon</h3>
-                <p className={`text-sm ${getTextClass('secondary')}`}>Advanced analytics will be available soon</p>
-              </div>
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className={getCardClass()}
+              >
+                <StudentAnalytics 
+                  theme={theme} 
+                  students={students as any[]}
+                  onClose={() => setActiveTab('students')}
+                />
+              </motion.div>
             </motion.div>
           )}
 
@@ -942,16 +951,26 @@ export default function StudentsPageRefactored() {
                 </div>
                 <div>
                   <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Reports</h2>
-                  <p className={`text-sm ${getTextClass('secondary')}`}>Generate and manage reports</p>
+                  <p className={`text-sm ${getTextClass('secondary')}`}>AI-powered reports and insights</p>
                 </div>
               </div>
-              <div className={`text-center py-12 ${getCardClass()} rounded-2xl`}>
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <FileText className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className={`text-lg font-semibold ${getTextClass('primary')} mb-2`}>Reports Coming Soon</h3>
-                <p className={`text-sm ${getTextClass('secondary')}`}>Advanced reporting will be available soon</p>
-              </div>
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className={getCardClass()}
+              >
+                <StudentReports 
+                  theme={theme} 
+                  students={students as any[]}
+                  onClose={() => setActiveTab('students')}
+                  getCardClass={getCardClass}
+                  getBtnClass={getBtnClass}
+                  getTextClass={getTextClass}
+                  getInputClass={getInputClass}
+                />
+              </motion.div>
             </motion.div>
           )}
 
@@ -969,16 +988,25 @@ export default function StudentsPageRefactored() {
                 </div>
                 <div>
                   <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Settings</h2>
-                  <p className={`text-sm ${getTextClass('secondary')}`}>Configure student management settings</p>
+                  <p className={`text-sm ${getTextClass('secondary')}`}>AI-powered configuration and management</p>
                 </div>
               </div>
-              <div className={`text-center py-12 ${getCardClass()} rounded-2xl`}>
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <Settings className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className={`text-lg font-semibold ${getTextClass('primary')} mb-2`}>Settings Coming Soon</h3>
-                <p className={`text-sm ${getTextClass('secondary')}`}>Advanced settings will be available soon</p>
-              </div>
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className={getCardClass()}
+              >
+                <StudentSettings 
+                  theme={theme} 
+                  onClose={() => setActiveTab('students')}
+                  getCardClass={getCardClass}
+                  getBtnClass={getBtnClass}
+                  getTextClass={getTextClass}
+                  getInputClass={getInputClass}
+                />
+              </motion.div>
             </motion.div>
           )}
         </div>
