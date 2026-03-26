@@ -3,6 +3,57 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import {
+  Users,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Hash,
+  MapPin,
+  Heart,
+  CreditCard,
+  Eye,
+  Edit2,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  MoreVertical,
+  Download,
+  RefreshCw,
+  Settings,
+  Lock,
+  Unlock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  GraduationCap,
+  BookOpen,
+  Award,
+  Target,
+  Zap,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Search,
+  Filter,
+  SlidersHorizontal,
+  Shield,
+  UserCheck,
+  UserX,
+  Clock,
+  BarChart3,
+  FileText,
+  DollarSign,
+  Star,
+  Bell,
+  Archive,
+  Copy,
+  ExternalLink
+} from 'lucide-react';
 import { Student } from '../types';
 
 interface StudentTableProps {
@@ -32,6 +83,10 @@ interface StudentTableProps {
   canEditStudents?: boolean;
   canPromoteStudents?: boolean;
   isAdmin?: boolean;
+  themeConfig?: any;
+  getCardClass?: () => string;
+  getBtnClass?: (type?: 'primary' | 'secondary' | 'danger' | 'success') => string;
+  getTextClass?: (type?: 'primary' | 'secondary' | 'muted' | 'accent') => string;
 }
 
 export default function StudentTable({
@@ -39,10 +94,26 @@ export default function StudentTable({
   mobileView, pageSize, selectedStudents, setActiveTab, setCurrentPage,
   setEditingStudent, setSelectedStudent, sortConfig, setSortConfig, theme,
   toggleAllStudentsSelection, toggleStudentSelection, totalPages, visibleColumns, columnSettings,
-  onPromoteSingle, onPromoteClass, onExitSingle, canEditStudents = true, canPromoteStudents = true, isAdmin = false
+  onPromoteSingle, onPromoteClass, onExitSingle, canEditStudents = true, canPromoteStudents = true, isAdmin = false,
+  themeConfig,
+  getCardClass,
+  getBtnClass,
+  getTextClass
 }: StudentTableProps) {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState('');
+  const isDark = theme === 'dark';
+  
+  // Use provided theme functions or fallback
+  const cardClass = getCardClass?.() || (isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200');
+  const primaryBtnClass = getBtnClass?.('primary') || 'bg-gradient-to-r from-blue-600 to-purple-600 text-white';
+  const secondaryBtnClass = getBtnClass?.('secondary') || (isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800');
+  const dangerBtnClass = getBtnClass?.('danger') || 'bg-red-600 text-white';
+  const successBtnClass = getBtnClass?.('success') || 'bg-green-600 text-white';
+  const primaryTextClass = getTextClass?.('primary') || (isDark ? 'text-white' : 'text-gray-900');
+  const secondaryTextClass = getTextClass?.('secondary') || (isDark ? 'text-gray-400' : 'text-gray-600');
+  const mutedTextClass = getTextClass?.('muted') || (isDark ? 'text-gray-500' : 'text-gray-500');
+  const accentTextClass = getTextClass?.('accent') || (isDark ? 'text-blue-400' : 'text-blue-600');
   
   // Set current path on client side only
   useEffect(() => {
@@ -84,14 +155,14 @@ export default function StudentTable({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case 'inactive': return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
-      case 'graduated': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'transferred': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-      case 'exited': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-      case 'suspended': return 'bg-red-500/10 text-red-500 border-red-500/20';
-      case 'locked': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-      default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+      case 'active': return 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-600 border border-green-500/30';
+      case 'inactive': return 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 text-gray-600 border border-gray-500/30';
+      case 'graduated': return 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-600 border border-blue-500/30';
+      case 'transferred': return 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 border border-amber-500/30';
+      case 'exited': return 'bg-gradient-to-r from-slate-500/20 to-gray-600/20 text-slate-600 border border-slate-500/30';
+      case 'suspended': return 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-600 border border-red-500/30';
+      case 'locked': return 'bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-600 border border-orange-500/30';
+      default: return 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-600 border border-gray-500/30';
     }
   };
 
@@ -99,6 +170,20 @@ export default function StudentTable({
     if (pct >= 90) return 'text-green-500';
     if (pct >= 75) return 'text-amber-500';
     return 'text-red-500';
+  };
+
+  const getAttendanceBackground = (pct: number) => {
+    if (pct >= 90) return 'bg-gradient-to-r from-green-500/10 to-emerald-500/10';
+    if (pct >= 75) return 'bg-gradient-to-r from-amber-500/10 to-orange-500/10';
+    return 'bg-gradient-to-r from-red-500/10 to-pink-500/10';
+  };
+
+  const getGenderColor = (gender: string) => {
+    switch (gender) {
+      case 'Male': return 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-600 border border-blue-500/30';
+      case 'Female': return 'bg-gradient-to-r from-pink-500/20 to-pink-600/20 text-pink-600 border border-pink-500/30';
+      default: return 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-600 border border-gray-500/30';
+    }
   };
 
   const normalizeStudentStatus = (status?: string) => status === 'exit' ? 'exited' : (status || 'active');
@@ -113,24 +198,35 @@ export default function StudentTable({
       case 'select':
         return (
           <td className="px-4 py-3">
-            <input
-              type="checkbox"
-              checked={selectedStudents.includes(student.id)}
-              onChange={() => toggleStudentSelection(student.id)}
-              className="rounded"
-            />
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <input
+                type="checkbox"
+                checked={selectedStudents.includes(student.id)}
+                onChange={() => toggleStudentSelection(student.id)}
+                className={`w-5 h-5 rounded-lg border-2 text-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                  isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                }`}
+              />
+            </motion.div>
           </td>
         );
       
       case 'photo':
         return (
           <td className="px-4 py-3">
-            <div className="relative group">
+            <motion.div 
+              className="relative group"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
               {student.photo ? (
                 <img 
                   src={student.photo} 
                   alt={student.name}
-                  className="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 cursor-pointer transition-transform hover:scale-110"
+                  className="w-10 h-10 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-600 cursor-pointer transition-all hover:scale-110 hover:shadow-lg"
                   onError={(e) => {
                     // Fallback to initials if image fails to load
                     e.currentTarget.style.display = 'none';
@@ -141,73 +237,108 @@ export default function StudentTable({
                   }}
                 />
               ) : null}
-              <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs ${student.photo ? 'hidden' : ''}`}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-lg ${student.photo ? 'hidden' : ''}`}>
                 {student.name.charAt(0)}
               </div>
               
-              {/* Hover popup with larger photo */}
+              {/* Modern Hover popup with larger photo */}
               {student.photo && (
-                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileHover={{ opacity: 1, scale: 1 }}
+                  whileTap={{ opacity: 0, scale: 0.8 }}
+                  className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none"
+                >
                   <div className="relative">
                     <img 
                       src={student.photo} 
                       alt={student.name}
-                      className="w-48 h-64 rounded-xl object-cover border-2 border-gray-300 dark:border-gray-600 shadow-2xl"
+                      className="w-48 h-64 rounded-2xl object-cover border-2 border-gray-300 dark:border-gray-600 shadow-2xl"
                     />
-                    <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
-                      {student.name}
+                    <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${cardClass} shadow-xl border-2 ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                      <div className={primaryTextClass}>{student.name}</div>
                     </div>
-                    <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${theme === 'dark' ? 'bg-gray-900 text-white border-2 border-gray-600 shadow-xl' : 'bg-white text-gray-900 border-2 border-gray-200 shadow-xl'}`}>
-                      {student.admissionNo}
+                    <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${cardClass} shadow-xl border-2 ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                      <div className={mutedTextClass}>{student.admissionNo}</div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           </td>
         );
       
       case 'admissionNo':
         return (
-          <td className={`px-4 py-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.admissionNo || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Hash className="w-4 h-4 text-gray-400" />
+              <span className={`font-mono text-xs font-medium ${secondaryTextClass}`}>
+                {student.admissionNo || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
       case 'admissionDate':
         return (
-          <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.admissionDate || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <span className={`text-xs font-medium ${secondaryTextClass}`}>
+                {student.admissionDate || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
       case 'rollNo':
         return (
-          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.rollNo || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Hash className="w-4 h-4 text-gray-400" />
+              <span className={`font-medium ${primaryTextClass}`}>
+                {student.rollNo || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
       case 'name':
         return (
           <td className="px-4 py-3">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-3">
               {(student.needsPromotion || student.status === 'locked') && (
-                <span title="Needs promotion to current AY" className="text-orange-500 text-sm">🔒</span>
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  title="Needs promotion to current AY"
+                  className="p-2 rounded-xl bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30"
+                >
+                  <Lock className="w-4 h-4 text-orange-500" />
+                </motion.div>
               )}
-              <div>
-                <button
+              <div className="flex-1">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedStudent(student)}
-                  className={`font-semibold hover:text-blue-500 transition-colors text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                  className={`font-bold text-left transition-colors hover:scale-105 ${primaryTextClass} ${accentTextClass} hover:opacity-80`}
                 >
                   {student.name}
-                </button>
+                </motion.button>
                 {(student.needsPromotion || student.status === 'locked') ? (
-                  <div className="text-xs text-orange-500 font-medium">
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs font-medium text-orange-500 mt-1"
+                  >
                     AY: {student.academicYear} — promote required
-                  </div>
+                  </motion.div>
                 ) : (
-                  <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{student.email || 'N/A'}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Mail className="w-3 h-3 text-gray-400" />
+                    <span className={`text-xs ${mutedTextClass}`}>{student.email || 'N/A'}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -216,35 +347,48 @@ export default function StudentTable({
       
       case 'dateOfBirth':
         return (
-          <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.dateOfBirth || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <span className={`text-xs font-medium ${secondaryTextClass}`}>
+                {student.dateOfBirth || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
       case 'gender':
         return (
-          <td className={`px-4 py-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-              student.gender === 'Male' ? 'bg-blue-100 text-blue-700' :
-              student.gender === 'Female' ? 'bg-pink-100 text-pink-700' :
-              'bg-gray-100 text-gray-700'
-            }`}>
+          <td className="px-4 py-3">
+            <div className={`px-3 py-1.5 rounded-xl text-xs font-bold border-2 ${getGenderColor(student.gender || '')} flex items-center gap-2 w-fit`}>
+              {student.gender === 'Male' && <User className="w-3 h-3" />}
+              {student.gender === 'Female' && <User className="w-3 h-3" />}
               {student.gender || 'N/A'}
-            </span>
+            </div>
           </td>
         );
       
       case 'bloodGroup':
         return (
-          <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.bloodGroup || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 text-red-400" />
+              <span className={`text-xs font-medium ${secondaryTextClass}`}>
+                {student.bloodGroup || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
       case 'category':
         return (
-          <td className={`px-4 py-3 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            {student.category || 'N/A'}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-400" />
+              <span className={`text-xs font-medium ${secondaryTextClass}`}>
+                {student.category || 'N/A'}
+              </span>
+            </div>
           </td>
         );
       
