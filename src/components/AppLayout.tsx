@@ -791,42 +791,98 @@ export default function AppLayout({
         </div>
       </motion.header>
 
-      {/* Animated Gradient Divider Line */}
+      {/* Animated Gradient Divider Line with Moving Effect */}
       <div 
-        className="relative z-20 transition-all duration-300" 
+        className="relative z-20 transition-all duration-300 overflow-hidden" 
         style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}
       >
+        {/* Main moving gradient line */}
         <motion.div 
-          className={`h-1 bg-gradient-to-r from-transparent via-blue-500/60 to-transparent ${
-            globalTheme === 'dark' 
-              ? 'via-cyan-500/40' 
-              : 'via-blue-500/30'
-          }`}
-          animate={{
-            background: [
-              'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent)',
-              'linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.6), transparent)',
-              'linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.6), transparent)',
-              'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent)'
-            ]
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        {/* Subtle glow effect */}
+          className="h-1 w-full relative"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+        >
+          {/* Moving gradient wave */}
+          <motion.div 
+            className="absolute inset-0 h-full"
+            animate={{
+              background: [
+                'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.8) 20%, rgba(59, 130, 246, 0.8) 40%, transparent 60%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 20%, rgba(147, 51, 234, 0.8) 40%, rgba(147, 51, 234, 0.8) 60%, transparent 80%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 40%, rgba(236, 72, 153, 0.8) 60%, rgba(236, 72, 153, 0.8) 80%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 60%, rgba(34, 197, 94, 0.8) 80%, rgba(34, 197, 94, 0.8) 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 80%, rgba(251, 146, 60, 0.8) 100%, rgba(251, 146, 60, 0.8) 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 100%, transparent 100%, transparent 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.8) 20%, rgba(59, 130, 246, 0.8) 40%, transparent 60%, transparent 100%)'
+              ]
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          {/* Secondary moving glow effect */}
+          <motion.div 
+            className={`absolute inset-0 h-full ${
+              globalTheme === 'dark' 
+                ? 'bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent' 
+                : 'bg-gradient-to-r from-transparent via-blue-400/30 to-transparent'
+            }`}
+            animate={{
+              background: [
+                'linear-gradient(90deg, transparent 0%, transparent 30%, rgba(59, 130, 246, 0.4) 50%, transparent 70%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 50%, rgba(147, 51, 234, 0.4) 70%, transparent 90%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 70%, rgba(236, 72, 153, 0.4) 90%, transparent 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 90%, transparent 100%, transparent 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 10%, rgba(59, 130, 246, 0.4) 30%, transparent 50%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 30%, rgba(59, 130, 246, 0.4) 50%, transparent 70%, transparent 100%)'
+              ]
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          {/* Pulsing accent dots */}
+          {[0, 25, 50, 75, 100].map((position, index) => (
+            <motion.div
+              key={position}
+              className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
+                globalTheme === 'dark' 
+                  ? 'bg-cyan-400' 
+                  : 'bg-blue-500'
+              }`}
+              style={{ left: `${position}%` }}
+              animate={{
+                opacity: [0.2, 1, 0.2],
+                scale: [0.8, 1.2, 0.8],
+                x: [0, 5, 0]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                delay: index * 0.2,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </motion.div>
+        
+        {/* Subtle shimmer effect */}
         <motion.div 
-          className="absolute inset-0 h-1 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent"
+          className="absolute inset-0 h-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
           animate={{
-            opacity: [0.5, 1, 0.5],
-            scale: [1, 1.01, 1]
+            x: ['-100%', '100%']
           }}
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "linear"
           }}
         />
       </div>
