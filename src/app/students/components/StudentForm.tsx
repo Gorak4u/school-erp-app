@@ -85,12 +85,22 @@ export default function StudentForm({
   student, 
   onSubmit, 
   onCancel, 
-  theme 
+  theme,
+  themeConfig,
+  getCardClass,
+  getInputClass,
+  getBtnClass,
+  getTextClass
 }: { 
   student: Student | null; 
   onSubmit: (data: Partial<Student>) => void; 
   onCancel: () => void; 
   theme: 'dark' | 'light'; 
+  themeConfig?: any;
+  getCardClass?: () => string;
+  getInputClass?: () => string;
+  getBtnClass?: (type?: 'primary' | 'secondary' | 'danger' | 'success') => string;
+  getTextClass?: (type?: 'primary' | 'secondary' | 'muted' | 'accent') => string;
 }) {
   const { mediums, classes, sections, dropdowns, activeAcademicYear, loading, getSetting } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState('admission');

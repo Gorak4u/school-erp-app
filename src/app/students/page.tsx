@@ -860,6 +860,11 @@ export default function StudentsPageRefactored() {
                     setEditingStudent(null);
                   }}
                   theme={theme}
+                  themeConfig={themeConfig}
+                  getCardClass={getCardClass}
+                  getInputClass={getInputClass}
+                  getBtnClass={getBtnClass}
+                  getTextClass={getTextClass}
                 />
               </div>
             </motion.div>
