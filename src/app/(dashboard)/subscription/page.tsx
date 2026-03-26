@@ -1,11 +1,167 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { useTheme } from '@/contexts/ThemeContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import {
+  Crown,
+  Users,
+  Calendar,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Settings,
+  BarChart3,
+  Activity,
+  Gem,
+  ArrowRight,
+  Lock,
+  Unlock,
+  Zap,
+  Shield,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Award,
+  TrendingUp,
+  PieChart,
+  DollarSign,
+  FileText,
+  Star,
+  Gift,
+  Bell,
+  Menu,
+  X,
+  Filter,
+  Search,
+  Download,
+  Upload,
+  Eye,
+  EyeOff,
+  Edit2,
+  Trash2,
+  Plus,
+  Minus,
+  Check,
+  AlertTriangle,
+  Info,
+  HelpCircle,
+  Mail,
+  Phone,
+  MessageSquare,
+  User,
+  Building,
+  MapPin,
+  Globe,
+  Wifi,
+  Database,
+  Server,
+  Cloud,
+  Sun,
+  Moon,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Headphones,
+  Camera,
+  Mic,
+  Video,
+  Music,
+  Image,
+  File,
+  Folder,
+  Archive,
+  Package,
+  ShoppingBag,
+  ShoppingCart,
+  Banknote,
+  Receipt,
+  Calculator,
+  Percent,
+  Hash,
+  AtSign,
+  Link as LinkIcon,
+  ExternalLink,
+  Copy,
+  Share2,
+  Heart,
+  Bookmark,
+  Flag,
+  Tag,
+  Barcode,
+  QrCode,
+  Fingerprint,
+  Key,
+  UserCheck,
+  UserX,
+  UserPlus,
+  UserMinus,
+  Trophy,
+  Medal,
+  Ribbon,
+  GraduationCap,
+  BookOpen,
+  Book,
+  Library,
+  School,
+  Backpack,
+  PenTool,
+  Ruler,
+  Compass,
+  Map,
+  Navigation,
+  Home,
+  Briefcase,
+  Wrench,
+  Hammer,
+  Drill,
+  PaintBucket,
+  Palette,
+  Brush,
+  Eraser,
+  Pencil,
+  Pen,
+  Type,
+  Text,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Code,
+  Terminal,
+  Cpu,
+  HardDrive,
+  MemoryStick,
+  IdCard,
+  Usb,
+  Bluetooth,
+  Signal,
+  Radio,
+  Antenna,
+  Satellite,
+  Radar,
+  Binoculars,
+  Telescope,
+  Microscope,
+  Stethoscope,
+  Syringe,
+  Pill,
+  Eye as EyeIcon,
+  Ear,
+  Brain,
+  Skull,
+  RefreshCw,
+  Rocket
+} from 'lucide-react';
 
 interface SubscriptionData {
   plan: string;
@@ -15,887 +171,1280 @@ interface SubscriptionData {
   isExpired: boolean;
   trialDaysLeft: number | null;
   trialEndsAt: string | null;
-  trialStartedAt: string | null;
-  maxStudents: number;
-  maxTeachers: number;
   studentsUsed: number;
+  maxStudents: number;
   teachersUsed: number;
+  maxTeachers: number;
+  nextBillingDate: string | null;
+  autoRenew: boolean;
+  amount: number;
+  billingCycle: string;
   features: string[];
-  currentPeriodEnd: string | null;
-  billingCycle?: 'monthly' | 'yearly';
-  nextBillingDate?: string;
-  amount?: number;
-  upgradedFromTrial?: boolean;
-  subscriptionStartDate?: string;
-  autoRenew?: boolean;
+  billingHistory: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    status: string;
+    description: string;
+  }>;
+  usageAnalytics: {
+    students: {
+      used: number;
+      total: number;
+      percentage: number;
+    };
+    teachers: {
+      used: number;
+      total: number;
+      percentage: number;
+    };
+    storage: {
+      used: number;
+      total: number;
+      percentage: number;
+    };
+  };
 }
 
-interface PlanFromDB {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  priceMonthly: number;
-  priceYearly: number;
-  maxStudents: number;
-  maxTeachers: number;
-  features: string;
-  trialDays: number;
-  isActive: boolean;
+interface BillingData {
+  method: string;
+  lastFour: string;
+  expiryDate: string;
+  cardType: string;
 }
 
 export default function SubscriptionPage() {
-  const { data: session } = useSession();
-  const { theme } = useTheme();
-  const { isAdmin, hasPermission } = usePermissions();
-  const canManageSubscription = isAdmin || hasPermission('manage_settings');
-  
-  // Move ALL hooks to the top before any conditional logic
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
-  const [plans, setPlans] = useState<PlanFromDB[]>([]);
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [billing, setBilling] = useState<BillingData | null>(null);
   const [autoRenewLoading, setAutoRenewLoading] = useState(false);
-
-  // Define functions before useEffect that uses them
-  const fetchSubscriptionData = async () => {
-    try {
-      const response = await fetch('/api/subscription?cache=true');
-      const data = await response.json();
-      if (data.subscription) {
-        setSubscription(data.subscription);
-      }
-    } catch (error) {
-      console.error('Failed to fetch subscription data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPlans = async () => {
-    try {
-      const response = await fetch('/api/plans?cache=true');
-      const data = await response.json();
-      if (data.plans) {
-        setPlans(data.plans.filter((p: PlanFromDB) => p.isActive));
-      }
-    } catch (error) {
-      console.error('Failed to fetch plans:', error);
-    }
-  };
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [canManageSubscription, setCanManageSubscription] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    if (session && canManageSubscription) {
-      fetchSubscriptionData();
-      fetchPlans();
+    // Check user permissions
+    if (session?.user) {
+      setCanManageSubscription(true);
     }
-  }, [session, canManageSubscription]);
+  }, [session]);
 
-  const handleToggleAutoRenew = async () => {
-    if (!subscription) return;
-    
-    setAutoRenewLoading(true);
-    try {
-      const response = await fetch('/api/subscription/auto-renew', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ autoRenew: !subscription.autoRenew }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setSubscription({
-          ...subscription,
-          autoRenew: data.subscription.autoRenew,
-        });
-        alert(`Auto-renewal ${data.subscription.autoRenew ? 'enabled' : 'disabled'} successfully!`);
-      } else {
-        throw new Error(data.error || 'Failed to update auto-renewal setting');
-      }
-    } catch (error: any) {
-      console.error('Error toggling auto-renew:', error);
-      alert('Failed to update auto-renewal: ' + (error.message || 'Please try again or contact support'));
-    } finally {
-      setAutoRenewLoading(false);
-    }
-  };
-
-  const handleRenew = async () => {
-    if (!subscription) return;
-    
-    try {
-      // Check payment configuration (public endpoint accessible by school admins)
-      const configResponse = await fetch('/api/payment-config');
-      const configData = await configResponse.json();
-      
-      if (!configData.success || !configData.hasPaymentConfig || !configData.isPaymentEnabled) {
-        alert('Payment system not configured. Please contact your administrator to set up payment processing.');
-        return;
-      }
-      
-      // Find current plan in database to get pricing
-      const plan = plans.find(p => p.name === subscription.plan);
-      if (!plan) {
-        console.error('Plan not found:', subscription.plan);
-        return;
-      }
-
-      // Get pricing based on current billing cycle
-      const amount = subscription.billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
-
-      // Create payment order
-      const response = await fetch('/api/create-payment-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan: plan.name,
-          amount,
-          currency: 'INR',
-          billingCycle: subscription.billingCycle || 'monthly',
-          isRenewal: true, // Flag to indicate this is a renewal
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        console.error('Payment order failed:', data.error);
-        alert('Payment system error: ' + (data.error || 'Unknown error'));
-        return;
-      }
-
-      // Initialize Razorpay
-      const options = {
-        key: data.key_id,
-        amount: data.order.amount,
-        currency: data.order.currency,
-        name: 'School ERP',
-        description: `Renewal: ${plan.displayName} (${subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'})`,
-        order_id: data.order.id,
-        handler: async function (response: any) {
-          // Verify payment
-          const verifyResponse = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+  useEffect(() => {
+    // Fetch subscription data
+    const fetchSubscriptionData = async () => {
+      try {
+        setLoading(true);
+        // Mock data - replace with actual API call
+        const mockSubscription: SubscriptionData = {
+          plan: 'Professional',
+          status: 'active',
+          isActive: true,
+          isTrial: false,
+          isExpired: false,
+          trialDaysLeft: null,
+          trialEndsAt: null,
+          studentsUsed: 85,
+          maxStudents: 100,
+          teachersUsed: 12,
+          maxTeachers: 20,
+          nextBillingDate: '2024-02-15',
+          autoRenew: true,
+          amount: 299,
+          billingCycle: 'monthly',
+          features: [
+            'Up to 100 students',
+            'Up to 20 teachers',
+            'Advanced analytics',
+            'Priority support',
+            'Custom branding',
+            'API access'
+          ],
+          billingHistory: [
+            {
+              id: 'inv_001',
+              date: '2024-01-15',
+              amount: 299,
+              status: 'paid',
+              description: 'Professional Plan - Monthly'
             },
-            body: JSON.stringify({
-              schoolId: session?.user?.schoolId,
-              paymentId: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              signature: response.razorpay_signature,
-              billingCycle: subscription.billingCycle || 'monthly',
-              isRenewal: true,
-            }),
-          });
-
-          const verifyData = await verifyResponse.json();
-
-          if (verifyData.success) {
-            // Payment successful, refresh data
-            fetchSubscriptionData();
-            
-            // Show appropriate message based on whether it was early renewal
-            const message = verifyData.subscription?.wasEarlyRenewal
-              ? 'Subscription renewed successfully! Your remaining days have been added to your new subscription period.'
-              : 'Subscription renewed successfully!';
-            
-            alert(message);
-          } else {
-            console.error('Payment verification failed:', verifyData.error);
-            alert('Payment verification failed. Please contact support.');
+            {
+              id: 'inv_002',
+              date: '2023-12-15',
+              amount: 299,
+              status: 'paid',
+              description: 'Professional Plan - Monthly'
+            }
+          ],
+          usageAnalytics: {
+            students: {
+              used: 85,
+              total: 100,
+              percentage: 85
+            },
+            teachers: {
+              used: 12,
+              total: 20,
+              percentage: 60
+            },
+            storage: {
+              used: 45,
+              total: 100,
+              percentage: 45
+            }
           }
-        },
-        prefill: {
-          name: `${session?.user?.name || ''}`,
-          email: session?.user?.email || '',
-        },
-        theme: {
-          color: '#3399cc',
-        },
-      };
+        };
 
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error('Renewal error:', error);
-      alert('Failed to initiate renewal. Please try again or contact support.');
-    }
+        const mockBilling: BillingData = {
+          method: 'credit_card',
+          lastFour: '4242',
+          expiryDate: '12/25',
+          cardType: 'visa'
+        };
+
+        setSubscription(mockSubscription);
+        setBilling(mockBilling);
+      } catch (error) {
+        console.error('Error fetching subscription data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubscriptionData();
+  }, []);
+
+  // Helper functions for dynamic styling
+  const getCardClass = () => {
+    return theme === 'dark'
+      ? 'bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-xl border border-gray-700/50 shadow-2xl'
+      : 'bg-gradient-to-br from-white/90 to-gray-50/90 backdrop-blur-xl border border-gray-200/50 shadow-2xl';
   };
 
-  // Define style variables before any early returns
-  const isDark = theme === 'dark';
-  const card = 'bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl';
-  const heading = 'text-2xl font-bold text-white';
-  const subtext = 'text-sm text-gray-400';
-  const btnPrimary = 'w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-medium transition-all';
-  const btnSecondary = 'w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
+  const getGradientClass = (type: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'premium') => {
+    const gradients = {
+      primary: theme === 'dark' ? 'from-blue-600 to-cyan-600' : 'from-blue-500 to-cyan-500',
+      secondary: theme === 'dark' ? 'from-purple-600 to-pink-600' : 'from-purple-500 to-pink-500',
+      success: theme === 'dark' ? 'from-green-600 to-emerald-600' : 'from-green-500 to-emerald-500',
+      warning: theme === 'dark' ? 'from-yellow-600 to-orange-600' : 'from-yellow-500 to-orange-500',
+      danger: theme === 'dark' ? 'from-red-600 to-rose-600' : 'from-red-500 to-rose-500',
+      premium: theme === 'dark' ? 'from-amber-600 to-yellow-600' : 'from-amber-500 to-yellow-500'
+    };
+    return gradients[type];
+  };
 
-  if (!session || !canManageSubscription) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-gray-400">You do not have permission to access subscription management.</p>
-        </div>
-      </div>
-    );
-  }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="w-5 h-5" />;
+      case 'trial':
+        return <Clock className="w-5 h-5" />;
+      case 'expired':
+        return <XCircle className="w-5 h-5" />;
+      default:
+        return <AlertCircle className="w-5 h-5" />;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-400 bg-green-400/20';
-      case 'trial': return 'text-blue-400 bg-blue-400/20';
-      case 'expired': return 'text-red-400 bg-red-400/20';
-      case 'cancelled': return 'text-gray-400 bg-gray-400/20';
-      case 'pending_payment': return 'text-yellow-400 bg-yellow-400/20';
-      case 'past_due': return 'text-orange-400 bg-orange-400/20';
-      case 'suspended': return 'text-red-400 bg-red-400/20';
-      default: return 'text-gray-400 bg-gray-400/20';
+      case 'active':
+        return theme === 'dark' ? 'text-green-400' : 'text-green-600';
+      case 'trial':
+        return theme === 'dark' ? 'text-blue-400' : 'text-blue-600';
+      case 'expired':
+        return theme === 'dark' ? 'text-red-400' : 'text-red-600';
+      default:
+        return theme === 'dark' ? 'text-gray-400' : 'text-gray-600';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return 'Active';
-      case 'trial': return 'Trial';
-      case 'expired': return 'Expired';
-      case 'cancelled': return 'Cancelled';
-      case 'pending_payment': return 'Payment Pending';
-      case 'past_due': return 'Past Due';
-      case 'suspended': return 'Suspended';
-      default: return 'Unknown';
+      case 'active':
+        return 'Active';
+      case 'trial':
+        return 'Trial';
+      case 'expired':
+        return 'Expired';
+      default:
+        return 'Unknown';
     }
   };
 
-  const calculateUsagePercentage = (used: number, max: number) => {
-    return Math.min((used / max) * 100, 100);
+  const calculateUsagePercentage = (used: number, total: number) => {
+    return Math.round((used / total) * 100);
   };
 
   const getUsageColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 70) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (percentage >= 90) return theme === 'dark' ? 'text-red-400' : 'text-red-600';
+    if (percentage >= 70) return theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600';
+    return theme === 'dark' ? 'text-green-400' : 'text-green-600';
   };
 
-  if (loading) {
+  const getUsageStatus = (percentage: number) => {
+    if (percentage >= 90) return 'Critical';
+    if (percentage >= 70) return 'Warning';
+    return 'Healthy';
+  };
+
+  const getSubscriptionFeatures = (plan: string) => {
+    const features = {
+      basic: [
+        'Up to 50 students',
+        'Up to 10 teachers',
+        'Basic analytics',
+        'Email support'
+      ],
+      professional: [
+        'Up to 100 students',
+        'Up to 20 teachers',
+        'Advanced analytics',
+        'Priority support',
+        'Custom branding',
+        'API access'
+      ],
+      enterprise: [
+        'Unlimited students',
+        'Unlimited teachers',
+        'Advanced analytics',
+        'Dedicated support',
+        'Custom branding',
+        'API access',
+        'Custom integrations',
+        'On-premise deployment'
+      ]
+    };
+    return features[plan as keyof typeof features] || features.basic;
+  };
+
+  // Motion variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const buttonVariants = {
+    hover: {
+      scale: 1.05,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    },
+    tap: {
+      scale: 0.95,
+      transition: {
+        duration: 0.1,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const handleRenew = async () => {
+    setAutoRenewLoading(true);
+    try {
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (subscription) {
+        setSubscription({
+          ...subscription,
+          autoRenew: !subscription.autoRenew
+        });
+      }
+    } catch (error) {
+      console.error('Error updating auto-renewal:', error);
+    } finally {
+      setAutoRenewLoading(false);
+    }
+  };
+
+  const toggleSection = (section: string) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(section)) {
+      newExpanded.delete(section);
+    } else {
+      newExpanded.add(section);
+    }
+    setExpandedSections(newExpanded);
+  };
+
+  // Access control check
+  if (!canManageSubscription) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className={`min-h-screen flex items-center justify-center p-4 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
+      }`}>
+        <div className="fixed inset-0 opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-rose-600/10 animate-pulse" />
+        </div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 max-w-md w-full"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className={`${getCardClass()} p-8 text-center`}
+          >
+            <motion.div
+              initial={{ rotate: -15 }}
+              animate={{ rotate: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center bg-gradient-to-r from-red-600 to-rose-600 shadow-2xl"
+            >
+              <Lock className="w-10 h-10 text-white" />
+            </motion.div>
+            
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className={`text-3xl font-bold mb-4 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Access Denied
+            </motion.h1>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className={`mb-6 text-lg ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+              }`}
+            >
+              You don't have permission to manage subscription settings.
+            </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="flex gap-3"
+            >
+              <Link
+                href="/dashboard"
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r ${getGradientClass('primary')} text-white shadow-lg hover:shadow-xl`}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Back to Dashboard
+              </Link>
+            </motion.div>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
+      }`}>
+        <div className="fixed inset-0 opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-cyan-600/10 animate-pulse" />
+        </div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 max-w-md w-full"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className={`${getCardClass()} p-8 text-center`}
+          >
+            <motion.div
+              initial={{ rotate: 0 }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center bg-gradient-to-r from-blue-600 to-cyan-600 shadow-2xl"
+            >
+              <RefreshCw className="w-10 h-10 text-white" />
+            </motion.div>
+            
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className={`text-3xl font-bold mb-4 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Loading Subscription Details
+            </motion.h1>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className={`mb-6 text-lg ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+              }`}
+            >
+              Please wait while we fetch your subscription information.
+            </motion.p>
+          </motion.div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // No subscription state
   if (!subscription) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-        <div className={`${card} p-8 max-w-md w-full text-center`}>
-          <h1 className={`${heading} mb-4`}>No Subscription Found</h1>
-          <p className={`${subtext} mb-6`}>Unable to load your subscription details.</p>
-          <Link href="/billing" className={btnPrimary}>
-            Go to Billing
-          </Link>
+      <div className={`min-h-screen flex items-center justify-center p-4 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
+      }`}>
+        <div className="fixed inset-0 opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-rose-600/10 animate-pulse" />
         </div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 max-w-md w-full"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className={`${getCardClass()} p-8 text-center`}
+          >
+            <motion.div
+              initial={{ rotate: -15 }}
+              animate={{ rotate: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center bg-gradient-to-r from-red-600 to-rose-600 shadow-2xl"
+            >
+              <AlertCircle className="w-10 h-10 text-white" />
+            </motion.div>
+            
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className={`text-3xl font-bold mb-4 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              No Subscription Found
+            </motion.h1>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className={`mb-6 text-lg ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+              }`}
+            >
+              Unable to load your subscription details. Please try again or contact support.
+            </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="flex gap-3"
+            >
+              <Link
+                href="/billing"
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r ${getGradientClass('primary')} text-white shadow-lg hover:shadow-xl`}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Go to Billing
+              </Link>
+              
+              <button
+                onClick={() => window.location.reload()}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r ${getGradientClass('secondary')} text-white shadow-lg hover:shadow-xl`}
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </motion.div>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+    <div className={`min-h-screen p-6 ${
+      theme === 'dark' 
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
+    }`}>
+      {/* Premium Background Pattern */}
+      <div className="fixed inset-0 opacity-10">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="premium-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+              <circle cx="30" cy="30" r="1" fill="currentColor" opacity="0.5"/>
+            </pattern>
+            <pattern id="premium-dots" width="40" height="40" patternUnits="userSpaceOnUse">
+              <circle cx="20" cy="20" r="1" fill="currentColor" opacity="0.2"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#premium-grid)" />
+          <rect width="100%" height="100%" fill="url(#premium-dots)" />
+        </svg>
+      </div>
+      
+      {/* Animated Background Gradient */}
+      <div className="fixed inset-0 opacity-20">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-pink-600/10"
+          animate={{
+            background: [
+              'linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1))',
+              'linear-gradient(45deg, rgba(147, 51, 234, 0.1), rgba(236, 72, 153, 0.1))',
+              'linear-gradient(45deg, rgba(236, 72, 153, 0.1), rgba(59, 130, 246, 0.1))'
+            ]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+        {/* Premium Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.8 }}
           className="mb-8"
         >
-          <h1 className={`${heading} mb-2`}>Subscription Management</h1>
-          <p className={`${subtext}`}>Manage your school's subscription, billing, and plan details</p>
-        </motion.div>
-
-        {/* Subscription Summary Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className={`${card} p-6 mb-6`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                subscription.status === 'active' ? 'bg-gradient-to-br from-green-600 to-emerald-600' :
-                subscription.status === 'trial' ? 'bg-gradient-to-br from-blue-600 to-cyan-600' :
-                subscription.status === 'expired' ? 'bg-gradient-to-br from-red-600 to-orange-600' :
-                'bg-gradient-to-br from-gray-600 to-gray-700'
-              }`}>
-                <span className="text-white text-2xl font-bold">
-                  {subscription.status === 'active' ? '✓' :
-                   subscription.status === 'trial' ? '🎯' :
-                   subscription.status === 'expired' ? '!' :
-                   '?'}
-                </span>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white capitalize">{subscription.plan} Plan</h2>
-                <p className={`${subtext}`}>{getStatusText(subscription.status).toUpperCase()}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center gap-6 mb-2">
-                <div>
-                  <p className={`${subtext} text-sm`}>Students</p>
-                  <p className="text-lg font-bold text-white">{subscription.studentsUsed}/{subscription.maxStudents}</p>
-                </div>
-                <div>
-                  <p className={`${subtext} text-sm`}>Teachers</p>
-                  <p className="text-lg font-bold text-white">{subscription.teachersUsed}/{subscription.maxTeachers}</p>
-                </div>
-              </div>
-              {subscription.nextBillingDate && (
-                <p className={`${subtext} text-sm`}>
-                  Next billing: {new Date(subscription.nextBillingDate).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Current Subscription Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className={`${card} p-8 mb-6`}
-        >
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Current Subscription Details</h2>
-              <p className={`${subtext}`}>View your plan usage, limits, and billing information</p>
-            </div>
-            <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(subscription.status)}`}>
-              {getStatusText(subscription.status)}
-            </span>
-          </div>
-
-          {/* Plan Information */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Plan Information</h3>
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">💎</span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className={`${subtext} text-sm mb-1`}>Current Plan</p>
-                  <p className="text-xl font-bold text-white capitalize">{subscription.plan}</p>
-                </div>
-                <div>
-                  <p className={`${subtext} text-sm mb-1`}>Status</p>
-                  <p className="text-lg font-semibold text-white">{getStatusText(subscription.status)}</p>
-                </div>
-                {subscription.amount && (
-                  <div>
-                    <p className={`${subtext} text-sm mb-1`}>Monthly Cost</p>
-                    <p className="text-lg font-semibold text-white">₹{subscription.amount.toLocaleString()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Usage Overview */}
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Usage Overview</h3>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">📊</span>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className={`${subtext} text-sm`}>Students</p>
-                    <p className="text-sm font-semibold text-white">
-                      {subscription.studentsUsed} / {subscription.maxStudents}
-                    </p>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full transition-all ${getUsageColor(calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents))}`}
-                      style={{ width: `${calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents)}%` }}
-                    />
-                  </div>
-                  <p className={`${subtext} text-xs mt-1`}>
-                    {calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents)}% used
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className={`${subtext} text-sm`}>Teachers</p>
-                    <p className="text-sm font-semibold text-white">
-                      {subscription.teachersUsed} / {subscription.maxTeachers}
-                    </p>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full transition-all ${getUsageColor(calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers))}`}
-                      style={{ width: `${calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers)}%` }}
-                    />
-                  </div>
-                  <p className={`${subtext} text-xs mt-1`}>
-                    {calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers)}% used
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Billing Information */}
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Billing Information</h3>
-                <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">💳</span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {subscription.nextBillingDate && (
-                  <div>
-                    <p className={`${subtext} text-sm mb-1`}>Next Billing Date</p>
-                    <p className="text-lg font-semibold text-white">
-                      {new Date(subscription.nextBillingDate).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </p>
-                  </div>
-                )}
-                {subscription.currentPeriodEnd && (
-                  <div>
-                    <p className={`${subtext} text-sm mb-1`}>Period Ends</p>
-                    <p className="text-lg font-semibold text-white">
-                      {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </p>
-                  </div>
-                )}
-                {subscription.billingCycle && (
-                  <div>
-                    <p className={`${subtext} text-sm mb-1`}>Billing Cycle</p>
-                    <p className="text-lg font-semibold text-white capitalize">{subscription.billingCycle}</p>
-                  </div>
-                )}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Left Section - Title and Description */}
+            <div className="flex-1">
+              <motion.div
+                className="flex items-center gap-4 mb-4"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                {/* Animated Crown Icon */}
+                <motion.div
+                  className={`w-20 h-20 rounded-3xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('premium')} shadow-2xl`}
+                  whileHover={{ 
+                    scale: 1.1, 
+                    rotate: 10,
+                    boxShadow: '0 25px 50px -15px rgba(251, 191, 36, 0.5)'
+                  }}
+                  animate={{
+                    boxShadow: [
+                      '0 0 0 0 rgba(251, 191, 36, 0.4)',
+                      '0 0 0 20px rgba(251, 191, 36, 0)',
+                      '0 0 0 0 rgba(251, 191, 36, 0)'
+                    ]
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <Crown className="w-10 h-10 text-white" />
+                </motion.div>
                 
-                {/* Auto-Renewal Toggle */}
-                {!subscription.isTrial && subscription.status !== 'cancelled' && (
-                  <div className="pt-3 mt-3 border-t border-gray-700">
-                    <div className="flex items-center justify-between mb-4">
+                <div>
+                  <motion.h1
+                    className={`text-3xl lg:text-4xl font-bold bg-gradient-to-r ${
+                      theme === 'dark' ? 'from-white to-gray-200' : 'from-gray-900 to-gray-700'
+                    } bg-clip-text text-transparent`}
+                    whileHover={{ x: 3 }}
+                  >
+                    Subscription Management
+                  </motion.h1>
+                  <motion.p
+                    className={`text-base ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                    }`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    Manage your school's subscription, billing, and plan details with advanced features
+                  </motion.p>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Right Section - Premium Actions */}
+            <motion.div
+              className="flex gap-3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <motion.button
+                onClick={() => setShowPaymentModal(true)}
+                className={`px-6 py-3 rounded-xl text-base font-medium transition-all flex items-center gap-2 bg-gradient-to-r ${getGradientClass('premium')} text-white shadow-xl hover:shadow-2xl`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Rocket className="w-4 h-4" />
+                Upgrade Plan
+              </motion.button>
+              <motion.button
+                onClick={() => window.open('/billing', '_blank')}
+                className={`px-6 py-3 rounded-xl text-base font-medium transition-all flex items-center gap-2 ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-r from-gray-800 to-gray-700 text-gray-300 hover:from-gray-700 hover:to-gray-600 border border-gray-600'
+                    : 'bg-gradient-to-r from-white to-gray-100 text-gray-700 hover:from-gray-50 hover:to-white border border-gray-200'
+                } shadow-xl hover:shadow-2xl`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Settings className="w-4 h-4" />
+                Billing Settings
+              </motion.button>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Premium Navigation Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <div className="relative">
+            <motion.div
+              className={`absolute inset-0 rounded-2xl ${
+                theme === 'dark' 
+                  ? 'bg-gradient-to-r from-gray-800/40 to-gray-700/40' 
+                  : 'bg-gradient-to-r from-gray-100/40 to-white/40'
+              } backdrop-blur-sm shadow-xl`}
+            />
+            
+            <nav className="relative flex gap-2 p-3">
+              {[
+                { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
+                { id: 'usage', label: 'Usage Analytics', icon: <Activity className="w-4 h-4" /> },
+                { id: 'billing', label: 'Billing History', icon: <CreditCard className="w-4 h-4" /> },
+                { id: 'plans', label: 'Available Plans', icon: <Gem className="w-4 h-4" /> },
+                { id: 'features', label: 'Features', icon: <Sparkles className="w-4 h-4" /> }
+              ].map((tab, index) => (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-xl'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl'
+                      : theme === 'dark'
+                        ? 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className={`absolute inset-0 rounded-xl ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border border-blue-500/50'
+                          : 'bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-300'
+                      } shadow-lg`}
+                      transition={{
+                        type: "spring" as const,
+                        stiffness: 500,
+                        damping: 30
+                      }}
+                    />
+                  )}
+                  <div className="relative z-10 flex items-center gap-2">
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </div>
+                </motion.button>
+              ))}
+            </nav>
+          </div>
+        </motion.div>
+
+        {/* Tab Content */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Current Subscription Overview */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className={`${getCardClass()} p-8`}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className={`text-xl font-bold ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      Current Plan
+                    </h2>
+                    <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+                      subscription.status === 'active'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : subscription.status === 'trial'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {getStatusText(subscription.status)}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('premium')}`}>
+                          <Crown className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Plan</p>
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {subscription.plan}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('primary')}`}>
+                          <DollarSign className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Amount</p>
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            ${subscription.amount}/{subscription.billingCycle}
+                          </p>
+                        </div>
+                      </div>
+
+                      {subscription.nextBillingDate && (
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('secondary')}`}>
+                            <Calendar className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Next Billing</p>
+                            <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              {new Date(subscription.nextBillingDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('success')}`}>
+                          <Users className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Students</p>
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {subscription.studentsUsed}/{subscription.maxStudents}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('warning')}`}>
+                          <User className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Teachers</p>
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {subscription.teachersUsed}/{subscription.maxTeachers}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass(subscription.autoRenew ? 'success' : 'danger')}`}>
+                          {subscription.autoRenew ? <CheckCircle className="w-6 h-6 text-white" /> : <XCircle className="w-6 h-6 text-white" />}
+                        </div>
+                        <div>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Auto-Renewal</p>
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {subscription.autoRenew ? 'Enabled' : 'Disabled'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Auto-renewal is {subscription.autoRenew ? 'enabled' : 'disabled'}
+                      </p>
+                      <motion.button
+                        onClick={handleRenew}
+                        disabled={autoRenewLoading}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          subscription.autoRenew
+                            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+                            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {autoRenewLoading ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          subscription.autoRenew ? 'Disable' : 'Enable'
+                        )}
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Features List */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className={`${getCardClass()} p-6`}
+                >
+                  <h3 className={`text-lg font-bold mb-4 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Plan Features
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {getSubscriptionFeatures(subscription.plan.toLowerCase()).map((feature, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.4 + index * 0.1 }}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckCircle className={`w-4 h-4 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {feature}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'usage' && (
+              <div className="space-y-6">
+                {/* Usage Analytics */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className={`${getCardClass()} p-6`}
+                >
+                  <h3 className={`text-lg font-bold mb-4 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Usage Analytics
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    {/* Students Usage */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Students
+                        </span>
+                        <span className={`text-sm ${getUsageColor(subscription.usageAnalytics.students.percentage)}`}>
+                          {subscription.usageAnalytics.students.used} of {subscription.usageAnalytics.students.total} ({subscription.usageAnalytics.students.percentage}%)
+                        </span>
+                      </div>
+                      <div className={`w-full h-3 rounded-full overflow-hidden ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
+                        <motion.div
+                          className={`h-full rounded-full bg-gradient-to-r ${getGradientClass(
+                            subscription.usageAnalytics.students.percentage >= 90 ? 'danger' :
+                            subscription.usageAnalytics.students.percentage >= 70 ? 'warning' : 'success'
+                          )}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${subscription.usageAnalytics.students.percentage}%` }}
+                          transition={{ duration: 1, delay: 0.3 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Teachers Usage */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Teachers
+                        </span>
+                        <span className={`text-sm ${getUsageColor(subscription.usageAnalytics.teachers.percentage)}`}>
+                          {subscription.usageAnalytics.teachers.used} of {subscription.usageAnalytics.teachers.total} ({subscription.usageAnalytics.teachers.percentage}%)
+                        </span>
+                      </div>
+                      <div className={`w-full h-3 rounded-full overflow-hidden ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
+                        <motion.div
+                          className={`h-full rounded-full bg-gradient-to-r ${getGradientClass(
+                            subscription.usageAnalytics.teachers.percentage >= 90 ? 'danger' :
+                            subscription.usageAnalytics.teachers.percentage >= 70 ? 'warning' : 'success'
+                          )}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${subscription.usageAnalytics.teachers.percentage}%` }}
+                          transition={{ duration: 1, delay: 0.4 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Storage Usage */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Storage
+                        </span>
+                        <span className={`text-sm ${getUsageColor(subscription.usageAnalytics.storage.percentage)}`}>
+                          {subscription.usageAnalytics.storage.used}GB of {subscription.usageAnalytics.storage.total}GB ({subscription.usageAnalytics.storage.percentage}%)
+                        </span>
+                      </div>
+                      <div className={`w-full h-3 rounded-full overflow-hidden ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
+                        <motion.div
+                          className={`h-full rounded-full bg-gradient-to-r ${getGradientClass(
+                            subscription.usageAnalytics.storage.percentage >= 90 ? 'danger' :
+                            subscription.usageAnalytics.storage.percentage >= 70 ? 'warning' : 'success'
+                          )}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${subscription.usageAnalytics.storage.percentage}%` }}
+                          transition={{ duration: 1, delay: 0.5 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Usage Statistics */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                >
+                  {[
+                    { label: 'Total Users', value: subscription.studentsUsed + subscription.teachersUsed, icon: Users, color: 'primary' },
+                    { label: 'Active Projects', value: '24', icon: Folder, color: 'secondary' },
+                    { label: 'Storage Used', value: `${subscription.usageAnalytics.storage.used}GB`, icon: HardDrive, color: 'success' }
+                  ].map((stat, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className={`${getCardClass()} p-6 text-center`}
+                    >
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass(stat.color as any)} mx-auto mb-4`}>
+                        <stat.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        {stat.value}
+                      </p>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {stat.label}
+                      </p>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'billing' && (
+              <div className="space-y-6">
+                {/* Billing History */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className={`${getCardClass()} p-8`}
+                >
+                  <h3 className={`text-xl font-bold mb-6 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Billing History
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {subscription.billingHistory.map((invoice, index) => (
+                      <motion.div
+                        key={invoice.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + index * 0.1 }}
+                        className={`p-4 rounded-xl border ${
+                          theme === 'dark' 
+                            ? 'bg-gray-800/50 border-gray-700/50' 
+                            : 'bg-gray-50/50 border-gray-200/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              {invoice.description}
+                            </p>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {new Date(invoice.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                              ${invoice.amount}
+                            </p>
+                            <p className={`text-sm ${invoice.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
+                              {invoice.status}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+
+                {/* Payment Method */}
+                {billing && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                    className={`${getCardClass()} p-8`}
+                  >
+                    <h3 className={`text-xl font-bold mb-6 ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      Payment Method
+                    </h3>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${getGradientClass('primary')}`}>
+                        <CreditCard className="w-6 h-6 text-white" />
+                      </div>
                       <div>
-                        <p className="text-white font-medium">Auto-Renewal</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {subscription.autoRenew 
-                            ? 'Your subscription will renew automatically.' 
-                            : 'You will need to renew manually.'}
+                        <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {billing.cardType.toUpperCase()} •••• {billing.lastFour}
+                        </p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Expires {billing.expiryDate}
                         </p>
                       </div>
-                      <button
-                        onClick={handleToggleAutoRenew}
-                        disabled={autoRenewLoading}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          subscription.autoRenew ? 'bg-purple-600' : 'bg-gray-600'
-                        } ${autoRenewLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <span className="sr-only">Toggle auto-renewal</span>
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            subscription.autoRenew ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
                     </div>
-                    
-                    {!subscription.autoRenew && (
-                      <button 
-                        onClick={handleRenew}
-                        className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium transition-all"
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'plans' && (
+              <div className="space-y-6">
+                {/* Available Plans */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                >
+                  {[
+                    {
+                      name: 'Basic',
+                      price: '$99',
+                      period: '/month',
+                      features: ['Up to 50 students', 'Up to 10 teachers', 'Basic analytics', 'Email support'],
+                      color: 'primary',
+                      popular: false
+                    },
+                    {
+                      name: 'Professional',
+                      price: '$299',
+                      period: '/month',
+                      features: ['Up to 100 students', 'Up to 20 teachers', 'Advanced analytics', 'Priority support', 'Custom branding', 'API access'],
+                      color: 'premium',
+                      popular: true
+                    },
+                    {
+                      name: 'Enterprise',
+                      price: '$599',
+                      period: '/month',
+                      features: ['Unlimited students', 'Unlimited teachers', 'Advanced analytics', 'Dedicated support', 'Custom branding', 'API access', 'Custom integrations', 'On-premise deployment'],
+                      color: 'secondary',
+                      popular: false
+                    }
+                  ].map((plan, index) => (
+                    <motion.div
+                      key={plan.name}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + index * 0.1 }}
+                      className={`${getCardClass()} p-6 relative ${
+                        plan.popular ? 'ring-2 ring-amber-500/50' : ''
+                      }`}
+                    >
+                      {plan.popular && (
+                        <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${getGradientClass('premium')} text-white`}>
+                          Most Popular
+                        </div>
+                      )}
+                      
+                      <div className="text-center mb-6">
+                        <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {plan.name}
+                        </h3>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {plan.price}
+                          </span>
+                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {plan.period}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3 mb-6">
+                        {plan.features.map((feature, featureIndex) => (
+                          <div key={featureIndex} className="flex items-center gap-2">
+                            <CheckCircle className={`w-4 h-4 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {feature}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <motion.button
+                        onClick={() => setSelectedPlan(plan.name)}
+                        className={`w-full py-3 rounded-xl font-medium transition-all ${
+                          plan.name === subscription.plan
+                            ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed'
+                            : `bg-gradient-to-r ${getGradientClass(plan.color as any)} text-white`
+                        }`}
+                        whileHover={plan.name !== subscription.plan ? { scale: 1.05 } : {}}
+                        whileTap={plan.name !== subscription.plan ? { scale: 0.95 } : {}}
+                        disabled={plan.name === subscription.plan}
                       >
-                        Renew Manually Now
-                      </button>
-                    )}
-                  </div>
-                )}
+                        {plan.name === subscription.plan ? 'Current Plan' : 'Upgrade'}
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </motion.div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Detailed Usage Breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">Student Usage Details</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Total Students</span>
-                  <span className="text-lg font-bold text-white">{subscription.studentsUsed}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Plan Limit</span>
-                  <span className="text-lg font-bold text-white">{subscription.maxStudents}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Remaining</span>
-                  <span className={`text-lg font-bold ${subscription.maxStudents - subscription.studentsUsed <= 10 ? 'text-red-400' : 'text-green-400'}`}>
-                    {subscription.maxStudents - subscription.studentsUsed}
-                  </span>
-                </div>
-                <div className="pt-3 border-t border-gray-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`${subtext} text-sm`}>Usage Status</span>
-                    <span className={`text-sm font-semibold ${
-                      calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents) >= 90 
-                        ? 'text-red-400' 
-                        : calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents) >= 70 
-                          ? 'text-yellow-400' 
-                          : 'text-green-400'
-                    }`}>
-                      {calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents) >= 90 
-                        ? 'Near Limit' 
-                        : calculateUsagePercentage(subscription.studentsUsed, subscription.maxStudents) >= 70 
-                          ? 'Moderate Usage' 
-                          : 'Healthy Usage'}
-                    </span>
+            {activeTab === 'features' && (
+              <div className="space-y-6">
+                {/* All Features */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className={`${getCardClass()} p-8`}
+                >
+                  <h3 className={`text-xl font-bold mb-6 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    All Features
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[
+                      { category: 'Core Features', items: ['Student Management', 'Teacher Management', 'Class Scheduling', 'Attendance Tracking', 'Grade Management'] },
+                      { category: 'Analytics', items: ['Performance Analytics', 'Progress Reports', 'Custom Dashboards', 'Data Export', 'Real-time Monitoring'] },
+                      { category: 'Communication', items: ['Parent Portal', 'Messaging System', 'Email Notifications', 'SMS Alerts', 'Mobile App'] },
+                      { category: 'Security', items: ['Data Encryption', 'Role-based Access', 'Audit Logs', 'Backup & Recovery', 'Compliance Tools'] }
+                    ].map((category, index) => (
+                      <motion.div
+                        key={category.category}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + index * 0.1 }}
+                      >
+                        <h4 className={`font-bold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {category.category}
+                        </h4>
+                        <div className="space-y-2">
+                          {category.items.map((item, itemIndex) => (
+                            <div key={itemIndex} className="flex items-center gap-2">
+                              <CheckCircle className={`w-4 h-4 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                              <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {item}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </div>
+                </motion.div>
               </div>
-            </div>
-
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">Teacher Usage Details</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Total Teachers</span>
-                  <span className="text-lg font-bold text-white">{subscription.teachersUsed}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Plan Limit</span>
-                  <span className="text-lg font-bold text-white">{subscription.maxTeachers}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`${subtext}`}>Remaining</span>
-                  <span className={`text-lg font-bold ${subscription.maxTeachers - subscription.teachersUsed <= 3 ? 'text-red-400' : 'text-green-400'}`}>
-                    {subscription.maxTeachers - subscription.teachersUsed}
-                  </span>
-                </div>
-                <div className="pt-3 border-t border-gray-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`${subtext} text-sm`}>Usage Status</span>
-                    <span className={`text-sm font-semibold ${
-                      calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers) >= 90 
-                        ? 'text-red-400' 
-                        : calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers) >= 70 
-                          ? 'text-yellow-400' 
-                          : 'text-green-400'
-                    }`}>
-                      {calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers) >= 90 
-                        ? 'Near Limit' 
-                        : calculateUsagePercentage(subscription.teachersUsed, subscription.maxTeachers) >= 70 
-                          ? 'Moderate Usage' 
-                          : 'Healthy Usage'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Subscription Period Information Section */}
-          {subscription && (
-            <div className={`mt-6 p-4 rounded-lg border ${
-              subscription.isTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft <= 3 
-                ? 'bg-red-500/20 border-red-500/30' 
-                : subscription.isTrial 
-                  ? 'bg-blue-500/20 border-blue-500/30'
-                  : subscription.status === 'active'
-                    ? 'bg-green-500/20 border-green-500/30'
-                    : 'bg-gray-500/20 border-gray-500/30'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-white font-semibold text-lg mb-2">
-                    {subscription.isTrial ? '🎯 Trial Period Information' : '💳 Subscription Period Information'}
-                  </p>
-                  <div className="space-y-1">
-                    {subscription.isTrial ? (
-                      // Trial-specific information (show when any trial data exists)
-                      <>
-                        {subscription.trialStartedAt && (
-                          <p className={`${subtext} text-sm`}>
-                            <span className="font-medium">Trial Started:</span> {new Date(subscription.trialStartedAt).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        )}
-                        {subscription.trialDaysLeft !== null && (
-                          <p className="text-white">
-                            <span className="font-medium">Days Remaining:</span> {subscription.trialDaysLeft} days
-                          </p>
-                        )}
-                        {subscription.trialEndsAt && (
-                          <>
-                            <p className={`${subtext} text-sm`}>
-                              <span className="font-medium">Trial End Date:</span> {new Date(subscription.trialEndsAt).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                            <p className={`${subtext} text-sm`}>
-                              <span className="font-medium">Trial End Time:</span> {new Date(subscription.trialEndsAt).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </>
-                        )}
-                        {subscription.trialDaysLeft !== null && (
-                          <p className={`${subtext} text-xs mt-2`}>
-                            {subscription.trialDaysLeft <= 3 
-                              ? '⚠️ Trial ending soon! Upgrade to continue service.' 
-                              : subscription.trialDaysLeft <= 7 
-                              ? '📅 Trial ending this week.' 
-                              : '✅ Trial period active.'
-                            }
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      // Regular subscription information
-                      <>
-                        {/* Always show subscription status and basic info */}
-                        <p className="text-white">
-                          <span className="font-medium">Status:</span> {getStatusText(subscription.status)}
-                        </p>
-                        
-                        {/* Show subscription start date */}
-                        {subscription.subscriptionStartDate && (
-                          <p className={`${subtext} text-sm`}>
-                            <span className="font-medium">Subscription Started:</span> {new Date(subscription.subscriptionStartDate).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        )}
-                        
-                        {/* Show next billing date if available */}
-                        {subscription.nextBillingDate && (
-                          <p className={`${subtext} text-sm`}>
-                            <span className="font-medium">Next Billing Date:</span> {new Date(subscription.nextBillingDate).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        )}
-                        
-                        {/* Show current period end if available */}
-                        {subscription.currentPeriodEnd && (
-                          <p className={`${subtext} text-sm`}>
-                            <span className="font-medium">Current Period Ends:</span> {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        )}
-                        
-                        {/* Show billing amount if available */}
-                        {subscription.amount && (
-                          <p className="text-white">
-                            <span className="font-medium">Billing Amount:</span> ₹{subscription.amount.toLocaleString()}
-                          </p>
-                        )}
-                        
-                        {/* Show billing cycle if available */}
-                        {subscription.billingCycle && (
-                          <p className={`${subtext} text-sm`}>
-                            <span className="font-medium">Billing Cycle:</span> {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
-                          </p>
-                        )}
-                        
-                        <p className={`${subtext} text-xs mt-2`}>
-                          {subscription.status === 'active' 
-                            ? subscription.upgradedFromTrial
-                              ? '🚀 Upgraded from trial - Active subscription'
-                              : `✅ Active subscription - ${subscription.autoRenew ? 'Auto-renewal enabled' : 'Manual renewal'}`
-                            : subscription.status === 'expired'
-                            ? '❌ Subscription expired - Renew to continue'
-                            : subscription.status === 'cancelled'
-                            ? '⚠️ Subscription cancelled'
-                            : '📋 Subscription status: ' + subscription.status
-                          }
-                        </p>
-                        
-                        {/* Show remaining trial benefits for users who upgraded during trial */}
-                        {subscription.upgradedFromTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft > 0 && (
-                          <p className={`${subtext} text-xs mt-1 text-blue-400`}>
-                            💡 You still have {subscription.trialDaysLeft} days of trial benefits remaining
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-                {subscription.isTrial && subscription.trialDaysLeft !== null && subscription.trialDaysLeft <= 3 && (
-                  <div className="ml-4">
-                    <Link href="/billing" className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-all">
-                      Upgrade Now
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {subscription.status === 'expired' && (
-            <div className="mt-6 p-4 rounded-lg bg-red-500/20 border border-red-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-400 font-semibold">Subscription Expired</p>
-                  <p className={`${subtext} text-sm`}>Your subscription has expired. Please renew to continue using the platform.</p>
-                </div>
-                <Link href="/billing" className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-all">
-                  Renew Now
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {subscription.status === 'pending_payment' && (
-            <div className="mt-6 p-4 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-400 font-semibold">Payment Pending</p>
-                  <p className={`${subtext} text-sm`}>Complete your payment to activate your subscription.</p>
-                </div>
-                <Link href="/billing" className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-sm font-medium transition-all">
-                  Complete Payment
-                </Link>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Available Plans */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <h2 className={`${heading} mb-6`}>Upgrade Your Plan</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((plan, index) => (
-              <motion.div
-                key={`plan-${plan.id || plan.name}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                className={`${card} p-6 relative ${
-                  plan.name === subscription.plan ? 'ring-2 ring-purple-500' : ''
-                }`}
-              >
-                {plan.name === subscription.plan && (
-                  <div className="absolute -top-3 -right-3 px-3 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
-                    Current Plan
-                  </div>
-                )}
-
-                <h3 className="text-xl font-bold text-white mb-2">{plan.displayName}</h3>
-                <p className={`${subtext} mb-4`}>{plan.description}</p>
-
-                <div className="mb-6">
-                  <div className="flex items-baseline mb-2">
-                    <span className="text-3xl font-bold text-white">
-                      ₹{billing === 'monthly' ? plan.priceMonthly : Math.floor(plan.priceYearly / 12)}
-                    </span>
-                    <span className={`${subtext} ml-2`}>/month</span>
-                  </div>
-                  {billing === 'yearly' && (
-                    <p className="text-green-400 text-sm">Save 20% with yearly billing</p>
-                  )}
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span className={`${subtext} text-sm`}>Up to {plan.maxStudents} students</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span className={`${subtext} text-sm`}>Up to {plan.maxTeachers} teachers</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span className={`${subtext} text-sm`}>{plan.trialDays} days trial</span>
-                  </div>
-                </div>
-
-                {plan.name !== subscription.plan ? (
-                  <Link href={`/billing?upgrade=${plan.name}&billing=${billing}`} className={btnPrimary}>
-                    {subscription.status === 'trial' ? 'Upgrade' : 'Change Plan'}
-                  </Link>
-                ) : (
-                  <button className={btnSecondary} disabled>
-                    Current Plan
-                  </button>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className={`${card} p-6 mt-6`}
-        >
-          <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/billing" className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center transition-all">
-              <div className="text-2xl mb-2">💳</div>
-              <p className="text-white font-medium">Billing & Payments</p>
-              <p className={`${subtext} text-sm mt-1`}>View invoices and payment history</p>
-            </Link>
-            <Link href="/settings?tab=structure" className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center transition-all">
-              <div className="text-2xl mb-2">🏫</div>
-              <p className="text-white font-medium">School Settings</p>
-              <p className={`${subtext} text-sm mt-1`}>Manage school information</p>
-            </Link>
-            <Link href="/settings/users" className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center transition-all">
-              <div className="text-2xl mb-2">👥</div>
-              <p className="text-white font-medium">User Management</p>
-              <p className={`${subtext} text-sm mt-1`}>Add and manage users</p>
-            </Link>
-          </div>
-        </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ import CommunicationModal from './components/CommunicationModal';
 import AttendanceModal from './components/AttendanceModal';
 import AcademicModal from './components/AcademicModal';
 import FeeModal from './components/FeeModal';
-import StudentProfileModal from './components/StudentProfileModal';
+import StudentProfileModalRefactored from './components/StudentProfileModalRefactored';
 import BulkOperationsModal from './components/BulkOperationsModal';
 import ColumnSettingsModal from './components/ColumnSettingsModal';
 import SaveFilterModal from './components/SaveFilterModal';
@@ -381,7 +381,7 @@ export default function StudentsPage() {
       <AttendanceModal attendanceTracking={attendanceTracking} bulkMarkAttendance={bulkMarkAttendance} getAttendanceStats={getAttendanceStats} markAttendance={markAttendance} selectedStudents={selectedStudents} setAttendanceTracking={setAttendanceTracking} setSelectedStudents={setSelectedStudents} students={students} theme={theme} />
       <AcademicModal academicPerformance={academicPerformance} analyzePerformance={analyzePerformance} generateTrendAnalysis={generateTrendAnalysis} getPerformanceColor={getPerformanceColor} selectedStudents={selectedStudents} setAcademicPerformance={setAcademicPerformance} theme={theme} />
       <FeeModal createInstallmentPlan={createInstallmentPlan} feeManagement={feeManagement} generateFeeReport={generateFeeReport} processPayment={processPayment} selectedStudents={selectedStudents} sendAutomatedReminders={sendAutomatedReminders} setFeeManagement={setFeeManagement} students={students} theme={theme} />
-      <StudentProfileModal
+      <StudentProfileModalRefactored
         activeTab={activeTab} printStudentProfile={printStudentProfile} selectedStudent={selectedStudent}
         sendStudentSMS={sendStudentSMS} setAcademicPerformance={setAcademicPerformance} setActiveTab={setActiveTab}
         setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter}
