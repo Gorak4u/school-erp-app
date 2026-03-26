@@ -30,10 +30,15 @@ import {
   Hash,
   Heart,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  GraduationCap,
+  BookOpen,
+  Award,
+  Target
 } from 'lucide-react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import AIDropdown from './AIDropdown';
 
 interface StudentFiltersProps {
   advancedFilters: any;
@@ -584,51 +589,136 @@ export default function StudentFilters({
 
         {/* Quick Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 mt-4">
-          <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Classes</option>
-            {dbClasses.map(cls => (
-              <option key={cls.value} value={cls.label}>{cls.label}{cls.mediumName ? ` (${cls.mediumName})` : ''}</option>
-            ))}
-          </select>
+          <div className="min-w-[180px]">
+            <AIDropdown
+              value={selectedClass}
+              onChange={(value) => { setSelectedClass(value); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All Classes', icon: <Users className="w-4 h-4" />, description: 'Show students from all classes' },
+                ...dbClasses.map(cls => ({
+                  value: cls.label,
+                  label: cls.label,
+                  description: cls.mediumName ? `Medium: ${cls.mediumName}` : undefined
+                }))
+              ]}
+              placeholder="Select Class"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              searchable={true}
+              aiSuggestions={true}
+            />
+          </div>
 
-          <select value={selectedStatus} onChange={e => { setSelectedStatus(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="graduated">Graduated</option>
-            <option value="transferred">Transferred</option>
-            <option value="suspended">Suspended</option>
-            <option value="exited">Exited</option>
-            <option value="locked">Locked</option>
-          </select>
+          <div className="min-w-[180px]">
+            <AIDropdown
+              value={selectedStatus}
+              onChange={(value) => { setSelectedStatus(value); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All Status', icon: <Users className="w-4 h-4" />, description: 'Show students with any status' },
+                { value: 'active', label: 'Active', icon: <CheckCircle className="w-4 h-4 text-green-500" />, description: 'Currently enrolled students' },
+                { value: 'inactive', label: 'Inactive', icon: <XCircle className="w-4 h-4 text-red-500" />, description: 'Not currently active' },
+                { value: 'graduated', label: 'Graduated', icon: <GraduationCap className="w-4 h-4 text-blue-500" />, description: 'Completed studies' },
+                { value: 'transferred', label: 'Transferred', icon: <Target className="w-4 h-4 text-purple-500" />, description: 'Moved to another institution' },
+                { value: 'suspended', label: 'Suspended', icon: <AlertCircle className="w-4 h-4 text-orange-500" />, description: 'Temporarily suspended' },
+                { value: 'exited', label: 'Exited', icon: <X className="w-4 h-4 text-gray-500" />, description: 'Left the institution' },
+                { value: 'locked', label: 'Locked', icon: <EyeOff className="w-4 h-4 text-gray-500" />, description: 'Account locked' }
+              ]}
+              placeholder="Select Status"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              searchable={true}
+              aiSuggestions={true}
+            />
+          </div>
 
-          <select value={selectedGender} onChange={e => { setSelectedGender(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Genders</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
+          <div className="min-w-[160px]">
+            <AIDropdown
+              value={selectedGender}
+              onChange={(value) => { setSelectedGender(value); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All Genders', icon: <Users className="w-4 h-4" />, description: 'Show all students' },
+                { value: 'Male', label: 'Male', icon: <User className="w-4 h-4 text-blue-500" />, description: 'Male students' },
+                { value: 'Female', label: 'Female', icon: <User className="w-4 h-4 text-pink-500" />, description: 'Female students' },
+                { value: 'Other', label: 'Other', icon: <User className="w-4 h-4 text-purple-500" />, description: 'Other gender identities' }
+              ]}
+              placeholder="Select Gender"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              aiSuggestions={true}
+            />
+          </div>
 
-          <select value={selectedLanguage} onChange={e => { setSelectedLanguage(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Mediums</option>
-            {dbMediums.map(m => (
-              <option key={m.value} value={m.label}>{m.label}</option>
-            ))}
-          </select>
+          <div className="min-w-[160px]">
+            <AIDropdown
+              value={selectedLanguage}
+              onChange={(value) => { setSelectedLanguage(value); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All Mediums', icon: <BookOpen className="w-4 h-4" />, description: 'All instruction mediums' },
+                ...dbMediums.map(m => ({
+                  value: m.label,
+                  label: m.label,
+                  description: `Instruction medium: ${m.label}`
+                }))
+              ]}
+              placeholder="Select Medium"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              searchable={true}
+              aiSuggestions={true}
+            />
+          </div>
 
-          <select value={attendanceFilter} onChange={e => { setAttendanceFilter(e.target.value); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value="all">All Attendance</option>
-            <option value="high">High (≥90%)</option>
-            <option value="average">Average (75-89%)</option>
-            <option value="low">Low (&lt;75%)</option>
-          </select>
+          <div className="min-w-[180px]">
+            <AIDropdown
+              value={attendanceFilter}
+              onChange={(value) => { setAttendanceFilter(value); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All Attendance', icon: <BarChart3 className="w-4 h-4" />, description: 'Show all students regardless of attendance' },
+                { value: 'high', label: 'High (≥90%)', icon: <TrendingUp className="w-4 h-4 text-green-500" />, description: 'Excellent attendance record' },
+                { value: 'average', label: 'Average (75-89%)', icon: <BarChart3 className="w-4 h-4 text-yellow-500" />, description: 'Good attendance record' },
+                { value: 'low', label: 'Low (<75%)', icon: <AlertCircle className="w-4 h-4 text-red-500" />, description: 'Needs attention' }
+              ]}
+              placeholder="Select Attendance"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              aiSuggestions={true}
+            />
+          </div>
 
-          <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className={selectClass} style={{ width: 'auto' }}>
-            <option value={10}>10 per page</option>
-            <option value={25}>25 per page</option>
-            <option value={50}>50 per page</option>
-            <option value={100}>100 per page</option>
-          </select>
+          <div className="min-w-[140px]">
+            <AIDropdown
+              value={pageSize.toString()}
+              onChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}
+              options={[
+                { value: '10', label: '10 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 10 students per page' },
+                { value: '25', label: '25 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 25 students per page' },
+                { value: '50', label: '50 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 50 students per page' },
+                { value: '100', label: '100 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 100 students per page' }
+              ]}
+              placeholder="Page Size"
+              theme={theme}
+              getCardClass={getCardClass}
+              getInputClass={getInputClass}
+              getBtnClass={getBtnClass}
+              getTextClass={getTextClass}
+              aiSuggestions={true}
+            />
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${showAdvancedFilters ? 'bg-blue-600 text-white' : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Advanced Search">

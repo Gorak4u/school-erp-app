@@ -28,14 +28,16 @@ import {
   Eye,
   Calendar,
   CreditCard,
-  AlertCircle,
+  Sparkles,
+  X,
+  Lock,
   CheckCircle,
+  AlertCircle,
   XCircle,
   Clock,
   ChevronDown,
   ChevronUp,
   MoreVertical,
-  X,
   Wallet,
   TrendingDown,
   Target,
@@ -59,16 +61,17 @@ import {
   Phone,
   MapPin,
   BookOpen,
-  Award as AwardIcon,
   UserCheck,
   Users2,
   Star,
-  TrendingUp as TrendingUpIcon,
-  User as UserIcon,
+  User,
   AlertTriangle,
-  Lock,
   Unlock,
-  School
+  School,
+  UserX,
+  ArrowUp,
+  ArrowDown,
+  Minus
 } from 'lucide-react';
 
 import { createSearchHandlers } from './handlers/searchHandlers';
@@ -429,7 +432,85 @@ export default function StudentsPageRefactored() {
   const handlePromoteClass = ((cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }) as (cls: string, section: string) => void;
   const handlePromoteSingle = ((studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }) as (studentId: string) => void;
 
-  // filteredStudents is computed in searchHandlers
+  // Calculate dashboard stats from students data
+  useEffect(() => {
+    if (students && students.length > 0) {
+      const totalStudents = students.length;
+      const activeStudents = students.filter((s: any) => s.status === 'active').length;
+      const inactiveStudents = students.filter((s: any) => s.status === 'inactive').length;
+      const graduatedStudents = students.filter((s: any) => s.status === 'graduated').length;
+      
+      // Calculate average attendance
+      const attendanceData = students.map((s: any) => s.attendance?.percentage || 0).filter((p: any) => p > 0);
+      const averageAttendance = attendanceData.length > 0 
+        ? attendanceData.reduce((sum: any, p: any) => sum + p, 0) / attendanceData.length 
+        : 0;
+      
+      // Calculate fee data
+      const totalFeesCollected = students.reduce((sum: any, s: any) => sum + (s.fees?.paid || 0), 0);
+      const pendingFees = students.reduce((sum: any, s: any) => sum + (s.fees?.pending || 0), 0);
+      
+      // Recent admissions (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentAdmissions = students.filter((s: any) => 
+        s.admissionDate && new Date(s.admissionDate) >= thirtyDaysAgo
+      ).length;
+      
+      // Low attendance students (< 75%)
+      const lowAttendanceStudents = students.filter((s: any) => 
+        s.attendance && s.attendance.percentage < 75
+      ).length;
+      
+      // Class distribution
+      const classDistribution: Record<string, number> = {};
+      students.forEach((s: any) => {
+        if (s.class) {
+          classDistribution[s.class] = (classDistribution[s.class] || 0) + 1;
+        }
+      });
+      
+      // Gender distribution
+      const genderDistribution = {
+        male: students.filter((s: any) => s.gender === 'Male').length,
+        female: students.filter((s: any) => s.gender === 'Female').length,
+        other: students.filter((s: any) => s.gender && s.gender !== 'Male' && s.gender !== 'Female').length
+      };
+      
+      // Recent activities (mock data for now)
+      const recentActivities = [
+        {
+          id: '1',
+          type: 'admission' as const,
+          description: 'New student admitted',
+          timestamp: new Date().toISOString(),
+          studentName: 'Recent Student'
+        },
+        {
+          id: '2', 
+          type: 'fee_payment' as const,
+          description: 'Fee payment received',
+          timestamp: new Date().toISOString(),
+          studentName: 'Active Student'
+        }
+      ];
+      
+      setDashboardStats({
+        totalStudents,
+        activeStudents,
+        inactiveStudents,
+        graduatedStudents,
+        averageAttendance,
+        totalFeesCollected,
+        pendingFees,
+        recentAdmissions,
+        lowAttendanceStudents,
+        classDistribution,
+        genderDistribution,
+        recentActivities
+      });
+    }
+  }, [students, setDashboardStats]);
   const { filteredStudents } = ctx;
 
   // Pagination effect (moved from handler to component level for React hooks rules)
@@ -626,13 +707,108 @@ export default function StudentsPageRefactored() {
                   </div>
                 </div>
                 {canCreateStudents && (
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className={getBtnClass('primary')}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Student
-                  </button>
+                  <motion.div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowAddModal(true)}
+                      className={`
+                        relative px-6 py-3 rounded-xl font-semibold
+                        flex items-center gap-3
+                        transition-all duration-300
+                        ${getBtnClass('primary')}
+                        shadow-lg hover:shadow-xl
+                        border-2 border-transparent
+                        hover:border-blue-500/30
+                        group
+                      `}
+                    >
+                      {/* AI Glow Effect */}
+                      <motion.div
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      />
+                      
+                      {/* Button Content */}
+                      <div className="relative flex items-center gap-3">
+                        <motion.div
+                          animate={{ rotate: [0, 10, -10, 0] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="relative"
+                        >
+                          <Plus className="w-5 h-5" />
+                          <motion.div
+                            className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full"
+                            animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                          />
+                        </motion.div>
+                        
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-bold">Add Student</span>
+                          <motion.span
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="text-xs opacity-80"
+                          >
+                            AI-Powered
+                          </motion.span>
+                        </div>
+                        
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.5 }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                        >
+                          <Sparkles className="w-3 h-3 text-purple-400" />
+                          <span className="text-xs font-bold text-purple-400">AI</span>
+                        </motion.div>
+                      </div>
+                      
+                      {/* Hover Particles */}
+                      <motion.div
+                        className="absolute inset-0 rounded-xl overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        whileHover={{ opacity: 1 }}
+                      >
+                        {[...Array(3)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="absolute w-1 h-1 bg-blue-400 rounded-full"
+                            initial={{ 
+                              x: Math.random() * 100, 
+                              y: Math.random() * 100,
+                              opacity: 0
+                            }}
+                            animate={{ 
+                              x: Math.random() * 100, 
+                              y: Math.random() * 100,
+                              opacity: [0, 1, 0]
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              delay: i * 0.2,
+                              ease: "easeInOut"
+                            }}
+                          />
+                        ))}
+                      </motion.div>
+                    </motion.button>
+                    
+                    {/* Tooltip */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      whileHover={{ opacity: 1, y: 0 }}
+                      className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs whitespace-nowrap pointer-events-none"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-semibold">AI-Enhanced Student Registration</span>
+                        <span className="text-gray-300">Smart form with auto-suggestions</span>
+                        <div className="w-2 h-2 bg-gray-900 rotate-45 absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
+                      </div>
+                    </motion.div>
+                  </motion.div>
                 )}
               </div>
 
