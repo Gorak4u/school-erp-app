@@ -169,13 +169,24 @@ export default function HistoryTab({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => onViewReceipt(entry)}
-                        title="View Receipt"
-                        className={`p-1.5 rounded-lg text-sm transition-colors hover:text-gray-900 dark:hover:text-white ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-                      >
-                        🧾
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => onViewReceipt(entry)}
+                          title="View Receipt"
+                          className={`p-1.5 rounded-lg text-sm transition-colors hover:text-gray-900 dark:hover:text-white ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                        >
+                          🧾
+                        </button>
+                        {entry.amount > 0 && (
+                          <button
+                            onClick={() => window.open(`/refunds?paymentId=${entry.id}&feeRecordId=${entry.feeRecordId}&amount=${entry.amount}`, '_blank')}
+                            title="Request Refund"
+                            className={`p-1.5 rounded-lg text-sm transition-colors hover:text-gray-900 dark:hover:text-white ${isDark ? 'hover:bg-gray-700 text-green-400' : 'hover:bg-gray-100 text-green-600'}`}
+                          >
+                            💸
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -504,6 +504,7 @@ export default function StudentProfileModal({ activeTab, printStudentProfile, se
                     { id: 'academics', label: '📈 Academics', icon: '📈' },
                     { id: 'fees', label: '💰 Fees', icon: '💰' },
                     { id: 'fines', label: '⚖️ Fines', icon: '⚖️' },
+                    { id: 'refunds', label: '💸 Refunds', icon: '💸' },
                     { id: 'attendance', label: '📊 Attendance', icon: '📊' },
                     { id: 'analytics', label: '📈 Analytics', icon: '📈' },
                     { id: 'medical', label: '🏥 Medical', icon: '🏥' },

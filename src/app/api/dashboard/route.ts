@@ -60,6 +60,8 @@ export async function GET() {
       finesAggregation,
       attendanceToday,
       classDistribution,
+      refundStats,
+      pendingRefunds,
     ] = await Promise.all([
       (schoolPrisma as any).FeeRecord.aggregate({
         where: feeRecordFilter,
@@ -80,6 +82,17 @@ export async function GET() {
         where: studentFilter, 
         _count: { class: true }, 
         orderBy: { class: 'asc' } 
+      }),
+      (schoolPrisma as any).RefundRequest.aggregate({
+        where: schoolFilter,
+        _sum: { amount: true, netAmount: true },
+        _count: true,
+        _count: { status: true }
+      }),
+      (schoolPrisma as any).RefundRequest.aggregate({
+        where: { ...schoolFilter, status: 'pending' },
+        _sum: { netAmount: true },
+        _count: true
       }),
     ]);
 
@@ -147,6 +160,16 @@ export async function GET() {
         collectionRate: ((feeStats._sum.amount || 0) + (finesAggregation._sum.amount || 0))
           ? Math.round((((feeStats._sum.paidAmount || 0) + (finesAggregation._sum.paidAmount || 0)) / ((feeStats._sum.amount || 0) + (finesAggregation._sum.amount || 0))) * 100)
           : 0,
+      },
+      refunds: {
+        totalRefunds: refundStats._count || 0,
+        totalAmount: refundStats._sum.amount || 0,
+        totalNetAmount: refundStats._sum.netAmount || 0,
+        totalAdminFees: (refundStats._sum.amount || 0) - (refundStats._sum.netAmount || 0),
+        pendingCount: pendingRefunds._count || 0,
+        pendingAmount: pendingRefunds._sum.netAmount || 0,
+        // Status breakdown
+        statusBreakdown: refundStats._count.status || {}
       },
       attendance: {
         date: today,

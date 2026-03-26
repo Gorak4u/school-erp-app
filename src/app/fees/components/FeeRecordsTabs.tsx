@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, RefreshCw, Download, Eye, ChevronLeft, ChevronRight, TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { Search, Filter, RefreshCw, Download, Eye, ChevronLeft, ChevronRight, TrendingUp, DollarSign, Clock, CheckCircle, CreditCard } from 'lucide-react';
 
 export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
   const { activeTab, theme, feeStructures, discounts } = ctx;
@@ -174,9 +174,20 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <button onClick={() => setSelectedRecord(r)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="View Details">
-                              <Eye className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setSelectedRecord(r)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="View Details">
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {(r.paidAmount || 0) > 0 && (
+                                <button 
+                                  onClick={() => window.open(`/refunds?studentId=${r.studentId}&feeRecordId=${r.id}`, '_blank')} 
+                                  className="p-1.5 rounded-lg text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30" 
+                                  title="Request Refund"
+                                >
+                                  <CreditCard className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

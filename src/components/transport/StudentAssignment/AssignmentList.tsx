@@ -277,6 +277,15 @@ export function AssignmentList({
                         >
                           Edit
                         </button>
+                        {student.isActive && student.monthlyFee > 0 && (
+                          <button
+                            onClick={() => window.open(`/refunds?studentId=${student.studentId}&studentTransportId=${student.id}&type=transport_fee`, '_blank')}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-all bg-green-100 text-green-600 hover:bg-green-200`}
+                            title="Request Transport Fee Refund"
+                          >
+                            Refund
+                          </button>
+                        )}
                         <button
                           onClick={() => onDelete(student.id)}
                           className={btnDanger}

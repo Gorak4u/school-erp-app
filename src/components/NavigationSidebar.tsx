@@ -97,6 +97,15 @@ const NAV_GROUPS: NavGroup[] = [
         color: 'emerald'
       },
       { 
+        href: '/refunds', 
+        label: 'Refunds', 
+        icon: <CreditCard className="w-5 h-5" />, 
+        pageKey: 'refunds', 
+        permission: 'manage_fees',
+        description: 'Refund management',
+        color: 'orange'
+      },
+      { 
         href: '/fines', 
         label: 'Fines', 
         icon: <Scale className="w-5 h-5" />, 

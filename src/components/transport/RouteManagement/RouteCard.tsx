@@ -10,6 +10,7 @@ interface RouteCardProps {
   subtext: string;
   onEdit: (route: any) => void;
   onToggleStatus: (id: string, isActive: boolean) => void;
+  onBulkRefund?: (route: any) => void;
 }
 
 export function RouteCard({
@@ -18,7 +19,8 @@ export function RouteCard({
   text,
   subtext,
   onEdit,
-  onToggleStatus
+  onToggleStatus,
+  onBulkRefund
 }: RouteCardProps) {
   const utilization = route.capacity > 0 ? Math.round((route.assignedStudents || 0) / route.capacity * 100) : 0;
   
@@ -83,6 +85,21 @@ export function RouteCard({
             <span className={`text-sm ${text}`}>
               {route.driverName}
             </span>
+          </div>
+        )}
+        
+        {/* Bulk Refund Button */}
+        {route.isActive && (route.assignedStudents || 0) > 0 && onBulkRefund && (
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onBulkRefund(route);
+              }}
+              className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30`}
+            >
+              💸 Bulk Refund ({route.assignedStudents} students)
+            </button>
           </div>
         )}
       </div>

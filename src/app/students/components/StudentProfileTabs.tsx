@@ -70,6 +70,10 @@ export default function StudentProfileTabs({
   const [feeRecords, setFeeRecords] = useState<any[]>([]);
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeError, setFeeError] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundError, setRefundError] = useState('');
+  const [refunds, setRefunds] = useState([]);
+  const [refundStats, setRefundStats] = useState<any>(null);
 
   useEffect(() => {
     if (selectedStudent?.id && activeTab === 'fees') {
@@ -79,9 +83,32 @@ export default function StudentProfileTabs({
         .then(r => r.json())
         .then(data => {
           setFeeRecords(data.records || []);
+          setFeeLoading(false);
         })
-        .catch(() => setFeeError('Failed to load fee records.'))
-        .finally(() => setFeeLoading(false));
+        .catch(err => {
+          console.error(err);
+          setFeeError('Failed to load fee records');
+          setFeeLoading(false);
+        });
+    }
+  }, [selectedStudent?.id, activeTab]);
+
+  useEffect(() => {
+    if (selectedStudent?.id && activeTab === 'refunds') {
+      setRefundLoading(true);
+      setRefundError('');
+      fetch(`/api/students/${selectedStudent.id}/refunds`)
+        .then(r => r.json())
+        .then(data => {
+          setRefunds(data.refunds || []);
+          setRefundStats(data.summary);
+          setRefundLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setRefundError('Failed to load refund history');
+          setRefundLoading(false);
+        });
     }
   }, [selectedStudent?.id, activeTab]);
 
@@ -458,6 +485,88 @@ export default function StudentProfileTabs({
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── REFUNDS TAB ─────────────────────────────────────────────── */}
+      {activeTab === 'refunds' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className={heading(theme)}>Refund History</h3>
+            {canManageFees && (
+              <button
+                onClick={() => window.open('/refunds', '_blank')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                Manage Refunds
+              </button>
+            )}
+          </div>
+
+          {/* Refund Statistics */}
+          {refundStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard title="Total Refunds" val={refundStats.totalRefunds} color="text-blue-500" theme={theme} />
+              <StatCard title="Total Amount" val={`₹${refundStats.totalAmount.toLocaleString()}`} color="text-green-500" theme={theme} />
+              <StatCard title="Pending" val={refundStats.pendingCount} color="text-yellow-500" theme={theme} />
+              <StatCard title="Processed" val={refundStats.processedCount} color="text-purple-500" theme={theme} />
+            </div>
+          )}
+
+          {/* Refund List */}
+          {refundLoading ? (
+            <div className={`p-8 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              Loading refund history...
+            </div>
+          ) : refundError ? (
+            <div className="p-8 text-center text-sm text-red-500">{refundError}</div>
+          ) : refunds.length === 0 ? (
+            <div className={`p-8 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              No refund history found for this student.
+            </div>
+          ) : (
+            <div className={card(theme)}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
+                    <tr>
+                      {['Date', 'Type', 'Amount', 'Net Amount', 'Status', 'Method'].map(h => (
+                        <th key={h} className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                    {refunds.map((refund: any) => (
+                      <tr key={refund.id} className={theme === 'dark' ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}>
+                        <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {new Date(refund.createdAt).toLocaleDateString('en-IN')}
+                        </td>
+                        <td className={`py-3 px-4 font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {refund.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </td>
+                        <td className={`py-3 px-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          ₹{refund.amount.toLocaleString()}
+                        </td>
+                        <td className={`py-3 px-4 font-medium ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                          ₹{refund.netAmount.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <StatusBadge status={refund.status} theme={theme} />
+                        </td>
+                        <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {refund.refundMethod.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

@@ -382,6 +382,7 @@ model Student {
   transportAssignments  StudentTransport[]
   medicalRecords        MedicalRecord[]
   razorpayTransactions  RazorpayPaymentTransaction[] @relation("RazorpayPaymentStudent")
+  refunds               RefundRequest[]
 
   @@index([schoolId])
   @@index([class])
@@ -778,6 +779,7 @@ model FeeRecord {
   collectedBy    String?
   academicYear   String       @default("2024-25")
   remarks        String?
+  refundAmount   Float        @default(0)  // Total refunded amount
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id])
@@ -795,6 +797,7 @@ model FeeRecord {
   @@index([dueDate, status])
   @@index([createdAt])
   @@index([paymentMethod])
+  @@index([refundAmount])
   @@schema("school")
 }
 
@@ -808,6 +811,8 @@ model Payment {
   paymentDate   String
   collectedBy   String?
   remarks       String?
+  refundId      String?   // Link to refund if this payment was refunded
+  refundAmount  Float?    // Amount refunded from this payment
   createdAt     DateTime  @default(now())
   feeRecord     FeeRecord @relation(fields: [feeRecordId], references: [id], onDelete: Cascade)
 
@@ -817,6 +822,7 @@ model Payment {
   @@index([collectedBy, paymentMethod])
   @@index([paymentDate, amount])
   @@index([feeRecordId])
+  @@index([refundId])
   @@index([createdAt])
   @@schema("school")
 }
@@ -1481,6 +1487,7 @@ model StudentTransport {
   academicYearId String?
   isActive       Boolean        @default(true)
   assignedAt     DateTime       @default(now())
+  refundAmount   Float          @default(0)  // Total refunded amount
   route          TransportRoute @relation(fields: [routeId], references: [id])
   student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -1492,6 +1499,7 @@ model StudentTransport {
   @@index([academicYearId, isActive])
   @@index([studentId, routeId, academicYearId])
   @@index([studentId, academicYearId, isActive])
+  @@index([refundAmount])
   @@schema("school")
 }
 
@@ -2100,9 +2108,12 @@ model FinePayment {
   razorpayOrderId     String?
   razorpayPaymentId   String?
   razorpaySignature   String?
+  refundId      String?   // Link to refund if this payment was refunded
+  refundAmount  Float?    // Amount refunded from this payment
   createdAt     DateTime @default(now())
   fine          Fine     @relation(fields: [fineId], references: [id], onDelete: Cascade)
   @@index([fineId])
+  @@index([refundId])
   @@index([createdAt])
   @@index([receiptNumber])
   @@schema("school")
@@ -2187,5 +2198,75 @@ model AttendanceFineCounter {
   @@unique([schoolId, studentId, academicYearId, month, year])
   @@index([schoolId, studentId])
   @@index([month, year])
+  @@schema("school")
+}
+
+// ========================================
+// REFUND SYSTEM MODELS
+// ========================================
+
+model RefundRequest {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  type            String   // 'academic_fee', 'transport_fee', 'fine', 'overpayment'
+  sourceId        String?  // feeRecordId, fineId, studentTransportId
+  sourceType      String?  // 'FeeRecord', 'Fine', 'StudentTransport'
+  amount          Float
+  adminFee        Float    @default(0)
+  netAmount       Float    // amount - adminFee
+  reason          String
+  status          String   @default("pending") // 'pending', 'approved', 'rejected', 'processed'
+  priority        String   @default("normal") // 'low', 'normal', 'high'
+  refundMethod    String   // 'bank_transfer', 'credit_future', 'cash'
+  bankDetails     Json?    // Account info for bank transfers
+  approvedBy      String?
+  approvedAt      DateTime?
+  processedBy     String?
+  processedAt     DateTime?
+  rejectionReason String?
+  metadata        Json?    // Proration calculations, etc.
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  student         Student  @relation(fields: [studentId], references: [id])
+  approvals       RefundApproval[]
+  
+  @@index([schoolId, status])
+  @@index([studentId, status])
+  @@index([type, status])
+  @@index([priority, status])
+  @@schema("school")
+}
+
+model RefundApproval {
+  id            String   @id @default(cuid())
+  refundId      String
+  approverId    String
+  approverRole  String
+  action        String   // 'approved', 'rejected'
+  comments      String?
+  createdAt     DateTime @default(now())
+  
+  refund        RefundRequest @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  
+  @@index([refundId])
+  @@schema("school")
+}
+
+model RefundTransaction {
+  id              String   @id @default(cuid())
+  refundId        String
+  amount          Float
+  method          String
+  transactionId   String?  // Bank transfer ID, cash receipt ID
+  status          String   @default("pending") // 'pending', 'completed', 'failed'
+  processedBy     String?
+  processedAt     DateTime?
+  failureReason   String?
+  createdAt       DateTime @default(now())
+  
+  @@index([refundId])
+  @@index([status])
   @@schema("school")
 }

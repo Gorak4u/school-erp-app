@@ -1,4 +1,4 @@
-export type ReceiptSectionKey = 'academic' | 'transport' | 'arrears' | 'fines';
+export type ReceiptSectionKey = 'academic' | 'transport' | 'arrears' | 'fines' | 'refunds';
 
 export interface ReceiptLineItem {
   id: string;
@@ -161,7 +161,7 @@ export const buildReceiptStatementModel = (
   const statementLines = statementSource
     .map((record: any, index: number) => normalizeLine(record, index, 'statement', paymentDate))
     .sort((a: ReceiptLineItem, b: ReceiptLineItem) => {
-      const order: Record<ReceiptSectionKey, number> = { academic: 0, transport: 1, fines: 2, arrears: 3 };
+      const order: Record<ReceiptSectionKey, number> = { academic: 0, transport: 1, fines: 2, arrears: 3, refunds: 4 };
       const sectionDiff = order[a.section] - order[b.section];
       if (sectionDiff !== 0) return sectionDiff;
       return a.name.localeCompare(b.name);
