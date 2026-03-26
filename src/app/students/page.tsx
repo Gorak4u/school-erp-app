@@ -591,7 +591,11 @@ export default function StudentsPageRefactored() {
                 students={students as any[]} 
                 theme={theme} 
                 canCreateStudents={canCreateStudents} 
-                canManageStudentBulk={canManageStudentBulk} 
+                canManageStudentBulk={canManageStudentBulk}
+                themeConfig={themeConfig}
+                getCardClass={getCardClass}
+                getBtnClass={getBtnClass}
+                getTextClass={getTextClass}
               />
             </motion.div>
           )}
