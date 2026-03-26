@@ -50,9 +50,11 @@ export interface Section {
 export interface Timing {
   id: string;
   name: string;
+  type: 'period' | 'break' | 'lunch' | 'assembly';
   startTime: string;
   endTime: string;
-  breakTime: string;
+  dayOfWeek: string;
+  sortOrder: number;
   isActive: boolean;
 }
 
