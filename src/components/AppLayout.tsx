@@ -791,6 +791,46 @@ export default function AppLayout({
         </div>
       </motion.header>
 
+      {/* Animated Gradient Divider Line */}
+      <div 
+        className="relative z-20 transition-all duration-300" 
+        style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}
+      >
+        <motion.div 
+          className={`h-1 bg-gradient-to-r from-transparent via-blue-500/60 to-transparent ${
+            globalTheme === 'dark' 
+              ? 'via-cyan-500/40' 
+              : 'via-blue-500/30'
+          }`}
+          animate={{
+            background: [
+              'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent)',
+              'linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.6), transparent)',
+              'linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.6), transparent)',
+              'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent)'
+            ]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        {/* Subtle glow effect */}
+        <motion.div 
+          className="absolute inset-0 h-1 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent"
+          animate={{
+            opacity: [0.5, 1, 0.5],
+            scale: [1, 1.01, 1]
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
       {/* Trial/Subscription Banner */}
       <div className="relative z-20 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
         <TrialBanner />
