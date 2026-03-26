@@ -326,65 +326,292 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {/* Dashboard Navigation Tabs */}
-      <div className="mb-6">
-        <nav className="flex space-x-1">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-              activeTab === 'overview'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                : theme === 'dark' 
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}
+      {/* Advanced Dashboard Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        {/* Main Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          {/* Left Section - Welcome & Title */}
+          <div className="flex-1">
+            <motion.div
+              className="flex items-center gap-4 mb-4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              {/* Animated Welcome Icon */}
+              <motion.div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-br from-blue-600 to-cyan-600' 
+                    : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                } shadow-lg`}
+                whileHover={{ 
+                  scale: 1.05, 
+                  rotate: 5,
+                  boxShadow: '0 20px 40px -15px rgba(59, 130, 246, 0.5)'
+                }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </motion.div>
+              
+              <div>
+                <motion.h1
+                  className={`text-3xl lg:text-4xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}
+                  whileHover={{ x: 2 }}
+                >
+                  Welcome back, {(user as any)?.firstName || (user as any)?.name?.split(' ')[0] || 'Admin'}!
+                </motion.h1>
+                <motion.p
+                  className={`text-lg ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  Here's what's happening at your school today
+                </motion.p>
+              </div>
+            </motion.div>
+
+            {/* Quick Stats Bar */}
+            <motion.div
+              className={`grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl ${
+                theme === 'dark' 
+                  ? 'bg-gray-800/50 border border-gray-700' 
+                  : 'bg-gray-100/50 border border-gray-200'
+              } backdrop-blur-sm`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              {[
+                {
+                  label: 'Total Students',
+                  value: kpiData.academic.totalStudents,
+                  icon: '�',
+                  color: 'blue'
+                },
+                {
+                  label: 'Active Teachers',
+                  value: kpiData.operational.activeTeachers,
+                  icon: '👨‍🏫',
+                  color: 'green'
+                },
+                {
+                  label: 'Revenue',
+                  value: `$${(kpiData.financial.totalRevenue / 1000).toFixed(1)}k`,
+                  icon: '💰',
+                  color: 'emerald'
+                },
+                {
+                  label: 'Attendance',
+                  value: `${kpiData.academic.averageAttendance}%`,
+                  icon: '📊',
+                  color: 'purple'
+                }
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  className="text-center"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div className="text-2xl mb-1">{stat.icon}</div>
+                  <div className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {stat.value}
+                  </div>
+                  <div className={`text-xs ${
+                    theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                  }`}>
+                    {stat.label}
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right Section - Actions */}
+          <motion.div
+            className="flex flex-col sm:flex-row gap-3 lg:flex-col"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
           >
-            📊 Overview
-          </button>
-          {canViewFinancials && (
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-                activeTab === 'analytics'
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                  : theme === 'dark' 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-              }`}
+            {/* Date & Time Display */}
+            <motion.div
+              className={`px-4 py-3 rounded-xl text-center ${
+                theme === 'dark' 
+                  ? 'bg-gray-800 border border-gray-700' 
+                  : 'bg-white border border-gray-200'
+              } shadow-lg`}
+              whileHover={{ scale: 1.02 }}
             >
-              📈 Analytics
-            </button>
-          )}
-          {canViewFinancials && (
-            <button
-              onClick={() => setActiveTab('performance')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-                activeTab === 'performance'
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                  : theme === 'dark' 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              🎯 Performance
-            </button>
-          )}
-          {canViewFinancials && (
-            <button
-              onClick={() => setActiveTab('kpi')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-                activeTab === 'kpi'
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                  : theme === 'dark' 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              📊 KPI
-            </button>
-          )}
-        </nav>
-      </div>
+              <div className={`text-sm font-medium ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+              <motion.div
+                className={`text-2xl font-bold font-mono ${
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                }`}
+                animate={{
+                  opacity: [0.8, 1, 0.8]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </motion.div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <div className="flex gap-2">
+              <motion.button
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  theme === 'dark'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                } shadow-lg`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/settings')}
+              >
+                ⚙️ Settings
+              </motion.button>
+              <motion.button
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                } shadow-lg`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/reports')}
+              >
+                � Reports
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Enhanced Navigation Tabs */}
+        <motion.div
+          className="mt-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <div className="relative">
+            {/* Tab Background */}
+            <motion.div
+              className={`absolute inset-0 rounded-xl ${
+                theme === 'dark' 
+                  ? 'bg-gray-800/30' 
+                  : 'bg-gray-100/30'
+              } backdrop-blur-sm`}
+            />
+            
+            <nav className="relative flex flex-wrap gap-2 p-2">
+              {[
+                { id: 'overview', label: 'Overview', icon: '📊', color: 'blue' },
+                ...(canViewFinancials ? [
+                  { id: 'analytics', label: 'Analytics', icon: '📈', color: 'emerald' },
+                  { id: 'performance', label: 'Performance', icon: '🎯', color: 'purple' },
+                  { id: 'kpi', label: 'KPI', icon: '📊', color: 'orange' }
+                ] : [])
+              ].map((tab, index) => (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? theme === 'dark'
+                        ? 'bg-gray-700 text-white shadow-lg'
+                        : 'bg-white text-gray-900 shadow-lg'
+                      : theme === 'dark'
+                        ? 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 + index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {/* Active Indicator */}
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className={`absolute inset-0 rounded-xl ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30'
+                          : 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200'
+                      }`}
+                      transition={{
+                        type: "spring" as const,
+                        stiffness: 500,
+                        damping: 30
+                      }}
+                    />
+                  )}
+                  
+                  <div className="relative z-10 flex items-center gap-2">
+                    <motion.span
+                      animate={{
+                        rotate: activeTab === tab.id ? [0, 10, -10, 0] : 0
+                      }}
+                      transition={{
+                        duration: 0.5,
+                        repeat: activeTab === tab.id ? Infinity : 0,
+                        repeatDelay: 2
+                      }}
+                    >
+                      {tab.icon}
+                    </motion.span>
+                    <span>{tab.label}</span>
+                    
+                    {/* Tab Badge */}
+                    {tab.id === 'overview' && (
+                      <motion.div
+                        className={`w-2 h-2 rounded-full ${
+                          theme === 'dark' ? 'bg-blue-400' : 'bg-blue-500'
+                        }`}
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          opacity: [1, 0.7, 1]
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      />
+                    )}
+                  </div>
+                </motion.button>
+              ))}
+            </nav>
+          </div>
+        </motion.div>
+      </motion.div>
 
       {/* Overview Tab Content */}
       {activeTab === 'overview' && (
