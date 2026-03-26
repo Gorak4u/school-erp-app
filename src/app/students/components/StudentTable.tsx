@@ -146,11 +146,9 @@ export default function StudentTable({
   const paginatedStudents = sortedStudents.slice(startIdx, startIdx + pageSize);
   const actualTotalPages = Math.ceil(filteredStudents.length / pageSize) || 1;
 
-  const tabs = [
-    { key: 'overview', label: '📋 Overview', href: '/students' },
-    { key: 'academics', label: '📚 Academics', href: '/academics' },
-    { key: 'attendance', label: '📊 Attendance', href: '/attendance' },
-    { key: 'fees', label: '💰 Fees', href: '/fees' },
+  const tabs: Array<{key: string, label: string, href: string}> = [
+    // Removed Overview, Academics, Attendance, and Fees buttons as requested
+    // Only keeping essential navigation within students section
   ];
 
   const getStatusColor = (status: string) => {

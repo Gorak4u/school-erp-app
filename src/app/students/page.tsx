@@ -88,6 +88,7 @@ import StudentTable from './components/StudentTable';
 import StudentAnalytics from './components/StudentAnalytics';
 import StudentReports from './components/StudentReports';
 import StudentSettings from './components/StudentSettings';
+import AIFilterStatusTile from './components/AIFilterStatusTile';
 import ImportModal from './components/ImportModal';
 import ExportModal from './components/ExportModal';
 import DocumentModal from './components/DocumentModal';
@@ -865,6 +866,66 @@ export default function StudentsPageRefactored() {
                 themeConfig={themeConfig}
                 getCardClass={getCardClass}
                 getInputClass={getInputClass}
+                getBtnClass={getBtnClass}
+                getTextClass={getTextClass}
+              />
+
+              {/* AI Filter Status Tile */}
+              <AIFilterStatusTile
+                theme={theme}
+                filteredCount={(filteredStudents as any[]).length}
+                totalCount={students.length}
+                activeFilters={{
+                  searchTerm,
+                  selectedClass,
+                  selectedStatus,
+                  selectedGender,
+                  selectedLanguage,
+                  attendanceFilter,
+                  pageSize,
+                  includeArchivedStudents,
+                  advancedFilters
+                }}
+                onClearAllFilters={() => {
+                  setSearchTerm('');
+                  setSelectedClass('all');
+                  setSelectedStatus('all');
+                  setSelectedGender('all');
+                  setSelectedLanguage('all');
+                  setAttendanceFilter('all');
+                  setIncludeArchivedStudents(false);
+                  clearAdvancedFilters();
+                  setCurrentPage(1);
+                }}
+                onClearFilter={(filterKey) => {
+                  switch (filterKey) {
+                    case 'searchTerm':
+                      setSearchTerm('');
+                      break;
+                    case 'selectedClass':
+                      setSelectedClass('all');
+                      break;
+                    case 'selectedStatus':
+                      setSelectedStatus('all');
+                      break;
+                    case 'selectedGender':
+                      setSelectedGender('all');
+                      break;
+                    case 'selectedLanguage':
+                      setSelectedLanguage('all');
+                      break;
+                    case 'attendanceFilter':
+                      setAttendanceFilter('all');
+                      break;
+                    case 'includeArchivedStudents':
+                      setIncludeArchivedStudents(false);
+                      break;
+                    default:
+                      break;
+                  }
+                  setCurrentPage(1);
+                }}
+                getCardClass={getCardClass}
                 getBtnClass={getBtnClass}
                 getTextClass={getTextClass}
               />

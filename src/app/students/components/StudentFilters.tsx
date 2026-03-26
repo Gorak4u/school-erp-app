@@ -39,6 +39,7 @@ import {
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import AIDropdown from './AIDropdown';
+import AISearchInput from './AISearchInput';
 
 interface StudentFiltersProps {
   advancedFilters: any;
@@ -498,94 +499,45 @@ export default function StudentFilters({
 
       {/* Search & Quick Filters Bar */}
       <div className={`rounded-xl border p-4 mb-4 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        {/* Search Input */}
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-            <input
-              type="text"
-              value={advancedSearch.enabled ? advancedSearch.query : searchTerm}
-              onChange={e => {
-                if (advancedSearch.enabled) {
-                  setAdvancedSearch((prev: any) => ({ ...prev, query: e.target.value }));
-                  performAdvancedSearch(e.target.value);
-                } else {
-                  setSearchTerm(e.target.value);
+        {/* AI-Powered Search Input */}
+        <div className="mb-4">
+          <AISearchInput
+            value={advancedSearch.enabled ? advancedSearch.query : searchTerm}
+            onChange={(newValue) => {
+              if (advancedSearch.enabled) {
+                setAdvancedSearch((prev: any) => ({ ...prev, query: newValue }));
+                performAdvancedSearch(newValue);
+              } else {
+                setSearchTerm(newValue);
+              }
+              setCurrentPage(1);
+            }}
+            onSearch={(query) => {
+              if (advancedSearch.enabled) {
+                performAdvancedSearch(query);
+              }
+            }}
+            theme={theme}
+            placeholder="Search students by name, email, phone, admission no..."
+            getInputClass={() => inputClass}
+            getBtnClass={getBtnClass}
+            getTextClass={getTextClass}
+            students={students}
+            isAISearchEnabled={advancedSearch.enabled}
+            onToggleAISearch={() => setAdvancedSearch((prev: any) => ({ ...prev, enabled: !prev.enabled }))}
+            recentSearches={advancedSearch.searchAnalytics?.recentSearches || []}
+            onClearRecentSearches={() => {
+              setAdvancedSearch((prev: any) => ({
+                ...prev,
+                searchAnalytics: {
+                  totalSearches: prev.searchAnalytics?.totalSearches || 0,
+                  averageResults: prev.searchAnalytics?.averageResults || 0,
+                  recentSearches: []
                 }
-                setCurrentPage(1);
-              }}
-              placeholder={advancedSearch.enabled ? "AI Search: try 'students with low attendance in class 10'..." : "Search students by name, email, phone, admission no..."}
-              className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm border transition-colors ${
-                theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-              } outline-none`}
-            />
-          </div>
-
-          {/* Search Mode Toggle */}
-          <button
-            onClick={() => setAdvancedSearch((prev: any) => ({ ...prev, enabled: !prev.enabled }))}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-              advancedSearch.enabled
-                ? 'bg-purple-600 text-white'
-                : theme === 'dark' ? 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700' : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            {advancedSearch.enabled ? '🤖 AI Search ON' : '🔤 Basic Search'}
-          </button>
+              }));
+            }}
+          />
         </div>
-
-        {/* AI Search Suggestions */}
-        {advancedSearch.enabled && advancedSearch.searchAnalytics?.recentSearches?.length > 0 && (
-          <div className={`mt-3 p-3 rounded-lg border ${
-            theme === 'dark' 
-              ? 'bg-purple-900/20 border-purple-700/50' 
-              : 'bg-purple-50 border-purple-200'
-          }`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium">🤖 Recent Searches:</span>
-              <button
-                onClick={() => {
-                  // Clear search history
-                  setAdvancedSearch((prev: any) => ({
-                    ...prev,
-                    searchAnalytics: {
-                      totalSearches: prev.searchAnalytics?.totalSearches || 0,
-                      averageResults: prev.searchAnalytics?.averageResults || 0,
-                      recentSearches: []
-                    }
-                  }));
-                }}
-                className={`text-xs p-1 rounded ${
-                  theme === 'dark' 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(advancedSearch.searchAnalytics?.recentSearches || []).slice(0, 5).map((search: any, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    performAdvancedSearch(search);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-purple-800/50 text-purple-300 hover:bg-purple-700/50'
-                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                  }`}
-                >
-                  {search}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Quick Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 mt-4">
