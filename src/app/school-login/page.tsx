@@ -63,14 +63,20 @@ function generateAISchoolTheme(schoolName: string): SchoolTheme {
     inputBackgroundColor,
     inputBorderColor,
     inputFocusColor,
-    aiColor,
-    themeType: 'ai-enhanced'
+    themeType: 'auto'
   };
 }
 
 function AISchoolLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    console.log('Inner component: Setting mounted to true');
+    setMounted(true);
+  }, []);
 
   const [subdomain, setSubdomain] = useState('');
   const [school, setSchool] = useState<SchoolInfo | null>(null);
@@ -85,7 +91,6 @@ function AISchoolLoginInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
-  const [mounted, setMounted] = useState(false);
   
   // AI Enhancement States
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
@@ -218,7 +223,7 @@ function AISchoolLoginInner() {
       setSchoolError('');
       
       try {
-        const response = await fetch(`/api/schools/by-subdomain?subdomain=${subdomain}`);
+        const response = await fetch(`/api/school/by-subdomain?subdomain=${subdomain}`);
         if (!response.ok) {
           throw new Error('School not found');
         }
@@ -337,10 +342,12 @@ function AISchoolLoginInner() {
   const schoolName = school?.name || `${subdomain} School`;
   const schoolLocation = school?.city && school?.state ? `${school.city}, ${school.state}` : school?.city;
 
+  console.log('Component state:', { mounted, theme: !!theme, school: !!school, subdomain });
+
   if (!mounted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading AI System...</div>
+        <div className="text-white">Loading...</div>
       </div>
     );
   }
@@ -361,7 +368,7 @@ function AISchoolLoginInner() {
               top: `${particle.y}%`,
               width: `${particle.size}px`,
               height: `${particle.size}px`,
-              background: `radial-gradient(circle, ${theme?.aiColor || '#3b82f6'} 0%, transparent 70%)`,
+              background: `radial-gradient(circle, ${theme?.accentColor || '#3b82f6'} 0%, transparent 70%)`,
             }}
             animate={{
               x: [0, 100, 0],
@@ -381,7 +388,7 @@ function AISchoolLoginInner() {
         <div
           className="absolute w-96 h-96 rounded-full pointer-events-none"
           style={{
-            background: `radial-gradient(circle, ${theme?.aiColor || '#3b82f6'}20 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${theme?.accentColor || '#3b82f6'}20 0%, transparent 70%)`,
             left: mousePosition.x - 192,
             top: mousePosition.y - 192,
           }}
@@ -408,7 +415,13 @@ function AISchoolLoginInner() {
                     background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
                   }}
                 >
-                  <span className="text-white font-bold text-2xl relative z-10">AI</span>
+                  <span className="text-white font-bold text-2xl relative z-10">
+                    {school?.logo ? (
+                      <img src={school.logo} alt={school.name} className="w-12 h-12 object-cover rounded-lg" />
+                    ) : (
+                      school?.name?.charAt(0) || subdomain?.charAt(0) || 'S'
+                    )}
+                  </span>
                   <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
                 </div>
                 <motion.div
@@ -512,11 +525,11 @@ function AISchoolLoginInner() {
               {/* AI Glow Effect */}
               <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 rounded-3xl opacity-30 blur-lg" />
               
-              <div className="relative bg-black/40 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl">
                 
                 {/* AI Status Bar */}
                 <motion.div
-                  className="mb-6 p-3 bg-gradient-to-r from-purple-600/10 to-blue-600/10 border border-purple-500/30 rounded-lg"
+                  className="mb-4 p-2 bg-gradient-to-r from-purple-600/10 to-blue-600/10 border border-purple-500/30 rounded-lg"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3 }}
@@ -534,7 +547,7 @@ function AISchoolLoginInner() {
 
                 {/* AI Logo */}
                 <motion.div
-                  className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
+                  className="w-16 h-16 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl relative overflow-hidden"
                   initial={{ opacity: 0, y: -20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
@@ -547,7 +560,11 @@ function AISchoolLoginInner() {
                     animate={{ rotate: [0, 10, -10, 0] }}
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    🤖
+                    {school?.logo ? (
+                      <img src={school.logo} alt={school.name} className="w-16 h-16 object-cover rounded-xl" />
+                    ) : (
+                      school?.name?.charAt(0) || subdomain?.charAt(0) || 'S'
+                    )}
                   </motion.span>
                   <motion.div
                     className="absolute -inset-2 rounded-3xl blur-xl opacity-50"
@@ -565,11 +582,11 @@ function AISchoolLoginInner() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5, duration: 0.6 }}
                 >
-                  AI Login
+                  Welcome Back
                 </motion.h2>
                 
                 <motion.p 
-                  className="text-sm opacity-80 text-center mb-6" 
+                  className="text-sm opacity-80 text-center mb-4" 
                   style={{ color: theme?.textColor || '#ffffff' }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 0.8, y: 0 }}
@@ -583,7 +600,7 @@ function AISchoolLoginInner() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.8 }}
-                  className="flex gap-2 mb-6"
+                  className="flex gap-2 mb-4"
                 >
                   {biometricAuth && (
                     <motion.button
@@ -610,14 +627,14 @@ function AISchoolLoginInner() {
                 </motion.div>
 
                 {/* Form */}
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-3">
                   {/* AI Email Field */}
                   <motion.div
                     initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
                   >
-                    <label className="block text-sm font-bold mb-3 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
+                    <label className="block text-sm font-bold mb-2 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
                       <motion.span
                         animate={{ rotate: [0, 10, -10, 0] }}
                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -633,7 +650,7 @@ function AISchoolLoginInner() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
-                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                        className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                         style={{
                           backgroundColor: theme?.inputBackgroundColor || 'rgba(255,255,255,0.1)',
                           borderColor: theme?.inputBorderColor || 'rgba(255,255,255,0.2)',
@@ -686,7 +703,7 @@ function AISchoolLoginInner() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, delay: 0.6, type: "spring", stiffness: 100 }}
                   >
-                    <label className="block text-sm font-bold mb-3 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
+                    <label className="block text-sm font-bold mb-2 flex items-center gap-2" style={{ color: theme?.textColor || '#ffffff' }}>
                       <motion.span
                         animate={{ rotate: [0, -10, 10, 0] }}
                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -702,7 +719,7 @@ function AISchoolLoginInner() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                        className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                         style={{
                           backgroundColor: theme?.inputBackgroundColor || 'rgba(255,255,255,0.1)',
                           borderColor: theme?.inputBorderColor || 'rgba(255,255,255,0.2)',
@@ -775,7 +792,7 @@ function AISchoolLoginInner() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 1 }}
-                  className="mt-6 text-center space-y-3"
+                  className="mt-4 text-center space-y-3"
                 >
                   <Link
                     href="/forgot-password"
@@ -783,11 +800,6 @@ function AISchoolLoginInner() {
                   >
                     Forgot your password?
                   </Link>
-                  <div className="text-xs text-gray-500">
-                    <Link href="/register" className="text-blue-400 hover:text-blue-300">Create account</Link>
-                    {' | '}
-                    <Link href="/" className="text-gray-400 hover:text-gray-300">Back to home</Link>
-                  </div>
                 </motion.div>
               </div>
             </div>
@@ -802,13 +814,14 @@ export default function AISchoolLogin() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    console.log('Outer component: Setting mounted to true');
     setMounted(true);
   }, []);
 
   if (!mounted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Initializing AI System...</div>
+        <div className="text-white">Initializing...</div>
       </div>
     );
   }
@@ -816,7 +829,7 @@ export default function AISchoolLogin() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading AI Login...</div>
+        <div className="text-white">Loading login...</div>
       </div>
     }>
       <AISchoolLoginInner />

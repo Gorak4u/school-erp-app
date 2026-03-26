@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'subdomain is required' }, { status: 400 });
     }
 
-    const school = await (saasPrisma as any).school.findUnique({
+    const school = await (saasPrisma as any).School.findUnique({
       where: { domain: subdomain },
       select: {
         id: true,
