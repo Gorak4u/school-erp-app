@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       schoolId: ctx.schoolId,
       totalRefunds: allRefunds.length,
       transportRefunds: transportRefunds.length,
-      allRefunds: allRefunds.map(r => ({
+      allRefunds: allRefunds.map((r: any) => ({
         id: r.id,
         type: r.type,
         status: r.status,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         student: r.student?.name || 'Unknown',
         createdAt: r.createdAt
       })),
-      transportRefundsList: transportRefunds.map(r => ({
+      transportRefundsList: transportRefunds.map((r: any) => ({
         id: r.id,
         type: r.type,
         status: r.status,

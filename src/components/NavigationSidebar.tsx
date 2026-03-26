@@ -11,20 +11,124 @@ import {
   Users, 
   GraduationCap, 
   DollarSign, 
-  Scale, 
-  Receipt, 
-  Bus, 
-  UserCheck,
-  Palmtree,
-  FileText,
-  BookOpen,
-  CreditCard,
-  Settings,
-  TrendingUp,
+  ArrowRight, 
+  AlertCircle, 
+  FileText, 
+  Truck,
+  BookOpen, 
+  UserCheck, 
+  Calendar, 
+  ClipboardList, 
+  CreditCard, 
+  Settings, 
+  BarChart3, 
   Shield,
   Sparkles,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Home,
+  User,
+  Award,
+  Receipt,
+  Target,
+  TrendingUp,
+  Building,
+  Briefcase,
+  Bell,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  Star,
+  Globe,
+  Database,
+  ShieldCheck,
+  FileSpreadsheet,
+  PieChart,
+  Activity,
+  Archive,
+  Wallet,
+  Calculator,
+  FileCheck,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  HelpCircle,
+  Lock,
+  Unlock,
+  Key,
+  Fingerprint,
+  Eye,
+  EyeOff,
+  Filter,
+  Search,
+  Menu,
+  X,
+  LogOut,
+  UserCircle,
+  Cog,
+  Wrench,
+  Hammer,
+  Package,
+  ShoppingBag,
+  ShoppingCart,
+  Tag,
+  Percent,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Plus,
+  Edit,
+  Save,
+  Download,
+  Upload,
+  Share,
+  Copy,
+  Trash,
+  RefreshCw,
+  RotateCcw,
+  History,
+  Bookmark,
+  Heart,
+  MessageSquare,
+  Send,
+  Paperclip,
+  Image,
+  Video,
+  Music,
+  Headphones,
+  Mic,
+  Camera,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Laptop,
+  HardDrive,
+  Cpu,
+  Server,
+  Cloud,
+  Wifi,
+  Battery,
+  Power,
+  Bolt,
+  Flame,
+  Droplet,
+  Wind,
+  Sun,
+  Moon,
+  CloudRain,
+  CloudSnow,
+  Umbrella,
+  TreePine,
+  Flower,
+  Bug,
+  Fish,
+  Bird,
+  Cat,
+  Dog,
+  Rabbit,
+  Turtle
 } from 'lucide-react';
 
 interface NavigationSidebarProps {
@@ -58,154 +162,124 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Main',
-    icon: <LayoutDashboard className="w-4 h-4" />,
+    icon: <Home className="w-4 h-4 text-blue-500" />,
     items: [
       { 
         href: '/dashboard', 
         label: 'Dashboard', 
-        icon: <LayoutDashboard className="w-5 h-5" />, 
+        icon: <LayoutDashboard className="w-5 h-5 text-blue-500" />, 
         pageKey: 'dashboard', 
-        permission: 'view_dashboard',
-        description: 'Overview and analytics',
-        color: 'blue'
+        permission: 'view_dashboard'
       },
       { 
         href: '/students', 
         label: 'Students', 
-        icon: <Users className="w-5 h-5" />, 
+        icon: <Users className="w-5 h-5 text-green-500" />, 
         pageKey: 'students', 
-        permission: 'view_students',
-        description: 'Student management',
-        color: 'green'
+        permission: 'view_students'
       },
       { 
         href: '/alumni', 
         label: 'Alumni', 
-        icon: <GraduationCap className="w-5 h-5" />, 
+        icon: <GraduationCap className="w-5 h-5 text-purple-500" />, 
         pageKey: 'alumni', 
-        permission: 'view_alumni',
-        description: 'Alumni network',
-        color: 'purple'
+        permission: 'view_alumni'
       },
       { 
         href: '/fees', 
         label: 'Fees', 
-        icon: <DollarSign className="w-5 h-5" />, 
+        icon: <DollarSign className="w-5 h-5 text-emerald-500" />, 
         pageKey: 'fees', 
-        permission: 'view_fees',
-        description: 'Fee management',
-        color: 'emerald'
+        permission: 'view_fees'
       },
       { 
         href: '/refunds', 
         label: 'Refunds', 
-        icon: <CreditCard className="w-5 h-5" />, 
+        icon: <ArrowRight className="w-5 h-5 text-orange-500" />, 
         pageKey: 'refunds', 
-        permission: 'manage_fees',
-        description: 'Refund management',
-        color: 'orange'
+        permission: 'manage_fees'
       },
       { 
         href: '/fines', 
         label: 'Fines', 
-        icon: <Scale className="w-5 h-5" />, 
+        icon: <AlertCircle className="w-5 h-5 text-red-500" />, 
         pageKey: 'fines', 
-        permission: 'manage_fines',
-        description: 'Fine management',
-        color: 'orange'
+        permission: 'manage_fines'
       },
       { 
         href: '/expenses', 
         label: 'Expenses', 
-        icon: <Receipt className="w-5 h-5" />, 
+        icon: <FileText className="w-5 h-5 text-rose-500" />, 
         pageKey: 'expenses', 
-        permission: 'view_expenses',
-        description: 'Expense tracking',
-        color: 'red'
+        permission: 'view_expenses'
       },
       { 
         href: '/transport', 
         label: 'Transport', 
-        icon: <Bus className="w-5 h-5" />, 
+        icon: <Truck className="w-5 h-5 text-cyan-500" />, 
         pageKey: 'transport', 
-        adminOnly: true,
-        description: 'Transport management',
-        color: 'cyan'
+        adminOnly: true
       },
     ],
   },
   {
     label: 'Academic',
-    icon: <BookOpen className="w-4 h-4" />,
+    icon: <BookOpen className="w-4 h-4 text-indigo-500" />,
     items: [
       { 
         href: '/teachers', 
         label: 'Staff', 
-        icon: <UserCheck className="w-5 h-5" />, 
+        icon: <UserCheck className="w-5 h-5 text-indigo-500" />, 
         pageKey: 'teachers', 
-        permission: 'view_teachers',
-        description: 'Staff management',
-        color: 'indigo'
+        permission: 'view_teachers'
       },
       { 
         href: '/leave', 
-        label: 'Leave Hub', 
-        icon: <Palmtree className="w-5 h-5" />, 
+        label: 'Leave', 
+        icon: <Calendar className="w-5 h-5 text-teal-500" />, 
         pageKey: 'leave', 
-        permission: 'view_teachers',
-        description: 'Leave management',
-        color: 'teal'
+        permission: 'view_teachers'
       },
       { 
         href: '/attendance', 
         label: 'Attendance', 
-        icon: <FileText className="w-5 h-5" />, 
+        icon: <ClipboardList className="w-5 h-5 text-amber-500" />, 
         pageKey: 'attendance', 
-        permission: 'view_attendance',
-        description: 'Attendance tracking',
-        color: 'amber'
+        permission: 'view_attendance'
       },
       { 
         href: '/assignments', 
         label: 'Assignments', 
-        icon: <BookOpen className="w-5 h-5" />, 
+        icon: <FileText className="w-5 h-5 text-pink-500" />, 
         pageKey: 'assignments', 
-        permission: 'view_exams',
-        description: 'Assignments & exams',
-        color: 'rose'
+        permission: 'view_exams'
       },
     ],
   },
   {
     label: 'Administration',
-    icon: <Settings className="w-4 h-4" />,
+    icon: <Cog className="w-4 h-4 text-slate-500" />,
     items: [
       { 
         href: '/subscription', 
         label: 'Subscription', 
-        icon: <CreditCard className="w-5 h-5" />, 
+        icon: <CreditCard className="w-5 h-5 text-violet-500" />, 
         pageKey: 'subscription', 
-        adminOnly: true,
-        description: 'Billing & plans',
-        color: 'violet'
+        adminOnly: true
       },
       { 
         href: '/settings', 
         label: 'Settings', 
-        icon: <Settings className="w-5 h-5" />, 
+        icon: <Cog className="w-5 h-5 text-slate-500" />, 
         pageKey: 'settings', 
-        permission: 'view_settings',
-        description: 'System settings',
-        color: 'slate'
+        permission: 'view_settings'
       },
       { 
         href: '/reports', 
         label: 'Reports', 
-        icon: <TrendingUp className="w-5 h-5" />, 
+        icon: <BarChart3 className="w-5 h-5 text-pink-500" />, 
         pageKey: 'reports', 
-        permission: 'view_reports',
-        description: 'Analytics & reports',
-        color: 'pink'
+        permission: 'view_reports'
       },
     ],
   },
@@ -284,8 +358,8 @@ export default function NavigationSidebar({
       groupHeader: `text-xs font-semibold uppercase tracking-wider flex items-center gap-2 ${
         isDark ? 'text-gray-500' : 'text-gray-400'
       }`,
-      navItem: (isActive: boolean, isHovered: boolean, color?: string) => `
-        group relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 overflow-hidden
+      navItem: (isActive: boolean, isHovered: boolean) => `
+        group relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
         ${isActive 
           ? isDark
             ? 'bg-gray-800 text-white border border-gray-600 shadow-lg'
@@ -299,40 +373,18 @@ export default function NavigationSidebar({
               : 'text-gray-600 hover:text-gray-800'
         }
       `,
-      navItemIcon: (isActive: boolean, color?: string) => {
-        const colorClasses = {
-          blue: 'text-blue-500',
-          green: 'text-green-500',
-          purple: 'text-purple-500',
-          emerald: 'text-emerald-500',
-          orange: 'text-orange-500',
-          red: 'text-red-500',
-          cyan: 'text-cyan-500',
-          indigo: 'text-indigo-500',
-          teal: 'text-teal-500',
-          amber: 'text-amber-500',
-          rose: 'text-rose-500',
-          violet: 'text-violet-500',
-          slate: 'text-slate-500',
-          pink: 'text-pink-500'
-        };
-        
-        return `
-          relative z-10 transition-all duration-200 flex-shrink-0
-          ${isActive ? 'scale-110' : 'scale-100 group-hover:scale-105'}
-          ${color ? colorClasses[color as keyof typeof colorClasses] : 'text-gray-500'}
-        `;
-      },
+      navItemIcon: (isActive: boolean) => `
+        relative z-10 transition-all duration-200 flex-shrink-0
+        ${isActive ? 'scale-110' : 'scale-100 group-hover:scale-105'}
+      `,
       navItemText: (isActive: boolean) => `
         font-medium transition-all duration-200 flex-1 min-w-0
         ${isActive ? 'font-semibold' : ''}
       `,
-      description: (isActive: boolean) => `
+      description: () => `
         text-xs transition-all duration-200 truncate
-        ${isActive 
-          ? isDark ? 'text-gray-300' : 'text-gray-600'
-          : isDark ? 'text-gray-500' : 'text-gray-500'
-        }
+        ${isDark ? 'text-gray-500' : 'text-gray-500'}
+        opacity-0 w-0
       `,
       saasAdmin: (isActive: boolean) => `
         flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
@@ -345,25 +397,8 @@ export default function NavigationSidebar({
             : 'text-orange-600 hover:bg-gray-100'
         }
       `,
-      iconGlow: (color?: string) => {
-        const glowColors = {
-          blue: 'from-blue-400 to-blue-600',
-          green: 'from-green-400 to-green-600',
-          purple: 'from-purple-400 to-purple-600',
-          emerald: 'from-emerald-400 to-emerald-600',
-          orange: 'from-orange-400 to-orange-600',
-          red: 'from-red-400 to-red-600',
-          cyan: 'from-cyan-400 to-cyan-600',
-          indigo: 'from-indigo-400 to-indigo-600',
-          teal: 'from-teal-400 to-teal-600',
-          amber: 'from-amber-400 to-amber-600',
-          rose: 'from-rose-400 to-rose-600',
-          violet: 'from-violet-400 to-violet-600',
-          slate: 'from-slate-400 to-slate-600',
-          pink: 'from-pink-400 to-pink-600'
-        };
-        
-        return color ? glowColors[color as keyof typeof glowColors] : 'from-gray-400 to-gray-600';
+      iconGlow: () => {
+        return isDark ? 'from-gray-400 to-gray-600' : 'from-gray-400 to-gray-600';
       }
     };
   };
@@ -551,16 +586,15 @@ export default function NavigationSidebar({
                       <Link
                         href={item.href}
                         className={themeClasses.navItem(
-                          currentPage === item.pageKey, 
-                          hoveredItem === item.pageKey,
-                          item.color
+                          currentPage === item.pageKey,
+                          hoveredItem === item.pageKey
                         )}
                         onMouseEnter={() => setHoveredItem(item.pageKey)}
                         onMouseLeave={() => setHoveredItem(null)}
                       >
                         {/* Icon Background Glow */}
                         <motion.div
-                          className={`absolute inset-0 bg-gradient-to-r ${themeClasses.iconGlow(item.color)} opacity-5`}
+                          className={`absolute inset-0 bg-gradient-to-r ${themeClasses.iconGlow()} opacity-5`}
                           initial={{ opacity: 0 }}
                           animate={{ 
                             opacity: hoveredItem === item.pageKey ? 0.1 : 0,
@@ -589,7 +623,7 @@ export default function NavigationSidebar({
                         <div className="relative z-10 flex items-center gap-3 flex-1">
                           {/* Enhanced Icon Container */}
                           <motion.div
-                            className={themeClasses.navItemIcon(currentPage === item.pageKey, item.color)}
+                            className={themeClasses.navItemIcon(currentPage === item.pageKey)}
                             whileHover={{ 
                               rotate: [0, -10, 10, 0],
                               scale: 1.1
@@ -598,7 +632,7 @@ export default function NavigationSidebar({
                           >
                             {/* Icon Glow Effect */}
                             <motion.div
-                              className={`absolute inset-0 bg-gradient-to-r ${themeClasses.iconGlow(item.color)} opacity-20 blur-md`}
+                              className={`absolute inset-0 bg-gradient-to-r ${themeClasses.iconGlow()} opacity-20 blur-md`}
                               animate={{
                                 opacity: currentPage === item.pageKey ? [0.3, 0.6, 0.3] : 0,
                                 scale: currentPage === item.pageKey ? [1, 1.2, 1] : 1
@@ -618,16 +652,6 @@ export default function NavigationSidebar({
                             <div className={themeClasses.navItemText(currentPage === item.pageKey)}>
                               {item.label}
                             </div>
-                            {item.description && (
-                              <motion.div
-                                className={themeClasses.description(currentPage === item.pageKey)}
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                              >
-                                {item.description}
-                              </motion.div>
-                            )}
                           </div>
                           
                           {/* Animated Badge */}
@@ -721,11 +745,6 @@ export default function NavigationSidebar({
                         </motion.div>
                         <div>
                           <div className="font-medium">SaaS Admin</div>
-                          <div className={`text-xs ${
-                            theme === 'dark' ? 'text-orange-400' : 'text-orange-500'
-                          }`}>
-                            Platform management
-                          </div>
                         </div>
                       </div>
                     </Link>

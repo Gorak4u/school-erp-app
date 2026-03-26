@@ -31,7 +31,7 @@ export default function ActivateSubscriptionPage() {
   };
 
   return (
-    <AppLayout currentPage="admin" theme={theme}>
+    <AppLayout currentPage="admin" theme={theme} title="Activate Subscription">
       <div className="max-w-2xl mx-auto py-12">
         <div className={`max-w-md w-full rounded-xl border p-6 ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
           <h1 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Activate Super Admin Subscription</h1>

@@ -1,6 +1,7 @@
 // @ts-nocheck
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import ExpenseDashboard from './components/ExpenseDashboard';
@@ -12,12 +13,101 @@ import ExpenseForm from './ExpenseForm';
 import { DEFAULT_CATEGORIES } from './utils';
 import { usePermissions } from '@/hooks/usePermissions';
 
-const TABS = [
-  { id: 'dashboard',  label: 'Dashboard',  icon: '📊' },
-  { id: 'expenses',   label: 'Expenses',   icon: '💸' },
-  { id: 'budgets',    label: 'Budgets',    icon: '🎯' },
-  { id: 'categories', label: 'Categories', icon: '🗂️' },
-  { id: 'reports',    label: 'Reports',    icon: '📈' },
+// Import modern icons
+import {
+  TrendingUp,
+  DollarSign,
+  PieChart,
+  FileText,
+  Search,
+  Filter,
+  RefreshCw,
+  Download,
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  Calendar,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  MoreVertical,
+  X,
+  Wallet,
+  TrendingDown,
+  Target,
+  BarChart3,
+  Receipt,
+  Building,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Archive,
+  Settings,
+  Bell,
+  FilterX,
+  Zap,
+  Shield,
+  Award,
+  Briefcase,
+  Calculator,
+  DollarSign as DollarIcon,
+  MapPin,
+  Bus,
+  Car,
+  UserPlus,
+  Route,
+  Wrench,
+  Fuel,
+  CreditCard as CreditCardIcon,
+  AlertTriangle,
+  UserCheck,
+  Users2,
+  Navigation
+} from 'lucide-react';
+
+// Enhanced Tabs matching transport page structure
+const EXPENSE_TABS = [
+  { 
+    id: 'dashboard', 
+    label: 'Dashboard', 
+    icon: TrendingUp, 
+    description: 'Expense overview and analytics',
+    gradient: 'from-blue-500 to-cyan-600'
+  },
+  { 
+    id: 'expenses', 
+    label: 'Expenses', 
+    icon: DollarSign, 
+    description: 'Manage expenses and transactions',
+    gradient: 'from-purple-500 to-pink-600'
+  },
+  { 
+    id: 'budgets', 
+    label: 'Budgets', 
+    icon: Target, 
+    description: 'Budget management and tracking',
+    gradient: 'from-emerald-500 to-teal-600'
+  },
+  { 
+    id: 'categories', 
+    label: 'Categories', 
+    icon: Briefcase, 
+    description: 'Expense categories and types',
+    gradient: 'from-orange-500 to-red-600'
+  },
+  { 
+    id: 'reports', 
+    label: 'Reports', 
+    icon: BarChart3, 
+    description: 'Financial reports and insights',
+    gradient: 'from-indigo-500 to-purple-600'
+  },
 ];
 
 const BLANK_EXP_FORM = { title: '', description: '', amount: '', categoryId: '', dateIncurred: new Date().toISOString().split('T')[0], paymentMethod: '', priority: 'medium', vendorName: '', remarks: '', academicYear: '', budgetId: '' };
@@ -30,16 +120,51 @@ export default function ExpensesPage() {
   const isDark = theme === 'dark';
   const canCreateExpenses = isSuperAdmin || isAdmin || hasPermission('create_expenses');
 
-  // Modern UI template CSS variables
-  const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
-  const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const label = `block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`;
-  const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'}`;
-  const btnSecondary = `px-4 py-2.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
-  const btnDanger = `px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${isDark ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30' : 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200'}`;
-  const text = isDark ? 'text-white' : 'text-gray-900';
-  const subtext = isDark ? 'text-gray-400' : 'text-gray-600';
-  const heading = isDark ? 'text-white' : 'text-gray-900';
+  // Modern theme configuration matching transport page
+  const themeConfig = useMemo(() => ({
+    bg: isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-white via-gray-50 to-white',
+    border: isDark ? 'border-gray-700/50' : 'border-gray-200/50',
+    text: {
+      primary: isDark ? 'text-white' : 'text-gray-900',
+      secondary: isDark ? 'text-gray-400' : 'text-gray-600',
+      muted: isDark ? 'text-gray-500' : 'text-gray-500',
+      accent: isDark ? 'text-blue-400' : 'text-blue-600',
+    },
+    card: isDark 
+      ? 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700/50 backdrop-blur-sm' 
+      : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-gray-200/50 backdrop-blur-sm',
+    input: isDark 
+      ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20' 
+      : 'bg-white/50 border-gray-300/50 text-gray-900 placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20',
+    button: {
+      primary: isDark 
+        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25' 
+        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25',
+      secondary: isDark 
+        ? 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 border-gray-600/50 hover:border-gray-500/50' 
+        : 'bg-white/50 hover:bg-gray-100/50 text-gray-700 border-gray-300/50 hover:border-gray-400/50',
+      danger: isDark 
+        ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-500/25' 
+        : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/25',
+      success: isDark 
+        ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/25' 
+        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg shadow-green-500/25',
+    },
+    gradients: {
+      primary: 'from-blue-500 to-cyan-600',
+      secondary: 'from-purple-500 to-pink-600',
+      success: 'from-green-500 to-emerald-600',
+      warning: 'from-orange-500 to-red-600',
+      danger: 'from-red-500 to-pink-600',
+      info: 'from-indigo-500 to-purple-600',
+    }
+  }), [isDark]);
+
+  // Helper functions matching transport page
+  const getCardClass = () => themeConfig.card;
+  const getInputClass = () => themeConfig.input;
+  const getBtnClass = (type: 'primary' | 'secondary' | 'danger' | 'success' = 'primary') => themeConfig.button[type];
+  const getTextClass = (type: 'primary' | 'secondary' | 'muted' | 'accent' = 'primary') => themeConfig.text[type];
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [saving,    setSaving]    = useState(false);
@@ -429,200 +554,390 @@ export default function ExpensesPage() {
   // ── Selected state (passed to ExpenseList) ─────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  return (
-    <AppLayout currentPage="expenses" title="Expense Management" theme={theme}>
-      <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-4 md:p-6`}>
-        <div className="space-y-8 pb-8">
-          {/* Modern Header */}
-          <div className={`rounded-2xl border ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'} p-8 shadow-lg`}>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
-                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h1 className={`text-3xl font-bold ${text}`}>Expense Management</h1>
-                    <p className={`text-sm ${subtext}`}>
-                      Track, manage and analyse all school expenses efficiently
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-3">
-                <div className={`relative ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} backdrop-blur-sm`}>
-                  <div className="flex items-center gap-2 px-4 py-2">
-                    <svg className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <select 
-                      value={selectedAY} 
-                      onChange={e => { setSelectedAY(e.target.value); setExpFilters(f => ({ ...f, academicYear: e.target.value })); }} 
-                      className={`bg-transparent border-0 text-sm font-medium focus:outline-none focus:ring-0 ${isDark ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      <option value="all">All Academic Years</option>
-                      {academicYears.map(y => (
-                        <option key={y.id} value={y.year}>
-                          {y.isActive ? '📚 ' : ''}{y.name || y.year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                {canCreateExpenses && (
-                  <button 
-                    onClick={openAddExpense} 
-                    className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
-                      isDark 
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add Expense
-                    </span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+  // World-Class AI-Powered Button Component
+  const WorldClassButton = ({ 
+    onClick, 
+    children, 
+    variant = 'primary',
+    size = 'sm',
+    disabled = false,
+    icon = null,
+    loading = false
+  }: {
+    onClick: () => void;
+    children: React.ReactNode;
+    variant?: 'primary' | 'secondary' | 'success' | 'danger';
+    size?: 'xs' | 'sm' | 'md';
+    disabled?: boolean;
+    icon?: React.ReactNode;
+    loading?: boolean;
+  }) => {
+    const variants = {
+      primary: `bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-purple-600`,
+      secondary: `border-2 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`,
+      success: `bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600`,
+      danger: `bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/25 hover:from-red-600 hover:to-pink-600`
+    };
+    
+    const sizes = {
+      xs: 'px-2 py-1 text-xs',
+      sm: 'px-4 py-2.5 text-sm',
+      md: 'px-5 py-3 text-sm'
+    };
+    
+    return (
+      <motion.button
+        whileHover={{ scale: disabled || loading ? 1 : 1.05 }}
+        whileTap={{ scale: disabled || loading ? 1 : 0.95 }}
+        onClick={onClick}
+        disabled={disabled || loading}
+        className={`
+          ${variants[variant]}
+          ${sizes[size]}
+          rounded-xl font-bold transition-all duration-300 transform ${
+            disabled || loading
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'hover:shadow-xl active:scale-95'
+          } flex items-center justify-center gap-2`}
+      >
+        {loading && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-4 h-4"
+          >
+            🔄
+          </motion.div>
+        )}
+        {!loading && icon && <span className="text-sm">{icon}</span>}
+        {children}
+      </motion.button>
+    );
+  };
 
-          {/* Toast messages */}
-          {msg.text && (
-            <div className={`p-4 rounded-xl text-sm border flex items-center gap-2 ${
-              msg.type === 'error' 
-                ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                : 'bg-green-500/10 border-green-500/20 text-green-400'
-            }`}>
-              {msg.type === 'error' ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-              {msg.text}
-            </div>
+  return (
+    <AppLayout currentPage="expenses" title="Expense Management">
+      <div className="space-y-0 pb-6">
+        {/* Modern Tabs matching transport page */}
+        <div className="relative">
+          <div className={`flex space-x-1 p-1 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm border ${themeConfig.border}`}>
+            {EXPENSE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 relative overflow-hidden group ${
+                  activeTab === tab.id
+                    ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg transform scale-105`
+                    : `${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} hover:scale-105`
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className={`absolute inset-0 bg-gradient-to-r ${tab.gradient} opacity-100`}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10">
+                  <tab.icon className="w-4 h-4" />
+                </span>
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+          
+          {/* Tab Description */}
+          <div className="mt-4 text-center">
+            <p className={`text-sm ${getTextClass('secondary')}`}>
+              {EXPENSE_TABS.find(tab => tab.id === activeTab)?.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Tab Content matching transport page */}
+        <div className="transition-all duration-300">
+          {/* Dashboard Tab */}
+          {activeTab === 'dashboard' && (
+            <ExpenseDashboard
+              analytics={analytics}
+              isDark={isDark}
+              categories={categories}
+              academicYear={selectedAY}
+              card={getCardClass()}
+              text={getTextClass('primary')}
+              subtext={getTextClass('secondary')}
+              label={getTextClass('primary')}
+              input={getInputClass()}
+              btnPrimary={getBtnClass('primary')}
+              btnSecondary={getBtnClass('secondary')}
+            />
           )}
 
-          {/* Modern Tabs */}
-          <div className={`rounded-2xl border p-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
-            <div className="flex gap-1">
-              {TABS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === t.id
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
-                      : isDark 
-                        ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200' 
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+          {/* Expenses Tab */}
+          {activeTab === 'expenses' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${EXPENSE_TABS.find(t => t.id === 'expenses')?.gradient}`}>
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Expense Management</h2>
+                    <p className={`text-sm ${getTextClass('secondary')}`}>Manage expenses and transactions</p>
+                  </div>
+                </div>
+                <WorldClassButton
+                  onClick={openAddExpense}
+                  variant="primary"
+                  icon="➕"
                 >
-                  <span className="text-lg">{t.icon}</span>
-                  <span className="hidden sm:inline">{t.label}</span>
+                  Add Expense
+                </WorldClassButton>
+              </div>
+
+              <ExpenseList
+                expenses={expenses}
+                loading={loadingList}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                totalCount={totalCount}
+                selected={selected}
+                setSelected={setSelected}
+                filters={expFilters}
+                setFilters={setExpFilters}
+                categories={categories}
+                onLoadMore={loadMore}
+                onAdd={openAddExpense}
+                onEdit={openEditExpense}
+                onDelete={deleteExpense}
+                onAction={(e, action) => { setActionModal({ expense: e, action }); setActionNote(''); }}
+                onExport={exportCSV}
+                isDark={isDark}
+                card={getCardClass()}
+                text={getTextClass('primary')}
+                subtext={getTextClass('secondary')}
+                label={getTextClass('primary')}
+                input={getInputClass()}
+                btnPrimary={getBtnClass('primary')}
+                btnSecondary={getBtnClass('secondary')}
+              />
+            </motion.div>
+          )}
+
+          {/* Budgets Tab */}
+          {activeTab === 'budgets' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${EXPENSE_TABS.find(t => t.id === 'budgets')?.gradient}`}>
+                    <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Budget Management</h2>
+                    <p className={`text-sm ${getTextClass('secondary')}`}>Budget management and tracking</p>
+                  </div>
+                </div>
+                <WorldClassButton
+                  onClick={() => {
+                    setEditingBudget(null);
+                    setBudgetForm({ ...BLANK_BUDGET_FORM });
+                    setBudgetFormShow(true);
+                  }}
+                  variant="primary"
+                  icon="➕"
+                >
+                  Add Budget
+                </WorldClassButton>
+              </div>
+
+              <BudgetManager
+                budgets={budgets} loading={loading} isDark={isDark} categories={categories}
+                form={budgetForm} setForm={setBudgetForm} showForm={budgetFormShow} setShowForm={setBudgetFormShow}
+                editing={editingBudget} setEditing={setEditingBudget} onSave={saveBudget} onDelete={deleteBudget} saving={saving}
+                search={budgetSearch} setSearch={setBudgetSearch}
+                statusFilter={budgetStatusFilter} setStatusFilter={setBudgetStatusFilter}
+                categoryFilter={budgetCategoryFilter} setCategoryFilter={setBudgetCategoryFilter}
+                sortBy={budgetSortBy} setSortBy={setBudgetSortBy}
+                sortOrder={budgetSortOrder} setSortOrder={setBudgetSortOrder}
+                card={getCardClass()}
+                text={getTextClass('primary')}
+                subtext={getTextClass('secondary')}
+                label={getTextClass('primary')}
+                input={getInputClass()}
+                btnPrimary={getBtnClass('primary')}
+                btnSecondary={getBtnClass('secondary')}
+              />
+            </motion.div>
+          )}
+
+          {/* Categories Tab */}
+          {activeTab === 'categories' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${EXPENSE_TABS.find(t => t.id === 'categories')?.gradient}`}>
+                    <Briefcase className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Category Management</h2>
+                    <p className={`text-sm ${getTextClass('secondary')}`}>Expense categories and types</p>
+                  </div>
+                </div>
+                <WorldClassButton
+                  onClick={() => {
+                    setEditingCat(null);
+                    setCatForm({ ...BLANK_CAT_FORM });
+                    setCatFormShow(true);
+                  }}
+                  variant="primary"
+                  icon="➕"
+                >
+                  Add Category
+                </WorldClassButton>
+              </div>
+
+              <CategoryManager
+                categories={categories} isDark={isDark}
+                form={catForm} setForm={setCatForm} showForm={catFormShow} setShowForm={setCatFormShow}
+                editing={editingCat} setEditing={setEditingCat} onSave={saveCategory} onDelete={deleteCategory} onSeedDefaults={seedCategories} saving={saving}
+                search={catSearch} setSearch={setCatSearch}
+                statusFilter={catStatusFilter} setStatusFilter={setCatStatusFilter}
+                sortBy={catSortBy} setSortBy={setCatSortBy}
+                sortOrder={catSortOrder} setSortOrder={setCatSortOrder}
+                card={getCardClass()}
+                text={getTextClass('primary')}
+                subtext={getTextClass('secondary')}
+                label={getTextClass('primary')}
+                input={getInputClass()}
+                btnPrimary={getBtnClass('primary')}
+                btnSecondary={getBtnClass('secondary')}
+              />
+            </motion.div>
+          )}
+
+          {/* Reports Tab */}
+          {activeTab === 'reports' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${EXPENSE_TABS.find(t => t.id === 'reports')?.gradient}`}>
+                    <BarChart3 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Financial Reports</h2>
+                    <p className={`text-sm ${getTextClass('secondary')}`}>Financial reports and insights</p>
+                  </div>
+                </div>
+                <button
+                  onClick={exportCSV}
+                  className={getBtnClass('secondary')}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Report
                 </button>
-              ))}
-            </div>
-          </div>
+              </div>
 
-        {/* Tab Content */}
-        {activeTab === 'dashboard' && (
-          <ExpenseDashboard analytics={analytics} isDark={isDark} categories={categories} academicYear={selectedAY} />
-        )}
-
-        {activeTab === 'expenses' && (
-          <ExpenseList
-            expenses={expenses}
-            loading={loadingList}
-            loadingMore={loadingMore}
-            hasMore={hasMore}
-            totalCount={totalCount}
-            selected={selected}
-            setSelected={setSelected}
-            filters={expFilters}
-            setFilters={setExpFilters}
-            categories={categories}
-            onLoadMore={loadMore}
-            onAdd={openAddExpense}
-            onEdit={openEditExpense}
-            onDelete={deleteExpense}
-            onAction={(e, action) => { setActionModal({ expense: e, action }); setActionNote(''); }}
-            onExport={exportCSV}
-            isDark={isDark}
-          />
-        )}
-
-        {activeTab === 'budgets' && (
-          <BudgetManager
-            budgets={budgets} loading={loading} isDark={isDark} categories={categories}
-            form={budgetForm} setForm={setBudgetForm} showForm={budgetFormShow} setShowForm={setBudgetFormShow}
-            editing={editingBudget} setEditing={setEditingBudget} onSave={saveBudget} onDelete={deleteBudget} saving={saving}
-            search={budgetSearch} setSearch={setBudgetSearch}
-            statusFilter={budgetStatusFilter} setStatusFilter={setBudgetStatusFilter}
-            categoryFilter={budgetCategoryFilter} setCategoryFilter={setBudgetCategoryFilter}
-            sortBy={budgetSortBy} setSortBy={setBudgetSortBy}
-            sortOrder={budgetSortOrder} setSortOrder={setBudgetSortOrder}
-          />
-        )}
-
-        {activeTab === 'categories' && (
-          <CategoryManager
-            categories={categories} isDark={isDark}
-            form={catForm} setForm={setCatForm} showForm={catFormShow} setShowForm={setCatFormShow}
-            editing={editingCat} setEditing={setEditingCat} onSave={saveCategory} onDelete={deleteCategory} onSeedDefaults={seedCategories} saving={saving}
-            search={catSearch} setSearch={setCatSearch}
-            statusFilter={catStatusFilter} setStatusFilter={setCatStatusFilter}
-            sortBy={catSortBy} setSortBy={setCatSortBy}
-            sortOrder={catSortOrder} setSortOrder={setCatSortOrder}
-          />
-        )}
-
-        {activeTab === 'reports' && (
-          <ExpenseReports 
-            analytics={analytics} isDark={isDark} onExport={exportCSV} academicYear={selectedAY}
-            dateFrom={reportDateFrom} dateTo={reportDateTo} setDateFrom={setReportDateFrom} setDateTo={setReportDateTo}
-            categoryFilter={reportCategoryFilter} setCategoryFilter={setReportCategoryFilter} categories={categories}
-            refreshAnalytics={fetchAnalytics}
-          />
-        )}
+              <ExpenseReports 
+                analytics={analytics} isDark={isDark} onExport={exportCSV} academicYear={selectedAY}
+                dateFrom={reportDateFrom} dateTo={reportDateTo} setDateFrom={setReportDateFrom} setDateTo={setReportDateTo}
+                categoryFilter={reportCategoryFilter} setCategoryFilter={setReportCategoryFilter} categories={categories}
+                refreshAnalytics={fetchAnalytics}
+                card={getCardClass()}
+                text={getTextClass('primary')}
+                subtext={getTextClass('secondary')}
+                label={getTextClass('primary')}
+                input={getInputClass()}
+                btnPrimary={getBtnClass('primary')}
+                btnSecondary={getBtnClass('secondary')}
+              />
+            </motion.div>
+          )}
+        </div>
       </div>
 
-      {/* ── Expense Form Modal ──────────────────────────────────────────────── */}
-      {expFormShow && (
-        <ExpenseForm
-          form={expForm}
-          setForm={setExpForm}
-          onSave={saveExpense}
-          onClose={() => { setExpFormShow(false); setEditingExp(null); }}
-          saving={saving}
-          editing={!!editingExp}
-          categories={categories}
-          budgets={budgets}
-          isDark={isDark}
-          academicYears={academicYears}
-        />
-      )}
+      {/* ── Expense Form Modal with Animations ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {expFormShow && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+              className="w-full max-w-4xl"
+            >
+              <ExpenseForm
+                form={expForm}
+                setForm={setExpForm}
+                onSave={saveExpense}
+                onClose={() => { setExpFormShow(false); setEditingExp(null); }}
+                saving={saving}
+                editing={!!editingExp}
+                categories={categories}
+                budgets={budgets}
+                isDark={isDark}
+                card={getCardClass()}
+                text={getTextClass('primary')}
+                subtext={getTextClass('secondary')}
+                label={getTextClass('primary')}
+                input={getInputClass()}
+                btnPrimary={getBtnClass('primary')}
+                btnSecondary={getBtnClass('secondary')}
+                academicYears={academicYears}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── Action Modal (Approve / Reject / Pay) ───────────────────────────── */}
-      {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} max-h-[90vh] overflow-hidden flex flex-col`}>
+      {/* ── Action Modal (Approve / Reject / Pay) with Animations ───────────────────────────── */}
+      <AnimatePresence>
+        {actionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+              className={`w-full max-w-2xl rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} max-h-[90vh] overflow-hidden flex flex-col`}
+            >
             <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
               <h2 className={`text-lg font-bold ${text}`}>
                 {actionModal.action === 'approve' ? '✅ Approve Expense' : actionModal.action === 'reject' ? '❌ Reject Expense' : '💳 Mark as Paid'}
               </h2>
-              <button onClick={() => setActionModal(null)} className={`w-8 h-8 flex items-center justify-center rounded-xl text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>×</button>
+              <button onClick={() => setActionModal(null)} className={`w-8 h-8 flex items-center justify-center rounded-xl text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
@@ -722,10 +1037,24 @@ export default function ExpensesPage() {
                 {saving ? 'Processing...' : actionModal.action === 'approve' ? 'Approve' : actionModal.action === 'reject' ? 'Reject' : 'Mark Paid'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-        </div>
-    </AppLayout>
+            </motion.div>
+          </motion.div>
+        )}
+        </AnimatePresence>
+
+        {/* World-Class AI-Powered Floating Action Button */}
+        <motion.button
+          whileHover={{ scale: 1.1, rotate: 90 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={openAddExpense}
+          className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-50 transition-all duration-300 ${
+            isDark 
+              ? 'bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-blue-500/25' 
+              : 'bg-gradient-to-br from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-blue-500/25'
+          }`}
+        >
+          <Plus className="w-6 h-6" />
+        </motion.button>
+      </AppLayout>
   );
 }

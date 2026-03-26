@@ -83,7 +83,7 @@ export default function AppLayout({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSidebarOpen]);
 
-  const handleSidebarMouseEnter = () => {
+  const handleMouseEnter = () => {
     if (sidebarTimeout) {
       clearTimeout(sidebarTimeout);
       setSidebarTimeout(null);
@@ -91,7 +91,7 @@ export default function AppLayout({
     setIsSidebarOpen(true);
   };
 
-  const handleSidebarMouseLeave = () => {
+  const handleMouseLeave = () => {
     const timeout = setTimeout(() => {
       setIsSidebarOpen(false);
     }, 300);
@@ -167,17 +167,17 @@ export default function AppLayout({
 
       {/* Navigation Sidebar - Unified for all roles, permission-filtered */}
       <NavigationSidebar 
-        theme={theme} 
+        theme={globalTheme} 
         currentPage={currentPage} 
         isSidebarOpen={isSidebarOpen}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* Hover Zone for Sidebar */}
       <div 
         className={`fixed left-0 top-0 h-full w-2 z-30 ${isSidebarOpen ? 'hidden' : 'block'}`}
-        onMouseEnter={handleSidebarMouseEnter}
+        onMouseEnter={handleMouseEnter}
       />
 
       {/* Advanced Header */}

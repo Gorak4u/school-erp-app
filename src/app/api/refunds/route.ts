@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionContext } from '@/lib/apiAuth';
 import { schoolPrisma } from '@/lib/prisma-server';
+import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
+import { rateLimit, getClientIdentifier, validateSearchQuery, sanitizePaginationParams } from '@/lib/apiSecurity';
 import { refundService } from '@/lib/services/refundService';
+
+// Rate limiting constants (same as students page)
+const REFUND_LIST_RATE_LIMIT = Number(process.env.REFUND_LIST_RATE_LIMIT_PER_MINUTE || '200');
+const REFUND_CREATE_RATE_LIMIT = Number(process.env.REFUND_CREATE_RATE_LIMIT_PER_MINUTE || '5');
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
 
 // GET /api/refunds - List refunds with filters (AI-Optimized)
 export async function GET(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+
+    // Rate limiting check (same as students page)
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = rateLimit(clientId, REFUND_LIST_RATE_LIMIT, RATE_LIMIT_WINDOW);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -25,6 +38,17 @@ export async function GET(request: NextRequest) {
     if (type) where.type = type;
     if (studentId) where.studentId = studentId;
     if (priority) where.priority = priority;
+
+    // Add search functionality (same as students page)
+    const search = validateSearchQuery(searchParams.get('search') || '');
+    if (search) {
+      where.OR = [
+        { student: { name: { startsWith: search, mode: 'insensitive' } } },
+        { student: { admissionNo: { startsWith: search, mode: 'insensitive' } } },
+        { reason: { startsWith: search, mode: 'insensitive' } },
+        { type: { startsWith: search, mode: 'insensitive' } }
+      ];
+    }
 
     const [refunds, total] = await Promise.all([
       (schoolPrisma as any).RefundRequest.findMany({
@@ -48,15 +72,18 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).RefundRequest.count({ where })
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       refunds,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize)
-      }
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
     });
+
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    response.headers.set('CDN-Cache-Control', 'max-age=300');
+
+    return response;
   } catch (error) {
     console.error('GET /api/refunds:', error);
     return NextResponse.json({ error: 'Failed to fetch refunds' }, { status: 500 });
@@ -68,6 +95,16 @@ export async function POST(request: NextRequest) {
   try {
     const { ctx, error } = await getSessionContext();
     if (error) return error;
+
+    // Rate limiting check (same as students page)
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = rateLimit(clientId, REFUND_CREATE_RATE_LIMIT, RATE_LIMIT_WINDOW);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json({ 
+        error: 'Too many refund creation requests. Please wait before creating another refund.',
+        retryAfter: (rateLimitResult as any).retryAfter
+      }, { status: 429 });
+    }
 
     const {
       studentId,

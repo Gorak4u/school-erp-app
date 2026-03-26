@@ -566,25 +566,18 @@ export default function StaffPage() {
   };
 
   return (
-    <AppLayout currentPage="teachers">
+    <AppLayout currentPage="teachers" title="Teachers Management">
       <div className="relative px-4 py-6 sm:px-6 lg:px-8">
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden">
           <div className={`absolute left-[-8rem] top-8 h-56 w-56 rounded-full blur-3xl ${isDark ? 'bg-blue-500/20' : 'bg-blue-200/60'}`} />
           <div className={`absolute right-[-6rem] top-10 h-60 w-60 rounded-full blur-3xl ${isDark ? 'bg-violet-500/15' : 'bg-violet-200/60'}`} />
         </div>
         <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
+        {/* Stats Overview */}
         <div className={`relative overflow-hidden rounded-[32px] border px-6 py-7 shadow-2xl sm:px-8 ${isDark ? 'border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(135deg,rgba(17,24,39,0.95),rgba(15,23,42,0.92))]' : 'border-white/70 bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.9),_transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))]'}`}>
           <div className={`absolute inset-y-0 right-0 w-80 opacity-70 ${isDark ? 'bg-gradient-to-l from-violet-500/10 to-transparent' : 'bg-gradient-to-l from-violet-200/70 to-transparent'}`} />
           <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${isDark ? 'border-blue-400/20 bg-blue-400/10 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
-                Workforce Hub
-              </div>
-              <h1 className={`mt-4 text-3xl font-bold tracking-tight sm:text-4xl ${txt}`}>Staff Management</h1>
-              <p className={`mt-3 max-w-2xl text-sm sm:text-base ${sub}`}>
-                Manage teachers, leadership staff, access roles, and class assignments from one premium operational workspace.
-              </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <span className={`rounded-full px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-white/5 text-gray-200' : 'bg-white text-gray-700 shadow-sm'}`}>
                   {total.toLocaleString()} total staff

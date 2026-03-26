@@ -6,6 +6,9 @@ import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { showErrorToast, showSuccessToast } from '@/lib/toastUtils';
+import { RefundSearchEngine } from './search/RefundSearchEngine';
+import RefundPerformanceMonitor from '../shared/search/components/RefundPerformanceMonitor';
+import { useRefundState } from './hooks/useRefundState';
 
 // Icons
 import {
@@ -61,21 +64,43 @@ const REFUND_TYPE_OPTIONS = [
 
 // AI-Optimized Refunds Page
 export default function RefundsPage() {
-  const { theme, setTheme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const { hasPermission, isAdmin } = usePermissions();
   const canManageRefunds = isAdmin || hasPermission('manage_refunds' as any);
   const isDark = theme === 'dark';
   
-  // State management
+  // Use refund state (same as students page)
+  const state = useRefundState();
+  
+  // Destructure state (same as students page)
+  const {
+    refunds, setRefunds,
+    loading, loadRefunds,
+    searchTerm, setSearchTerm,
+    statusFilter, setStatusFilter,
+    typeFilter, setTypeFilter,
+    advancedSearch, setAdvancedSearch,
+    showDashboard, setShowDashboard,
+    dashboardStats, setDashboardStats,
+    currentPage, setCurrentPage,
+    pageSize, setPageSize,
+    totalPages, setTotalPages,
+    sortConfig, setSortConfig,
+    searchRefunds,
+    getSearchSuggestions
+  } = state;
+  
+  // Additional state for modals
   const [activeTab, setActiveTab] = useState('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [loading, setLoading] = useState(false);
   const [analytics, setAnalytics] = useState<any>(null);
-  const [refunds, setRefunds] = useState<any[]>([]);
   const [selectedRefund, setSelectedRefund] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  // Tab-specific filters
+  const [refundSearchTerm, setRefundSearchTerm] = useState('');
+  const [refundStatusFilter, setRefundStatusFilter] = useState('all');
+  const [waiverSearchTerm, setWaiverSearchTerm] = useState('');
+  const [waiverStatusFilter, setWaiverStatusFilter] = useState('all');
 
   // Centralized theme object
   const themeConfig = useMemo(() => ({
@@ -125,43 +150,62 @@ export default function RefundsPage() {
   }, []);
 
   const fetchRefunds = useCallback(async () => {
-    setLoading(true);
+    // setLoading is now handled by loadRefunds from useRefundState
     try {
-      const params = new URLSearchParams({
-        page: '1',
-        pageSize: '50',
-        ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(typeFilter !== 'all' && { type: typeFilter }),
-        ...(searchTerm && { search: searchTerm })
-      });
-
-      const response = await fetch(`/api/refunds?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch refunds');
-      const data = await response.json();
-      setRefunds(data.refunds || []);
+      await loadRefunds();
     } catch (error) {
       console.error('Refunds fetch error:', error);
-    } finally {
-      setLoading(false);
     }
-  }, [statusFilter, typeFilter, searchTerm]);
+  }, []); // Remove loadRefunds dependency to avoid infinite loop
 
   // Initialize data
   useEffect(() => {
     fetchAnalytics();
     fetchRefunds();
-  }, [fetchAnalytics, fetchRefunds]);
+  }, []); // Empty dependency array - run only once on mount
 
-  // Filter refunds and waivers
-  const refundData = useMemo(() => 
-    refunds.filter(refund => !refund.type?.includes('waiver')), 
-    [refunds]
-  );
-
-  const waiverData = useMemo(() => 
-    refunds.filter(refund => refund.type?.includes('waiver')), 
-    [refunds]
-  );
+  // Filter refunds and waivers with tab-specific filters
+  const refundData = useMemo(() => {
+    let filtered = refunds.filter(refund => !refund.type?.includes('waiver'));
+    
+    // Apply refund-specific search filter
+    if (refundSearchTerm) {
+      filtered = filtered.filter(refund => 
+        refund.student?.name?.toLowerCase().includes(refundSearchTerm.toLowerCase()) ||
+        refund.student?.admissionNo?.toLowerCase().includes(refundSearchTerm.toLowerCase()) ||
+        refund.reason?.toLowerCase().includes(refundSearchTerm.toLowerCase()) ||
+        refund.type?.toLowerCase().includes(refundSearchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply refund-specific status filter
+    if (refundStatusFilter && refundStatusFilter !== 'all') {
+      filtered = filtered.filter(refund => refund.status === refundStatusFilter);
+    }
+    
+    return filtered;
+  }, [refunds, refundSearchTerm, refundStatusFilter]);
+  
+  const waiverData = useMemo(() => {
+    let filtered = refunds.filter(refund => refund.type?.includes('waiver'));
+    
+    // Apply waiver-specific search filter
+    if (waiverSearchTerm) {
+      filtered = filtered.filter(refund => 
+        refund.student?.name?.toLowerCase().includes(waiverSearchTerm.toLowerCase()) ||
+        refund.student?.admissionNo?.toLowerCase().includes(waiverSearchTerm.toLowerCase()) ||
+        refund.reason?.toLowerCase().includes(waiverSearchTerm.toLowerCase()) ||
+        refund.type?.toLowerCase().includes(waiverSearchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply waiver-specific status filter
+    if (waiverStatusFilter && waiverStatusFilter !== 'all') {
+      filtered = filtered.filter(refund => refund.status === waiverStatusFilter);
+    }
+    
+    return filtered;
+  }, [refunds, waiverSearchTerm, waiverStatusFilter]);
 
   // Calculate separate metrics for refunds and waivers
   const refundMetrics = useMemo(() => {
@@ -591,7 +635,7 @@ export default function RefundsPage() {
   };
 
   // Render refund requests table
-  const renderRequestsTable = (data: any[], title: string, IconComponent: any) => {
+  const renderRequestsTable = (data: any[], title: string, IconComponent: any, searchTerm: string, statusFilter: string, onSearchChange: (value: string) => void, onStatusChange: (value: string) => void) => {
     return (
       <div className={getCardClass()}>
         <div className="flex items-center justify-between mb-6">
@@ -611,14 +655,14 @@ export default function RefundsPage() {
                 type="text"
                 placeholder={`Search ${title.toLowerCase()}...`}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => onSearchChange(e.target.value)}
                 className={`${getInputClass()} pl-10 w-64`}
               />
             </div>
             
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => onStatusChange(e.target.value)}
               className={getInputClass()}
             >
               {REFUND_STATUS_OPTIONS.map(option => (
@@ -736,24 +780,14 @@ export default function RefundsPage() {
   };
 
   return (
-    <AppLayout currentPage="refunds">
-      <div className={`min-h-screen ${themeConfig.bg} p-6`}>
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className={`text-3xl font-bold ${themeConfig.text.primary} mb-2`}>
-            Refund Management
-          </h1>
-          <p className={themeConfig.text.secondary}>
-            Manage and track all refund requests and transactions
-          </p>
-        </div>
-
+    <AppLayout currentPage="refunds" title="Refund Management">
+      <div className="space-y-0 pb-6">
         {/* Tab Navigation */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative mb-8"
+          className="relative mb-4"
         >
           <div className={`relative flex flex-nowrap md:flex-wrap gap-2 p-4 min-w-max md:min-w-0 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
             {REFUND_TABS.map((tab, index) => {
@@ -816,7 +850,7 @@ export default function RefundsPage() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {renderRequestsTable(refundData, 'Refunds', DollarSign)}
+                {renderRequestsTable(refundData, 'Refunds', DollarSign, refundSearchTerm, refundStatusFilter, setRefundSearchTerm, setRefundStatusFilter)}
               </motion.div>
             )}
 
@@ -828,7 +862,7 @@ export default function RefundsPage() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {renderRequestsTable(waiverData, 'Waivers', CheckCircle)}
+                {renderRequestsTable(waiverData, 'Waivers', CheckCircle, waiverSearchTerm, waiverStatusFilter, setWaiverSearchTerm, setWaiverStatusFilter)}
               </motion.div>
             )}
 
@@ -936,6 +970,11 @@ export default function RefundsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Refund Search Performance Monitor */}
+        <RefundPerformanceMonitor 
+          theme={theme} 
+          engine={RefundSearchEngine.getInstance()} 
+        />
       </div>
     </AppLayout>
   );

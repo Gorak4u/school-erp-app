@@ -285,6 +285,19 @@ export const authApi = {
     request<ApiResponse<any>>('/api/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// ─── REFUNDS ─────────────────────────────────────────────────────────────────
+
+export const refundsApi = {
+  list: (params: Record<string, string | number> = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<ApiResponse<any>>(`/api/refunds${qs ? `?${qs}` : ''}`);
+  },
+  get: (id: string) => request<ApiResponse<any>>(`/api/refunds/${id}`),
+  create: (data: Record<string, unknown>) => request<ApiResponse<any>>('/api/refunds', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>) => request<ApiResponse<any>>(`/api/refunds/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => request<ApiResponse<void>>(`/api/refunds/${id}`, { method: 'DELETE' }),
+};
+
 // ─── SCHOOL STRUCTURE ────────────────────────────────────────────────────────
 
 export const academicYearsApi = {

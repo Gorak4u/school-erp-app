@@ -1,6 +1,7 @@
 // @ts-nocheck
 'use client';
-import { DEFAULT_CATEGORIES } from './utils';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   categories: any[];
@@ -23,232 +24,736 @@ interface Props {
   setSortBy: (s: string) => void;
   sortOrder: string;
   setSortOrder: (s: string) => void;
+  card: string;
+  text: string;
+  subtext: string;
+  label: string;
+  input: string;
+  btnPrimary: string;
+  btnSecondary: string;
 }
-
-const ICON_OPTIONS = ['📦','👥','🏗️','📚','🚌','⚡','🎉','🗂️','💊','🖥️','🏆','🎨','🔧','📋','🏫','🌿'];
-const COLOR_OPTIONS = ['#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#6b7280','#ef4444','#f97316'];
 
 export default function CategoryManager({
   categories, isDark, form, setForm, showForm, setShowForm, editing, setEditing, onSave, onDelete, onSeedDefaults, saving,
   search, setSearch, statusFilter, setStatusFilter, sortBy, setSortBy, sortOrder, setSortOrder,
+  card, text, subtext, label, input, btnPrimary, btnSecondary
 }: Props) {
-  const card = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const text = isDark ? 'text-white' : 'text-gray-900';
-  const sub  = isDark ? 'text-gray-400' : 'text-gray-500';
-  const inp  = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
-  const lbl  = `block text-xs font-semibold uppercase tracking-wide mb-1 ${sub}`;
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
+
+  // World-Class AI-Powered Form Styles
+  const enhancedCard = `rounded-2xl border shadow-xl ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
+  const enhancedInput = `w-full px-4 py-3 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 transform hover:scale-[1.02] focus:scale-[1.02] ${isDark ? 'bg-gradient-to-br from-gray-700/50 to-gray-800/50 border-gray-600 text-white placeholder-gray-400 hover:border-purple-500/50' : 'bg-gradient-to-br from-white to-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 hover:border-purple-400'}`;
+  const enhancedLabel = `block text-sm font-bold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'} flex items-center gap-2`;
+  
+  // World-Class AI-Powered Button Component
+  const WorldClassButton = ({ 
+    onClick, 
+    children, 
+    variant = 'primary',
+    size = 'sm',
+    disabled = false,
+    icon = null,
+    loading = false
+  }: {
+    onClick: () => void;
+    children: React.ReactNode;
+    variant?: 'primary' | 'secondary' | 'success' | 'danger';
+    size?: 'xs' | 'sm' | 'md';
+    disabled?: boolean;
+    icon?: React.ReactNode;
+    loading?: boolean;
+  }) => {
+    const variants = {
+      primary: `bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-purple-600`,
+      secondary: `border-2 ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`,
+      success: `bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600`,
+      danger: `bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/25 hover:from-red-600 hover:to-pink-600`
+    };
+    
+    const sizes = {
+      xs: 'px-2 py-1 text-xs',
+      sm: 'px-4 py-2.5 text-sm',
+      md: 'px-5 py-3 text-sm'
+    };
+    
+    return (
+      <motion.button
+        whileHover={{ scale: disabled || loading ? 1 : 1.05 }}
+        whileTap={{ scale: disabled || loading ? 1 : 0.95 }}
+        onClick={onClick}
+        disabled={disabled || loading}
+        className={`
+          ${variants[variant]}
+          ${sizes[size]}
+          rounded-xl font-bold transition-all duration-300 transform ${
+            disabled || loading
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'hover:shadow-xl active:scale-95'
+          } flex items-center justify-center gap-2`}
+      >
+        {loading && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-4 h-4"
+          >
+            🔄
+          </motion.div>
+        )}
+        {!loading && icon && <span className="text-sm">{icon}</span>}
+        {children}
+      </motion.button>
+    );
+  };
+
+  // Step validation
+  const isStepValid = (step: number) => {
+    switch (step) {
+      case 1:
+        return form.name && form.icon;
+      case 2:
+        return form.description && form.color;
+      case 3:
+        return form.status;
+      default:
+        return false;
+    }
+  };
+
+  const canProceed = () => {
+    return isStepValid(currentStep);
+  };
+
+  const handleNext = () => {
+    if (canProceed() && currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleSave = () => {
+    if (canProceed()) {
+      onSave();
+    }
+  };
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', description: '', color: '#6366f1', icon: '📦', parentId: '' });
+    setForm({ 
+      name: '', 
+      icon: '📁', 
+      description: '', 
+      color: '#3B82F6', 
+      status: 'active',
+      parentCategoryId: ''
+    });
+    setCurrentStep(1);
     setShowForm(true);
   };
 
-  const openEdit = (c: any) => {
-    setEditing(c);
-    setForm({ name: c.name, description: c.description || '', color: c.color || '#6366f1', icon: c.icon || '📦', parentId: c.parentId || '' });
+  const openEdit = (cat: any) => {
+    setEditing(cat);
+    setForm({ 
+      name: cat.name, 
+      icon: cat.icon, 
+      description: cat.description || '', 
+      color: cat.color || '#3B82F6', 
+      status: cat.status,
+      parentCategoryId: cat.parentCategoryId || ''
+    });
+    setCurrentStep(1);
     setShowForm(true);
   };
 
-  const parentCats = categories.filter(c => !c.parentId);
-
-  // Filter and sort categories
-  const filteredCategories = categories.filter(c => {
-    const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.description && c.description.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' && c.isActive) || (statusFilter === 'inactive' && !c.isActive);
+  const filteredCategories = categories.filter(cat => {
+    const matchesSearch = !search || cat.name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = !statusFilter || cat.status === statusFilter;
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
-    const aValue = a[sortBy as keyof typeof a] || '';
-    const bValue = b[sortBy as keyof typeof b] || '';
-    const modifier = sortOrder === 'desc' ? -1 : 1;
-    if (sortBy === '_count') {
-      const aCount = a._count?.expenses || 0;
-      const bCount = b._count?.expenses || 0;
-      return (aCount - bCount) * modifier;
+    const modifier = sortOrder === 'asc' ? 1 : -1;
+    switch (sortBy) {
+      case 'name': return (a.name.localeCompare(b.name)) * modifier;
+      case 'status': return (a.status.localeCompare(b.status)) * modifier;
+      case 'createdAt': return ((new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())) * modifier;
+      default: return 0;
     }
-    return String(aValue).localeCompare(String(bValue)) * modifier;
   });
 
+  const availableIcons = [
+    '📁', '📂', '💼', '💳', '💰', '💵', '🏪', '🏢', '🏭', '🏗️', 
+    '🔧', '⚙️', '🔨', '🛠️', '📋', '📊', '📈', '📉', '🎯', '🏆',
+    '🎨', '🖌️', '🖼️', '📷', '📹', '🎬', '🎵', '🎧', '🎮', '🕹️',
+    '🍕', '🍔', '🌮', '🍜', '☕', '🥤', '🍰', '🍪', '🥐', '🥖'
+  ];
+
+  const availableColors = [
+    { name: 'Blue', value: '#3B82F6' },
+    { name: 'Green', value: '#10B981' },
+    { name: 'Purple', value: '#8B5CF6' },
+    { name: 'Red', value: '#EF4444' },
+    { name: 'Orange', value: '#F97316' },
+    { name: 'Yellow', value: '#F59E0B' },
+    { name: 'Pink', value: '#EC4899' },
+    { name: 'Indigo', value: '#6366F1' },
+    { name: 'Teal', value: '#14B8A6' },
+    { name: 'Cyan', value: '#06B6D4' }
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className={`text-lg font-bold ${text}`}>Expense Categories</h2>
-          <p className={`text-sm ${sub}`}>{filteredCategories.length} of {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'} shown</p>
+    <div className="space-y-6">
+      {/* Header with Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={enhancedCard}>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Categories</p>
+                <p className={`text-2xl font-bold ${text}`}>{categories.length}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg`}>
+                <span className="text-white text-xl">📁</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {categories.length === 0 && (
-            <button onClick={onSeedDefaults} disabled={saving}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>
-              {saving ? 'Creating...' : '⚡ Seed Defaults'}
-            </button>
-          )}
-          <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">+ New Category</button>
+        
+        <div className={enhancedCard}>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active</p>
+                <p className={`text-2xl font-bold ${text}`}>{categories.filter(c => c.status === 'active').length}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg`}>
+                <span className="text-white text-xl">✅</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className={enhancedCard}>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Inactive</p>
+                <p className={`text-2xl font-bold ${text}`}>{categories.filter(c => c.status === 'inactive').length}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-orange-500 to-red-500 shadow-lg`}>
+                <span className="text-white text-xl">⏸️</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className={enhancedCard}>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Unique Icons</p>
+                <p className={`text-2xl font-bold ${text}`}>{new Set(categories.map(c => c.icon)).size}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg`}>
+                <span className="text-white text-xl">🎨</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      {categories.length > 0 && (
-        <div className={`rounded-xl border p-4 ${card}`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="md:col-span-2">
-              <input className={`${inp} w-full`} placeholder="🔍 Search category name or description..." value={search}
-                onChange={e => setSearch(e.target.value)} />
-            </div>
-            <select className={`${inp} w-full`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <div className="flex gap-2">
-              <select className={`${inp} flex-1`} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                <option value="name">Name</option>
-                <option value="createdAt">Created</option>
-                <option value="_count">Expense Count</option>
+      {/* Filters and Actions */}
+      <div className={enhancedCard}>
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col md:flex-row gap-3 flex-1">
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={enhancedInput}
+              />
+              
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={enhancedInput}
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
               </select>
-              <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} className={`px-3 py-2 rounded-lg border text-sm ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
-                {sortOrder === 'asc' ? '↑' : '↓'}
-              </button>
+              
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className={enhancedInput}
+              >
+                <option value="name">Sort by Name</option>
+                <option value="status">Sort by Status</option>
+                <option value="createdAt">Sort by Created</option>
+              </select>
+              
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className={enhancedInput}
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+            
+            <div className="flex gap-2">
+              <WorldClassButton
+                onClick={onSeedDefaults}
+                variant="secondary"
+                icon="🌱"
+              >
+                Seed Defaults
+              </WorldClassButton>
+              
+              <WorldClassButton
+                onClick={openAdd}
+                variant="primary"
+                icon="➕"
+              >
+                Add Category
+              </WorldClassButton>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-3">
-            <span className={`text-xs ${sub}`}>Showing {filteredCategories.length} of {categories.length} categories</span>
-            <button onClick={() => { setSearch(''); setStatusFilter('all'); setSortBy('name'); setSortOrder('asc'); }} className={`text-xs ${sub} hover:text-blue-500 transition-colors`}>
-              Clear filters
-            </button>
-          </div>
         </div>
-      )}
+      </div>
 
-      {categories.length === 0 ? (
-        <div className={`rounded-xl border p-12 text-center ${card}`}>
-          <div className="text-5xl mb-3">🗂️</div>
-          <p className={`font-medium ${text}`}>No categories yet</p>
-          <p className={`text-sm mt-1 mb-5 ${sub}`}>Create categories to organise your expenses, or seed the defaults to get started fast.</p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={onSeedDefaults} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>
-              {saving ? 'Creating...' : '⚡ Seed Default Categories'}
-            </button>
-            <button onClick={openAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">+ Custom Category</button>
+      {/* Category Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredCategories.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <p className={subtext}>No categories found</p>
           </div>
-        </div>
-      ) : filteredCategories.length === 0 ? (
-        <div className={`rounded-xl border p-12 text-center ${card}`}>
-          <div className="text-5xl mb-3">🗂️</div>
-          <p className={`font-medium ${text}`}>No categories found</p>
-          <p className={`text-sm mt-1 ${sub}`}>Try adjusting your search or filters</p>
-          <button onClick={() => { setSearch(''); setStatusFilter('all'); setSortBy('name'); setSortOrder('asc'); }} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Clear Filters</button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredCategories.map(c => (
-            <div key={c.id} className={`rounded-xl border p-4 group hover:shadow-md transition-shadow ${card}`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: (c.color || '#6366f1') + '22' }}>
-                    {c.icon || '📦'}
+        ) : (
+          filteredCategories.map((category) => (
+            <motion.div
+              key={category.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.02 }}
+              className={enhancedCard}
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg"
+                      style={{ backgroundColor: category.color + '20', color: category.color }}
+                    >
+                      {category.icon}
+                    </div>
+                    <div>
+                      <h3 className={`text-lg font-bold ${text}`}>{category.name}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                        category.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {category.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className={`font-bold text-sm truncate ${text}`}>{c.name}</h3>
-                    {c.description && <p className={`text-xs truncate ${sub}`}>{c.description}</p>}
+                </div>
+                
+                {category.description && (
+                  <p className={`text-sm ${subtext} mb-4 line-clamp-2`}>{category.description}</p>
+                )}
+                
+                <div className="flex items-center justify-between pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-6 h-6 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <span className={`text-xs ${subtext}`}>{category.color}</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <WorldClassButton
+                      onClick={() => openEdit(category)}
+                      variant="secondary"
+                      size="xs"
+                      icon="✏️"
+                    >
+                      Edit
+                    </WorldClassButton>
+                    
+                    <WorldClassButton
+                      onClick={() => onDelete(category.id)}
+                      variant="danger"
+                      size="xs"
+                      icon="🗑️"
+                    >
+                      Delete
+                    </WorldClassButton>
                   </div>
                 </div>
               </div>
+            </motion.div>
+          ))
+        )}
+      </div>
 
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ background: c.color || '#6366f1' }} />
-                  <span className={`text-xs font-mono ${sub}`}>{c.color}</span>
+      {/* Multi-Step Category Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`${enhancedCard} max-w-4xl w-full max-h-[90vh] overflow-y-auto hover:shadow-2xl transition-all duration-300`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* World-Class Header with Steps */}
+              <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${isDark ? 'from-gray-800/50 to-gray-700/50' : 'from-gray-50 to-gray-100'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.6 }}
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br ${isDark ? 'from-green-600 to-emerald-600' : 'from-green-500 to-emerald-500'} shadow-lg`}
+                    >
+                      <span className="text-white text-xl">📁</span>
+                    </motion.div>
+                    <div>
+                      <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {editing ? 'Edit Category' : 'Create New Category'}
+                      </h3>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-2 mt-1`}>
+                        <span>🤖</span>
+                        <span>Smart category management system</span>
+                      </p>
+                    </div>
+                  </div>
+                  <WorldClassButton
+                    onClick={() => setShowForm(false)}
+                    variant="secondary"
+                    size="xs"
+                    icon="❌"
+                  >
+                    Close
+                  </WorldClassButton>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {c.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-
-              {typeof c._count?.expenses === 'number' && (
-                <p className={`text-xs mb-3 ${sub}`}>{c._count.expenses} expense{c._count.expenses !== 1 ? 's' : ''}</p>
-              )}
-
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(c)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
-                  ✏️ Edit
-                </button>
-                <button onClick={() => onDelete(c.id)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors">
-                  🗑
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Category Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-              <h2 className={`text-lg font-bold ${text}`}>{editing ? '✏️ Edit Category' : '+ New Category'}</h2>
-              <button onClick={() => setShowForm(false)} className={`w-8 h-8 flex items-center justify-center rounded-full text-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>×</button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className={lbl}>Name *</label>
-                <input className={inp} placeholder="e.g. Staff & HR" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div>
-                <label className={lbl}>Description</label>
-                <textarea className={inp} rows={2} placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              </div>
-              <div>
-                <label className={lbl}>Icon</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {ICON_OPTIONS.map(i => (
-                    <button key={i} onClick={() => setForm({ ...form, icon: i })}
-                      className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-colors ${form.icon === i ? 'ring-2 ring-blue-500' : ''} ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>
-                      {i}
-                    </button>
-                  ))}
+                
+                {/* Step Progress Indicator */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1">
+                    {Array.from({ length: totalSteps }, (_, index) => {
+                      const stepNumber = index + 1;
+                      const isCompleted = stepNumber < currentStep;
+                      const isCurrent = stepNumber === currentStep;
+                      const isValid = isStepValid(stepNumber);
+                      
+                      return (
+                        <React.Fragment key={stepNumber}>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all ${
+                              isCompleted
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25'
+                                : isCurrent
+                                ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/25'
+                                : isValid
+                                ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+                                : 'bg-gray-300 text-gray-600'
+                            }`}
+                          >
+                            {isCompleted ? '✅' : stepNumber}
+                          </motion.div>
+                          {index < totalSteps - 1 && (
+                            <div className={`flex-1 h-1 mx-2 rounded-full transition-all ${
+                              stepNumber < currentStep
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                                : 'bg-gray-300'
+                            }`} />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Step Labels */}
+                <div className="flex justify-between mt-3">
+                  <span className={`text-xs font-bold ${
+                    currentStep >= 1 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-gray-500' : 'text-gray-400')
+                  }`}>Basic Info</span>
+                  <span className={`text-xs font-bold ${
+                    currentStep >= 2 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-gray-500' : 'text-gray-400')
+                  }`}>Appearance</span>
+                  <span className={`text-xs font-bold ${
+                    currentStep >= 3 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-gray-500' : 'text-gray-400')
+                  }`}>Settings</span>
                 </div>
               </div>
-              <div>
-                <label className={lbl}>Color</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {COLOR_OPTIONS.map(c => (
-                    <button key={c} onClick={() => setForm({ ...form, color: c })}
-                      className={`w-8 h-8 rounded-lg transition-transform hover:scale-110 ${form.color === c ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
-                      style={{ background: c }} />
-                  ))}
+              
+              {/* Form Content */}
+              <div className="p-6">
+                <AnimatePresence mode="wait">
+                  {currentStep === 1 && (
+                    <motion.div
+                      key="step1"
+                      initial={{ opacity: 0, x: 50 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -50 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>📝</span>
+                          Category Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          className={enhancedInput}
+                          placeholder="e.g., Office Supplies"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>🎨</span>
+                          Icon *
+                        </label>
+                        <div className="grid grid-cols-8 gap-2">
+                          {availableIcons.map((icon) => (
+                            <motion.button
+                              key={icon}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setForm({ ...form, icon })}
+                              className={`p-3 rounded-xl text-2xl transition-all ${
+                                form.icon === icon
+                                  ? 'bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg'
+                                  : isDark 
+                                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                              }`}
+                            >
+                              {icon}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {currentStep === 2 && (
+                    <motion.div
+                      key="step2"
+                      initial={{ opacity: 0, x: 50 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -50 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>📄</span>
+                          Description *
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={form.description}
+                          onChange={(e) => setForm({ ...form, description: e.target.value })}
+                          className={`${enhancedInput} resize-none`}
+                          placeholder="Describe what this category is used for..."
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>🎨</span>
+                          Color *
+                        </label>
+                        <div className="grid grid-cols-5 gap-3">
+                          {availableColors.map((color) => (
+                            <motion.button
+                              key={color.value}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => setForm({ ...form, color: color.value })}
+                              className={`p-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
+                                form.color === color.value
+                                  ? 'border-blue-500 shadow-lg shadow-blue-500/25'
+                                  : isDark 
+                                    ? 'border-gray-600 hover:border-gray-500' 
+                                    : 'border-gray-300 hover:border-gray-400'
+                              }`}
+                            >
+                              <div 
+                                className="w-6 h-6 rounded-full"
+                                style={{ backgroundColor: color.value }}
+                              />
+                              <span className={`text-sm font-medium ${
+                                form.color === color.value ? 'text-blue-500' : (isDark ? 'text-gray-300' : 'text-gray-600')
+                              }`}>
+                                {color.name}
+                              </span>
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {currentStep === 3 && (
+                    <motion.div
+                      key="step3"
+                      initial={{ opacity: 0, x: 50 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -50 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>⚙️</span>
+                          Status *
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { value: 'active', label: 'Active', icon: '✅', desc: 'Category is available for use' },
+                            { value: 'inactive', label: 'Inactive', icon: '⏸️', desc: 'Category is temporarily disabled' }
+                          ].map((status) => (
+                            <motion.button
+                              key={status.value}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setForm({ ...form, status: status.value })}
+                              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                form.status === status.value
+                                  ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20'
+                                  : isDark 
+                                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800/50' 
+                                    : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-xl">{status.icon}</span>
+                                <span className={`font-bold ${
+                                  form.status === status.value ? 'text-blue-600 dark:text-blue-400' : (isDark ? 'text-gray-300' : 'text-gray-700')
+                                }`}>
+                                  {status.label}
+                                </span>
+                              </div>
+                              <p className={`text-xs ${
+                                form.status === status.value ? 'text-blue-600 dark:text-blue-400' : (isDark ? 'text-gray-400' : 'text-gray-500')
+                              }`}>
+                                {status.desc}
+                              </p>
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Preview */}
+                      <div>
+                        <label className={enhancedLabel}>
+                          <span>👁️</span>
+                          Preview
+                        </label>
+                        <div className={`p-4 rounded-xl border-2 ${
+                          isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg"
+                              style={{ backgroundColor: form.color + '20', color: form.color }}
+                            >
+                              {form.icon}
+                            </div>
+                            <div>
+                              <h4 className={`font-bold ${text}`}>{form.name || 'Category Name'}</h4>
+                              <p className={`text-sm ${subtext}`}>{form.description || 'Category description...'}</p>
+                              <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                                form.status === 'active' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {form.status || 'active'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              {/* Footer with Navigation */}
+              <div className={`p-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <WorldClassButton
+                    onClick={handlePrevious}
+                    variant="secondary"
+                    disabled={currentStep === 1}
+                    icon="⬅️"
+                  >
+                    Previous
+                  </WorldClassButton>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${subtext}`}>
+                      Step {currentStep} of {totalSteps}
+                    </span>
+                    {isStepValid(currentStep) && (
+                      <span className="text-green-500 text-sm">✅ Valid</span>
+                    )}
+                  </div>
+                  
+                  {currentStep === totalSteps ? (
+                    <WorldClassButton
+                      onClick={handleSave}
+                      variant="success"
+                      disabled={!canProceed() || saving}
+                      loading={saving}
+                      icon="💾"
+                    >
+                      {saving ? 'Saving...' : (editing ? 'Update Category' : 'Create Category')}
+                    </WorldClassButton>
+                  ) : (
+                    <WorldClassButton
+                      onClick={handleNext}
+                      variant="primary"
+                      disabled={!canProceed()}
+                      icon="➡️"
+                    >
+                      Next
+                    </WorldClassButton>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className={lbl}>Parent Category (optional)</label>
-                <select className={inp} value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })}>
-                  <option value="">Top-level Category</option>
-                  {parentCats.filter(c => c.id !== editing?.id).map(c => (
-                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={`p-3 rounded-xl flex items-center gap-3 ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: (form.color || '#6366f1') + '22' }}>
-                  {form.icon || '📦'}
-                </div>
-                <div>
-                  <p className={`text-sm font-medium ${text}`}>{form.name || 'Category Preview'}</p>
-                  <p className={`text-xs ${sub}`}>{form.description || 'No description'}</p>
-                </div>
-              </div>
-            </div>
-            <div className={`flex gap-3 justify-end px-6 py-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-              <button onClick={() => setShowForm(false)} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>Cancel</button>
-              <button onClick={onSave} disabled={saving || !form.name.trim()}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

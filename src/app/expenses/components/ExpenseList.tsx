@@ -107,11 +107,6 @@ export default function ExpenseList({
               <button onClick={onExport} className={btnSecondary}>
                 📊 Export
               </button>
-              {canCreateExpenses && (
-                <button onClick={onAdd} className={btnPrimary}>
-                  + Add Expense
-                </button>
-              )}
             </div>
           </div>
 
