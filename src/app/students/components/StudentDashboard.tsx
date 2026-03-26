@@ -29,6 +29,7 @@ import {
   ArrowDown,
   Minus
 } from 'lucide-react';
+import SkeletonLoader, { ModernSpinner, LoadingOverlay } from './SkeletonLoader';
 
 interface StudentDashboardProps {
   dashboardStats: any;
@@ -49,6 +50,8 @@ interface StudentDashboardProps {
   getCardClass?: () => string;
   getBtnClass?: (type?: 'primary' | 'secondary' | 'danger' | 'success') => string;
   getTextClass?: (type?: 'primary' | 'secondary' | 'muted' | 'accent') => string;
+  isLoading?: boolean;
+  isRefreshing?: boolean;
 }
 
 export default function StudentDashboard({
@@ -60,7 +63,9 @@ export default function StudentDashboard({
   themeConfig,
   getCardClass,
   getBtnClass,
-  getTextClass
+  getTextClass,
+  isLoading = false,
+  isRefreshing = false
 }: StudentDashboardProps) {
   const isDark = theme === 'dark';
   
@@ -118,6 +123,12 @@ export default function StudentDashboard({
 
   return (
     <>
+      {/* Loading Overlay for Refresh */}
+      <AnimatePresence>
+        {isRefreshing && (
+          <LoadingOverlay message="Refreshing data..." theme={theme} />
+        )}
+      </AnimatePresence>
       {/* Dashboard Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -182,70 +193,82 @@ export default function StudentDashboard({
           >
             {/* Modern Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {statCards.map((card, i) => (
-                <motion.div
-                  key={card.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br ${card.bgColor} border ${card.borderColor} backdrop-blur-sm shadow-lg`}
-                >
-                  {/* Background Gradient */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-10`} />
-                  
-                  {/* Content */}
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`p-3 rounded-xl bg-gradient-to-br ${card.gradient} shadow-lg`}>
-                        <card.icon className="w-6 h-6 text-white" />
+              {isLoading ? (
+                <SkeletonLoader type="card" count={4} theme={theme} getCardClass={getCardClass} />
+              ) : (
+                statCards.map((card, i) => (
+                  <motion.div
+                    key={card.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br ${card.bgColor} border ${card.borderColor} backdrop-blur-sm shadow-lg`}
+                  >
+                    {/* Background Gradient */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-10`} />
+                    
+                    {/* Content */}
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${card.gradient} shadow-lg`}>
+                          <card.icon className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {card.trend.type === 'increase' && <ArrowUp className="w-4 h-4 text-green-500" />}
+                          {card.trend.type === 'decrease' && <ArrowDown className="w-4 h-4 text-red-500" />}
+                          {card.trend.type === 'neutral' && <Minus className="w-4 h-4 text-gray-500" />}
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            card.trend.type === 'increase' ? 'bg-green-500/20 text-green-600 border border-green-500/30' :
+                            card.trend.type === 'decrease' ? 'bg-red-500/20 text-red-600 border border-red-500/30' :
+                            'bg-gray-500/20 text-gray-600 border border-gray-500/30'
+                          }`}>
+                            {card.trend.value} {card.trend.label}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {card.trend.type === 'increase' && <ArrowUp className="w-4 h-4 text-green-500" />}
-                        {card.trend.type === 'decrease' && <ArrowDown className="w-4 h-4 text-red-500" />}
-                        {card.trend.type === 'neutral' && <Minus className="w-4 h-4 text-gray-500" />}
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          card.trend.type === 'increase' ? 'bg-green-500/20 text-green-600 border border-green-500/30' :
-                          card.trend.type === 'decrease' ? 'bg-red-500/20 text-red-600 border border-red-500/30' :
-                          'bg-gray-500/20 text-gray-600 border border-gray-500/30'
-                        }`}>
-                          {card.trend.value} {card.trend.label}
-                        </span>
+                      
+                      <div className={`text-3xl font-black mb-2 ${primaryTextClass}`}>
+                        {card.value}
+                      </div>
+                      <div className={`text-sm font-medium ${secondaryTextClass}`}>
+                        {card.label}
                       </div>
                     </div>
                     
-                    <div className={`text-3xl font-black mb-2 ${primaryTextClass}`}>
-                      {card.value}
-                    </div>
-                    <div className={`text-sm font-medium ${secondaryTextClass}`}>
-                      {card.label}
-                    </div>
-                  </div>
-                  
-                  {/* Animated Glow Effect */}
-                  <motion.div
-                    className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5`}
-                    animate={{
-                      opacity: [0.05, 0.1, 0.05],
-                      scale: [1, 1.02, 1]
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  />
-                </motion.div>
-              ))}
+                    {/* Animated Glow Effect */}
+                    <motion.div
+                      className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5`}
+                      animate={{
+                        opacity: [0.05, 0.1, 0.05],
+                        scale: [1, 1.02, 1]
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    />
+                  </motion.div>
+                ))
+              )}
             </div>
 
             {/* Modern Secondary Stats Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Gender Distribution */}
-              <motion.div
-                whileHover={{ scale: 1.02, y: -2 }}
-                className={`rounded-2xl p-6 ${cardClass} shadow-lg border-2 ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
-              >
+              {isLoading ? (
+                <>
+                  <SkeletonLoader type="card" theme={theme} getCardClass={getCardClass} />
+                  <SkeletonLoader type="card" theme={theme} getCardClass={getCardClass} />
+                  <SkeletonLoader type="card" theme={theme} getCardClass={getCardClass} />
+                </>
+              ) : (
+                <>
+                  {/* Gender Distribution */}
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className={`rounded-2xl p-6 ${cardClass} shadow-lg border-2 ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
+                  >
                 <div className="flex items-center gap-3 mb-6">
                   <div className={`p-3 rounded-xl bg-gradient-to-br ${isDark ? 'from-blue-600 to-purple-600' : 'from-blue-500 to-purple-500'}`}>
                     <Users className="w-6 h-6 text-white" />
@@ -440,6 +463,8 @@ export default function StudentDashboard({
                   )}
                 </div>
               </motion.div>
+                </>
+              )}
             </div>
 
             {/* Modern Results Summary */}

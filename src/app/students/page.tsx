@@ -212,6 +212,10 @@ export default function StudentsPageRefactored() {
   // Tab state
   const [activeTab, setActiveTab] = useState('overview');
   
+  // Loading states
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   // Error/Success states
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -597,6 +601,8 @@ export default function StudentsPageRefactored() {
                 getCardClass={getCardClass}
                 getBtnClass={getBtnClass}
                 getTextClass={getTextClass}
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
               />
             </motion.div>
           )}
