@@ -360,31 +360,81 @@ export default function AppLayout({
 
             {/* Right Section - Enhanced Actions */}
             <div className="flex items-center gap-3">
-              {/* Search Bar */}
-              <motion.div
-                className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border ${
-                  globalTheme === 'dark' 
-                    ? 'bg-gray-800/50 border-gray-700' 
-                    : 'bg-gray-100/50 border-gray-300'
-                }`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <svg className={`w-4 h-4 ${
-                  globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Quick search..."
-                  className={`bg-transparent outline-none text-sm w-32 lg:w-48 ${
-                    globalTheme === 'dark' ? 'text-gray-300 placeholder-gray-500' : 'text-gray-700 placeholder-gray-400'
+              {/* AI-Powered Global Search */}
+              <div className="relative">
+                <motion.div
+                  className={`hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-300 ${
+                    globalTheme === 'dark' 
+                      ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50' 
+                      : 'bg-gray-100/50 border-gray-300 hover:bg-gray-200/50'
                   }`}
-                />
-              </motion.div>
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {/* Search Icon with AI Badge */}
+                  <div className="relative">
+                    <svg className={`w-4 h-4 ${
+                      globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <motion.div
+                      className="absolute -top-1 -right-1 w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.8, 1, 0.8]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Enhanced Search Input */}
+                  <input
+                    type="text"
+                    placeholder="AI Search..."
+                    className={`bg-transparent outline-none text-sm w-32 lg:w-48 xl:w-64 transition-all duration-300 ${
+                      globalTheme === 'dark' ? 'text-gray-300 placeholder-gray-500' : 'text-gray-700 placeholder-gray-400'
+                    }`}
+                    onFocus={(e) => {
+                      e.target.placeholder = "Search students, fees, teachers...";
+                      e.target.classList.add('w-64');
+                    }}
+                    onBlur={(e) => {
+                      e.target.placeholder = "AI Search...";
+                      e.target.classList.remove('w-64');
+                    }}
+                  />
+                  
+                  {/* AI Assistant Button */}
+                  <motion.button
+                    className={`p-1.5 rounded-lg transition-all duration-200 ${
+                      globalTheme === 'dark'
+                        ? 'hover:bg-blue-600/20 text-blue-400'
+                        : 'hover:bg-blue-100 text-blue-600'
+                    }`}
+                    whileHover={{ scale: 1.1, rotate: 15 }}
+                    whileTap={{ scale: 0.9 }}
+                    title="AI Search Assistant"
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+                    </svg>
+                  </motion.button>
+                </motion.div>
+                
+                {/* AI Search Suggestions Dropdown */}
+                <AnimatePresence>
+                  {/* This would be controlled by search state */}
+                </AnimatePresence>
+              </div>
 
               {/* Advanced Theme Toggle */}
               <motion.button
@@ -791,54 +841,135 @@ export default function AppLayout({
         </div>
       </motion.header>
 
-      {/* Animated Gradient Divider Line with Moving Effect */}
+      {/* Light Animated Ribbon with Continuous Left-to-Right Movement */}
       <div 
         className="relative z-20 transition-all duration-300 overflow-hidden" 
         style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}
       >
-        {/* Main moving gradient line */}
+        {/* Small ribbon container */}
         <motion.div 
           className="h-1 w-full relative"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          {/* Moving gradient wave */}
+          {/* Continuous moving medium gradient wave */}
           <motion.div 
             className="absolute inset-0 h-full"
             animate={{
               background: [
-                'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.8) 20%, rgba(59, 130, 246, 0.8) 40%, transparent 60%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 20%, rgba(147, 51, 234, 0.8) 40%, rgba(147, 51, 234, 0.8) 60%, transparent 80%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 40%, rgba(236, 72, 153, 0.8) 60%, rgba(236, 72, 153, 0.8) 80%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 60%, rgba(34, 197, 94, 0.8) 80%, rgba(34, 197, 94, 0.8) 100%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 80%, rgba(251, 146, 60, 0.8) 100%, rgba(251, 146, 60, 0.8) 100%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 100%, transparent 100%, transparent 100%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.8) 20%, rgba(59, 130, 246, 0.8) 40%, transparent 60%, transparent 100%)'
+                'linear-gradient(90deg, #A5B4FC 0%, #C4B5FD 25%, #F9A8D4 50%, #86EFAC 75%, #FCD34D 100%, #FCA5A5 125%, #A5B4FC 150%)',
+                'linear-gradient(90deg, #C4B5FD 0%, #F9A8D4 25%, #86EFAC 50%, #FCD34D 75%, #FCA5A5 100%, #A5B4FC 125%, #C4B5FD 150%)',
+                'linear-gradient(90deg, #F9A8D4 0%, #86EFAC 25%, #FCD34D 50%, #FCA5A5 75%, #A5B4FC 100%, #C4B5FD 125%, #F9A8D4 150%)',
+                'linear-gradient(90deg, #86EFAC 0%, #FCD34D 25%, #FCA5A5 50%, #A5B4FC 75%, #C4B5FD 100%, #F9A8D4 125%, #86EFAC 150%)',
+                'linear-gradient(90deg, #FCD34D 0%, #FCA5A5 25%, #A5B4FC 50%, #C4B5FD 75%, #F9A8D4 100%, #86EFAC 125%, #FCD34D 150%)',
+                'linear-gradient(90deg, #FCA5A5 0%, #A5B4FC 25%, #C4B5FD 50%, #F9A8D4 75%, #86EFAC 100%, #FCD34D 125%, #FCA5A5 150%)',
+                'linear-gradient(90deg, #A5B4FC 0%, #C4B5FD 25%, #F9A8D4 50%, #86EFAC 75%, #FCD34D 100%, #FCA5A5 125%, #A5B4FC 150%)'
               ]
             }}
             transition={{
-              duration: 6,
+              duration: 8,
               repeat: Infinity,
               ease: "linear"
             }}
           />
           
-          {/* Secondary moving glow effect */}
+          {/* Fast moving medium color segments */}
           <motion.div 
-            className={`absolute inset-0 h-full ${
-              globalTheme === 'dark' 
-                ? 'bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent' 
-                : 'bg-gradient-to-r from-transparent via-blue-400/30 to-transparent'
-            }`}
+            className="absolute inset-0 h-full opacity-70"
             animate={{
               background: [
-                'linear-gradient(90deg, transparent 0%, transparent 30%, rgba(59, 130, 246, 0.4) 50%, transparent 70%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 50%, rgba(147, 51, 234, 0.4) 70%, transparent 90%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 70%, rgba(236, 72, 153, 0.4) 90%, transparent 100%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 90%, transparent 100%, transparent 100%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 10%, rgba(59, 130, 246, 0.4) 30%, transparent 50%, transparent 100%)',
-                'linear-gradient(90deg, transparent 0%, transparent 30%, rgba(59, 130, 246, 0.4) 50%, transparent 70%, transparent 100%)'
+                'linear-gradient(90deg, transparent 0%, #A5B4FC 10%, #A5B4FC 20%, transparent 30%, transparent 100%)',
+                'linear-gradient(90deg, transparent 20%, transparent 30%, #C4B5FD 40%, #C4B5FD 50%, transparent 60%, transparent 100%)',
+                'linear-gradient(90deg, transparent 40%, transparent 50%, #F9A8D4 60%, #F9A8D4 70%, transparent 80%, transparent 100%)',
+                'linear-gradient(90deg, transparent 60%, transparent 70%, #86EFAC 80%, #86EFAC 90%, transparent 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 80%, transparent 90%, #FCD34D 100%, #FCD34D 110%, transparent 120%, transparent 100%)',
+                'linear-gradient(90deg, transparent 100%, transparent 110%, #FCA5A5 120%, #FCA5A5 130%, transparent 140%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, transparent 10%, #A5B4FC 20%, #A5B4FC 30%, transparent 40%, transparent 100%)'
+              ]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          {/* Reverse moving overlay for depth */}
+          <motion.div 
+            className="absolute inset-0 h-full opacity-30"
+            animate={{
+              background: [
+                'linear-gradient(270deg, #93C5FD 0%, #A78BFA 25%, #E879F9 50%, #4ADE80 75%, #FACC15 100%, #93C5FD 125%)',
+                'linear-gradient(270deg, #A78BFA 0%, #E879F9 25%, #4ADE80 50%, #FACC15 75%, #93C5FD 100%, #A78BFA 125%)',
+                'linear-gradient(270deg, #E879F9 0%, #4ADE80 25%, #FACC15 50%, #93C5FD 75%, #A78BFA 100%, #E879F9 125%)',
+                'linear-gradient(270deg, #4ADE80 0%, #FACC15 25%, #93C5FD 50%, #A78BFA 75%, #E879F9 100%, #4ADE80 125%)',
+                'linear-gradient(270deg, #FACC15 0%, #93C5FD 25%, #A78BFA 50%, #E879F9 75%, #4ADE80 100%, #FACC15 125%)',
+                'linear-gradient(270deg, #93C5FD 0%, #A78BFA 25%, #E879F9 50%, #4ADE80 75%, #FACC15 100%, #93C5FD 125%)'
+              ]
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          {/* Fast shimmer effect moving left to right */}
+          <motion.div 
+            className="absolute inset-0 h-full opacity-50"
+            animate={{
+              background: [
+                'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 10%, rgba(255,255,255,0.9) 20%, transparent 30%, transparent 100%)',
+                'linear-gradient(90deg, transparent 20%, transparent 30%, rgba(255,255,255,0.9) 40%, rgba(255,255,255,0.9) 50%, transparent 60%, transparent 100%)',
+                'linear-gradient(90deg, transparent 40%, transparent 50%, rgba(255,255,255,0.9) 60%, rgba(255,255,255,0.9) 70%, transparent 80%, transparent 100%)',
+                'linear-gradient(90deg, transparent 60%, transparent 70%, rgba(255,255,255,0.9) 80%, rgba(255,255,255,0.9) 90%, transparent 100%, transparent 100%)',
+                'linear-gradient(90deg, transparent 80%, transparent 90%, rgba(255,255,255,0.9) 100%, rgba(255,255,255,0.9) 110%, transparent 120%, transparent 100%)',
+                'linear-gradient(90deg, transparent 100%, transparent 110%, transparent 120%, transparent 130%, transparent 140%, transparent 100%)',
+                'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 10%, rgba(255,255,255,0.9) 20%, transparent 30%, transparent 100%)'
+              ]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          {/* Small medium moving accent dots */}
+          {[0, 20, 40, 60, 80].map((position, index) => (
+            <motion.div
+              key={position}
+              className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
+                ['#93C5FD', '#A78BFA', '#E879F9', '#4ADE80', '#FACC15'][index % 5]
+              }`}
+              style={{ left: `${position}%` }}
+              animate={{
+                opacity: [0.4, 1, 0.4],
+                scale: [0.8, 1.2, 0.8],
+                x: [0, 6, 0]
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                delay: index * 0.2,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+          
+          {/* Pulsing medium color waves */}
+          <motion.div 
+            className="absolute inset-0 h-full opacity-20"
+            animate={{
+              background: [
+                'radial-gradient(circle at 10% 50%, rgba(165, 180, 252, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 30% 50%, rgba(196, 181, 253, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 50% 50%, rgba(249, 168, 212, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 70% 50%, rgba(134, 239, 172, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 90% 50%, rgba(252, 211, 77, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 110% 50%, rgba(252, 165, 165, 0.8) 0%, transparent 30%)',
+                'radial-gradient(circle at 130% 50%, rgba(165, 180, 252, 0.8) 0%, transparent 30%)'
               ]
             }}
             transition={{
@@ -847,44 +978,7 @@ export default function AppLayout({
               ease: "easeInOut"
             }}
           />
-          
-          {/* Pulsing accent dots */}
-          {[0, 25, 50, 75, 100].map((position, index) => (
-            <motion.div
-              key={position}
-              className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
-                globalTheme === 'dark' 
-                  ? 'bg-cyan-400' 
-                  : 'bg-blue-500'
-              }`}
-              style={{ left: `${position}%` }}
-              animate={{
-                opacity: [0.2, 1, 0.2],
-                scale: [0.8, 1.2, 0.8],
-                x: [0, 5, 0]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                delay: index * 0.2,
-                ease: "easeInOut"
-              }}
-            />
-          ))}
         </motion.div>
-        
-        {/* Subtle shimmer effect */}
-        <motion.div 
-          className="absolute inset-0 h-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
-          animate={{
-            x: ['-100%', '100%']
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
       </div>
 
       {/* Trial/Subscription Banner */}

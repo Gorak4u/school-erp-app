@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Search, Check, X, Sparkles, Brain, Zap } from 'lucide-react';
+import { ChevronDown, Search, Check, X, Zap } from 'lucide-react';
 
 interface AIDropdownProps {
   value: string;
@@ -130,8 +130,8 @@ export default function AIDropdown({
               animate={{ scale: 1 }}
               className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
             >
-              <Sparkles className="w-3 h-3 text-purple-500" />
-              <span className="text-xs font-bold text-purple-600">AI</span>
+              <Zap className="w-3 h-3 text-blue-500" />
+              <span className="text-xs font-bold text-purple-600">Smart</span>
             </motion.div>
           )}
           <ChevronDown 
@@ -186,12 +186,12 @@ export default function AIDropdown({
               </div>
             )}
 
-            {/* AI Suggestions Header */}
+            {/* Smart Suggestions Header */}
             {aiSuggestions && aiRecommended.length > 0 && !searchTerm && (
               <div className="px-3 py-2 border-b border-gray-500/20">
                 <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-purple-500" />
-                  <span className={`text-xs font-bold ${accentTextClass}`}>AI Recommended</span>
+                  <Search className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-bold ${accentTextClass}`}>Smart Recommended</span>
                 </div>
               </div>
             )}
@@ -255,7 +255,7 @@ export default function AIDropdown({
                             animate={{ scale: 1 }}
                             className="flex items-center gap-1"
                           >
-                            <Sparkles className="w-3 h-3 text-purple-500" />
+                            <Zap className="w-3 h-3 text-blue-500" />
                           </motion.div>
                         )}
                         

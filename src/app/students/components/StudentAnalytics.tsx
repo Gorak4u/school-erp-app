@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut, Radar } from 'react-chartjs-2';
 import { Student } from '../types';
+import { ChartBar } from 'lucide-react';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -314,19 +315,68 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
   ];
 
   const MetricCard = ({ title, value, subtitle, color }: { title: string; value: string | number; subtitle: string; color: string }) => (
-    <div className={`p-4 rounded-lg border ${cardCls}`}>
-      <p className={`text-sm ${textSecondary}`}>{title}</p>
-      <p className={`text-2xl font-bold ${textPrimary}`}>{value}</p>
-      <p className={`text-xs mt-1 ${color}`}>{subtitle}</p>
-    </div>
+    <motion.div 
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`p-6 rounded-xl border relative overflow-hidden ${
+        isDark 
+          ? 'bg-gray-800/50 border-gray-700/50 backdrop-blur-sm' 
+          : 'bg-white/70 border-gray-200/50 backdrop-blur-sm'
+      } shadow-lg transition-all duration-300`}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${
+        color.includes('blue') ? 'from-blue-500/5 to-cyan-500/5' :
+        color.includes('green') ? 'from-green-500/5 to-emerald-500/5' :
+        color.includes('purple') ? 'from-purple-500/5 to-pink-500/5' :
+        'from-red-500/5 to-orange-500/5'
+      } rounded-xl`} />
+      <div className="relative z-10">
+        <p className={`text-sm font-medium ${textSecondary} mb-2`}>{title}</p>
+        <p className={`text-3xl font-bold ${textPrimary} mb-1`}>{value}</p>
+        <p className={`text-xs font-medium ${color}`}>{subtitle}</p>
+      </div>
+    </motion.div>
   );
 
   return (
     <div className="space-y-6 max-h-[60vh] overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center">
-        <h2 className={`text-xl font-bold ${textPrimary}`}>Student Analytics</h2>
-      </div>
+      {/* Enhanced Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r ${
+          isDark 
+            ? 'from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-blue-500/30' 
+            : 'from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-blue-200/50'
+        } backdrop-blur-sm shadow-xl`}
+      >
+        <div className="flex items-center gap-4">
+          <motion.div 
+            className={`p-3 rounded-xl bg-gradient-to-br ${
+              isDark ? 'from-blue-600 to-purple-600' : 'from-blue-500 to-purple-500'
+            } shadow-lg`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ChartBar className="w-6 h-6 text-white" />
+          </motion.div>
+          <div>
+            <h2 className={`text-2xl font-bold ${textPrimary}`}>Student Analytics</h2>
+            <p className={`${textSecondary} text-sm`}>Comprehensive insights and performance metrics</p>
+          </div>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onClose}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            isDark 
+              ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600' 
+              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+          } shadow-lg`}
+        >
+          Close
+        </motion.button>
+      </motion.div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">

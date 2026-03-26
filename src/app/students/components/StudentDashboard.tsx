@@ -18,8 +18,7 @@ import {
   CreditCard,
   RefreshCw,
   Download,
-  Settings,
-  Bell,
+  Grid,
   Calendar,
   FileText,
   User,
@@ -27,7 +26,9 @@ import {
   UserX,
   ArrowUp,
   ArrowDown,
-  Minus
+  Minus,
+  Settings,
+  Bell
 } from 'lucide-react';
 import SkeletonLoader, { ModernSpinner, LoadingOverlay } from './SkeletonLoader';
 
@@ -81,21 +82,21 @@ export default function StudentDashboard({
   const statCards = [
     { 
       label: 'Total Students', 
-      value: dashboardStats.totalStudents, 
+      value: dashboardStats.totalStudents.toString(), 
       icon: Users, 
       color: 'blue', 
       gradient: 'from-blue-500 to-cyan-600',
-      trend: { value: dashboardStats.recentAdmissions, label: 'new', type: 'increase' as const },
+      trend: { value: `+${dashboardStats.newStudentsThisMonth}`, label: 'this month', type: 'increase' as const },
       bgColor: isDark ? 'from-blue-600/20 to-cyan-600/20' : 'from-blue-500/10 to-cyan-500/10',
       borderColor: isDark ? 'border-blue-500/30' : 'border-blue-500/20'
     },
     { 
       label: 'Active Students', 
-      value: dashboardStats.activeStudents, 
-      icon: UserCheck, 
+      value: dashboardStats.activeStudents.toString(), 
+      icon: CheckCircle, 
       color: 'green', 
       gradient: 'from-green-500 to-emerald-600',
-      trend: { value: Math.round((dashboardStats.activeStudents / Math.max(dashboardStats.totalStudents, 1)) * 100), label: '%', type: 'neutral' as const },
+      trend: { value: `${((dashboardStats.activeStudents / dashboardStats.totalStudents) * 100).toFixed(1)}%`, label: 'active rate', type: 'increase' as const },
       bgColor: isDark ? 'from-green-600/20 to-emerald-600/20' : 'from-green-500/10 to-emerald-500/10',
       borderColor: isDark ? 'border-green-500/30' : 'border-green-500/20'
     },
@@ -118,6 +119,46 @@ export default function StudentDashboard({
       trend: { value: `₹${(dashboardStats.pendingFees / 1000).toFixed(0)}K`, label: 'pending', type: 'neutral' as const },
       bgColor: isDark ? 'from-amber-600/20 to-orange-600/20' : 'from-amber-500/10 to-orange-500/10',
       borderColor: isDark ? 'border-amber-500/30' : 'border-amber-500/20'
+    },
+    { 
+      label: 'Graduated', 
+      value: dashboardStats.graduatedStudents?.toString() || '0', 
+      icon: GraduationCap, 
+      color: 'indigo', 
+      gradient: 'from-indigo-500 to-purple-600',
+      trend: { value: `${dashboardStats.graduationRate || 0}%`, label: 'grad rate', type: 'increase' as const },
+      bgColor: isDark ? 'from-indigo-600/20 to-purple-600/20' : 'from-indigo-500/10 to-purple-500/10',
+      borderColor: isDark ? 'border-indigo-500/30' : 'border-indigo-500/20'
+    },
+    { 
+      label: 'Class Sections', 
+      value: dashboardStats.totalSections?.toString() || '0', 
+      icon: Grid, 
+      color: 'teal', 
+      gradient: 'from-teal-500 to-cyan-600',
+      trend: { value: `${dashboardStats.avgStudentsPerSection || 0}`, label: 'avg per section', type: 'neutral' as const },
+      bgColor: isDark ? 'from-teal-600/20 to-cyan-600/20' : 'from-teal-500/10 to-cyan-500/10',
+      borderColor: isDark ? 'border-teal-500/30' : 'border-teal-500/20'
+    },
+    { 
+      label: 'Fee Defaulters', 
+      value: dashboardStats.feeDefaulters?.toString() || '0', 
+      icon: AlertTriangle, 
+      color: 'red', 
+      gradient: 'from-red-500 to-orange-600',
+      trend: { value: `₹${((dashboardStats.feeDefaultersAmount || 0) / 1000).toFixed(0)}K`, label: 'outstanding', type: 'decrease' as const },
+      bgColor: isDark ? 'from-red-600/20 to-orange-600/20' : 'from-red-500/10 to-orange-500/10',
+      borderColor: isDark ? 'border-red-500/30' : 'border-red-500/20'
+    },
+    { 
+      label: 'New Admissions', 
+      value: dashboardStats.admissionsThisMonth?.toString() || '0', 
+      icon: UserPlus, 
+      color: 'emerald', 
+      gradient: 'from-emerald-500 to-teal-600',
+      trend: { value: `${dashboardStats.admissionGrowthRate || 0}%`, label: 'growth', type: 'increase' as const },
+      bgColor: isDark ? 'from-emerald-600/20 to-teal-600/20' : 'from-emerald-500/10 to-teal-500/10',
+      borderColor: isDark ? 'border-emerald-500/30' : 'border-emerald-500/20'
     },
   ];
 
@@ -192,9 +233,9 @@ export default function StudentDashboard({
             className="space-y-6"
           >
             {/* Modern Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
               {isLoading ? (
-                <SkeletonLoader type="card" count={4} theme={theme} getCardClass={getCardClass} />
+                <SkeletonLoader type="card" count={8} theme={theme} getCardClass={getCardClass} />
               ) : (
                 statCards.map((card, i) => (
                   <motion.div
@@ -251,6 +292,103 @@ export default function StudentDashboard({
                     />
                   </motion.div>
                 ))
+              )}
+            </div>
+
+            {/* Additional Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {isLoading ? (
+                <SkeletonLoader type="card" count={4} theme={theme} getCardClass={getCardClass} />
+              ) : (
+                <>
+                  {/* Attendance Performance */}
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className={`rounded-xl p-4 ${cardClass} shadow-lg border ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${isDark ? 'from-green-600 to-emerald-600' : 'from-green-500 to-emerald-500'}`}>
+                        <Activity className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-bold ${primaryTextClass}`}>Attendance</h4>
+                        <p className={`text-xs ${secondaryTextClass}`}>This month</p>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${primaryTextClass}`}>
+                      {dashboardStats.monthlyAttendance || '85.2'}%
+                    </div>
+                    <div className={`text-xs ${dashboardStats.monthlyAttendance > 80 ? 'text-green-500' : 'text-orange-500'}`}>
+                      {dashboardStats.monthlyAttendance > 80 ? 'Excellent' : 'Needs Improvement'}
+                    </div>
+                  </motion.div>
+
+                  {/* Fee Collection Rate */}
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className={`rounded-xl p-4 ${cardClass} shadow-lg border ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${isDark ? 'from-blue-600 to-purple-600' : 'from-blue-500 to-purple-500'}`}>
+                        <DollarSign className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-bold ${primaryTextClass}`}>Collection Rate</h4>
+                        <p className={`text-xs ${secondaryTextClass}`}>This month</p>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${primaryTextClass}`}>
+                      {dashboardStats.collectionRate || '78.5'}%
+                    </div>
+                    <div className={`text-xs ${dashboardStats.collectionRate > 75 ? 'text-green-500' : 'text-orange-500'}`}>
+                      {dashboardStats.collectionRate > 75 ? 'On Track' : 'Below Target'}
+                    </div>
+                  </motion.div>
+
+                  {/* Pending Approvals */}
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className={`rounded-xl p-4 ${cardClass} shadow-lg border ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${isDark ? 'from-orange-600 to-red-600' : 'from-orange-500 to-red-500'}`}>
+                        <Clock className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-bold ${primaryTextClass}`}>Pending</h4>
+                        <p className={`text-xs ${secondaryTextClass}`}>Approvals</p>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${primaryTextClass}`}>
+                      {dashboardStats.pendingApprovals || '12'}
+                    </div>
+                    <div className="text-xs text-orange-500">
+                      Action Required
+                    </div>
+                  </motion.div>
+
+                  {/* System Health */}
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className={`rounded-xl p-4 ${cardClass} shadow-lg border ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'} backdrop-blur-sm`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${isDark ? 'from-teal-600 to-cyan-600' : 'from-teal-500 to-cyan-500'}`}>
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-bold ${primaryTextClass}`}>System</h4>
+                        <p className={`text-xs ${secondaryTextClass}`}>Health</p>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${primaryTextClass}`}>
+                      {dashboardStats.systemHealth || '98'}%
+                    </div>
+                    <div className="text-xs text-green-500">
+                      Optimal
+                    </div>
+                  </motion.div>
+                </>
               )}
             </div>
 

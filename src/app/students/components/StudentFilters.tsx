@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -34,7 +34,8 @@ import {
   GraduationCap,
   BookOpen,
   Award,
-  Target
+  Target,
+  Activity
 } from 'lucide-react';
 import { Student } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
@@ -61,6 +62,11 @@ interface StudentFiltersProps {
   selectedGender: string;
   selectedLanguage: string;
   selectedStatus: string;
+  selectedMedium: string;
+  selectedBloodGroup: string;
+  selectedCategory: string;
+  selectedAttendanceRange: string;
+  selectedFeeStatus: string;
   selectedStudents: number[];
   includeArchivedStudents: boolean;
   setAdvancedFilters: (v: any) => void;
@@ -74,6 +80,11 @@ interface StudentFiltersProps {
   setSelectedGender: (v: string) => void;
   setSelectedLanguage: (v: string) => void;
   setSelectedStatus: (v: string) => void;
+  setSelectedMedium: (v: string) => void;
+  setSelectedBloodGroup: (v: string) => void;
+  setSelectedCategory: (v: string) => void;
+  setSelectedAttendanceRange: (v: string) => void;
+  setSelectedFeeStatus: (v: string) => void;
   setSelectedStudents: (v: number[]) => void;
   setIncludeArchivedStudents: (v: boolean) => void;
   setShowAdvancedFilters: (v: boolean) => void;
@@ -100,11 +111,11 @@ export default function StudentFilters({
   clearAdvancedFilters, deleteSavedFilter, exportAllFilteredStudents,
   exportSelectedStudents, filteredStudents, isMobile, mobileView, pageSize,
   performAdvancedSearch, savedFilters, searchTerm, selectedClass, selectedGender,
-  selectedLanguage, selectedStatus, selectedStudents, setAdvancedFilters, setAdvancedSearch, setAttendanceFilter, setCurrentPage, setMobileView,
+  selectedLanguage, selectedStatus, selectedMedium, selectedBloodGroup, selectedCategory, selectedAttendanceRange, selectedFeeStatus, selectedStudents, setAdvancedFilters, setAdvancedSearch, setAttendanceFilter, setCurrentPage, setMobileView,
   canPromoteStudents = true,
   canManageStudentBulk = true,
   setPageSize, setSearchTerm, setSelectedClass, setSelectedGender,
-  setSelectedLanguage, setSelectedStatus, setSelectedStudents, includeArchivedStudents, setIncludeArchivedStudents,
+  setSelectedLanguage, setSelectedStatus, setSelectedMedium, setSelectedBloodGroup, setSelectedCategory, setSelectedAttendanceRange, setSelectedFeeStatus, setSelectedStudents, includeArchivedStudents, setIncludeArchivedStudents,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowColumnSettings,
   setShowSaveFilterModal, showAdvancedFilters, showColumnSettings, students, theme,
   onPromoteBulk, onPromoteClass,
@@ -115,9 +126,41 @@ export default function StudentFilters({
   getTextClass
 }: StudentFiltersProps) {
   const { dropdowns } = useSchoolConfig();
-  const dbClasses = dropdowns.classes;
-  const dbMediums = dropdowns.mediums;
+  const [classesData, setClassesData] = useState<any[]>([]);
+  const [mediumsData, setMediumsData] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
   const isDark = theme === 'dark';
+
+  // Fetch classes and mediums from API
+  useEffect(() => {
+    const fetchSchoolStructure = async () => {
+      setLoadingData(true);
+      try {
+        // Fetch classes
+        const classesResponse = await fetch('/api/school-structure/classes');
+        if (classesResponse.ok) {
+          const classesData = await classesResponse.json();
+          setClassesData(classesData.classes || []);
+        }
+
+        // Fetch mediums
+        const mediumsResponse = await fetch('/api/school-structure/mediums');
+        if (mediumsResponse.ok) {
+          const mediumsData = await mediumsResponse.json();
+          setMediumsData(mediumsData.mediums || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch school structure:', error);
+        // Fallback to dropdowns data if API fails
+        setClassesData(dropdowns.classes || []);
+        setMediumsData(dropdowns.mediums || []);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchSchoolStructure();
+  }, [dropdowns.classes, dropdowns.mediums]);
   
   // Use provided theme functions or fallback
   const cardClass = getCardClass?.() || (isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200');
@@ -499,7 +542,7 @@ export default function StudentFilters({
 
       {/* Search & Quick Filters Bar */}
       <div className={`rounded-xl border p-4 mb-4 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        {/* AI-Powered Search Input */}
+        {/* Enhanced Search Input */}
         <div className="mb-4">
           <AISearchInput
             value={advancedSearch.enabled ? advancedSearch.query : searchTerm}
@@ -539,140 +582,165 @@ export default function StudentFilters({
           />
         </div>
 
-        {/* Quick Filter Dropdowns */}
-        <div className="flex flex-wrap items-center gap-3 mt-4">
-          <div className="min-w-[180px]">
-            <AIDropdown
-              value={selectedClass}
-              onChange={(value) => { setSelectedClass(value); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'All Classes', icon: <Users className="w-4 h-4" />, description: 'Show students from all classes' },
-                ...dbClasses.map(cls => ({
-                  value: cls.label,
-                  label: cls.label,
-                  description: cls.mediumName ? `Medium: ${cls.mediumName}` : undefined
-                }))
-              ]}
-              placeholder="Select Class"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              searchable={true}
-              aiSuggestions={true}
-            />
+        {/* Filter Section with Action Buttons */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Filter Dropdowns */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="w-[140px]">
+              <select 
+                value={selectedClass}
+                onChange={(e) => { setSelectedClass(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Classes</option>
+                {classesData.map((cls: any) => {
+                  const medium = mediumsData.find((m: any) => m.id === cls.mediumId);
+                  const mediumName = medium ? medium.name || medium.label : '';
+                  const displayText = mediumName ? `${cls.name || cls.label} (${mediumName})` : (cls.name || cls.label);
+                  return (
+                    <option key={cls.id || cls.value} value={cls.name || cls.label}>{displayText}</option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedStatus}
+                onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="graduated">Graduated</option>
+                <option value="transferred">Transferred</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedGender}
+                onChange={(e) => { setSelectedGender(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Genders</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedMedium}
+                onChange={(e) => { setSelectedMedium(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Mediums</option>
+                {mediumsData.map((medium: any) => (
+                  <option key={medium.id || medium.value} value={medium.name || medium.label}>{medium.name || medium.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedBloodGroup}
+                onChange={(e) => { setSelectedBloodGroup(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Blood Groups</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedCategory}
+                onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Categories</option>
+                <option value="General">General</option>
+                <option value="OBC">OBC</option>
+                <option value="SC">SC</option>
+                <option value="ST">ST</option>
+                <option value="EWS">EWS</option>
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedAttendanceRange}
+                onChange={(e) => { setSelectedAttendanceRange(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Attendance</option>
+                <option value="90-100">90% - 100%</option>
+                <option value="75-89">75% - 89%</option>
+                <option value="60-74">60% - 74%</option>
+                <option value="below-60">Below 60%</option>
+              </select>
+            </div>
+
+            <div className="w-[140px]">
+              <select 
+                value={selectedFeeStatus}
+                onChange={(e) => { setSelectedFeeStatus(e.target.value); setCurrentPage(1); }}
+                className={`w-full px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-400' 
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                }`}
+              >
+                <option value="all">All Fee Status</option>
+                <option value="paid">Paid</option>
+                <option value="pending">Pending</option>
+                <option value="overdue">Overdue</option>
+                <option value="partial">Partial</option>
+              </select>
+            </div>
           </div>
 
-          <div className="min-w-[180px]">
-            <AIDropdown
-              value={selectedStatus}
-              onChange={(value) => { setSelectedStatus(value); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'All Status', icon: <Users className="w-4 h-4" />, description: 'Show students with any status' },
-                { value: 'active', label: 'Active', icon: <CheckCircle className="w-4 h-4 text-green-500" />, description: 'Currently enrolled students' },
-                { value: 'inactive', label: 'Inactive', icon: <XCircle className="w-4 h-4 text-red-500" />, description: 'Not currently active' },
-                { value: 'graduated', label: 'Graduated', icon: <GraduationCap className="w-4 h-4 text-blue-500" />, description: 'Completed studies' },
-                { value: 'transferred', label: 'Transferred', icon: <Target className="w-4 h-4 text-purple-500" />, description: 'Moved to another institution' },
-                { value: 'suspended', label: 'Suspended', icon: <AlertCircle className="w-4 h-4 text-orange-500" />, description: 'Temporarily suspended' },
-                { value: 'exited', label: 'Exited', icon: <X className="w-4 h-4 text-gray-500" />, description: 'Left the institution' },
-                { value: 'locked', label: 'Locked', icon: <EyeOff className="w-4 h-4 text-gray-500" />, description: 'Account locked' }
-              ]}
-              placeholder="Select Status"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              searchable={true}
-              aiSuggestions={true}
-            />
-          </div>
-
-          <div className="min-w-[160px]">
-            <AIDropdown
-              value={selectedGender}
-              onChange={(value) => { setSelectedGender(value); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'All Genders', icon: <Users className="w-4 h-4" />, description: 'Show all students' },
-                { value: 'Male', label: 'Male', icon: <User className="w-4 h-4 text-blue-500" />, description: 'Male students' },
-                { value: 'Female', label: 'Female', icon: <User className="w-4 h-4 text-pink-500" />, description: 'Female students' },
-                { value: 'Other', label: 'Other', icon: <User className="w-4 h-4 text-purple-500" />, description: 'Other gender identities' }
-              ]}
-              placeholder="Select Gender"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              aiSuggestions={true}
-            />
-          </div>
-
-          <div className="min-w-[160px]">
-            <AIDropdown
-              value={selectedLanguage}
-              onChange={(value) => { setSelectedLanguage(value); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'All Mediums', icon: <BookOpen className="w-4 h-4" />, description: 'All instruction mediums' },
-                ...dbMediums.map(m => ({
-                  value: m.label,
-                  label: m.label,
-                  description: `Instruction medium: ${m.label}`
-                }))
-              ]}
-              placeholder="Select Medium"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              searchable={true}
-              aiSuggestions={true}
-            />
-          </div>
-
-          <div className="min-w-[180px]">
-            <AIDropdown
-              value={attendanceFilter}
-              onChange={(value) => { setAttendanceFilter(value); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'All Attendance', icon: <BarChart3 className="w-4 h-4" />, description: 'Show all students regardless of attendance' },
-                { value: 'high', label: 'High (≥90%)', icon: <TrendingUp className="w-4 h-4 text-green-500" />, description: 'Excellent attendance record' },
-                { value: 'average', label: 'Average (75-89%)', icon: <BarChart3 className="w-4 h-4 text-yellow-500" />, description: 'Good attendance record' },
-                { value: 'low', label: 'Low (<75%)', icon: <AlertCircle className="w-4 h-4 text-red-500" />, description: 'Needs attention' }
-              ]}
-              placeholder="Select Attendance"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              aiSuggestions={true}
-            />
-          </div>
-
-          <div className="min-w-[140px]">
-            <AIDropdown
-              value={pageSize.toString()}
-              onChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}
-              options={[
-                { value: '10', label: '10 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 10 students per page' },
-                { value: '25', label: '25 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 25 students per page' },
-                { value: '50', label: '50 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 50 students per page' },
-                { value: '100', label: '100 per page', icon: <Hash className="w-4 h-4" />, description: 'Show 100 students per page' }
-              ]}
-              placeholder="Page Size"
-              theme={theme}
-              getCardClass={getCardClass}
-              getInputClass={getInputClass}
-              getBtnClass={getBtnClass}
-              getTextClass={getTextClass}
-              aiSuggestions={true}
-            />
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${showAdvancedFilters ? 'bg-blue-600 text-white' : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Advanced Search">
               🔍 Advanced
             </button>

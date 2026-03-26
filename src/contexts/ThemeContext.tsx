@@ -17,7 +17,7 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('light');
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -27,9 +27,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       // Apply theme to document root
       document.documentElement.classList.toggle('dark', savedTheme === 'dark');
     } else {
-      // Default to dark mode and save to localStorage
-      localStorage.setItem('theme', 'dark');
-      document.documentElement.classList.add('dark');
+      // Default to light mode and save to localStorage
+      localStorage.setItem('theme', 'light');
+      document.documentElement.classList.remove('dark');
     }
   }, []);
 

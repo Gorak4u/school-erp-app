@@ -86,9 +86,6 @@ import StudentDashboard from './components/StudentDashboard';
 import StudentFilters from './components/StudentFilters';
 import StudentTable from './components/StudentTable';
 import StudentAnalytics from './components/StudentAnalytics';
-import StudentReports from './components/StudentReports';
-import StudentSettings from './components/StudentSettings';
-import AIFilterStatusTile from './components/AIFilterStatusTile';
 import ImportModal from './components/ImportModal';
 import ExportModal from './components/ExportModal';
 import DocumentModal from './components/DocumentModal';
@@ -125,38 +122,24 @@ const STUDENT_TABS = [
   { 
     id: 'overview', 
     label: 'Overview', 
-    icon: TrendingUp, 
-    description: 'Student dashboard and analytics',
-    gradient: 'from-blue-500 to-cyan-600'
+    icon: BarChart3, 
+    description: 'Dashboard and analytics overview',
+    gradient: 'from-green-500 to-emerald-600'
   },
   { 
     id: 'students', 
     label: 'Students', 
     icon: Users, 
-    description: 'Manage student records',
-    gradient: 'from-emerald-500 to-teal-600'
+    description: 'Student management and records',
+    gradient: 'from-blue-500 to-cyan-600'
   },
   { 
     id: 'analytics', 
     label: 'Analytics', 
-    icon: BarChart3, 
-    description: 'Performance and attendance analytics',
+    icon: TrendingUp, 
+    description: 'Advanced analytics and trends',
     gradient: 'from-purple-500 to-pink-600'
-  },
-  { 
-    id: 'reports', 
-    label: 'Reports', 
-    icon: FileText, 
-    description: 'Student reports and documents',
-    gradient: 'from-orange-500 to-red-600'
-  },
-  { 
-    id: 'settings', 
-    label: 'Settings', 
-    icon: Settings, 
-    description: 'Student management settings',
-    gradient: 'from-indigo-500 to-purple-600'
-  },
+  }
 ];
 
 export default function StudentsPageRefactored() {
@@ -692,6 +675,60 @@ export default function StudentsPageRefactored() {
             </motion.div>
           )}
 
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${STUDENT_TABS.find(t => t.id === 'overview')?.gradient}`}>
+                    <BarChart3 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Overview</h2>
+                    <p className={`text-sm ${getTextClass('secondary')}`}>Dashboard and analytics overview</p>
+                  </div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsRefreshing(true)}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${getBtnClass('secondary')} flex items-center gap-2`}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </motion.button>
+              </div>
+
+              <StudentDashboard 
+                dashboardStats={dashboardStats}
+                selectedStudents={selectedStudents}
+                setBulkOperations={setBulkOperations}
+                setShowAddModal={setShowAddModal}
+                setShowAdvancedFilters={setShowAdvancedFilters}
+                setShowBulkOperationModal={setShowBulkOperationModal}
+                setShowDashboard={setShowDashboard}
+                showAdvancedFilters={showAdvancedFilters}
+                showDashboard={showDashboard}
+                students={students as any[]}
+                filteredStudents={filteredStudents as any[]}
+                canCreateStudents={canCreateStudents}
+                canManageStudentBulk={canManageStudentBulk}
+                theme={theme}
+                themeConfig={themeConfig}
+                getCardClass={getCardClass}
+                getBtnClass={getBtnClass}
+                getTextClass={getTextClass}
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
+              />
+            </motion.div>
+          )}
+
           {/* Students Tab */}
           {activeTab === 'students' && (
             <motion.div
@@ -870,66 +907,6 @@ export default function StudentsPageRefactored() {
                 getTextClass={getTextClass}
               />
 
-              {/* AI Filter Status Tile */}
-              <AIFilterStatusTile
-                theme={theme}
-                filteredCount={(filteredStudents as any[]).length}
-                totalCount={students.length}
-                activeFilters={{
-                  searchTerm,
-                  selectedClass,
-                  selectedStatus,
-                  selectedGender,
-                  selectedLanguage,
-                  attendanceFilter,
-                  pageSize,
-                  includeArchivedStudents,
-                  advancedFilters
-                }}
-                onClearAllFilters={() => {
-                  setSearchTerm('');
-                  setSelectedClass('all');
-                  setSelectedStatus('all');
-                  setSelectedGender('all');
-                  setSelectedLanguage('all');
-                  setAttendanceFilter('all');
-                  setIncludeArchivedStudents(false);
-                  clearAdvancedFilters();
-                  setCurrentPage(1);
-                }}
-                onClearFilter={(filterKey) => {
-                  switch (filterKey) {
-                    case 'searchTerm':
-                      setSearchTerm('');
-                      break;
-                    case 'selectedClass':
-                      setSelectedClass('all');
-                      break;
-                    case 'selectedStatus':
-                      setSelectedStatus('all');
-                      break;
-                    case 'selectedGender':
-                      setSelectedGender('all');
-                      break;
-                    case 'selectedLanguage':
-                      setSelectedLanguage('all');
-                      break;
-                    case 'attendanceFilter':
-                      setAttendanceFilter('all');
-                      break;
-                    case 'includeArchivedStudents':
-                      setIncludeArchivedStudents(false);
-                      break;
-                    default:
-                      break;
-                  }
-                  setCurrentPage(1);
-                }}
-                getCardClass={getCardClass}
-                getBtnClass={getBtnClass}
-                getTextClass={getTextClass}
-              />
-
               <StudentTable 
                 activeTab={ctxActiveTab} 
                 currentPage={currentPage} 
@@ -998,79 +975,7 @@ export default function StudentsPageRefactored() {
             </motion.div>
           )}
 
-          {/* Reports Tab */}
-          {activeTab === 'reports' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${STUDENT_TABS.find(t => t.id === 'reports')?.gradient}`}>
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Reports</h2>
-                  <p className={`text-sm ${getTextClass('secondary')}`}>AI-powered reports and insights</p>
-                </div>
-              </div>
-              
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className={getCardClass()}
-              >
-                <StudentReports 
-                  theme={theme} 
-                  students={students as any[]}
-                  onClose={() => setActiveTab('students')}
-                  getCardClass={getCardClass}
-                  getBtnClass={getBtnClass}
-                  getTextClass={getTextClass}
-                  getInputClass={getInputClass}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* Settings Tab */}
-          {activeTab === 'settings' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${STUDENT_TABS.find(t => t.id === 'settings')?.gradient}`}>
-                  <Settings className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Settings</h2>
-                  <p className={`text-sm ${getTextClass('secondary')}`}>AI-powered configuration and management</p>
-                </div>
-              </div>
-              
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className={getCardClass()}
-              >
-                <StudentSettings 
-                  theme={theme} 
-                  onClose={() => setActiveTab('students')}
-                  getCardClass={getCardClass}
-                  getBtnClass={getBtnClass}
-                  getTextClass={getTextClass}
-                  getInputClass={getInputClass}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </div>
+          </div>
       </div>
 
       {/* Add/Edit Modal */}

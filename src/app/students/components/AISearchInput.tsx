@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
-  Brain,
-  Sparkles,
   X,
   ChevronDown,
   Clock,
@@ -69,8 +67,8 @@ export default function AISearchInput({
   const secondaryTextClass = getTextClass?.('secondary') || (isDark ? 'text-gray-400' : 'text-gray-600');
   const accentTextClass = getTextClass?.('accent') || (isDark ? 'text-blue-400' : 'text-blue-600');
 
-  // AI-powered search suggestions
-  const aiSuggestions = useMemo(() => {
+  // Smart search suggestions
+  const searchSuggestions = useMemo(() => {
     if (!value || value.length < 2 || !isAISearchEnabled) return [];
 
     const suggestions = [];
@@ -236,16 +234,16 @@ export default function AISearchInput({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % aiSuggestions.length);
+        setSelectedIndex(prev => (prev + 1) % searchSuggestions.length);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex(prev => prev <= 0 ? aiSuggestions.length - 1 : prev - 1);
+        setSelectedIndex(prev => prev <= 0 ? searchSuggestions.length - 1 : prev - 1);
         break;
       case 'Enter':
         e.preventDefault();
-        if (selectedIndex >= 0 && aiSuggestions[selectedIndex]) {
-          handleSuggestionClick(aiSuggestions[selectedIndex]);
+        if (selectedIndex >= 0 && searchSuggestions[selectedIndex]) {
+          handleSuggestionClick(searchSuggestions[selectedIndex]);
         } else {
           onSearch(value);
           setShowSuggestions(false);
@@ -288,8 +286,8 @@ export default function AISearchInput({
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className="flex items-center gap-1"
               >
-                <Brain className="w-5 h-5 text-purple-500" />
-                <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />
+                <Search className="w-5 h-5 text-blue-500" />
+                <Zap className="w-3 h-3 text-blue-400 animate-pulse" />
               </motion.div>
             ) : (
               <Search className="w-5 h-5 text-gray-400" />
@@ -309,7 +307,7 @@ export default function AISearchInput({
               setTimeout(() => setShowSuggestions(false), 200);
             }}
             placeholder={isAISearchEnabled 
-              ? "🤖 AI Search: try 'students with low attendance in class 10'..." 
+              ? "🔍 Enhanced Search: try 'class 10 students with low attendance' or 'fee pending students'..." 
               : placeholder
             }
             className={`
@@ -350,25 +348,26 @@ export default function AISearchInput({
           )}
         </div>
 
-        {/* AI Search Toggle */}
+        {/* Enhanced AI Search Toggle */}
         {onToggleAISearch && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onToggleAISearch}
-            className={`absolute -right-2 top-1/2 transform -translate-y-1/2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`absolute -right-2 top-1/2 transform -translate-y-1/2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-md ${
               isAISearchEnabled
-                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg border border-purple-400/50'
                 : isDark 
-                  ? 'bg-gray-700 text-gray-300 border border-gray-600' 
-                  : 'bg-gray-200 text-gray-700 border border-gray-300'
+                  ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600' 
+                  : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
             }`}
           >
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {isAISearchEnabled ? (
                 <>
-                  <Brain className="w-3 h-3" />
-                  <span>AI</span>
+                  <Search className="w-3 h-3" />
+                  <span>Enhanced</span>
+                  <Zap className="w-3 h-3 text-yellow-300" />
                 </>
               ) : (
                 <>
@@ -381,9 +380,9 @@ export default function AISearchInput({
         )}
       </motion.div>
 
-      {/* AI Suggestions Dropdown */}
+      {/* Search Suggestions Dropdown */}
       <AnimatePresence>
-        {showSuggestions && (aiSuggestions.length > 0 || searchInsights.length > 0) && (
+        {showSuggestions && (searchSuggestions.length > 0 || searchInsights.length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -395,14 +394,14 @@ export default function AISearchInput({
               border-gray-500/30 backdrop-blur-sm
             `}
           >
-            {/* AI Insights */}
+            {/* Search Insights */}
             {searchInsights.length > 0 && (
               <div className={`p-3 border-b border-gray-500/20 ${
                 isDark ? 'bg-purple-900/20' : 'bg-purple-50'
               }`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Brain className="w-4 h-4 text-purple-500" />
-                  <span className={`text-xs font-bold ${accentTextClass}`}>AI Insights</span>
+                  <Search className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-bold ${accentTextClass}`}>Search Insights</span>
                 </div>
                 <div className="space-y-1">
                   {searchInsights.map((insight, index) => (
@@ -417,7 +416,7 @@ export default function AISearchInput({
 
             {/* Suggestions List */}
             <div className="max-h-64 overflow-y-auto">
-              {aiSuggestions.map((suggestion, index) => (
+              {searchSuggestions.map((suggestion, index) => (
                 <motion.button
                   key={`${suggestion.text}-${index}`}
                   initial={{ opacity: 0, x: -20 }}
@@ -457,10 +456,10 @@ export default function AISearchInput({
             <div className={`p-2 border-t border-gray-500/20 flex items-center justify-between`}>
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${secondaryTextClass}`}>
-                  {isAISearchEnabled ? 'AI Enhanced' : 'Basic Search'}
+                  {isAISearchEnabled ? 'Enhanced Search' : 'Basic Search'}
                 </span>
                 {isAISearchEnabled && (
-                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  <Zap className="w-3 h-3 text-blue-400" />
                 )}
               </div>
               {recentSearches.length > 0 && (
