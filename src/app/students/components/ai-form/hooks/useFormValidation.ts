@@ -55,6 +55,11 @@ export const useFormValidation = () => {
     if (!data.nationality) newErrors.nationality = 'Nationality is required';
     if (!data.bloodGroup) newErrors.bloodGroup = 'Blood Group is required';
     
+    // Aadhar validation (optional but if provided must be valid)
+    if (data.aadharNumber && !isAadharValid(data.aadharNumber)) {
+      newErrors.aadharNumber = 'Aadhar number must be 12 digits';
+    }
+    
     // Contact Validation
     if (!data.phone) {
       newErrors.phone = 'Phone number is required';
@@ -95,6 +100,11 @@ export const useFormValidation = () => {
     if (!data.mediumId) newErrors.mediumId = 'Language Medium is required';
     if (!data.boardId) newErrors.boardId = 'Board is required';
     
+    // Roll number validation (optional but if provided must be valid)
+    if (data.rollNumber && !/^[A-Za-z0-9\-/]+$/.test(data.rollNumber.trim())) {
+      newErrors.rollNumber = 'Roll number can only contain letters, numbers, hyphens and slashes';
+    }
+    
     // Parent Validation
     if (!data.fatherName.trim()) {
       newErrors.fatherName = 'Father Name is required';
@@ -108,6 +118,10 @@ export const useFormValidation = () => {
       newErrors.fatherPhone = 'Father phone must be 10-15 digits';
     }
     
+    if (data.fatherEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.fatherEmail)) {
+      newErrors.fatherEmail = 'Invalid father email format';
+    }
+    
     if (!data.motherName.trim()) {
       newErrors.motherName = 'Mother Name is required';
     } else if (data.motherName.trim().length < 3) {
@@ -118,6 +132,10 @@ export const useFormValidation = () => {
       newErrors.motherPhone = 'Mother Phone is required';
     } else if (!isPhoneValid(data.motherPhone)) {
       newErrors.motherPhone = 'Mother phone must be 10-15 digits';
+    }
+    
+    if (data.motherEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.motherEmail)) {
+      newErrors.motherEmail = 'Invalid mother email format';
     }
     
     if (!data.emergencyContact.trim()) {
@@ -155,18 +173,27 @@ export const useFormValidation = () => {
     const isValid = Object.keys(newErrors).length === 0;
     
     if (!isValid) {
+      // Scroll to first error field
       const errorFields = Object.keys(newErrors);
-      const firstError = newErrors[errorFields[0]];
+      const firstErrorField = errorFields[0];
       
-      // Show user-friendly error message
-      const errorMessage = `Please fix the following error${errorFields.length > 1 ? 's' : ''}:\n\n` +
-        errorFields.map(field => {
-          const fieldName = field.replace(/([A-Z])/g, ' $1').trim();
-          const capitalizedFieldName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-          return `• ${capitalizedFieldName}: ${newErrors[field]}`;
-        }).join('\n');
-      
-      alert(errorMessage);
+      // Try to find and focus the first error field
+      setTimeout(() => {
+        const element = document.getElementById(firstErrorField) || 
+                       document.querySelector(`[name="${firstErrorField}"]`) ||
+                       document.querySelector(`input[name="${firstErrorField}"]`) ||
+                       document.querySelector(`select[name="${firstErrorField}"]`);
+        
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.focus();
+          // Add visual highlight
+          element.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+          }, 3000);
+        }
+      }, 100);
     }
     
     return isValid;
@@ -201,8 +228,24 @@ export const useFormValidation = () => {
         }
         break;
       case 'email':
+      case 'fatherEmail':
+      case 'motherEmail':
         if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           newErrors[field] = 'Invalid email format';
+        } else {
+          delete newErrors[field];
+        }
+        break;
+      case 'aadharNumber':
+        if (value && !isAadharValid(value)) {
+          newErrors[field] = 'Aadhar number must be 12 digits';
+        } else {
+          delete newErrors[field];
+        }
+        break;
+      case 'rollNumber':
+        if (value && !/^[A-Za-z0-9\-/]+$/.test(value.trim())) {
+          newErrors[field] = 'Roll number can only contain letters, numbers, hyphens and slashes';
         } else {
           delete newErrors[field];
         }
