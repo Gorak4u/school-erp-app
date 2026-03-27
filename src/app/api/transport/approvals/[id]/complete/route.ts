@@ -90,12 +90,11 @@ export async function POST(
             },
             data: {
               status: 'cancelled',
-              notes: `Transport fee waiver approved - Waiver ID: ${id}, Amount: ₹${refundRequest.amount}`,
-              waivedAmount: refundRequest.amount,
+              remarks: `Transport fee waiver approved - Waiver ID: ${id}, Amount: ₹${refundRequest.amount}`,
+              discount: refundRequest.amount, // Use discount field for waived amount
               pendingAmount: 0,
-              // Note: amount field preserved as-is for audit trail, waiver tracked separately
-              cancelledAt: new Date(),
-              cancelledBy: ctx.email || 'system'
+              // Note: amount field preserved as-is for audit trail, waiver tracked in discount field
+              updatedAt: new Date()
             }
           });
 

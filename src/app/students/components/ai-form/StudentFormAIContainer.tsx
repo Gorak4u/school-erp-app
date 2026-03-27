@@ -796,7 +796,8 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
   }, [createdStudent?.admissionNo, formData.admissionNo]);
 
   // Open preview modal
-  const openPreview = useCallback(() => {
+  const openPreview = useCallback((e?: React.FormEvent) => {
+    e?.preventDefault(); // Prevent form submission
     if (!validateBeforeSubmit()) {
       return;
     }
@@ -1356,7 +1357,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
                 {currentStepIndex === steps.length - 1 && (
                   <motion.button
                     type="button"
-                    onClick={openPreview}
+                    onClick={(e) => openPreview(e)}
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-lg border border-white/20`}

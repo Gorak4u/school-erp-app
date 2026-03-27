@@ -358,14 +358,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                notes: `Transport cancelled - full amount waived (unpaid)`,
-                waivedAmount: feeAnalysis.pendingAmount,
-                // Update balance to zero since full amount waived
+                remarks: `Transport cancelled - full amount waived (unpaid)`,
+                discount: feeAnalysis.pendingAmount, // Use discount field for waived amount
                 pendingAmount: 0,
-                // Update total amount to zero since nothing was paid
                 amount: 0,
-                cancelledAt: new Date(),
-                cancelledBy: ctx.user?.email || 'system'
+                updatedAt: new Date()
               }
             });
           } else {
@@ -378,10 +375,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                notes: `Transport cancelled - pending amount kept for recovery`,
+                remarks: `Transport cancelled - pending amount kept for recovery`,
                 // Keep original amounts for recovery tracking
-                cancelledAt: new Date(),
-                cancelledBy: ctx.user?.email || 'system'
+                updatedAt: new Date()
               }
             });
           }
@@ -419,15 +415,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                // Add metadata for audit trail
-                notes: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived`,
-                waivedAmount: feeAnalysis.pendingAmount,
-                // Update balance to zero since waived amount covers pending balance
+                remarks: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived`,
+                discount: feeAnalysis.pendingAmount, // Use discount field for waived amount
                 pendingAmount: 0,
-                // Update total amount to reflect only earned portion (paid amount)
-                amount: feeAnalysis.paidAmount,
-                cancelledAt: new Date(),
-                cancelledBy: ctx.user?.email || 'system'
+                amount: feeAnalysis.paidAmount, // Update total amount to reflect only earned portion
+                updatedAt: new Date()
               }
             });
           } else {
@@ -439,10 +431,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                notes: `Transport cancelled - pending amount kept for recovery`,
+                remarks: `Transport cancelled - pending amount kept for recovery`,
                 // Keep original amounts for recovery tracking
-                cancelledAt: new Date(),
-                cancelledBy: ctx.user?.email || 'system'
+                updatedAt: new Date()
               }
             });
           }
