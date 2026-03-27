@@ -207,8 +207,10 @@ export default function FeesTab({
                 )}
                 {fee.waivedAmount && fee.waivedAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className={`text-sm ${textSecondary}`}>Waived:</span>
-                    <span className="font-medium text-purple-400">-₹{fee.waivedAmount.toLocaleString()}</span>
+                    <span className={`text-sm ${textSecondary}`}>{getDiscountLabel(fee)}:</span>
+                    <span className={`font-medium text-orange-500`}>
+                      -₹{fee.waivedAmount.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">
