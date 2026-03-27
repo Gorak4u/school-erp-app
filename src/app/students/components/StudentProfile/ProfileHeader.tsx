@@ -1,5 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { Student, ActionButton } from './types';
 import Button from './ui/Button';
 import {
@@ -7,7 +8,9 @@ import {
   IdCard,
   Printer,
   Pencil,
-  ArrowUp
+  ArrowUp,
+  ChevronDown,
+  Settings
 } from 'lucide-react';
 
 interface ProfileHeaderProps {
@@ -23,7 +26,8 @@ const iconComponents: { [key: string]: React.ComponentType<{ className?: string 
   IdCard,
   Printer,
   Pencil,
-  ArrowUp
+  ArrowUp,
+  Settings
 };
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -32,6 +36,38 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   actions,
   canEditStudentRecord
 }) => {
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+  const handleButtonClick = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownWidth = 224; // w-56 = 14rem = 224px
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate right position, but ensure dropdown stays within viewport
+      let rightPosition = viewportWidth - rect.right;
+      if (rect.right + dropdownWidth > viewportWidth) {
+        rightPosition = viewportWidth - rect.right - (rect.right + dropdownWidth - viewportWidth);
+      }
+      
+      // Calculate top position, but ensure dropdown stays within viewport
+      let topPosition = rect.bottom + 8;
+      const dropdownHeight = 300; // Approximate height
+      if (rect.bottom + dropdownHeight > viewportHeight) {
+        topPosition = rect.top - dropdownHeight - 8;
+      }
+      
+      setDropdownPosition({
+        top: topPosition,
+        right: Math.max(8, rightPosition)
+      });
+    }
+    setIsQuickActionsOpen(!isQuickActionsOpen);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -91,33 +127,138 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </motion.div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Quick Actions Dropdown */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="flex items-center space-x-3"
+          className="relative"
         >
-          {actions.map((action, index) => {
-            const IconComponent = iconComponents[action.icon];
-            return (
-              <motion.div
-                key={action.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
-              >
-                <Button
-                  variant={action.variant}
-                  size="md"
-                  icon={IconComponent}
-                  onClick={action.onClick}
+          {/* Quick Actions Button */}
+          <motion.button
+            ref={buttonRef}
+            onClick={handleButtonClick}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25' 
+                : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-500/25'
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Quick Actions</span>
+            <motion.div
+              animate={{ rotate: isQuickActionsOpen ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChevronDown className="w-4 h-4" />
+            </motion.div>
+          </motion.button>
+
+          {/* Portal Dropdown */}
+          {isQuickActionsOpen && createPortal(
+            <AnimatePresence>
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[999999]"
+                  onClick={() => setIsQuickActionsOpen(false)}
+                />
+                
+                {/* Dropdown Content */}
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    right: `${dropdownPosition.right}px`,
+                    zIndex: 1000000,
+                    transform: 'translateZ(0)'
+                  }}
+                  className={`w-56 rounded-xl shadow-2xl border ${
+                    theme === 'dark' 
+                      ? 'bg-gray-800 border-gray-700' 
+                      : 'bg-white border-gray-200'
+                  }`}
                 >
-                  {action.label}
-                </Button>
-              </motion.div>
-            );
-          })}
+                  {/* Dropdown Header */}
+                  <div className={`px-4 py-3 border-b ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <div className={`text-sm font-semibold ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      Student Actions
+                    </div>
+                    <div className={`text-xs ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {selectedStudent.name}
+                    </div>
+                  </div>
+
+                  {/* Action Items */}
+                  <div className="py-2">
+                    {actions.map((action, index) => {
+                      const IconComponent = iconComponents[action.icon];
+                      return (
+                        <motion.button
+                          key={action.label}
+                          onClick={() => {
+                            action.onClick();
+                            setIsQuickActionsOpen(false);
+                          }}
+                          className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-gray-700 text-gray-200' 
+                              : 'hover:bg-gray-50 text-gray-700'
+                          }`}
+                          whileHover={{ x: 4 }}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                        >
+                          <div className={`p-2 rounded-lg ${
+                            action.variant === 'primary' 
+                              ? theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+                              : theme === 'dark' ? 'bg-gray-600/20 text-gray-400' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {action.label}
+                            </div>
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div className={`px-4 py-2 border-t ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <div className={`text-xs ${
+                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                    }`}>
+                      Press ESC to close
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            </AnimatePresence>,
+            document.body
+          )}
         </motion.div>
       </div>
     </motion.div>
