@@ -358,10 +358,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                remarks: `Transport cancelled - full amount waived (unpaid)`,
-                discount: feeAnalysis.pendingAmount, // Use discount field for waived amount
+                remarks: `Transport cancelled - full amount waived (unpaid) - Amount tracked in discount field`,
+                discount: feeAnalysis.pendingAmount, // Using discount field to track waived amount (documented approach)
                 pendingAmount: 0,
                 amount: 0,
+                // Note: We use 'discount' field to track waived amounts since no dedicated 'waivedAmount' field exists
+                // This is documented across all transport waiver handling code for consistency
                 updatedAt: new Date()
               }
             });
@@ -415,10 +417,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               },
               data: { 
                 status: 'cancelled',
-                remarks: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived`,
-                discount: feeAnalysis.pendingAmount, // Use discount field for waived amount
+                remarks: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived (tracked in discount field)`,
+                discount: feeAnalysis.pendingAmount, // Using discount field to track waived amount (documented approach)
                 pendingAmount: 0,
                 amount: feeAnalysis.paidAmount, // Update total amount to reflect only earned portion
+                // Note: We use 'discount' field to track waived amounts since no dedicated 'waivedAmount' field exists
+                // This is documented across all transport waiver handling code for consistency
                 updatedAt: new Date()
               }
             });

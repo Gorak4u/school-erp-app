@@ -206,6 +206,21 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
   // Calculate total discount from fee records
   const totalDiscount = feeRecords.reduce((sum: number, record: any) => sum + (record.discount || 0), 0);
 
+  // Calculate separate totals for discounts vs waivers
+  const totalRegularDiscount = feeRecords.reduce((sum: number, record: any) => {
+    if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+      return sum; // Don't count transport waivers as discounts
+    }
+    return sum + (record.discount || 0);
+  }, 0);
+
+  const totalWaivedAmount = feeRecords.reduce((sum: number, record: any) => {
+    if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+      return sum + (record.discount || 0);
+    }
+    return sum;
+  }, 0);
+
   // Build currentStudentData from API or prop data
   const currentStudentData = apiData ? {
     name: apiData.studentName || apiData.name || 'Unknown Student',
@@ -221,7 +236,8 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
     paid: totalPaidIncludingFines,
     pending: totalPendingIncludingFines,
     lateFees: totalOverdue,
-    discount: totalDiscount,
+    discount: totalRegularDiscount,
+    waivedAmount: totalWaivedAmount,
     finesTotal: finesStats.totalFines,
     finesPaid: finesStats.totalFinesPaid,
     finesPending: finesStats.totalFinesPending,
@@ -489,6 +505,16 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <p className={`text-sm ${textSecondary}`}>Discount</p>
               <p className="text-xl font-bold text-blue-500">Rs.{(currentStudentData?.discount || 0).toLocaleString()}</p>
             </div>
+            {/* Waived Off Tile Card - Only show if waived amount exists */}
+            {(currentStudentData?.waivedAmount || 0) > 0 && (
+              <div className={`p-4 rounded-lg border ${cardCls}`}>
+                <p className={`text-sm ${textSecondary}`}>Waived Off</p>
+                <p className="text-xl font-bold text-orange-500">Rs.{(currentStudentData?.waivedAmount || 0).toLocaleString()}</p>
+                <div className={`text-xs ${textSecondary}`}>
+                  <span className="text-orange-400">Transport fee waiver</span>
+                </div>
+              </div>
+            )}
             {/* Fines Tile Card - Only show if fines are present */}
             {finesStats.totalFines > 0 && (
               <div className={`p-4 rounded-lg border ${cardCls}`}>
@@ -624,6 +650,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Academic Year</th>
                     <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Total Amount</th>
                     <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Paid</th>
+                    <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Discount/Waiver</th>
                     <th className={`text-right py-3 px-4 text-sm font-medium ${textSecondary}`}>Pending</th>
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Status</th>
                     <th className={`text-left py-3 px-4 text-sm font-medium ${textSecondary}`}>Due Date</th>
@@ -632,7 +659,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                 </thead>
                 <tbody>
                   {feeRecords.length === 0 && (
-                    <tr><td colSpan={9} className={`py-6 text-center text-sm ${textSecondary}`}>No fee records found</td></tr>
+                    <tr><td colSpan={10} className={`py-6 text-center text-sm ${textSecondary}`}>No fee records found</td></tr>
                   )}
                   {feeRecords.map(r => {
                     const pending = (r.amount || 0) - (r.paidAmount || 0);
@@ -640,6 +667,18 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                     const statusCls = statusLabel === 'Paid' ? (isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600')
                       : statusLabel === 'Overdue' ? (isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600')
                       : (isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600');
+                    
+                    // Helper to determine if discount is actually a waived amount
+                    const getDiscountLabel = (record: any) => {
+                      if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+                        return 'Waived Off';
+                      }
+                      return 'Discount';
+                    };
+                    
+                    const discountLabel = getDiscountLabel(r);
+                    const discountValue = r.discount || 0;
+                    
                     return (
                       <tr key={r.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
                         <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{r.feeStructureName || r.feeStructure?.name || 'Fee'}</td>
@@ -647,6 +686,16 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.academicYear || '-'}</td>
                         <td className={`py-3 px-4 text-sm text-right font-medium`}>₹{(r.amount || 0).toLocaleString()}</td>
                         <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹{(r.paidAmount || 0).toLocaleString()}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium ${discountLabel === 'Waived Off' ? 'text-orange-500' : 'text-blue-500'}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span>₹{discountValue.toLocaleString()}</span>
+                            {discountLabel === 'Waived Off' && (
+                              <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full font-medium">
+                                Waived
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className={`py-3 px-4 text-sm text-right font-medium ${pending > 0 ? 'text-red-500' : ''}`}>₹{pending.toLocaleString()}</td>
                         <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${statusCls}`}>{statusLabel}</span></td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.dueDate || '-'}</td>

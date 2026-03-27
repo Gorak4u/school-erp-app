@@ -160,52 +160,59 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
             
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={handleEmail}
                 className={`p-2 rounded-xl transition-all hover:scale-105 ${
                   isDark 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-100 text-gray-600'
+                    ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                 }`}
                 title="Email Application"
               >
                 <Mail className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={handlePrint}
                 className={`p-2 rounded-xl transition-all hover:scale-105 ${
                   isDark 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-100 text-gray-600'
+                    ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                 }`}
                 title="Print Resume"
               >
                 <Printer className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={handleDownload}
                 disabled={isExporting}
                 className={`p-2 rounded-xl transition-all hover:scale-105 ${
-                  isDark 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                } ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  isExporting
+                    ? 'opacity-50 cursor-not-allowed'
+                    : isDark 
+                    ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                }`}
                 title="Download PDF"
               >
                 {isExporting ? (
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Download className="w-4 h-4" />
                 )}
               </button>
               <button
+                type="button"
                 onClick={onClose}
                 className={`p-2 rounded-xl transition-all hover:scale-105 ${
                   isDark 
-                    ? 'hover:bg-gray-700 text-gray-400' 
-                    : 'hover:bg-gray-100 text-gray-600'
+                    ? 'bg-gray-800 text-red-400 hover:bg-gray-700 hover:text-red-300' 
+                    : 'bg-gray-100 text-red-600 hover:bg-gray-200 hover:text-red-800'
                 }`}
+                title="Close Preview"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -222,6 +229,7 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                 const isActive = activeSection === section.id;
                 return (
                   <button
+                    type="button"
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 ${

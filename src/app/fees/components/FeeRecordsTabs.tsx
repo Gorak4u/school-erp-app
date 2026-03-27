@@ -65,13 +65,25 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
 
   const pending = (r: any) => Math.max(0, (r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0));
 
+  // Helper to determine if discount is actually a waived amount
+  const getDiscountLabel = (r: any) => {
+    if (r.feeStructure?.category === 'transport' && r.status === 'cancelled' && r.discount > 0) {
+      return 'Waived Off';
+    }
+    return 'Discount';
+  };
+
+  const getDiscountValue = (r: any) => {
+    return r.discount || 0;
+  };
+
   const exportCSV = () => {
     const rows = [
-      ['Student', 'Class', 'Roll No', 'Fee Type', 'Category', 'Amount', 'Paid', 'Discount', 'Pending', 'Due Date', 'Status', 'Academic Year'],
+      ['Student', 'Class', 'Roll No', 'Fee Type', 'Category', 'Amount', 'Paid', 'Discount/Waiver', 'Pending', 'Due Date', 'Status', 'Academic Year'],
       ...records.map(r => [
         r.student?.name || '-', r.student?.class || '-', r.student?.rollNo || '-',
         r.feeStructure?.name || '-', r.feeStructure?.category || '-',
-        r.amount, r.paidAmount || 0, r.discount || 0, pending(r),
+        r.amount, r.paidAmount || 0, `${getDiscountValue(r)} (${getDiscountLabel(r)})`, pending(r),
         r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '-',
         r.status, r.academicYear || '-'
       ])
@@ -137,7 +149,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                   <table className="w-full text-sm">
                     <thead className={`text-xs uppercase ${headerBg} ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <tr>
-                        {['Student', 'Class / Roll', 'Fee Structure', 'Category', 'Amount', 'Paid', 'Discount', 'Pending', 'Due Date', 'Acad. Year', 'Status', 'Actions'].map(h => (
+                        {['Student', 'Class / Roll', 'Fee Structure', 'Category', 'Amount', 'Paid', 'Discount/Waiver', 'Pending', 'Due Date', 'Acad. Year', 'Status', 'Actions'].map(h => (
                           <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -164,7 +176,16 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                           <td className={`px-4 py-3 ${txtSec} capitalize`}>{r.feeStructure?.category || '-'}</td>
                           <td className={`px-4 py-3 font-medium ${txt}`}>₹{(r.amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-green-500 font-medium">₹{(r.paidAmount || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-blue-500">₹{(r.discount || 0).toLocaleString()}</td>
+                          <td className={`px-4 py-3 ${getDiscountLabel(r) === 'Waived Off' ? 'text-orange-500' : 'text-blue-500'}`}>
+                            <div className="flex items-center gap-1">
+                              <span>₹{getDiscountValue(r).toLocaleString()}</span>
+                              {getDiscountLabel(r) === 'Waived Off' && (
+                                <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full font-medium">
+                                  Waived
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className={`px-4 py-3 font-medium ${pending(r) > 0 ? 'text-red-500' : 'text-green-500'}`}>₹{pending(r).toLocaleString()}</td>
                           <td className={`px-4 py-3 ${txtSec} whitespace-nowrap`}>{r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td className={`px-4 py-3 ${txtSec}`}>{r.academicYear || '-'}</td>
@@ -235,7 +256,7 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
                         ['Academic Year',selectedRecord.academicYear || '-'],
                         ['Total Amount', `₹${(selectedRecord.amount || 0).toLocaleString()}`],
                         ['Paid Amount',  `₹${(selectedRecord.paidAmount || 0).toLocaleString()}`],
-                        ['Discount',     `₹${(selectedRecord.discount || 0).toLocaleString()}`],
+                        [getDiscountLabel(selectedRecord), `₹${getDiscountValue(selectedRecord).toLocaleString()}`],
                         ['Pending',      `₹${pending(selectedRecord).toLocaleString()}`],
                         ['Due Date',     selectedRecord.dueDate ? new Date(selectedRecord.dueDate).toLocaleDateString('en-IN') : '-'],
                         ['Status',       selectedRecord.status || '-'],

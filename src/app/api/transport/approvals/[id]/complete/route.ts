@@ -90,10 +90,11 @@ export async function POST(
             },
             data: {
               status: 'cancelled',
-              remarks: `Transport fee waiver approved - Waiver ID: ${id}, Amount: ₹${refundRequest.amount}`,
-              discount: refundRequest.amount, // Use discount field for waived amount
+              remarks: `Transport fee waiver approved - Waiver ID: ${id}, Amount: ₹${refundRequest.amount} (tracked in discount field)`,
+              discount: refundRequest.amount, // Using discount field to track waived amount (documented approach)
               pendingAmount: 0,
-              // Note: amount field preserved as-is for audit trail, waiver tracked in discount field
+              // Note: We use 'discount' field to track waived amounts since no dedicated 'waivedAmount' field exists
+              // This is documented across all transport waiver handling code for consistency
               updatedAt: new Date()
             }
           });
