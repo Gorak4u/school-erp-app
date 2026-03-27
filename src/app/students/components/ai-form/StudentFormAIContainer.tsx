@@ -16,6 +16,7 @@ import AdditionalInfoTab from './tabs/AdditionalInfoTab';
 import AdvancedApplicationPreview from './AdvancedApplicationPreview';
 import AIInsightsPanel from './components/AIInsightsPanel';
 import FormPreviewModal from './components/FormPreviewModal';
+import AdmissionSummary from './components/AdmissionSummary';
 import { useAIFormProcessor } from './hooks/useAIFormProcessor';
 import { useFormValidation } from './hooks/useFormValidation';
 import { useSubscriptionLimits } from './hooks/useSubscriptionLimits';
@@ -407,7 +408,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     handleGenerateIdCard,
     handlePrintIdCard,
     handleToggleCardSide,
-  } = useIdCard(formData);
+  } = useIdCard(formData, activeAcademicYear, transportInfo);
 
   // Multi-Step Configuration
   const steps = [
@@ -728,9 +729,9 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     return {
       ...payload,
       previewDocumentHtml: buildAdmissionPreviewDocument(payload),
-      idCardHtml: idCardHtml || '',
+      idCardHtml: '', // Will be generated dynamically by the hook
     };
-  }, [applicableFeeStructures, buildAdmissionPreviewDocument, combinedAnnual, discountData, feeCalcs, feeCategories, fmtCurrency, formData, getSetting, idCardHtml, activeAcademicYear, selectedDiscountFeeIds, selectedRoute, transportDiscount, transportFeeCalcs, transportInfo, tuitionFinalTotal]);
+  }, [applicableFeeStructures, buildAdmissionPreviewDocument, combinedAnnual, discountData, feeCalcs, feeCategories, fmtCurrency, formData, getSetting, activeAcademicYear, selectedDiscountFeeIds, selectedRoute, transportDiscount, transportFeeCalcs, transportInfo, tuitionFinalTotal]);
 
   // Print preview document
   const handlePrintPreview = useCallback(() => {
@@ -778,6 +779,23 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       }
     }
   }, [buildPreviewPayload, formData.admissionNo]);
+
+  // Download ID Card PDF
+  const handleDownloadIdCardPdf = useCallback(async () => {
+    const element = document.getElementById('student-id-card-print');
+    if (!element) return;
+    
+    try {
+      const { PDFGenerator } = await import('@/utils/pdfGenerator');
+      await PDFGenerator.generateFromElement(
+        'student-id-card-print',
+        `Student_ID_Card_${(createdStudent?.admissionNo || formData.admissionNo || 'student').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`
+      );
+    } catch (error) {
+      console.error('Failed to generate ID card PDF:', error);
+      alert('Failed to generate ID card PDF. Please try again.');
+    }
+  }, [createdStudent?.admissionNo, formData.admissionNo]);
 
   // Open preview modal
   const openPreview = useCallback(() => {
@@ -1489,7 +1507,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
           aiInsights={aiInsights}
           theme={theme}
           cardClass={`rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-          onSubmit={handleSubmit}
+          onSubmit={(e) => handleSubmit(e)}
           isSubmitting={isSubmitting}
         />
 
@@ -1524,96 +1542,24 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
 
         {/* ID Card and Admission Summary - After Successful Submission */}
         {showIdCard && idCardData && (
-          <div className="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className={`w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-              <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-green-500">Admission Completed Successfully</h2>
-                    <p className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {createdStudent?.name || formData.name} admitted successfully for {createdStudent?.class || formData.class || 'the selected class'} with admission number {createdStudent?.admissionNo || formData.admissionNo}.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-                  {/* Admission Summary */}
-                  <div className={`rounded-xl border p-4 ${isDark ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
-                    <h3 className="text-base font-bold mb-3">Admission Summary</h3>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Student Name</p>
-                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.name || formData.name}</p>
-                      </div>
-                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Admission No</p>
-                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.admissionNo || formData.admissionNo}</p>
-                      </div>
-                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Class</p>
-                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.class || formData.class || '—'}</p>
-                      </div>
-                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Section</p>
-                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.section || formData.section || '—'}</p>
-                      </div>
-                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Grand Total</p>
-                        <p className="font-semibold mt-0.5 text-sm">{previewPayload ? fmtCurrency(previewPayload.summary.grandTotal) : fmtCurrency(combinedAnnual)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ID Card Display */}
-                  <div className="space-y-4">
-                    <div className="flex justify-center items-center gap-2 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowCardBack(false)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          !showCardBack
-                            ? 'bg-blue-600 text-white'
-                            : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        Front Side
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowCardBack(true)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          showCardBack
-                            ? 'bg-green-600 text-white'
-                            : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        Back Side
-                      </button>
-                    </div>
-                    <div id="student-id-card-print" className="flex justify-center">
-                      <div dangerouslySetInnerHTML={{ __html: idCardHtml }} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={handlePrintIdCard} className="px-3 py-2 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
-                        Print ID
-                      </button>
-                      <button type="button" onClick={onCancel} className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdmissionSummary
+            createdStudent={createdStudent}
+            formData={formData}
+            previewPayload={previewPayload}
+            combinedAnnual={combinedAnnual}
+            fmtCurrency={fmtCurrency}
+            isDark={isDark}
+            onCancel={onCancel}
+            showIdCard={showIdCard}
+            setShowIdCard={setShowIdCard}
+            showCardBack={showCardBack}
+            setShowCardBack={setShowCardBack}
+            idCardHtml={idCardHtml}
+            handlePrintIdCard={handlePrintIdCard}
+            handleDownloadIdCardPdf={handleDownloadIdCardPdf}
+            handlePrintPreview={handlePrintPreview}
+            handleDownloadPreviewPdf={handleDownloadPreviewPdf}
+          />
         )}
       </motion.div>
     </form>

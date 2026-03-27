@@ -10,7 +10,7 @@ interface FormPreviewModalProps {
   aiInsights: AIInsights;
   theme: string;
   cardClass: string;
-  onSubmit?: () => void;
+  onSubmit?: (e: React.FormEvent) => Promise<void>;
   isSubmitting?: boolean;
 }
 

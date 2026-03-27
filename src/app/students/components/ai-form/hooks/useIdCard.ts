@@ -1,163 +1,49 @@
 import { useState, useCallback, useEffect } from 'react';
 import { StudentFormData } from '../types';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
+import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData as LibraryStudentIdCardData } from '@/lib/idCard';
 
-export interface StudentIdCardData {
-  name: string;
-  admissionNo: string;
-  className: string;
-  rollNumber: string;
-  photo: string;
-  dateOfBirth: string;
-  bloodGroup: string;
-  address: string;
-  phone: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-}
+// Use the library's StudentIdCardData type instead of our own
+export type StudentIdCardData = LibraryStudentIdCardData;
 
-export const useIdCard = (formData: StudentFormData) => {
+export const useIdCard = (formData: StudentFormData, activeAcademicYear: any, transportInfo: any) => {
   const { getSetting } = useSchoolConfig();
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
   const [idCardHtml, setIdCardHtml] = useState('');
   const [idCardData, setIdCardData] = useState<StudentIdCardData | null>(null);
 
-  // Generate ID card data from form data
+  // Generate ID card data from form data - Matching library's interface
   const generateIdCardData = useCallback((studentData?: Partial<StudentFormData>): StudentIdCardData => {
     const data = studentData || formData;
     
     return {
       name: data.name || '',
       admissionNo: data.admissionNo || '',
-      className: [data.classId, data.sectionId].filter(Boolean).join(' - '),
-      rollNumber: data.rollNumber || '',
+      className: [data.class, data.section].filter(Boolean).join(' - '),
+      schoolName: getSetting('school_details', 'name', 'Our School'),
+      schoolLogo: getSetting('school_details', 'logo_url', ''),
       photo: data.photo || '',
       dateOfBirth: data.dateOfBirth || '',
-      bloodGroup: data.bloodGroup || '',
-      address: data.address || '',
+      issueDate: data.admissionDate || new Date().toISOString().split('T')[0],
       phone: data.phone || '',
-      emergencyContact: data.emergencyContact || '',
-      emergencyPhone: data.emergencyPhone || '',
+      address: data.address || '',
+      academicYear: activeAcademicYear?.name || activeAcademicYear?.year,
+      bloodGroup: data.bloodGroup || '',
+      fatherName: data.fatherName || '',
+      motherName: data.motherName || '',
+      transportRoute: data.transport === 'Yes' && transportInfo.routeId ? transportInfo.routeName || `Route ${transportInfo.routeNumber}` : undefined,
     };
-  }, [formData]);
+  }, [formData, getSetting, activeAcademicYear, transportInfo]);
 
-  // Generate ID card HTML
+  // Generate ID card HTML - Using same library as old form
   const generateIdCardHtml = useCallback(async (data: StudentIdCardData, back: boolean = false) => {
-    const schoolName = getSetting('school_details', 'name', 'School Name');
-    const schoolLogo = getSetting('school_details', 'logo_url', '');
-    const schoolAddress = getSetting('school_details', 'address', 'School Address');
-    
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Student ID Card</title>
-        <style>
-          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-          .id-card { 
-            width: 350px; 
-            height: 200px; 
-            border: 2px solid #333; 
-            border-radius: 10px; 
-            padding: 15px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            position: relative;
-            overflow: hidden;
-          }
-          .id-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: rgba(255,255,255,0.1);
-            transform: rotate(45deg);
-          }
-          .school-header { text-align: center; margin-bottom: 10px; }
-          .school-name { font-size: 14px; font-weight: bold; margin: 0; }
-          .card-content { display: flex; gap: 15px; }
-          .photo-section { width: 80px; }
-          .student-photo { 
-            width: 80px; 
-            height: 100px; 
-            border: 2px solid white; 
-            border-radius: 5px; 
-            background: white;
-            object-fit: cover;
-          }
-          .info-section { flex: 1; font-size: 10px; }
-          .info-row { margin: 2px 0; display: flex; justify-content: space-between; }
-          .info-label { font-weight: bold; }
-          .barcode { 
-            position: absolute; 
-            bottom: 10px; 
-            right: 10px; 
-            font-family: monospace; 
-            font-size: 8px;
-            transform: rotate(-90deg);
-            transform-origin: right bottom;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="id-card">
-          <div class="school-header">
-            <div class="school-name">${schoolName}</div>
-          </div>
-          <div class="card-content">
-            <div class="photo-section">
-              ${data.photo ? 
-                `<img src="${data.photo}" alt="Student Photo" class="student-photo" />` :
-                `<div class="student-photo" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #666;">
-                  <div style="text-align: center; font-size: 8px;">NO<br>PHOTO</div>
-                </div>`
-              }
-            </div>
-            <div class="info-section">
-              <div class="info-row">
-                <span class="info-label">Name:</span>
-                <span>${data.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Adm No:</span>
-                <span>${data.admissionNo}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Class:</span>
-                <span>${data.className}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Roll:</span>
-                <span>${data.rollNumber}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">DOB:</span>
-                <span>${data.dateOfBirth}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Blood:</span>
-                <span>${data.bloodGroup}</span>
-              </div>
-            </div>
-          </div>
-          ${back ? `
-            <div style="margin-top: 10px; font-size: 9px;">
-              <div style="margin-bottom: 5px;"><strong>Address:</strong> ${data.address}</div>
-              <div style="margin-bottom: 5px;"><strong>Phone:</strong> ${data.phone}</div>
-              <div style="margin-bottom: 5px;"><strong>Emergency:</strong> ${data.emergencyContact} (${data.emergencyPhone})</div>
-            </div>
-          ` : ''}
-          <div class="barcode">${data.admissionNo}</div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    return html;
+    return await buildStudentIdCardSnippet(data, back);
+  }, []);
+
+  // Generate ID card document HTML - Using same library as old form
+  const generateIdCardDocument = useCallback(async (data: StudentIdCardData, back: boolean = false) => {
+    return await buildStudentIdCardDocument(data, back);
   }, []);
 
   // Generate ID card HTML when side changes
@@ -179,18 +65,18 @@ export const useIdCard = (formData: StudentFormData) => {
     setShowCardBack(false);
   }, [generateIdCardData]);
 
-  // Handle ID card printing
+  // Handle ID card printing - Using same library as old form
   const handlePrintIdCard = useCallback(async () => {
     if (!idCardData) return;
     
-    const html = await generateIdCardHtml(idCardData, showCardBack);
+    const html = await buildStudentIdCardDocument(idCardData, showCardBack);
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return;
     
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.print();
-  }, [idCardData, showCardBack, generateIdCardHtml]);
+  }, [idCardData, showCardBack]);
 
   // Handle switching card sides
   const handleToggleCardSide = useCallback(() => {

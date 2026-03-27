@@ -248,6 +248,8 @@ async function autoApplyDiscount(discountRequestId: string, ctx: SessionContext)
           details: JSON.stringify({ appliedCount: applications.length, skippedCount, transportRouteIds })
         }
       });
+    }, {
+      timeout: 60000 // 60 seconds timeout
     });
 
     console.log(`✅ Auto-applied discount to ${applications.length} fee records (${skippedCount} skipped)`);
