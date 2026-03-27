@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       const totalFees = regularFeesTotal + finesTotal;
       const totalPaid = regularFeesPaid + finesPaid;
       const totalPending = regularFeesPending + finesPending;
-      const totalDiscount = regularFeesDiscount + finesWaived;
+      const totalDiscount = regularFeesDiscount; // Only regular fee discounts, exclude fines
       const totalWaived = regularFeesWaived + finesWaived;
       
       // Get latest payment date

@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
   X,
   Download,
@@ -22,7 +22,20 @@ import {
   Shield,
   Heart,
   Building,
-  Globe
+  Globe,
+  Brain,
+  Zap,
+  Sparkles,
+  Cpu,
+  Network,
+  BarChart3,
+  Target,
+  Eye,
+  Lightbulb,
+  Rocket,
+  Gem,
+  Layers,
+  Waves
 } from 'lucide-react';
 import { StudentFormData, AIInsights } from '../types';
 import { useSchoolDetails, useAcademicYears } from '@/contexts/SchoolConfigContext';
@@ -46,22 +59,67 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
   const [isExporting, setIsExporting] = React.useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   
-  // World-Class UI Features
+  // Advanced AI World-Class Features
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [neuralNetworkActive, setNeuralNetworkActive] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState(0);
+  
+  // Motion values for advanced animations
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const rotateX = useTransform(mouseY, [0, 400], [10, -10]);
+  const rotateY = useTransform(mouseX, [0, 400], [-10, 10]);
   
   // Get real school data from database
   const schoolDetails = useSchoolDetails();
   const { activeAcademicYear } = useAcademicYears();
 
-  // Mouse tracking for spotlight effect
+  // Advanced AI Mouse tracking with 3D perspective
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
+      const element = e.currentTarget as HTMLElement;
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        mouseX.set(x);
+        mouseY.set(y);
+        setMousePosition({ x: e.clientX, y: e.clientY });
+      }
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+    
+    const element = document.getElementById('ai-preview-container');
+    if (element) {
+      element.addEventListener('mousemove', handleMouseMove);
+      return () => element.removeEventListener('mousemove', handleMouseMove);
+    }
+  }, [mouseX, mouseY]);
+
+  // AI Processing animation
+  useEffect(() => {
+    if (show) {
+      setAiProcessing(true);
+      setNeuralNetworkActive(true);
+      
+      // Simulate AI confidence calculation
+      const confidenceInterval = setInterval(() => {
+        setAiConfidence(prev => {
+          const next = prev + Math.random() * 15;
+          return next >= 95 ? 95 : next;
+        });
+      }, 200);
+
+      setTimeout(() => {
+        setAiProcessing(false);
+        clearInterval(confidenceInterval);
+        setAiConfidence(aiInsights.confidence || 95);
+      }, 2000);
+
+      return () => clearInterval(confidenceInterval);
+    }
+  }, [show, aiInsights.confidence]);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -69,12 +127,16 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
 
   const handleDownload = useCallback(async () => {
     setIsExporting(true);
+    setAiProcessing(true);
     try {
+      // AI-powered document generation simulation
       await new Promise(resolve => setTimeout(resolve, 2000));
       setShowSuccess(true);
+      setAiProcessing(false);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('AI Export failed:', error);
+      setAiProcessing(false);
     } finally {
       setIsExporting(false);
     }
@@ -98,34 +160,100 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+          id="ai-preview-container"
+          initial={{ scale: 0.9, opacity: 0, rotateX: 5, rotateY: -5 }}
+          animate={{ scale: 1, opacity: 1, rotateX: 0, rotateY: 0 }}
+          exit={{ scale: 0.9, opacity: 0, rotateX: 5, rotateY: -5 }}
+          style={{
+            rotateX: rotateX,
+            rotateY: rotateY,
+            transformStyle: 'preserve-3d',
+          }}
           className={`w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl ${
             isDark 
-              ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700' 
-              : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+              ? 'bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/20 border-gray-700' 
+              : 'bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 border-gray-200'
           } border`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className={`px-6 py-4 border-b ${
+          {/* AI-Enhanced Header */}
+          <div className={`px-6 py-4 border-b relative overflow-hidden ${
             isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
           }`}>
-            <div className="flex items-center justify-between">
+            {/* Neural Network Background Animation */}
+            {neuralNetworkActive && (
+              <div className="absolute inset-0 opacity-20">
+                {[...Array(8)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-blue-500 rounded-full"
+                    animate={{
+                      x: [0, Math.random() * 300 - 150],
+                      y: [0, Math.random() * 100 - 50],
+                      opacity: [0, 1, 0],
+                      scale: [1, 2, 1],
+                    }}
+                    transition={{
+                      duration: 3 + Math.random() * 2,
+                      repeat: Infinity,
+                      delay: Math.random() * 2,
+                    }}
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            
+            <div className="relative z-10 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  isDark ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                }`}>
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
+                <motion.div 
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    isDark ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                  }`}
+                  animate={{
+                    rotate: [0, 360],
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                >
+                  <Brain className="w-6 h-6 text-white" />
+                </motion.div>
                 <div>
-                  <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Application Resume
-                  </h2>
+                  <motion.h2 
+                    className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+                    animate={{
+                      backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                    }}
+                    style={{
+                      backgroundSize: '200% 200%',
+                    }}
+                  >
+                    AI-Powered Application Resume
+                  </motion.h2>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {formData.name} • {formData.class} • {formData.admissionNo}
                   </p>
+                  {aiProcessing && (
+                    <motion.div 
+                      className="flex items-center gap-2 text-xs text-blue-500"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <Cpu className="w-3 h-3 animate-pulse" />
+                      AI Processing... {aiConfidence.toFixed(1)}%
+                    </motion.div>
+                  )}
                 </div>
               </div>
               
@@ -189,31 +317,67 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
             </div>
           </div>
 
-          {/* Main Content - Single Printable Resume */}
+          {/* Main Content - AI Enhanced Printable Resume */}
           <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-            <div ref={previewRef} className="bg-white relative">
-              {/* World-Class UI Animated Background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 via-purple-900/5 to-indigo-900/5 pointer-events-none">
+            <div ref={previewRef} className="bg-white relative" id="ai-preview-container">
+              {/* Advanced AI World-Class Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-indigo-900/10 pointer-events-none">
+                {/* Dynamic Mouse Spotlight */}
                 <div 
-                  className="absolute inset-0 opacity-20"
+                  className="absolute inset-0 opacity-30"
                   style={{
-                    background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59,130,246,0.3) 0%, transparent 50%)`
+                    background: `radial-gradient(circle 600px at ${mousePosition.x}px ${mousePosition.y}px, rgba(59,130,246,0.4) 0%, rgba(147,51,234,0.3) 30%, transparent 70%)`
                   }}
                 />
-                {/* Floating Particles */}
-                {[...Array(15)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-1 h-1 bg-blue-400/30 rounded-full"
-                    animate={{
-                      x: [0, Math.random() * 100 - 50],
-                      y: [0, Math.random() * 100 - 50],
-                      opacity: [0, 1, 0],
+                
+                {/* Neural Network Visualization */}
+                {neuralNetworkActive && (
+                  <div className="absolute inset-0">
+                    {/* Neural Connections */}
+                    <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.15 }}>
+                      {[...Array(12)].map((_, i) => (
+                        <motion.line
+                          key={`line-${i}`}
+                          x1={`${Math.random() * 100}%`}
+                          y1={`${Math.random() * 100}%`}
+                          x2={`${Math.random() * 100}%`}
+                          y2={`${Math.random() * 100}%`}
+                          stroke="url(#gradient)"
+                          strokeWidth="1"
+                          animate={{
+                            opacity: [0, 1, 0],
+                            pathLength: [0, 1],
+                          }}
+                          transition={{
+                            duration: 4 + Math.random() * 2,
+                            repeat: Infinity,
+                            delay: Math.random() * 2,
+                          }}
+                        />
+                      ))}
+                      <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#3B82F6" />
+                          <stop offset="100%" stopColor="#9333EA" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    
+                    {/* Neural Nodes */}
+                    {[...Array(20)].map((_, i) => (
+                      <motion.div
+                        key={`node-${i}`}
+                        className="absolute w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full"
+                        animate={{
+                          x: [0, Math.random() * 200 - 100],
+                          y: [0, Math.random() * 200 - 100],
+                      opacity: [0, 1, 0.5, 0],
+                      scale: [1, 1.5, 1, 0.5],
                     }}
                     transition={{
-                      duration: 4 + Math.random() * 3,
+                      duration: 5 + Math.random() * 3,
                       repeat: Infinity,
-                      delay: Math.random() * 2,
+                      delay: Math.random() * 3,
                     }}
                     style={{
                       left: `${Math.random() * 100}%`,
@@ -222,6 +386,44 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                   />
                 ))}
               </div>
+              
+              {/* Floating AI Particles */}
+              {[...Array(25)].map((_, i) => (
+                <motion.div
+                  key={`particle-${i}`}
+                  className="absolute w-1 h-1 bg-gradient-to-r from-blue-300 to-purple-300 rounded-full"
+                  animate={{
+                    x: [0, Math.random() * 150 - 75],
+                    y: [0, Math.random() * 150 - 75],
+                    opacity: [0, 0.8, 0],
+                    scale: [1, 2, 1],
+                  }}
+                  transition={{
+                    duration: 6 + Math.random() * 4,
+                    repeat: Infinity,
+                    delay: Math.random() * 3,
+                  }}
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                />
+              ))}
+              
+              {/* AI Processing Waves */}
+              {aiProcessing && (
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
+                  animate={{
+                    opacity: [0, 0.3, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                  }}
+                />
+              )}
+            </div>
 
               {/* School Letterhead */}
               <div className="relative z-10 bg-gradient-to-r from-blue-800 to-blue-600 text-white p-8 text-center">
@@ -436,101 +638,334 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                   </div>
                 </motion.div>
 
-                {/* AI Insights Section */}
+                {/* Advanced AI-Powered Insights Section */}
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.8, delay: 0.9, type: "spring" }}
                   className="mb-8"
                 >
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg">
-                      <Activity className="w-5 h-5 text-white" />
+                  <motion.h3 
+                    className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"
+                    animate={{
+                      backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                    }}
+                    transition={{
+                      duration: 4,
+                      repeat: Infinity,
+                    }}
+                    style={{
+                      backgroundSize: '200% 200%',
+                    }}
+                  >
+                    <motion.div 
+                      className="p-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-lg"
+                      animate={{
+                        rotate: [0, 360],
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    >
+                      <Brain className="w-5 h-5 text-white" />
+                    </motion.div>
+                    <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      Advanced AI-Powered Analysis & Intelligence
+                    </span>
+                  </motion.h3>
+                  
+                  <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-2xl border border-indigo-200 shadow-xl relative overflow-hidden">
+                    {/* AI Background Effects */}
+                    <div className="absolute inset-0 opacity-10">
+                      <motion.div
+                        className="absolute w-32 h-32 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-3xl"
+                        animate={{
+                          x: [0, 100, 0],
+                          y: [0, -50, 0],
+                        }}
+                        transition={{
+                          duration: 8,
+                          repeat: Infinity,
+                        }}
+                        style={{
+                          top: '20%',
+                          left: '10%',
+                        }}
+                      />
+                      <motion.div
+                        className="absolute w-24 h-24 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-2xl"
+                        animate={{
+                          x: [0, -80, 0],
+                          y: [0, 60, 0],
+                        }}
+                        transition={{
+                          duration: 6,
+                          repeat: Infinity,
+                        }}
+                        style={{
+                          bottom: '20%',
+                          right: '15%',
+                        }}
+                      />
                     </div>
-                    AI-Powered Insights & Analysis
-                  </h3>
-                  <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-lg border border-indigo-200 shadow-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Academic Potential */}
-                      <div>
-                        <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-green-500" />
-                          Academic Potential
+                    
+                    <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* AI Confidence Score */}
+                      <motion.div 
+                        className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        transition={{ type: "spring" }}
+                      >
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <motion.div
+                            animate={{
+                              rotate: [0, 360],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "linear"
+                            }}
+                          >
+                            <Target className="w-4 h-4 text-blue-500" />
+                          </motion.div>
+                          AI Confidence Score
                         </h4>
-                        <div className="bg-white p-3 rounded border border-gray-200">
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">Overall Score</span>
-                            <span className="font-bold text-green-600">{aiInsights.confidence}%</span>
+                            <span className="text-sm text-gray-600">Overall Assessment</span>
+                            <motion.span 
+                              className="font-bold text-green-600 text-lg"
+                              animate={{
+                                color: aiProcessing ? ['#3B82F6', '#10B981', '#8B5CF6'] : '#10B981',
+                              }}
+                              transition={{
+                                duration: 1,
+                                repeat: aiProcessing ? Infinity : 0,
+                              }}
+                            >
+                              {aiConfidence.toFixed(1)}%
+                            </motion.span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full"
-                              style={{ width: `${aiInsights.confidence}%` }}
+                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <motion.div 
+                              className="h-full bg-gradient-to-r from-blue-400 via-green-400 to-purple-400 rounded-full"
+                              animate={{
+                                width: `${aiConfidence}%`,
+                              }}
+                              transition={{
+                                duration: 2,
+                                ease: "easeOut"
+                              }}
                             />
                           </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {aiConfidence >= 90 ? 'Excellent Match' : aiConfidence >= 80 ? 'Strong Candidate' : 'Good Potential'}
+                          </div>
                         </div>
-                      </div>
+                      </motion.div>
 
-                      {/* Learning Style */}
-                      <div>
-                        <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                          <Star className="w-4 h-4 text-blue-500" />
-                          Learning Style
+                      {/* AI Learning Style Analysis */}
+                      <motion.div 
+                        className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        transition={{ type: "spring" }}
+                      >
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <motion.div
+                            animate={{
+                              scale: [1, 1.2, 1],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                            }}
+                          >
+                            <Lightbulb className="w-4 h-4 text-purple-500" />
+                          </motion.div>
+                          AI Learning Style
                         </h4>
-                        <div className="bg-white p-3 rounded border border-gray-200">
-                          <p className="text-gray-800">{aiInsights.suggestions?.[0] || 'AI analysis in progress...'}</p>
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <p className="text-gray-800 text-sm leading-relaxed">
+                            {aiInsights.suggestions?.[0] || 'AI analyzing learning patterns...'}
+                          </p>
+                          {aiProcessing && (
+                            <motion.div 
+                              className="mt-2 flex items-center gap-2 text-xs text-purple-500"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                            >
+                              <Sparkles className="w-3 h-3 animate-pulse" />
+                              Neural Network Processing...
+                            </motion.div>
+                          )}
                         </div>
-                      </div>
+                      </motion.div>
 
-                      {/* Strengths */}
-                      <div>
-                        <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-purple-500" />
-                          Key Strengths
+                      {/* AI Strengths Analysis */}
+                      <motion.div 
+                        className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        transition={{ type: "spring" }}
+                      >
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <motion.div
+                            animate={{
+                              rotateY: [0, 180, 360],
+                            }}
+                            transition={{
+                              duration: 3,
+                              repeat: Infinity,
+                              ease: "linear"
+                            }}
+                          >
+                            <Shield className="w-4 h-4 text-indigo-500" />
+                          </motion.div>
+                          AI-Identified Strengths
                         </h4>
-                        <div className="bg-white p-3 rounded border border-gray-200">
-                          <ul className="text-sm text-gray-700 space-y-1">
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <ul className="text-sm text-gray-700 space-y-2">
                             {aiInsights.suggestions?.slice(0, 3).map((suggestion: string, index: number) => (
-                              <li key={index} className="flex items-start gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
-                                {suggestion}
-                              </li>
+                              <motion.li 
+                                key={index} 
+                                className="flex items-start gap-2"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.2 }}
+                              >
+                                <motion.div
+                                  animate={{
+                                    scale: [1, 1.2, 1],
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    delay: index * 0.3,
+                                  }}
+                                >
+                                  <Gem className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                                </motion.div>
+                                <span className="text-gray-800">{suggestion}</span>
+                              </motion.li>
                             )) || (
-                              <li className="flex items-start gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
-                                AI analysis in progress...
-                              </li>
+                              <motion.li 
+                                className="flex items-start gap-2"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                              >
+                                <Rocket className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0 animate-pulse" />
+                                <span className="text-gray-600">AI analyzing strengths...</span>
+                              </motion.li>
                             )}
                           </ul>
                         </div>
-                      </div>
+                      </motion.div>
 
-                      {/* Recommendations */}
-                      <div>
-                        <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                          <Award className="w-4 h-4 text-amber-500" />
-                          Recommendations
+                      {/* AI Recommendations */}
+                      <motion.div 
+                        className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        transition={{ type: "spring" }}
+                      >
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <motion.div
+                            animate={{
+                              rotateZ: [0, 10, -10, 0],
+                            }}
+                            transition={{
+                              duration: 3,
+                              repeat: Infinity,
+                            }}
+                          >
+                            <Eye className="w-4 h-4 text-amber-500" />
+                          </motion.div>
+                          AI Strategic Recommendations
                         </h4>
-                        <div className="bg-white p-3 rounded border border-gray-200">
-                          <ul className="text-sm text-gray-700 space-y-1">
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <ul className="text-sm text-gray-700 space-y-2">
                             {aiInsights.recommendations?.slice(0, 3).map((rec: string, index: number) => (
-                              <li key={index} className="flex items-start gap-2">
-                                <Star className="w-3 h-3 text-amber-500 mt-0.5 flex-shrink-0" />
-                                {rec}
-                              </li>
+                              <motion.li 
+                                key={index} 
+                                className="flex items-start gap-2"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.2 }}
+                              >
+                                <motion.div
+                                  animate={{
+                                    opacity: [0.5, 1, 0.5],
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    delay: index * 0.4,
+                                  }}
+                                >
+                                  <Star className="w-3 h-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                                </motion.div>
+                                <span className="text-gray-800">{rec}</span>
+                              </motion.li>
                             ))}
                           </ul>
                         </div>
-                      </div>
+                      </motion.div>
                     </div>
 
-                    {/* AI Summary */}
-                    <div className="mt-6 p-4 bg-white rounded border border-gray-200">
-                      <h4 className="font-semibold text-gray-800 mb-2">AI Assessment Summary</h4>
-                      <p className="text-gray-700 leading-relaxed">
-                        {aiInsights.warnings?.[0] || 'AI analysis in progress...'}
+                    {/* AI Summary with Advanced Visualization */}
+                    <motion.div 
+                      className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-white/50"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.1, 1],
+                            opacity: [0.7, 1, 0.7],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                          }}
+                        >
+                          <BarChart3 className="w-4 h-4 text-purple-500" />
+                        </motion.div>
+                        AI Comprehensive Assessment
+                      </h4>
+                      <p className="text-gray-700 leading-relaxed text-sm">
+                        {aiInsights.warnings?.[0] || 'AI processing comprehensive analysis...'}
                       </p>
-                    </div>
+                      {aiProcessing && (
+                        <motion.div 
+                          className="mt-3 flex items-center gap-2"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
+                          <div className="flex gap-1">
+                            {[...Array(3)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                className="w-2 h-2 bg-blue-500 rounded-full"
+                                animate={{
+                                  y: [0, -10, 0],
+                                  opacity: [0.5, 1, 0.5],
+                                }}
+                                transition={{
+                                  duration: 1,
+                                  repeat: Infinity,
+                                  delay: i * 0.2,
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-blue-500">Deep Learning Analysis in Progress...</span>
+                        </motion.div>
+                      )}
+                    </motion.div>
                   </div>
                 </motion.div>
 
