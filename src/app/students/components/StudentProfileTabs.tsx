@@ -79,10 +79,31 @@ export default function StudentProfileTabs({
     if (selectedStudent?.id && activeTab === 'fees') {
       setFeeLoading(true);
       setFeeError('');
-      fetch(`/api/fees/records?studentId=${selectedStudent.id}&pageSize=50`)
+      fetch(`/api/fees/students?page=1&limit=25&includeArchived=true&studentId=${selectedStudent.id}`)
         .then(r => r.json())
         .then(data => {
-          setFeeRecords(data.records || []);
+          if (data.success && data.data?.students?.length > 0) {
+            const studentData = data.data.students[0];
+            setFeeRecords(studentData.feeRecords || []);
+            // Update the feeData with the new comprehensive data
+            if (setFeeManagement) {
+              setFeeManagement((prev: any) => ({
+                ...prev,
+                feeData: {
+                  totalFees: studentData.totalFees,
+                  totalPaid: studentData.totalPaid, 
+                  totalPending: studentData.totalPending,
+                  totalDiscount: studentData.totalDiscount,
+                  totalOverdue: studentData.totalOverdue,
+                  finesTotal: studentData.finesTotal,
+                  finesPaid: studentData.finesPaid,
+                  finesPending: studentData.finesPending,
+                  finesWaived: studentData.finesWaived,
+                  pendingFinesCount: studentData.pendingFinesCount
+                }
+              }));
+            }
+          }
           setFeeLoading(false);
         })
         .catch(err => {
@@ -91,7 +112,7 @@ export default function StudentProfileTabs({
           setFeeLoading(false);
         });
     }
-  }, [selectedStudent?.id, activeTab]);
+  }, [selectedStudent?.id, activeTab, setFeeManagement]);
 
   useEffect(() => {
     if (selectedStudent?.id && activeTab === 'refunds') {
@@ -157,7 +178,7 @@ export default function StudentProfileTabs({
             <h3 className={heading(theme)}>Fee Overview</h3>
             {canManageFees && (
               <button
-                onClick={() => setFeeManagement((prev: any) => ({ ...prev, showFeeModal: true, selectedStudent }))}
+                onClick={() => window.open(`/fee-collection?studentId=${selectedStudent.id}`, '_blank')}
                 className={`px-4 py-2 text-sm rounded-lg font-medium ${
                   theme === 'dark' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
                 }`}
@@ -167,18 +188,19 @@ export default function StudentProfileTabs({
             )}
           </div>
 
-          {/* Summary — includes fines in totals with fines breakdown */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Summary — Comprehensive fee breakdown */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+            {/* Main Totals */}
             <StatCard title="Total" val={`₹${displayTotal.toLocaleString()}`} color={theme === 'dark' ? 'text-white' : 'text-gray-900'} theme={theme} />
             <StatCard title="Paid" val={`₹${displayPaid.toLocaleString()}`} color="text-green-500" theme={theme} />
             <StatCard title="Pending" val={`₹${displayPending.toLocaleString()}`} color="text-yellow-500" theme={theme} />
+            <StatCard title="Overdue" val={`₹${totalOverdue.toLocaleString()}`} color="text-red-500" theme={theme} />
+            
+            {/* Fee Breakdown */}
             <StatCard title="Discount" val={`₹${displayDiscount.toLocaleString()}`} color="text-blue-500" theme={theme} />
-            {finesPending > 0 && (
-              <StatCard title="Fines Pending" val={`₹${finesPending.toLocaleString()}`} color="text-orange-500" theme={theme} />
-            )}
-            {totalOverdue > 0 && (
-              <StatCard title="Overdue" val={`₹${totalOverdue.toLocaleString()}`} color="text-red-500" theme={theme} />
-            )}
+            <StatCard title="Fines Total" val={`₹${finesTotal.toLocaleString()}`} color="text-orange-500" theme={theme} />
+            <StatCard title="Fines Waived" val={`₹${finesWaived.toLocaleString()}`} color="text-purple-500" theme={theme} />
+            <StatCard title="Fines Pending" val={`₹${finesPending.toLocaleString()}`} color="text-orange-600" theme={theme} />
           </div>
 
           {/* Fines breakdown section */}
@@ -211,6 +233,119 @@ export default function StudentProfileTabs({
             </div>
           )}
 
+          {/* Fee breakdown section */}
+          {feeRecords.length > 0 && (
+            <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'border-blue-800 bg-blue-900/20' : 'border-blue-200 bg-blue-50'}`}>
+              <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>💰 Fee Breakdown</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
+                {/* Regular Fees */}
+                <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white'}`}>
+                  <h5 className={`font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Regular Fees</h5>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Total:</span>
+                      <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        ₹{feeRecords.filter(r => r.feeStructure?.category !== 'transport').reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Discount:</span>
+                      <span className="font-medium text-blue-500">
+                        ₹{feeRecords.filter(r => r.feeStructure?.category !== 'transport').reduce((sum, r) => sum + (r.discount || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Pending:</span>
+                      <span className="font-medium text-yellow-500">
+                        ₹{feeRecords.filter(r => r.feeStructure?.category !== 'transport').reduce((sum, r) => sum + ((r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0)), 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transport Fees */}
+                <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white'}`}>
+                  <h5 className={`font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Transport Fees</h5>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Total:</span>
+                      <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        ₹{feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Waived:</span>
+                      <span className="font-medium text-purple-500">
+                        ₹{feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.discount || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Pending:</span>
+                      <span className="font-medium text-yellow-500">
+                        ₹{feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + ((r.amount || 0) - (r.paidAmount || 0) - (r.discount || 0)), 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white'}`}>
+                  <h5 className={`font-medium mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>Payment Stats</h5>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Records:</span>
+                      <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        {feeRecords.length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Paid Records:</span>
+                      <span className="font-medium text-green-500">
+                        {feeRecords.filter(r => r.status === 'paid').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>Partial:</span>
+                      <span className="font-medium text-orange-500">
+                        {feeRecords.filter(r => r.status === 'partial').length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transport Summary */}
+                {feeRecords.some(r => r.feeStructure?.category === 'transport') && (
+                  <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-purple-900/20 border border-purple-800' : 'bg-purple-50 border border-purple-200'}`}>
+                    <h5 className={`font-medium mb-2 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-700'}`}>🚌 Transport Summary</h5>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className={theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}>Total Waived:</span>
+                        <span className="font-medium text-purple-500">
+                          ₹{feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.discount || 0), 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}>Waiver %:</span>
+                        <span className="font-medium text-purple-500">
+                          {feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.amount || 0), 0) > 0 
+                            ? Math.round((feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.discount || 0), 0) / 
+                                feeRecords.filter(r => r.feeStructure?.category === 'transport').reduce((sum, r) => sum + (r.amount || 0), 0)) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}>Status:</span>
+                        <span className="font-medium text-purple-500">
+                          {feeRecords.filter(r => r.feeStructure?.category === 'transport').some(r => r.discount > 0) ? 'Waived' : 'Active'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {fees.lastPaymentDate && (
             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               Last payment: {fees.lastPaymentDate}
@@ -237,7 +372,7 @@ export default function StudentProfileTabs({
                 <table className="w-full text-sm">
                   <thead className={theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}>
                     <tr>
-                      {['Fee Type', 'Academic Year', 'Amount', 'Paid', 'Pending', 'Due Date', 'Status'].map(h => (
+                      {['Fee Type', 'Academic Year', 'Amount', 'Paid', 'Discount/Waived', 'Pending', 'Due Date', 'Status'].map(h => (
                         <th key={h} className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{h}</th>
                       ))}
                     </tr>
@@ -256,6 +391,12 @@ export default function StudentProfileTabs({
                           <td className={`py-3 px-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{rec.academicYear || '—'}</td>
                           <td className={`py-3 px-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>₹{(rec.amount || 0).toLocaleString()}</td>
                           <td className="py-3 px-4 text-green-500 font-medium">₹{(rec.paidAmount || 0).toLocaleString()}</td>
+                          <td className={`py-3 px-4 font-medium ${rec.feeStructure?.category === 'transport' ? 'text-purple-500' : 'text-blue-500'}`}>
+                            ₹{(rec.discount || 0).toLocaleString()}
+                            {rec.feeStructure?.category === 'transport' && rec.discount > 0 && (
+                              <span className={`ml-1 text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>(waived)</span>
+                            )}
+                          </td>
                           <td className={`py-3 px-4 font-medium ${pending > 0 ? 'text-yellow-500' : 'text-green-500'}`}>
                             ₹{Math.max(0, pending).toLocaleString()}
                           </td>

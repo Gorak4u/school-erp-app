@@ -42,9 +42,11 @@ const ModalManager: React.FC<ModalManagerProps> = ({
   onCalendarModalClose,
   onRefreshFeeData
 }) => {
-  const modalStyles = `fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]`;
-  const modalContentStyles = `relative w-full max-w-6xl mx-4 overflow-hidden rounded-2xl border shadow-lg ${
-    theme === 'dark' ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+  const modalStyles = `fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10000]`;
+  const modalContentStyles = `relative w-full max-w-6xl mx-4 overflow-hidden rounded-2xl border shadow-xl ${
+    theme === 'dark' 
+      ? 'bg-gray-800 border-gray-700' 
+      : 'bg-white border-gray-200'
   }`;
 
   const renderModalHeader = (title: string, onClose: () => void, subtitle?: string) => (
@@ -62,11 +64,15 @@ const ModalManager: React.FC<ModalManagerProps> = ({
         </div>
         <button
           onClick={onClose}
-          className={`p-2 rounded-lg transition-colors ${
-            theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+          className={`p-2 rounded-lg transition-all duration-200 hover:scale-105 ${
+            theme === 'dark' 
+              ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
+              : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
           }`}
         >
-          ✖️ Close
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     </div>

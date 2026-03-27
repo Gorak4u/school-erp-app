@@ -139,6 +139,38 @@ export async function GET(request: NextRequest) {
         FROM "school"."FeeArrears" fa
         LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
         WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
+        
+        UNION ALL
+        
+        SELECT 
+          st.id,
+          st."studentId",
+          NULL as "feeStructureId",
+          st.fee as amount,
+          st."paidAmount",
+          COALESCE(st."waivedAmount", 0) as discount,
+          st."dueDate",
+          st."createdAt",
+          st."academicYear",
+          NULL as "receiptNumber",
+          s.name as "studentName",
+          s.class,
+          s.section,
+          s."rollNo",
+          COALESCE(s.status, 'active') as "studentStatus",
+          'Transport Fee' as "feeStructureName",
+          'Transport' as "feeCategory",
+          CASE 
+            WHEN st."paidAmount" >= (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'paid'
+            WHEN st."paidAmount" > 0 AND st."paidAmount" < (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'partial'
+            ELSE 'pending'
+          END as status,
+          0 as "totalPayments",
+          0 as "paymentCount",
+          'transport' as record_type
+        FROM "school"."StudentTransport" st
+        LEFT JOIN "school"."Student" s ON st."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
       )
       ORDER BY "createdAt" DESC
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
@@ -154,22 +186,76 @@ export async function GET(request: NextRequest) {
         WHERE ${whereClause}
         GROUP BY fr.id, s.name, s.class, s.section, s."rollNo", fs.name, fs.category
         ${havingClause}
+        
+        UNION ALL
+        
+        SELECT fa.id
+        FROM "school"."FeeArrears" fa
+        LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
+        
+        UNION ALL
+        
+        SELECT st.id
+        FROM "school"."StudentTransport" st
+        LEFT JOIN "school"."Student" s ON st."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
       ) as filtered_records
     `;
 
     const summaryQuery = `
       SELECT 
         COUNT(*) as "totalRecords",
-        COALESCE(SUM(fr.amount), 0) as "totalAmount",
-        COALESCE(SUM(fr."paidAmount"), 0) as "totalCollected",
-        COUNT(CASE WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 1 END) as "paidCount",
-        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 1 END) as "overdueCount",
-        COUNT(CASE WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 1 END) as "partialCount",
-        COUNT(CASE WHEN fr."paidAmount" = 0 THEN 1 END) as "pendingCount"
-      FROM "school"."FeeRecord" fr
-      LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
-      WHERE ${whereClause}
-      ${havingClause}
+        COALESCE(SUM(amount), 0) as "totalAmount",
+        COALESCE(SUM("paidAmount"), 0) as "totalCollected",
+        COALESCE(SUM(discount), 0) as "totalDiscount",
+        COUNT(CASE WHEN status = 'paid' THEN 1 END) as "paidCount",
+        COUNT(CASE WHEN status = 'partial' THEN 1 END) as "partialCount",
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as "pendingCount"
+      FROM (
+        SELECT 
+          fr.amount,
+          fr."paidAmount",
+          fr.discount,
+          CASE 
+            WHEN fr."paidAmount" >= (fr.amount - fr.discount) THEN 'paid'
+            WHEN fr."paidAmount" > 0 AND fr."paidAmount" < (fr.amount - fr.discount) THEN 'partial'
+            ELSE 'pending'
+          END as status
+        FROM "school"."FeeRecord" fr
+        LEFT JOIN "school"."Student" s ON fr."studentId" = s.id
+        WHERE ${whereClause}
+        
+        UNION ALL
+        
+        SELECT 
+          fa.amount,
+          fa."paidAmount",
+          0 as discount,
+          CASE 
+            WHEN fa."paidAmount" >= fa.amount THEN 'paid'
+            WHEN fa."paidAmount" > 0 AND fa."paidAmount" < fa.amount THEN 'partial'
+            ELSE 'pending'
+          END as status
+        FROM "school"."FeeArrears" fa
+        LEFT JOIN "school"."Student" s ON fa."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
+        
+        UNION ALL
+        
+        SELECT 
+          st.fee as amount,
+          st."paidAmount",
+          COALESCE(st."waivedAmount", 0) as discount,
+          CASE 
+            WHEN st."paidAmount" >= (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'paid'
+            WHEN st."paidAmount" > 0 AND st."paidAmount" < (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'partial'
+            ELSE 'pending'
+          END as status
+        FROM "school"."StudentTransport" st
+        LEFT JOIN "school"."Student" s ON st."studentId" = s.id
+        WHERE ${whereConditions.filter(c => !c.includes('fr.')).length > 0 ? whereConditions.filter(c => !c.includes('fr.')).join(' AND ') : 'TRUE'}
+      ) as all_records
     `;
 
     // Add fines summary query

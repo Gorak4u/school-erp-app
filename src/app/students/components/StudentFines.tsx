@@ -39,7 +39,7 @@ interface StudentFinesProps {
   onClose: () => void;
 }
 
-export default function StudentFines({ student }: StudentFinesProps) {
+export default function StudentFines({ student, theme }: StudentFinesProps) {
   const [fines, setFines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +52,8 @@ export default function StudentFines({ student }: StudentFinesProps) {
   });
   const [submittingWaiver, setSubmittingWaiver] = useState(false);
 
-  const isDark = 'dark'; // Removed theme prop usage
-  const card = `rounded-lg border p-4 ${isDark ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-white'}`;
+  const isDark = theme === 'dark';
+  const card = `rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`;
   const btnPrimary = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
   const btnSecondary = `px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`;
 
@@ -123,11 +123,11 @@ export default function StudentFines({ student }: StudentFinesProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'partial': return 'text-blue-600 bg-blue-100';
-      case 'paid': return 'text-green-600 bg-green-100';
-      case 'waived': return 'text-purple-600 bg-purple-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'pending': return isDark ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-600 bg-yellow-100';
+      case 'partial': return isDark ? 'text-blue-400 bg-blue-900/30' : 'text-blue-600 bg-blue-100';
+      case 'paid': return isDark ? 'text-green-400 bg-green-900/30' : 'text-green-600 bg-green-100';
+      case 'waived': return isDark ? 'text-purple-400 bg-purple-900/30' : 'text-purple-600 bg-purple-100';
+      default: return isDark ? 'text-gray-400 bg-gray-700' : 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -179,7 +179,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
         <div className={card}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500">Total Fines</p>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Fines</p>
               <p className="text-lg font-bold">₹{totalStats.total.toLocaleString()}</p>
             </div>
             <FileText className="w-8 h-8 text-blue-500" />
@@ -188,7 +188,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
         <div className={card}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500">Paid</p>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Paid</p>
               <p className="text-lg font-bold text-green-600">₹{totalStats.paid.toLocaleString()}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-500" />
@@ -197,7 +197,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
         <div className={card}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500">Pending</p>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Pending</p>
               <p className="text-lg font-bold text-yellow-600">₹{totalStats.pending.toLocaleString()}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-500" />
@@ -206,7 +206,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
         <div className={card}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500">Waived</p>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Waived</p>
               <p className="text-lg font-bold text-purple-600">₹{totalStats.waived.toLocaleString()}</p>
             </div>
             <Ban className="w-8 h-8 text-purple-500" />
@@ -220,8 +220,8 @@ export default function StudentFines({ student }: StudentFinesProps) {
         {fines.length === 0 ? (
           <div className={card}>
             <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No fines found for this student</p>
+              <FileText className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'} mx-auto mb-4`} />
+              <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>No fines found for this student</p>
             </div>
           </div>
         ) : (
@@ -241,12 +241,12 @@ export default function StudentFines({ student }: StudentFinesProps) {
                         {fine.status.charAt(0).toUpperCase() + fine.status.slice(1)}
                       </span>
                       <span className="text-sm font-medium">{fine.fineNumber}</span>
-                      <span className="text-xs text-gray-500">{fine.type}</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{fine.type}</span>
                     </div>
                     
-                    <p className="text-sm text-gray-600 mb-2">{fine.description}</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-2`}>{fine.description}</p>
                     
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className={`flex items-center gap-4 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         Issued: {new Date(fine.issuedAt).toLocaleDateString()}
@@ -264,13 +264,13 @@ export default function StudentFines({ student }: StudentFinesProps) {
                     </div>
 
                     {fine.payments.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-xs text-gray-500 mb-1">Recent Payments:</p>
+                      <div className={`mt-2 pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mb-1`}>Recent Payments:</p>
                         <div className="space-y-1">
                           {fine.payments.slice(0, 2).map((payment: any) => (
                             <div key={payment.id} className="flex items-center gap-2 text-xs">
                               <span>₹{payment.amount} via {payment.paymentMethod}</span>
-                              <span className="text-gray-500">
+                              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
                                 ({new Date(payment.createdAt).toLocaleDateString()})
                               </span>
                             </div>
@@ -284,13 +284,13 @@ export default function StudentFines({ student }: StudentFinesProps) {
                   
                   <div className="text-right ml-4">
                     <div className="text-lg font-bold">₹{fine.amount.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">Total</div>
+                    <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total</div>
                     <div className="text-sm text-green-600">₹{fine.paidAmount.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">Paid</div>
+                    <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Paid</div>
                     {fine.pendingAmount > 0 && (
                       <>
                         <div className="text-sm text-yellow-600">₹{fine.pendingAmount.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">Pending</div>
+                        <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Pending</div>
                       </>
                     )}
                   </div>
@@ -320,14 +320,14 @@ export default function StudentFines({ student }: StudentFinesProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={card}>
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Request Waiver
                   </h2>
                   <button
                     onClick={() => setShowWaiverModal(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    className={`p-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-lg transition-colors`}
                   >
                     ×
                   </button>
@@ -335,26 +335,26 @@ export default function StudentFines({ student }: StudentFinesProps) {
               </div>
               <div className="p-6">
                 <div className="mb-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Fine</div>
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Fine</div>
+                  <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {selectedFine.fineNumber} - {selectedFine.description}
                   </div>
                 </div>
                 <div className="mb-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Student</div>
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Student</div>
+                  <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {student.name}
                   </div>
                 </div>
                 <div className="mb-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Pending Amount</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending Amount</div>
+                  <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     ₹{selectedFine.pendingAmount.toLocaleString()}
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Reason for Waiver *</label>
+                    <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Reason for Waiver *</label>
                     <textarea 
                       className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       rows={3}
@@ -365,7 +365,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Additional Remarks (Optional)</label>
+                    <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Additional Remarks (Optional)</label>
                     <textarea 
                       className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                       rows={2}
@@ -375,7 +375,7 @@ export default function StudentFines({ student }: StudentFinesProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Supporting Documents (Optional)</label>
+                    <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Supporting Documents (Optional)</label>
                     <input 
                       type="file" 
                       className={`mt-1 block w-full px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}

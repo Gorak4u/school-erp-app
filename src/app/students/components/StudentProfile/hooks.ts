@@ -111,14 +111,14 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
 
 export const useProfileTabs = (): Array<{ id: string; label: string; icon: string }> => {
   return useMemo(() => [
-    { id: 'overview', label: '📋 Overview', icon: '📋' },
-    { id: 'academics', label: '📈 Academics', icon: '📈' },
-    { id: 'fees', label: '💰 Fees', icon: '💰' },
-    { id: 'fines', label: '⚖️ Fines', icon: '⚖️' },
-    { id: 'attendance', label: '📊 Attendance', icon: '📊' },
-    { id: 'analytics', label: '📈 Analytics', icon: '📈' },
-    { id: 'medical', label: '🏥 Medical', icon: '🏥' },
-    { id: 'communication', label: '💬 Communication', icon: '💬' },
-    { id: 'parents', label: '👨‍👩‍👧 Parents', icon: '👨‍👩‍👧' }
+    { id: 'overview', label: 'Overview', icon: 'LayoutGrid' },
+    { id: 'academics', label: 'Academics', icon: 'GraduationCap' },
+    { id: 'fees', label: 'Fees', icon: 'DollarSign' },
+    { id: 'fines', label: 'Fines', icon: 'Scale' },
+    { id: 'attendance', label: 'Attendance', icon: 'CalendarCheck' },
+    { id: 'analytics', label: 'Analytics', icon: 'BarChart3' },
+    { id: 'medical', label: 'Medical', icon: 'HeartPulse' },
+    { id: 'communication', label: 'Communication', icon: 'MessageSquare' },
+    { id: 'parents', label: 'Parents', icon: 'Users' }
   ], []);
 };

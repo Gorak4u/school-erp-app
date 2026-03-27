@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStudentInfoSections } from './hooks';
 import { Student } from './types';
+import Card from './ui/Card';
 
 interface OverviewTabProps {
   selectedStudent: Student;
@@ -10,28 +11,34 @@ interface OverviewTabProps {
 const OverviewTab: React.FC<OverviewTabProps> = ({ selectedStudent, theme }) => {
   const sections = useStudentInfoSections(selectedStudent, theme);
 
-  const cardStyles = `rounded-lg border p-4 ${
-    theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+  // Design system styling
+  const cardStyles = `rounded-xl border p-6 shadow-md ${
+    theme === 'dark' 
+      ? 'bg-gray-800 border-gray-700' 
+      : 'bg-white border-gray-200'
   }`;
 
-  const labelStyles = `text-sm font-medium ${
+  const labelStyles = `text-sm font-semibold ${
     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
   }`;
 
-  const valueStyles = `mt-1 ${
+  const valueStyles = `mt-1 text-base ${
     theme === 'dark' ? 'text-white' : 'text-gray-900'
   }`;
 
-  const headingStyles = `text-lg font-semibold mb-4 ${
+  const headingStyles = `text-xl font-bold mb-4 ${
     theme === 'dark' ? 'text-white' : 'text-gray-900'
   }`;
+
+  const containerStyles = 'space-y-6 max-h-[60vh] overflow-y-auto';
+  const gridStyles = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
 
   return (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+    <div className={containerStyles}>
       {sections.map((section, index) => (
-        <div key={index} className={cardStyles}>
+        <Card key={index} theme={theme}>
           <h3 className={headingStyles}>{section.title}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={gridStyles}>
             {section.fields.map((field, fieldIndex) => (
               <div key={fieldIndex}>
                 <label className={labelStyles}>{field.label}</label>
@@ -39,7 +46,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ selectedStudent, theme }) => 
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );

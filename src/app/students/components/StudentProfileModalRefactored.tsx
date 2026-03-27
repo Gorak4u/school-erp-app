@@ -48,7 +48,7 @@ interface StudentProfileModalProps {
 }
 
 const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
-  activeTab,
+  activeTab: propActiveTab,
   selectedStudent,
   theme,
   students = [],
@@ -87,7 +87,21 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   );
   const profileTabs = useProfileTabs();
 
-  // Local state
+  // Local state for modal tabs - separate from main page tabs
+  const [localActiveTab, setLocalActiveTab] = useState('overview');
+  
+  // Reset to overview when modal opens with a new student
+  useEffect(() => {
+    if (selectedStudent) {
+      setLocalActiveTab('overview');
+    }
+  }, [selectedStudent?.id]);
+  
+  // Use local tab state instead of prop
+  const currentTab = localActiveTab;
+  const setCurrentTab = setLocalActiveTab;
+
+  // Other local state
   const [showIdCard, setShowIdCard] = useState(false);
   const [showCardBack, setShowCardBack] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -274,19 +288,19 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   const actionButtons: ActionButton[] = [
     {
       label: 'Send SMS',
-      icon: '📱',
+      icon: 'Smartphone',
       onClick: () => sendStudentSMS(selectedStudent),
       variant: 'primary'
     },
     {
       label: 'ID Card',
-      icon: '🆔',
+      icon: 'IdCard',
       onClick: () => setShowIdCard(true),
       variant: 'primary'
     },
     {
       label: 'Print Profile',
-      icon: '🖨️',
+      icon: 'Printer',
       onClick: () => printStudentProfile(selectedStudent),
       variant: 'secondary'
     }
@@ -295,7 +309,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   if (canEditStudentRecord) {
     actionButtons.push({
       label: 'Edit Student',
-      icon: '✏️',
+      icon: 'Pencil',
       onClick: () => setEditingStudent(selectedStudent),
       variant: 'primary'
     });
@@ -304,7 +318,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   if (canRunLifecycleActions) {
     actionButtons.push({
       label: 'Promote',
-      icon: '⬆️',
+      icon: 'ArrowUp',
       onClick: () => onPromoteSingle?.(selectedStudent.id),
       variant: 'primary'
     });
@@ -336,25 +350,27 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className={`relative w-full max-w-7xl h-[90vh] mx-4 overflow-hidden rounded-2xl shadow-2xl ${
-                theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              className={`relative w-full max-w-7xl h-[90vh] mx-4 overflow-hidden rounded-2xl shadow-2xl flex flex-col ${
+                theme === 'dark' 
+                  ? 'bg-gray-900 border border-gray-700' 
+                  : 'bg-gray-50 border border-gray-200'
               }`}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
-              <div className={`px-8 py-6 border-b ${
+              {/* Modal Header - Compact */}
+              <div className={`px-4 py-3 border-b ${
                 theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
               }`}>
                 <div className="flex items-center justify-between">
-                  <h2 className={`text-2xl font-bold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Student Profile</h2>
+                  <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    Student Profile
+                  </h2>
                   <button
                     onClick={() => setSelectedStudent(null)}
-                    className={`p-3 rounded-xl transition-all hover:scale-105 ${
+                    className={`p-2 rounded-lg transition-all hover:scale-105 ${
                       theme === 'dark' 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white' 
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                        ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
+                        : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
                     }`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,7 +381,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               </div>
 
               {/* Profile Header */}
-              <div className="px-6 py-4">
+              <div className="px-4 py-0">
                 <ProfileHeader
                   selectedStudent={selectedStudent}
                   theme={theme}
@@ -386,22 +402,22 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               />
 
               {/* Tab Navigation */}
-              <div className={`px-8 py-6 border-b ${
+              <div className={`px-4 py-1 border-b ${
                 theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
               }`}>
                 <TabNavigation
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
+                  activeTab={currentTab}
+                  setActiveTab={setCurrentTab}
                   theme={theme}
                 />
               </div>
 
               {/* Profile Content */}
               <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
-                <div className="p-8 space-y-8">
+                <div className="p-4 space-y-4">
                   {/* Overview Tab */}
                   <AnimatePresence>
-                    {activeTab === 'overview' && (
+                    {currentTab === 'overview' && (
                       <motion.div
                         variants={containerVariants}
                         initial="hidden"
@@ -420,7 +436,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
 
                   {/* Academics Tab */}
                   <AnimatePresence>
-                    {activeTab === 'academics' && (
+                    {currentTab === 'academics' && (
                       <motion.div
                         variants={containerVariants}
                         initial="hidden"
@@ -440,7 +456,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
 
                   {/* Other Tabs */}
                   <StudentProfileTabs
-                    activeTab={activeTab}
+                    activeTab={currentTab}
                     selectedStudent={selectedStudent}
                     feeData={feeData}
                     setFeeManagement={setFeeManagement}
@@ -453,7 +469,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                   />
 
                   {/* Analytics Tab */}
-                  {activeTab === 'analytics' && (
+                  {currentTab === 'analytics' && (
                     <motion.div
                       variants={cardVariants}
                       initial="hidden"
@@ -463,13 +479,13 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                       <StudentAnalytics
                         theme={theme}
                         students={selectedStudent ? [selectedStudent] : []}
-                        onClose={() => setActiveTab('overview')}
+                        onClose={() => setCurrentTab('overview')}
                       />
                     </motion.div>
                   )}
 
                   {/* Medical Tab */}
-                  {activeTab === 'medical' && (
+                  {currentTab === 'medical' && (
                     <motion.div
                       variants={cardVariants}
                       initial="hidden"
@@ -479,13 +495,13 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                       <StudentMedicalInfo
                         theme={theme}
                         student={selectedStudent}
-                        onClose={() => setActiveTab('overview')}
+                        onClose={() => setCurrentTab('overview')}
                       />
                     </motion.div>
                   )}
 
                   {/* Fines Tab */}
-                  {activeTab === 'fines' && (
+                  {currentTab === 'fines' && (
                     <motion.div
                       variants={cardVariants}
                       initial="hidden"
@@ -495,7 +511,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                       <StudentFines
                         student={selectedStudent}
                         theme={theme}
-                        onClose={() => setActiveTab('overview')}
+                        onClose={() => setCurrentTab('overview')}
                       />
                     </motion.div>
                   )}
@@ -546,26 +562,24 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
               onClick={(e) => e.stopPropagation()}
             >
               {/* ID Card Modal Header */}
-              <div className={`px-8 py-6 border-b ${
+              <div className={`px-4 py-3 border-b ${
                 theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-xl font-bold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Student ID Card</h3>
-                  <button
-                    onClick={() => setShowIdCard(false)}
-                    className={`p-3 rounded-xl transition-all hover:scale-105 ${
-                      theme === 'dark' 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white' 
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+              } flex justify-between items-center`}>
+                <h3 className={`text-xl font-bold ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>Student ID Card</h3>
+                <button
+                  onClick={() => setShowIdCard(false)}
+                  className={`p-2 rounded-lg transition-all hover:scale-105 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
               {/* ID Card Content */}

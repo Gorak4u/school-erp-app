@@ -1,6 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useProfileTabs } from './hooks';
+import {
+  LayoutGrid,
+  GraduationCap,
+  DollarSign,
+  Scale,
+  CalendarCheck,
+  BarChart3,
+  HeartPulse,
+  MessageSquare,
+  Users
+} from 'lucide-react';
 
 interface TabNavigationProps {
   activeTab: string;
@@ -8,41 +19,50 @@ interface TabNavigationProps {
   theme: 'dark' | 'light';
 }
 
+// Icon mapping for dynamic rendering
+const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
+  LayoutGrid,
+  GraduationCap,
+  DollarSign,
+  Scale,
+  CalendarCheck,
+  BarChart3,
+  HeartPulse,
+  MessageSquare,
+  Users
+};
+
 const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, setActiveTab, theme }) => {
   const profileTabs = useProfileTabs();
 
   return (
-    <div className="flex space-x-2 overflow-x-auto">
-      {profileTabs.map((tab, index) => (
-        <motion.button
-          key={tab.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: index * 0.1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setActiveTab(tab.id)}
-          className={`relative overflow-hidden px-3 py-2 rounded-xl font-medium text-xs transition-all duration-300 ${
-            activeTab === tab.id
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 transform scale-105'
-              : 'backdrop-blur-sm bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white hover:border-white/30'
-          }`}
-        >
-          <span className="relative z-10 flex items-center gap-2">
-            {tab.icon}
-            {tab.label}
-          </span>
-          {/* Hover effect overlay */}
-          {activeTab !== tab.id && (
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "0%" }}
-              transition={{ duration: 0.3 }}
-            />
-          )}
-        </motion.button>
-      ))}
+    <div className={`flex gap-1 p-2 border-b overflow-x-auto ${
+      theme === 'dark' ? 'border-gray-700 bg-gray-900/40' : 'border-gray-100'
+    }`}>
+      {profileTabs.map((tab, index) => {
+        const IconComponent = iconComponents[tab.icon];
+        return (
+          <motion.button
+            key={tab.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === tab.id
+                ? 'bg-blue-600 text-white shadow'
+                : theme === 'dark'
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            {IconComponent && <IconComponent className="w-4 h-4" />}
+            <span>{tab.label}</span>
+          </motion.button>
+        );
+      })}
     </div>
   );
 };
