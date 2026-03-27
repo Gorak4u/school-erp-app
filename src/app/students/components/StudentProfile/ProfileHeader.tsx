@@ -116,11 +116,19 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             <h2 className={`text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400`}>
               {selectedStudent.name}
             </h2>
-            <div className="flex items-center space-x-4 text-sm text-white/70">
-              <span className="backdrop-blur-sm bg-white/10 px-3 py-1 rounded-full border border-white/20">
+            <div className="flex items-center space-x-4 text-sm">
+              <span className={`backdrop-blur-sm px-3 py-1 rounded-full border ${
+                theme === 'dark' 
+                  ? 'bg-white/20 border-white/30 text-white' 
+                  : 'bg-white/80 border-white/40 text-gray-800'
+              }`}>
                 {selectedStudent.admissionNo}
               </span>
-              <span className="backdrop-blur-sm bg-white/10 px-3 py-1 rounded-full border border-white/20">
+              <span className={`backdrop-blur-sm px-3 py-1 rounded-full border ${
+                theme === 'dark' 
+                  ? 'bg-white/20 border-white/30 text-white' 
+                  : 'bg-white/80 border-white/40 text-gray-800'
+              }`}>
                 {selectedStudent.class}{selectedStudent.section ? ` - ${selectedStudent.section}` : ''}
               </span>
             </div>

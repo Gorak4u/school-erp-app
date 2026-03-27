@@ -161,6 +161,7 @@ export async function GET(request: NextRequest) {
           documents: true, remarks: true, admissionDate: true, enrollmentDate: true,
           createdAt: true, updatedAt: true,
           academicYear: true, academicYearId: true,
+          transport: true, transportRoute: true,
         },
       }),
       schoolPrisma.student.count({ where }),
@@ -197,17 +198,35 @@ export async function GET(request: NextRequest) {
       // Attendance counts per student per status
       schoolPrisma.attendanceRecord.groupBy({
         by: ['studentId', 'status'],
-        where: { studentId: { in: studentIds } },
+        where: { studentId: { in: students.map(s => s.id) } },
         _count: true,
       }),
-      // Transport students data - just routeId
+      // Transport students data - complete transport details
       (schoolPrisma as any).studentTransport.findMany({
         where: { studentId: { in: studentIds }, isActive: true },
         select: {
           id: true,
           studentId: true,
           routeId: true,
-          isActive: true
+          pickupStop: true,
+          dropStop: true,
+          monthlyFee: true,
+          isActive: true,
+          route: {
+            select: {
+              id: true,
+              routeName: true,
+              routeNumber: true,
+              driverName: true,
+              driverPhone: true,
+              capacity: true,
+              stops: true,
+              vehicleId: true,
+              schoolId: true,
+              academicYearId: true,
+              isActive: true
+            }
+          }
         }
       })
     ]);
@@ -226,11 +245,24 @@ export async function GET(request: NextRequest) {
 
     // Build transport lookup maps
     const transportMap = new Map();
-    transportStudents.forEach((ts: { id: string; studentId: string; routeId: string; isActive: boolean }) => {
+    transportStudents.forEach((ts: any) => {
       transportMap.set(ts.studentId, {
         id: ts.id,
         routeId: ts.routeId,
-        isActive: ts.isActive
+        pickupStop: ts.pickupStop,
+        dropStop: ts.dropStop,
+        monthlyFee: ts.monthlyFee,
+        isActive: ts.isActive,
+        route: ts.route ? {
+          id: ts.route.id,
+          name: ts.route.routeName,
+          routeNumber: ts.route.routeNumber,
+          driverName: ts.route.driverName,
+          driverPhone: ts.route.driverPhone,
+          capacity: ts.route.capacity,
+          stops: ts.route.stops,
+          vehicleId: ts.route.vehicleId
+        } : null
       });
     });
 
@@ -271,7 +303,11 @@ export async function GET(request: NextRequest) {
         transport: transportInfo ? {
           id: transportInfo.id,
           routeId: transportInfo.routeId,
+          pickupStop: transportInfo.pickupStop,
+          dropStop: transportInfo.dropStop,
+          monthlyFee: transportInfo.monthlyFee,
           isActive: transportInfo.isActive,
+          route: transportInfo.route
         } : null,
       };
     });

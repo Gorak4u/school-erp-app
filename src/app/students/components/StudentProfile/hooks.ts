@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Student, FeeData } from './types';
+import { Student, FeeData, RouteDetails } from './types';
 
 export const useStudentProfile = (selectedStudent: Student | null, includeArchivedStudents = false) => {
   const [feeData, setFeeData] = useState<FeeData | null>(null);
   const [loadingFeeData, setLoadingFeeData] = useState(false);
+  const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
+  const [loadingRouteDetails, setLoadingRouteDetails] = useState(false);
 
   const fetchStudentFeeData = useCallback(async () => {
     if (!selectedStudent?.id) return;
@@ -14,21 +16,62 @@ export const useStudentProfile = (selectedStudent: Student | null, includeArchiv
       const response = await fetch(`/api/fees/students?${params}`);
       const data = await response.json();
       if (data.success && data.data?.students) {
-        const studentFeeData = data.data.students.find((s: any) => s.studentId === selectedStudent.id);
-        setFeeData(studentFeeData);
+        const studentData = data.data.students.find((s: any) => s.id === selectedStudent.id);
+        if (studentData) {
+          setFeeData({
+            totalFees: studentData.totalFees,
+            totalPaid: studentData.totalPaid,
+            totalPending: studentData.totalPending,
+            totalDiscount: studentData.totalDiscount,
+            totalOverdue: studentData.totalOverdue,
+            finesTotal: studentData.finesTotal,
+            finesPaid: studentData.finesPaid,
+            finesPending: studentData.finesPending,
+            finesWaived: studentData.finesWaived,
+            pendingFinesCount: studentData.pendingFinesCount
+          });
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch fee data:', error);
+      console.error('Error fetching fee data:', error);
     } finally {
       setLoadingFeeData(false);
     }
   }, [selectedStudent?.id, includeArchivedStudents]);
 
+  const fetchRouteDetails = useCallback(async () => {
+    if (!selectedStudent?.transport?.routeId) return;
+    
+    setLoadingRouteDetails(true);
+    try {
+      const response = await fetch(`/api/transport/routes/${selectedStudent.transport.routeId}`);
+      const data = await response.json();
+      
+      if (data.route) {
+        setRouteDetails({
+          id: data.route.id,
+          routeName: data.route.routeName,
+          routeNumber: data.route.routeNumber,
+          driverName: data.route.driverName,
+          driverPhone: data.route.driverPhone,
+          capacity: data.route.capacity,
+          yearlyFee: data.route.yearlyFee,
+          monthlyFee: data.route.monthlyFee,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching route details:', error);
+    } finally {
+      setLoadingRouteDetails(false);
+    }
+  }, [selectedStudent?.transport?.routeId]);
+
   useEffect(() => {
     if (selectedStudent) {
       fetchStudentFeeData();
+      fetchRouteDetails();
     }
-  }, [selectedStudent, fetchStudentFeeData]);
+  }, [selectedStudent, fetchStudentFeeData, fetchRouteDetails]);
 
   const handleRefreshFeeData = useCallback(() => {
     fetchStudentFeeData();
@@ -37,6 +80,8 @@ export const useStudentProfile = (selectedStudent: Student | null, includeArchiv
   return {
     feeData,
     loadingFeeData,
+    routeDetails,
+    loadingRouteDetails,
     handleRefreshFeeData,
   };
 };
@@ -63,7 +108,7 @@ export const useStudentPermissions = (
   }, [canEditStudents, canPromoteStudents, isAdmin, selectedStudent]);
 };
 
-export const useStudentInfoSections = (selectedStudent: Student | null, theme: 'dark' | 'light') => {
+export const useStudentInfoSections = (selectedStudent: Student | null, theme: 'dark' | 'light', routeDetails: RouteDetails | null) => {
   return useMemo(() => {
     if (!selectedStudent) return [];
 
@@ -126,6 +171,27 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
           { label: 'Emergency Relation', value: selectedStudent.emergencyRelation },
         ],
       },
+      ...(selectedStudent.transport ? [{
+        title: 'Transport Information',
+        fields: [
+          ...(routeDetails ? [
+            { label: 'Route Name', value: routeDetails.routeName },
+            { label: 'Route Number', value: routeDetails.routeNumber },
+            { label: 'Driver Name', value: routeDetails.driverName || 'N/A' },
+            { label: 'Driver Phone', value: routeDetails.driverPhone || 'N/A' },
+            { label: 'Vehicle Capacity', value: routeDetails.capacity },
+          ] : [
+            { label: 'Route ID', value: selectedStudent.transport.routeId },
+          ]),
+          { label: 'Pickup Stop', value: selectedStudent.transport.pickupStop || 'N/A' },
+          { label: 'Drop Stop', value: selectedStudent.transport.dropStop || 'N/A' },
+          { label: 'Monthly Fee', value: `₹${selectedStudent.transport.monthlyFee || 0}` },
+          ...(routeDetails ? [
+            { label: 'Yearly Fee', value: `₹${routeDetails.yearlyFee || 0}` },
+          ] : []),
+          { label: 'Status', value: selectedStudent.transport.isActive ? 'Active' : 'Inactive' },
+        ],
+      }] : []),
       {
         title: 'Additional Information',
         fields: [
@@ -137,7 +203,7 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
     return sections.filter(section => 
       section.fields.some(field => field.value && field.value !== 'N/A')
     );
-  }, [selectedStudent, theme]);
+  }, [selectedStudent, theme, routeDetails]);
 };
 
 export const useProfileTabs = (): Array<{ id: string; label: string; icon: string }> => {

@@ -1,7 +1,7 @@
 import React from 'react';
-import { useStudentInfoSections } from './hooks';
+import { useStudentInfoSections, useStudentProfile } from './hooks';
 import { Student } from './types';
-import { User, Users, Calendar, MapPin, Phone, Mail, GraduationCap, Award, BookOpen } from 'lucide-react';
+import { User, Users, Calendar, MapPin, Phone, Mail, GraduationCap, Award, BookOpen, Bus } from 'lucide-react';
 import Card from './ui/Card';
 
 interface OverviewTabProps {
@@ -10,7 +10,8 @@ interface OverviewTabProps {
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ selectedStudent, theme }) => {
-  const sections = useStudentInfoSections(selectedStudent, theme);
+  const { routeDetails } = useStudentProfile(selectedStudent);
+  const sections = useStudentInfoSections(selectedStudent, theme, routeDetails);
 
   // Enhanced design system with colors and gradients
   const containerStyles = 'space-y-4 max-h-[60vh] overflow-y-auto p-2';
@@ -55,6 +56,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ selectedStudent, theme }) => 
       'Contact & Address': MapPin,
       'Academic Information': GraduationCap,
       'Emergency Contact': Phone,
+      'Transport Information': Bus,
     };
     return iconMap[title] || User;
   };

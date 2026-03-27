@@ -51,7 +51,36 @@ export interface Student {
     discount?: number;
     lastPaymentDate?: string;
   };
+  transport?: {
+    id: string;
+    routeId: string;
+    pickupStop: string;
+    dropStop: string;
+    monthlyFee: number;
+    isActive: boolean;
+    route?: {
+      id: string;
+      name: string;
+      routeNumber: string;
+      driverName: string;
+      driverPhone: string;
+      capacity: number;
+      stops: any;
+      vehicleId: string;
+    };
+  };
   transportRoute?: string;
+}
+
+export interface RouteDetails {
+  id: string;
+  routeName: string;
+  routeNumber: string;
+  driverName: string;
+  driverPhone: string;
+  capacity: number;
+  yearlyFee: number;
+  monthlyFee: number;
 }
 
 export interface FeeData {
