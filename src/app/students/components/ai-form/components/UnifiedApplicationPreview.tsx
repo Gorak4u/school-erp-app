@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X,
   Download,
@@ -66,36 +66,18 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
   const [neuralNetworkActive, setNeuralNetworkActive] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0);
   
-  // Motion values for advanced animations
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const rotateX = useTransform(mouseY, [0, 400], [10, -10]);
-  const rotateY = useTransform(mouseX, [0, 400], [-10, 10]);
-  
   // Get real school data from database
   const schoolDetails = useSchoolDetails();
   const { activeAcademicYear } = useAcademicYears();
 
-  // Advanced AI Mouse tracking with 3D perspective
+  // Mouse tracking for spotlight effect
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const element = e.currentTarget as HTMLElement;
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        mouseX.set(x);
-        mouseY.set(y);
-        setMousePosition({ x: e.clientX, y: e.clientY });
-      }
+      setMousePosition({ x: e.clientX, y: e.clientY });
     };
-    
-    const element = document.getElementById('ai-preview-container');
-    if (element) {
-      element.addEventListener('mousemove', handleMouseMove);
-      return () => element.removeEventListener('mousemove', handleMouseMove);
-    }
-  }, [mouseX, mouseY]);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   // AI Processing animation
   useEffect(() => {
@@ -161,14 +143,9 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
       >
         <motion.div
           id="ai-preview-container"
-          initial={{ scale: 0.9, opacity: 0, rotateX: 5, rotateY: -5 }}
-          animate={{ scale: 1, opacity: 1, rotateX: 0, rotateY: 0 }}
-          exit={{ scale: 0.9, opacity: 0, rotateX: 5, rotateY: -5 }}
-          style={{
-            rotateX: rotateX,
-            rotateY: rotateY,
-            transformStyle: 'preserve-3d',
-          }}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
           className={`w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl ${
             isDark 
               ? 'bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/20 border-gray-700' 
@@ -371,21 +348,22 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                         animate={{
                           x: [0, Math.random() * 200 - 100],
                           y: [0, Math.random() * 200 - 100],
-                      opacity: [0, 1, 0.5, 0],
-                      scale: [1, 1.5, 1, 0.5],
-                    }}
-                    transition={{
-                      duration: 5 + Math.random() * 3,
-                      repeat: Infinity,
-                      delay: Math.random() * 3,
-                    }}
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                    }}
-                  />
-                ))}
-              </div>
+                          opacity: [0, 1, 0.5, 0],
+                          scale: [1, 1.5, 1, 0.5],
+                        }}
+                        transition={{
+                          duration: 5 + Math.random() * 3,
+                          repeat: Infinity,
+                          delay: Math.random() * 3,
+                        }}
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               
               {/* Floating AI Particles */}
               {[...Array(25)].map((_, i) => (
