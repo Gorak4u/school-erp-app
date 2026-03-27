@@ -16,6 +16,12 @@ export function useStudentState() {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedGender, setSelectedGender] = useState('all');
+  const [selectedLanguage, setSelectedLanguage] = useState('all');
+  const [selectedMedium, setSelectedMedium] = useState('');
+  const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedAttendanceRange, setSelectedAttendanceRange] = useState('');
+  const [selectedFeeStatus, setSelectedFeeStatus] = useState('');
   const [includeArchivedStudents, setIncludeArchivedStudents] = useState(false);
   
   // Advanced Search State
@@ -351,6 +357,12 @@ export function useStudentState() {
     selectedClass, setSelectedClass,
     selectedStatus, setSelectedStatus,
     selectedGender, setSelectedGender,
+    selectedLanguage, setSelectedLanguage,
+    selectedMedium, setSelectedMedium,
+    selectedBloodGroup, setSelectedBloodGroup,
+    selectedCategory, setSelectedCategory,
+    selectedAttendanceRange, setSelectedAttendanceRange,
+    selectedFeeStatus, setSelectedFeeStatus,
     includeArchivedStudents, setIncludeArchivedStudents,
     advancedSearch, setAdvancedSearch,
     bulkOperations, setBulkOperations,

@@ -81,7 +81,7 @@ import { createDocumentHandlers } from './handlers/documentHandlers';
 import { createTrackingHandlers } from './handlers/trackingHandlers';
 import { createFeeHandlers } from './handlers/feeHandlers';
 
-import StudentForm from './components/StudentForm';
+import StudentFormAIContainer from './components/ai-form/StudentFormAIContainer';
 import StudentDashboard from './components/StudentDashboard';
 import StudentFilters from './components/StudentFilters';
 import StudentTable from './components/StudentTable';
@@ -642,39 +642,7 @@ export default function StudentsPageRefactored() {
             </motion.div>
           )}
 
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              <StudentDashboard 
-                dashboardStats={dashboardStats} 
-                filteredStudents={filteredStudents as unknown[]} 
-                selectedStudents={selectedStudents as unknown as number[]} 
-                setBulkOperations={setBulkOperations} 
-                setShowAddModal={setShowAddModal} 
-                setShowAdvancedFilters={setShowAdvancedFilters} 
-                setShowBulkOperationModal={setShowBulkOperationModal} 
-                setShowDashboard={setShowDashboard} 
-                showAdvancedFilters={showAdvancedFilters} 
-                showDashboard={showDashboard}
-                students={students as any[]} 
-                theme={theme} 
-                canCreateStudents={canCreateStudents} 
-                canManageStudentBulk={canManageStudentBulk}
-                themeConfig={themeConfig}
-                getCardClass={getCardClass}
-                getBtnClass={getBtnClass}
-                getTextClass={getTextClass}
-                isLoading={isLoading}
-                isRefreshing={isRefreshing}
-              />
-            </motion.div>
-          )}
-
+          
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <motion.div
@@ -873,6 +841,11 @@ export default function StudentsPageRefactored() {
                 selectedGender={selectedGender} 
                 selectedLanguage={selectedLanguage} 
                 selectedStatus={selectedStatus} 
+                selectedMedium={state.selectedMedium || ''}
+                selectedBloodGroup={state.selectedBloodGroup || ''}
+                selectedCategory={state.selectedCategory || ''}
+                selectedAttendanceRange={state.selectedAttendanceRange || ''}
+                selectedFeeStatus={state.selectedFeeStatus || ''}
                 selectedStudents={selectedStudents} 
                 includeArchivedStudents={includeArchivedStudents} 
                 setAdvancedFilters={setAdvancedFilters} 
@@ -886,6 +859,11 @@ export default function StudentsPageRefactored() {
                 setSelectedGender={setSelectedGender} 
                 setSelectedLanguage={setSelectedLanguage} 
                 setSelectedStatus={setSelectedStatus} 
+                setSelectedMedium={state.setSelectedMedium}
+                setSelectedBloodGroup={state.setSelectedBloodGroup}
+                setSelectedCategory={state.setSelectedCategory}
+                setSelectedAttendanceRange={state.setSelectedAttendanceRange}
+                setSelectedFeeStatus={state.setSelectedFeeStatus}
                 setSelectedStudents={setSelectedStudents} 
                 setIncludeArchivedStudents={setIncludeArchivedStudents} 
                 setShowAdvancedFilters={setShowAdvancedFilters} 
@@ -1022,7 +1000,7 @@ export default function StudentsPageRefactored() {
               </div>
               
               <div className="flex-1 min-h-0">
-                <StudentForm
+                <StudentFormAIContainer
                   student={editingStudent}
                   onSubmit={editingStudent ? handleEditStudent : handleAddStudent}
                   onCancel={() => {
