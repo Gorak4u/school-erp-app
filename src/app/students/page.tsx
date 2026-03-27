@@ -651,27 +651,6 @@ export default function StudentsPageRefactored() {
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-xl bg-gradient-to-br ${STUDENT_TABS.find(t => t.id === 'overview')?.gradient}`}>
-                    <BarChart3 className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className={`text-2xl font-bold ${getTextClass('primary')}`}>Student Overview</h2>
-                    <p className={`text-sm ${getTextClass('secondary')}`}>Dashboard and analytics overview</p>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsRefreshing(true)}
-                  className={`px-4 py-2 rounded-xl font-medium transition-all ${getBtnClass('secondary')} flex items-center gap-2`}
-                >
-                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </motion.button>
-              </div>
-
               <StudentDashboard 
                 dashboardStats={dashboardStats}
                 selectedStudents={selectedStudents}

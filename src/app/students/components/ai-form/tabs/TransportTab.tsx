@@ -31,10 +31,13 @@ const TransportTab: React.FC<FeesTabProps> = ({
   const handleRouteChange = (routeId: string) => {
     const route = (transportRoutes || []).find(r => r.id === routeId);
     if (route) {
+      const stops = route.stops ? 
+        (typeof route.stops === 'string' ? JSON.parse(route.stops) : route.stops) : [];
+      
       setTransportInfo({
         routeId,
-        pickupStop: route.pickupStops?.[0] || '',
-        dropStop: route.dropStops?.[0] || '',
+        pickupStop: stops[0] || '',
+        dropStop: stops[stops.length - 1] || '',
         monthlyFee: route.monthlyFee || 0,
         yearlyFee: route.yearlyFee || 0,
         routeName: route.routeName || route.name || '',
@@ -285,7 +288,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
               }, 0, 0)}
 
               {/* Pickup Stop */}
-              {selectedRoute && (
+              {transportInfo.routeId && (
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -293,13 +296,19 @@ const TransportTab: React.FC<FeesTabProps> = ({
                 >
                   {renderField({
                     name: 'pickupStop',
-                    label: 'Pickup Stop',
+                    label: 'Pickup Stop *',
                     type: 'select',
                     placeholder: 'Select pickup stop',
-                    options: (selectedRoute.pickupStops || []).map((stop: string) => ({
-                      value: stop,
-                      label: stop
-                    })),
+                    required: true,
+                    options: (() => {
+                      const route = transportRoutes?.find(r => r.id === transportInfo.routeId);
+                      if (!route?.stops) return [];
+                      const stops = typeof route.stops === 'string' ? JSON.parse(route.stops) : route.stops;
+                      return stops.map((stop: string) => ({
+                        value: stop,
+                        label: stop
+                      }));
+                    })(),
                     value: transportInfo.pickupStop,
                     onChange: (value) => setTransportInfo({ ...transportInfo, pickupStop: value }),
                     icon: MapPin
@@ -310,10 +319,15 @@ const TransportTab: React.FC<FeesTabProps> = ({
                     label: 'Drop Stop (Optional)',
                     type: 'select',
                     placeholder: 'Select drop stop',
-                    options: (selectedRoute.dropStops || []).map((stop: string) => ({
-                      value: stop,
-                      label: stop
-                    })),
+                    options: (() => {
+                      const route = transportRoutes?.find(r => r.id === transportInfo.routeId);
+                      if (!route?.stops) return [];
+                      const stops = typeof route.stops === 'string' ? JSON.parse(route.stops) : route.stops;
+                      return stops.map((stop: string) => ({
+                        value: stop,
+                        label: stop
+                      }));
+                    })(),
                     value: transportInfo.dropStop,
                     onChange: (value) => setTransportInfo({ ...transportInfo, dropStop: value }),
                     icon: Navigation

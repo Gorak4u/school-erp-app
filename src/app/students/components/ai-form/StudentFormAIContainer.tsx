@@ -395,11 +395,6 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     ? `${activeAcademicYear.name || activeAcademicYear.year}`
     : 'No Active Academic Year';
     
-  // Add debug logging before rendering
-  console.log('DEBUG: Before rendering - tuitionAnnual:', tuitionAnnual);
-  console.log('DEBUG: Before rendering - feeCalcs:', feeCalcs);
-  console.log('DEBUG: Before rendering - applicableFeeStructures count:', applicableFeeStructures.length);
-  
   const { 
     showIdCard, 
     setShowIdCard, 
@@ -872,9 +867,10 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
   }, [formData, tuitionAnnual, tuitionFinalTotal, feeCalcs, applicableFeeStructures, transportInfo, transportFeeCalcs, combinedAnnual, ayLabel]);
 
   // Submit admission with complete payload
-  // Transform AI form data to match old StudentForm structure before submission
-  const transformFormDataForSubmission = useCallback((aiFormData: StudentFormData) => {
-    return {
+  // Import the old StudentForm's submission logic
+  const useOldStudentFormSubmission = useCallback(async (aiFormData: StudentFormData) => {
+    // Transform AI form data to old StudentForm format - only include fields that exist in old formData
+    const oldFormData = {
       photo: aiFormData.photo || '',
       name: aiFormData.name || '',
       dateOfBirth: aiFormData.dateOfBirth || '',
@@ -891,7 +887,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       address: aiFormData.address || '',
       city: aiFormData.city || '',
       state: aiFormData.state || '',
-      pinCode: aiFormData.pincode || '', // Note: pinCode vs pincode
+      pinCode: aiFormData.pincode || '',
       admissionNo: aiFormData.admissionNo || `${new Date().getFullYear()}0001`,
       admissionDate: aiFormData.admissionDate || new Date().toISOString().split('T')[0],
       mediumId: aiFormData.mediumId || '',
@@ -900,8 +896,8 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       class: aiFormData.class || '',
       section: aiFormData.section || '',
       languageMedium: aiFormData.languageMedium || '',
-      rollNo: aiFormData.rollNumber || '', // Note: rollNo vs rollNumber
-      board: '', // Will be populated by dropdown mapping
+      rollNo: aiFormData.rollNumber || '',
+      board: '',
       boardId: aiFormData.boardId || '',
       previousSchool: aiFormData.previousSchool || '',
       previousClass: aiFormData.previousClass || '',
@@ -935,8 +931,47 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       },
       gpa: aiFormData.gpa || 0,
       status: aiFormData.status || 'active',
+      // Note: NOT including fees-related fields here as they're handled separately in old form
     };
-  }, []);
+
+    // Use the exact same submission logic as old StudentForm
+    const payload = buildPreviewPayload();
+    const result = await onSubmit({
+      ...oldFormData,
+      _admissionFlowHandled: true,
+      _admissionPreview: {
+        previewDocumentHtml: payload.previewDocumentHtml,
+        previewSummary: payload.summary,
+        idCardData: payload.idCardData,
+        idCardHtml: payload.idCardHtml,
+      },
+      ...(discountData.hasDiscount && {
+        _discountInfo: { 
+          ...discountData,
+          ...(discountData.discountType === 'full_waiver' && {
+            discountValue: 100
+          }),
+          feeStructureIds: selectedDiscountFeeIds 
+        },
+      }),
+      ...(transportInfo.routeId && {
+        _transportInfo: {
+          ...transportInfo,
+          annualFee: transportFeeCalcs.baseAnnual,
+          ...(transportDiscount.hasDiscount && {
+            discountInfo: {
+              ...transportDiscount,
+              ...(transportDiscount.discountType === 'full_waiver' && {
+                discountValue: 100
+              })
+            },
+          }),
+        },
+      }),
+    } as any);
+    
+    return result;
+  }, [onSubmit, buildPreviewPayload, discountData, transportInfo, transportDiscount, selectedDiscountFeeIds, transportFeeCalcs]);
 
   const submitAdmission = useCallback(async () => {
     if (isSubmitting) return;
@@ -946,45 +981,9 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     setLastAutoSaveAt(null);
     setIsSubmitting(true);
     try {
-      const payload = buildPreviewPayload();
-      // Transform AI form data to match old StudentForm structure
-      const transformedFormData = transformFormDataForSubmission(formData);
+      // Use the old StudentForm submission logic directly
+      const result = await useOldStudentFormSubmission(formData);
       
-      const result = await onSubmit({
-        ...transformedFormData,
-        _admissionFlowHandled: true,
-        _admissionPreview: {
-          previewDocumentHtml: payload.previewDocumentHtml,
-          previewSummary: payload.summary,
-          idCardData: payload.idCardData,
-          idCardHtml: payload.idCardHtml,
-        },
-        ...(discountData.hasDiscount && {
-          _discountInfo: { 
-            ...discountData,
-            // Ensure full_waiver has discountValue: 100
-            ...(discountData.discountType === 'full_waiver' && {
-              discountValue: 100
-            }),
-            feeStructureIds: selectedDiscountFeeIds 
-          },
-        }),
-        ...(transportInfo.routeId && {
-          _transportInfo: {
-            ...transportInfo,
-            annualFee: transportFeeCalcs.baseAnnual,
-            ...(transportDiscount.hasDiscount && {
-              discountInfo: {
-                ...transportDiscount,
-                // Ensure full_waiver has discountValue: 100
-                ...(transportDiscount.discountType === 'full_waiver' && {
-                  discountValue: 100
-                })
-              },
-            }),
-          },
-        }),
-      } as any);
       const created = result as any;
       if (!created) {
         throw new Error('Student creation did not return a student record');
@@ -1010,20 +1009,20 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       setIsSubmitting(false);
     }
   }, [
-    transformFormDataForSubmission,
+    useOldStudentFormSubmission,
     buildPreviewPayload,
     discountData,
     formData,
     isSubmitting,
-    onSubmit,
     selectedDiscountFeeIds,
-    transportFeeCalcs.baseAnnual,
     transportInfo,
     validateBeforeSubmit,
   ]);
 
   // Handle form submission
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent browser's default form submission
+    
     if (!validateBeforeSubmit()) return;
     
     // Check subscription limits
@@ -1044,13 +1043,13 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     setLastAutoSaveAt(null);
     
     try {
-      await onSubmit(formData);
+      await submitAdmission();
     } catch (error) {
       console.error('Form submission error:', error);
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, onSubmit, limitReached, planError]);
+  }, [validateBeforeSubmit, limitReached, planError, submitAdmission]);
 
   const getTabGradient = (color: string) => {
     const gradients = {
@@ -1502,7 +1501,6 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
             onClose={() => setShowAdvancedPreview(false)}
             onSave={async (data) => {
               // Handle save functionality
-              console.log('Saving advanced preview data:', data);
             }}
             onEdit={(section) => {
               // Handle edit functionality
@@ -1522,6 +1520,100 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
             }}
             isLoading={false}
           />
+        )}
+
+        {/* ID Card and Admission Summary - After Successful Submission */}
+        {showIdCard && idCardData && (
+          <div className="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className={`w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+              <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-green-500">Admission Completed Successfully</h2>
+                    <p className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {createdStudent?.name || formData.name} admitted successfully for {createdStudent?.class || formData.class || 'the selected class'} with admission number {createdStudent?.admissionNo || formData.admissionNo}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+                  {/* Admission Summary */}
+                  <div className={`rounded-xl border p-4 ${isDark ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
+                    <h3 className="text-base font-bold mb-3">Admission Summary</h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Student Name</p>
+                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.name || formData.name}</p>
+                      </div>
+                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Admission No</p>
+                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.admissionNo || formData.admissionNo}</p>
+                      </div>
+                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Class</p>
+                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.class || formData.class || '—'}</p>
+                      </div>
+                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Section</p>
+                        <p className="font-semibold mt-0.5 text-sm">{createdStudent?.section || formData.section || '—'}</p>
+                      </div>
+                      <div className={`rounded-lg border p-3 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                        <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Grand Total</p>
+                        <p className="font-semibold mt-0.5 text-sm">{previewPayload ? fmtCurrency(previewPayload.summary.grandTotal) : fmtCurrency(combinedAnnual)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ID Card Display */}
+                  <div className="space-y-4">
+                    <div className="flex justify-center items-center gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCardBack(false)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          !showCardBack
+                            ? 'bg-blue-600 text-white'
+                            : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        Front Side
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCardBack(true)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          showCardBack
+                            ? 'bg-green-600 text-white'
+                            : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        Back Side
+                      </button>
+                    </div>
+                    <div id="student-id-card-print" className="flex justify-center">
+                      <div dangerouslySetInnerHTML={{ __html: idCardHtml }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={handlePrintIdCard} className="px-3 py-2 rounded-lg text-xs font-semibold shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-transform">
+                        Print ID
+                      </button>
+                      <button type="button" onClick={onCancel} className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${isDark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-white'}`}>
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </motion.div>
     </form>
