@@ -25,8 +25,14 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
   // Calculate total discount from all student fee summaries
   const totalDiscount = feeStatistics?.totalDiscount ?? (
     dashboardStudents?.reduce((sum: number, student: any) => {
-      // Calculate discount from student's fee records
-      const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => discountSum + (record.discount || 0), 0) || 0;
+      // Calculate discount from student's fee records (excluding transport)
+      const studentDiscount = student.feeRecords?.reduce((discountSum: number, record: any) => {
+        // Exclude transport fees from regular discounts (they're handled as waivers)
+        if (record.feeStructure?.category === 'transport') {
+          return discountSum;
+        }
+        return discountSum + (record.discount || 0);
+      }, 0) || 0;
       return sum + studentDiscount;
     }, 0) || 0
   );
@@ -34,10 +40,19 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
   // Calculate total waived amounts from all student fee summaries
   const totalWaived = feeStatistics?.totalWaived ?? (
     dashboardStudents?.reduce((sum: number, student: any) => {
-      // Calculate waived amounts from student's fee records and fines
-      const studentWaived = student.feeRecords?.reduce((waivedSum: number, record: any) => waivedSum + (record.waivedAmount || 0), 0) || 0;
-      const studentFinesWaived = student.fines?.reduce((finesWaivedSum: number, fine: any) => finesWaivedSum + (fine.waivedAmount || 0), 0) || 0;
-      return sum + studentWaived + studentFinesWaived;
+      // Calculate waived amounts from student's fee records
+      const studentWaived = student.feeRecords?.reduce((waivedSum: number, record: any) => {
+        // Transport fees with discount are considered waivers regardless of status
+        if (record.feeStructure?.category === 'transport' && record.discount > 0) {
+          return waivedSum + (record.discount || 0);
+        }
+        return waivedSum;
+      }, 0) || 0;
+      
+      // Add fines waived amounts
+      const finesWaived = student.fines?.reduce((finesSum: number, fine: any) => finesSum + (fine.waivedAmount || 0), 0) || 0;
+      
+      return sum + studentWaived + finesWaived;
     }, 0) || 0
   );
 

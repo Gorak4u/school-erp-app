@@ -208,14 +208,16 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
 
   // Calculate separate totals for discounts vs waivers
   const totalRegularDiscount = feeRecords.reduce((sum: number, record: any) => {
-    if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
-      return sum; // Don't count transport waivers as discounts
+    // Exclude transport fees from regular discounts (they're handled as waivers)
+    if (record.feeStructure?.category === 'transport') {
+      return sum;
     }
     return sum + (record.discount || 0);
   }, 0);
 
   const totalWaivedAmount = feeRecords.reduce((sum: number, record: any) => {
-    if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+    // Transport fees with discount are considered waivers regardless of status
+    if (record.feeStructure?.category === 'transport' && record.discount > 0) {
       return sum + (record.discount || 0);
     }
     return sum;
