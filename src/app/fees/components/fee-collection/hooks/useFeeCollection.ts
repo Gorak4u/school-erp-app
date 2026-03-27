@@ -228,6 +228,12 @@ export function useFeeCollection(
       feeItems = feeItems.concat(studentData.feeRecords.map((record: any) => {
         const category = normalizeCategory(record.category || record.feeStructure?.category || (record as any).feeStructureName) || 'academic';
         
+        // Calculate waived amount for transport fees
+        let waivedAmount = 0;
+        if (record.feeStructure?.category === 'transport' && record.discount > 0) {
+          waivedAmount = record.discount || 0;
+        }
+        
         return {
           id: record.id,
           name: record.feeStructure?.name || record.name || (record as any).feeStructureName || 'Fee',
@@ -236,8 +242,8 @@ export function useFeeCollection(
           dueDate: record.dueDate || '',
           status: record.status || 'pending',
           paidAmount: record.paidAmount || 0,
-          discount: record.discount || 0,
-          waivedAmount: record.waivedAmount || 0,
+          discount: record.feeStructure?.category === 'transport' ? 0 : (record.discount || 0), // Exclude transport from regular discounts
+          waivedAmount: waivedAmount,
           frequency: record.feeStructure?.frequency || 'one-time',
           academicYear: record.academicYear || '2025-26',
           description: record.feeStructure?.description || '',
@@ -313,21 +319,13 @@ export function useFeeCollection(
 
   const totalDiscount = useMemo(() => {
     return filteredFees.reduce((sum, fee) => {
-      // Exclude transport fees from regular discounts (they're handled as waivers)
-      if (fee.feeStructure?.category === 'transport') {
-        return sum;
-      }
       return sum + (fee.discount || 0);
     }, 0);
   }, [filteredFees]);
 
   const totalWaived = useMemo(() => {
     return filteredFees.reduce((sum, fee) => {
-      // Transport fees with discount are considered waivers regardless of status
-      if (fee.feeStructure?.category === 'transport' && fee.discount > 0) {
-        return sum + (fee.discount || 0);
-      }
-      return sum;
+      return sum + (fee.waivedAmount || 0);
     }, 0);
   }, [filteredFees]);
 

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X,
@@ -46,9 +46,22 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
   const [isExporting, setIsExporting] = React.useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   
+  // World-Class UI Features
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [showSuccess, setShowSuccess] = useState(false);
+  
   // Get real school data from database
   const schoolDetails = useSchoolDetails();
   const { activeAcademicYear } = useAcademicYears();
+
+  // Mouse tracking for spotlight effect
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -58,6 +71,8 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
     setIsExporting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -176,9 +191,40 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
 
           {/* Main Content - Single Printable Resume */}
           <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-            <div ref={previewRef} className="bg-white">
+            <div ref={previewRef} className="bg-white relative">
+              {/* World-Class UI Animated Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 via-purple-900/5 to-indigo-900/5 pointer-events-none">
+                <div 
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59,130,246,0.3) 0%, transparent 50%)`
+                  }}
+                />
+                {/* Floating Particles */}
+                {[...Array(15)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-blue-400/30 rounded-full"
+                    animate={{
+                      x: [0, Math.random() * 100 - 50],
+                      y: [0, Math.random() * 100 - 50],
+                      opacity: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 4 + Math.random() * 3,
+                      repeat: Infinity,
+                      delay: Math.random() * 2,
+                    }}
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                    }}
+                  />
+                ))}
+              </div>
+
               {/* School Letterhead */}
-              <div className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-8 text-center">
+              <div className="relative z-10 bg-gradient-to-r from-blue-800 to-blue-600 text-white p-8 text-center">
                 <div className="flex justify-center mb-4">
                   {schoolDetails.logo_url ? (
                     <img 
@@ -218,9 +264,16 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
               </div>
 
               {/* Resume Header */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 border-b-4 border-blue-600">
+              <div className="relative z-10 bg-gradient-to-r from-purple-50 to-blue-50 p-6 border-b-4 border-blue-600">
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">STUDENT APPLICATION RESUME</h2>
+                  <motion.h2 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2"
+                  >
+                    STUDENT APPLICATION RESUME
+                  </motion.h2>
                   <div className="flex justify-center items-center gap-6 text-gray-600">
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
@@ -238,14 +291,35 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                 </div>
               </div>
 
-              {/* Personal Information Section */}
-              <div className="p-6">
-                <div className="mb-8">
+              {/* Content Sections */}
+              <div className="relative z-10 p-6">
+                <AnimatePresence>
+                  {showSuccess && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="mb-6 p-4 bg-green-500/20 backdrop-blur-xl border border-green-500/50 rounded-2xl text-green-700 text-center shadow-lg"
+                    >
+                      ✨ Application exported successfully!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Personal Information */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8, type: "spring" }}
+                  className="mb-8"
+                >
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-red-500" />
+                    <div className="p-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg">
+                      <Heart className="w-5 h-5 text-white" />
+                    </div>
                     Personal Information
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
                     <div>
                       <span className="font-semibold text-gray-700">Full Name:</span>
                       <p className="text-gray-800">{formData.name}</p>
@@ -307,15 +381,22 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                       <p className="text-gray-800">{formData.status}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Academic Information */}
-                <div className="mb-8">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8, delay: 0.1, type: "spring" }}
+                  className="mb-8"
+                >
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-green-500" />
+                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                      <GraduationCap className="w-5 h-5 text-white" />
+                    </div>
                     Academic Information
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
                     <div>
                       <span className="font-semibold text-gray-700">Admission Number:</span>
                       <p className="text-gray-800">{formData.admissionNo}</p>
@@ -353,220 +434,22 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                       <p className="text-gray-800">{activeAcademicYear?.year || '2025-26'}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Family Information */}
-                <div className="mb-8">
+                {/* AI Insights Section */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8, delay: 0.9, type: "spring" }}
+                  className="mb-8"
+                >
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-blue-500" />
-                    Family Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Father's Name:</span>
-                      <p className="text-gray-800">{formData.fatherName}</p>
+                    <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg">
+                      <Activity className="w-5 h-5 text-white" />
                     </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Father's Occupation:</span>
-                      <p className="text-gray-800">{formData.fatherOccupation}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Father's Phone:</span>
-                      <p className="text-gray-800">{formData.fatherPhone}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Father's Email:</span>
-                      <p className="text-gray-800">{formData.fatherEmail}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Mother's Name:</span>
-                      <p className="text-gray-800">{formData.motherName}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Mother's Occupation:</span>
-                      <p className="text-gray-800">{formData.motherOccupation}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Mother's Phone:</span>
-                      <p className="text-gray-800">{formData.motherPhone}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Mother's Email:</span>
-                      <p className="text-gray-800">{formData.motherEmail}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Phone className="w-5 h-5 text-purple-500" />
-                    Contact Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Address:</span>
-                      <p className="text-gray-800">{formData.address}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">City:</span>
-                      <p className="text-gray-800">{formData.city}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">State:</span>
-                      <p className="text-gray-800">{formData.state}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">PIN Code:</span>
-                      <p className="text-gray-800">{formData.pincode}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Medical Information */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-red-500" />
-                    Medical Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Medical Conditions:</span>
-                      <p className="text-gray-800">{formData.medicalConditions || 'None'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Allergies:</span>
-                      <p className="text-gray-800">{formData.allergies || 'None'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Emergency Contact */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Phone className="w-5 h-5 text-orange-500" />
-                    Emergency Contact
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Emergency Contact Person:</span>
-                      <p className="text-gray-800">{formData.emergencyContact}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Emergency Phone:</span>
-                      <p className="text-gray-800">{formData.emergencyPhone}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Relationship:</span>
-                      <p className="text-gray-800">{formData.emergencyRelation}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bank Information */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Building className="w-5 h-5 text-blue-500" />
-                    Bank Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Bank Name:</span>
-                      <p className="text-gray-800">{formData.bankName}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Account Number:</span>
-                      <p className="text-gray-800">{formData.bankAccountNumber}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Account Name:</span>
-                      <p className="text-gray-800">{formData.bankAccountName}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">IFSC Code:</span>
-                      <p className="text-gray-800">{formData.bankIfsc}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transport & Hostel */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-green-500" />
-                    Transport & Hostel
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Transport Required:</span>
-                      <p className="text-gray-800">{formData.transport || 'No'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Hostel Required:</span>
-                      <p className="text-gray-800">{formData.hostel || 'No'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Documents Status */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-500" />
-                    Documents Status
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                    <div>
-                      <span className="font-semibold text-gray-700">Birth Certificate:</span>
-                      <p className="text-gray-800">{formData.documents?.birthCertificate ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Aadhar Card:</span>
-                      <p className="text-gray-800">{formData.documents?.aadharCard ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Transfer Certificate:</span>
-                      <p className="text-gray-800">{formData.documents?.transferCertificate ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Medical Certificate:</span>
-                      <p className="text-gray-800">{formData.documents?.medicalCertificate ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Passport Photo:</span>
-                      <p className="text-gray-800">{formData.documents?.passportPhoto ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Marksheet:</span>
-                      <p className="text-gray-800">{formData.documents?.marksheet ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Caste Certificate:</span>
-                      <p className="text-gray-800">{formData.documents?.casteCertificate ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700">Income Certificate:</span>
-                      <p className="text-gray-800">{formData.documents?.incomeCertificate ? '✅ Submitted' : '❌ Pending'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Remarks */}
-                {formData.remarks && (
-                  <div className="mb-8">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-gray-500" />
-                      Additional Remarks
-                    </h3>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-gray-800">{formData.remarks}</p>
-                    </div>
-                  </div>
-                )}
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-indigo-500" />
                     AI-Powered Insights & Analysis
                   </h3>
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-200">
+                  <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-lg border border-indigo-200 shadow-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Academic Potential */}
                       <div>
@@ -649,7 +532,7 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Footer */}
                 <div className="mt-8 pt-6 border-t border-gray-300">
