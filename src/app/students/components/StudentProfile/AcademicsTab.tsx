@@ -4,13 +4,11 @@ import { Student } from './types';
 interface AcademicsTabProps {
   selectedStudent: Student;
   theme: 'dark' | 'light';
-  onViewDetailedAnalytics: () => void;
 }
 
 const AcademicsTab: React.FC<AcademicsTabProps> = ({
   selectedStudent,
-  theme,
-  onViewDetailedAnalytics
+  theme
 }) => {
   const cardStyles = `rounded-lg border p-4 ${
     theme === 'dark' ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
@@ -33,24 +31,7 @@ const AcademicsTab: React.FC<AcademicsTabProps> = ({
   `;
 
   return (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-      <div className="flex justify-between items-center sticky top-0 bg-white dark:bg-gray-900 pb-2">
-        <h3 className={`text-xl font-semibold ${headingStyles}`}>
-          Academic Performance
-        </h3>
-        <button
-          onClick={onViewDetailedAnalytics}
-          className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-            theme === 'dark'
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
-          }`}
-        >
-          📊 View Detailed Analytics
-        </button>
-      </div>
-      
-      {/* Academic Summary Cards */}
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto p-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className={statCardStyles('green', 'text-green-600', 'text-green-400')}>
           <div>

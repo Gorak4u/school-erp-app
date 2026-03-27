@@ -71,12 +71,35 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
       {
         title: 'Basic Information',
         fields: [
+          { label: 'Student ID', value: selectedStudent.id },
+          { label: 'Admission No', value: selectedStudent.admissionNo },
+          { label: 'Roll Number', value: selectedStudent.rollNo },
+          { label: 'Name', value: selectedStudent.name },
+          { label: 'Class', value: selectedStudent.class },
+          { label: 'Section', value: selectedStudent.section },
           { label: 'Date of Birth', value: selectedStudent.dateOfBirth },
           { label: 'Gender', value: selectedStudent.gender },
           { label: 'Blood Group', value: selectedStudent.bloodGroup },
           { label: 'Phone', value: selectedStudent.phone },
           { label: 'Email', value: selectedStudent.email },
           { label: 'Language Medium', value: selectedStudent.languageMedium },
+          { label: 'Category', value: selectedStudent.category },
+          { label: 'Status', value: selectedStudent.status },
+        ],
+      },
+      {
+        title: 'Academic Information',
+        fields: [
+          { label: 'Academic Year', value: selectedStudent.academicYear },
+          { label: 'Admission Date', value: selectedStudent.admissionDate },
+          { label: 'Enrollment Date', value: selectedStudent.enrollmentDate },
+          { label: 'GPA', value: selectedStudent.gpa?.toFixed(2) },
+          { label: 'Rank', value: selectedStudent.rank },
+          { label: 'Discipline Score', value: selectedStudent.disciplineScore },
+          { label: 'Achievements', value: selectedStudent.achievements },
+          { label: 'Incidents', value: selectedStudent.incidents },
+          { label: 'Attendance %', value: selectedStudent.attendance?.percentage },
+          { label: 'Needs Promotion', value: selectedStudent.needsPromotion ? 'Yes' : 'No' },
         ],
       },
       {
@@ -88,6 +111,9 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
           { label: 'Mother Name', value: selectedStudent.motherName },
           { label: 'Mother Phone', value: selectedStudent.motherPhone },
           { label: 'Mother Email', value: selectedStudent.motherEmail },
+          { label: 'Parent Name', value: selectedStudent.parentName },
+          { label: 'Parent Phone', value: selectedStudent.parentPhone },
+          { label: 'Parent Email', value: selectedStudent.parentEmail },
         ],
       },
       {
@@ -98,7 +124,12 @@ export const useStudentInfoSections = (selectedStudent: Student | null, theme: '
           { label: 'State', value: selectedStudent.state },
           { label: 'Emergency Contact', value: selectedStudent.emergencyContact },
           { label: 'Emergency Relation', value: selectedStudent.emergencyRelation },
-          { label: 'Category', value: selectedStudent.category },
+        ],
+      },
+      {
+        title: 'Additional Information',
+        fields: [
+          { label: 'Remarks', value: selectedStudent.remarks },
         ],
       },
     ];

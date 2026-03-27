@@ -38,7 +38,6 @@ interface StudentProfileModalProps {
   printStudentProfile: (student: any) => void;
   sendStudentSMS: (student: any) => void;
   setActiveTab: (tab: string) => void;
-  setAcademicPerformance: (state: any) => void;
   setAttendanceTracking: (state: any) => void;
   setCommunicationCenter: (state: any) => void;
   setEditingStudent: (student: any) => void;
@@ -66,7 +65,6 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
   printStudentProfile,
   sendStudentSMS,
   setActiveTab,
-  setAcademicPerformance,
   setAttendanceTracking,
   setCommunicationCenter,
   setEditingStudent,
@@ -302,7 +300,7 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
       label: 'Print Profile',
       icon: 'Printer',
       onClick: () => printStudentProfile(selectedStudent),
-      variant: 'secondary'
+      variant: 'primary'
     }
   ];
 
@@ -447,14 +445,12 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                           <AcademicsTab
                             selectedStudent={selectedStudent}
                             theme={theme}
-                            onViewDetailedAnalytics={() => setAcademicPerformance((prev: any) => ({ ...prev, showAcademicModal: true, selectedStudent }))}
                           />
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {/* Other Tabs */}
                   <StudentProfileTabs
                     activeTab={currentTab}
                     selectedStudent={selectedStudent}

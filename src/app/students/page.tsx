@@ -91,7 +91,6 @@ import ExportModal from './components/ExportModal';
 import DocumentModal from './components/DocumentModal';
 import CommunicationModal from './components/CommunicationModal';
 import AttendanceModal from './components/AttendanceModal';
-import AcademicModal from './components/AcademicModal';
 import FeeModal from './components/FeeModal';
 import StudentProfileModalRefactored from './components/StudentProfileModalRefactored';
 import BulkOperationsModal from './components/BulkOperationsModal';
@@ -939,7 +938,7 @@ export default function StudentsPageRefactored() {
       <AnimatePresence>
         {((showAddModal && canCreateStudents) || (editingStudent && canEditStudents)) && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1003,11 +1002,10 @@ export default function StudentsPageRefactored() {
       <DocumentModal deleteDocument={deleteDocument} documentManagement={documentManagement} downloadDocument={downloadDocument} formatFileSize={formatFileSize} getFilteredDocuments={getFilteredDocuments} getStoragePercentage={getStoragePercentage} handleFileUpload={handleFileUpload} setDocumentManagement={setDocumentManagement} shareDocument={shareDocument} theme={theme} />
       <CommunicationModal calculateEstimatedCost={calculateEstimatedCost} communicationCenter={communicationCenter} getFilteredTemplates={getFilteredTemplates} getRecipientCount={getRecipientCount} handleSendMessage={handleSendMessage} selectTemplate={selectTemplate} setCommunicationCenter={setCommunicationCenter} students={students} theme={theme} />
       <AttendanceModal attendanceTracking={attendanceTracking} bulkMarkAttendance={bulkMarkAttendance} getAttendanceStats={getAttendanceStats} markAttendance={markAttendance} selectedStudents={selectedStudents} setAttendanceTracking={setAttendanceTracking} setSelectedStudents={setSelectedStudents} students={students} theme={theme} />
-      <AcademicModal academicPerformance={academicPerformance} analyzePerformance={analyzePerformance} generateTrendAnalysis={generateTrendAnalysis} getPerformanceColor={getPerformanceColor} selectedStudents={selectedStudents} setAcademicPerformance={setAcademicPerformance} theme={theme} />
       <FeeModal createInstallmentPlan={createInstallmentPlan} feeManagement={feeManagement} generateFeeReport={generateFeeReport} processPayment={processPayment} selectedStudents={selectedStudents} sendAutomatedReminders={sendAutomatedReminders} setFeeManagement={setFeeManagement} students={students} theme={theme} />
       <StudentProfileModalRefactored
         activeTab={activeTab} printStudentProfile={printStudentProfile} selectedStudent={selectedStudent}
-        sendStudentSMS={sendStudentSMS} setAcademicPerformance={setAcademicPerformance} setActiveTab={setActiveTab}
+        sendStudentSMS={sendStudentSMS} setActiveTab={setActiveTab}
         setAttendanceTracking={setAttendanceTracking} setCommunicationCenter={setCommunicationCenter}
         setEditingStudent={setEditingStudent} setFeeManagement={setFeeManagement} setParentPortal={setParentPortal}
         setSelectedStudent={setSelectedStudent} theme={theme} students={students}
