@@ -1414,8 +1414,6 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
           formData={formData}
           aiInsights={aiInsights}
           theme={theme}
-          onSubmit={(e: React.FormEvent) => handleSubmit(e)}
-          isSubmitting={isSubmitting}
         />
 
         {/* ID Card and Admission Summary - After Successful Submission */}

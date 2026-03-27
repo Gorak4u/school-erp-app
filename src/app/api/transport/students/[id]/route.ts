@@ -360,6 +360,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
                 status: 'cancelled',
                 notes: `Transport cancelled - full amount waived (unpaid)`,
                 waivedAmount: feeAnalysis.pendingAmount,
+                // Update balance to zero since full amount waived
+                pendingAmount: 0,
+                // Update total amount to zero since nothing was paid
+                amount: 0,
                 cancelledAt: new Date(),
                 cancelledBy: ctx.user?.email || 'system'
               }
@@ -375,6 +379,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               data: { 
                 status: 'cancelled',
                 notes: `Transport cancelled - pending amount kept for recovery`,
+                // Keep original amounts for recovery tracking
                 cancelledAt: new Date(),
                 cancelledBy: ctx.user?.email || 'system'
               }
@@ -417,6 +422,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
                 // Add metadata for audit trail
                 notes: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived`,
                 waivedAmount: feeAnalysis.pendingAmount,
+                // Update balance to zero since waived amount covers pending balance
+                pendingAmount: 0,
+                // Update total amount to reflect only earned portion (paid amount)
+                amount: feeAnalysis.paidAmount,
                 cancelledAt: new Date(),
                 cancelledBy: ctx.user?.email || 'system'
               }
@@ -431,6 +440,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               data: { 
                 status: 'cancelled',
                 notes: `Transport cancelled - pending amount kept for recovery`,
+                // Keep original amounts for recovery tracking
                 cancelledAt: new Date(),
                 cancelledBy: ctx.user?.email || 'system'
               }

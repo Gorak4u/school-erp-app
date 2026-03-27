@@ -35,8 +35,6 @@ interface UnifiedApplicationPreviewProps {
   formData: StudentFormData;
   aiInsights: AIInsights;
   theme: string;
-  onSubmit?: (e: React.FormEvent) => Promise<void>;
-  isSubmitting?: boolean;
 }
 
 const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
@@ -44,9 +42,7 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
   onClose,
   formData,
   aiInsights,
-  theme,
-  onSubmit,
-  isSubmitting = false
+  theme
 }) => {
   const isDark = theme === 'dark';
   const [activeSection, setActiveSection] = useState('overview');
@@ -743,36 +739,8 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        {onSubmit && (
-          <div className={`px-6 py-4 border-t ${
-            isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
-          }`}>
-            <div className="flex items-center justify-between">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Ready to submit your application?
-              </p>
-              <button
-                onClick={onSubmit}
-                disabled={isSubmitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${
-                  isSubmitting
-                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
-                }`}
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Submitting...</span>
-                  </div>
-                ) : (
-                  'Submit Application'
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Footer Actions - REMOVED SUBMIT BUTTON TO PREVENT ACCIDENTAL SUBMISSION */}
+        {/* The submit button should only be in the main form, not in the preview */}
       </motion.div>
     </motion.div>
   );
