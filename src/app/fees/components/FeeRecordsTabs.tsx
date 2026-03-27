@@ -67,13 +67,18 @@ export default function FeeRecordsTabs({ ctx }: { ctx: any }) {
 
   // Helper to determine if discount is actually a waived amount
   const getDiscountLabel = (r: any) => {
-    if (r.feeStructure?.category === 'transport' && r.status === 'cancelled' && r.discount > 0) {
+    // Transport fees with discount are considered waivers regardless of status
+    if (r.feeStructure?.category === 'transport' && r.discount > 0) {
       return 'Waived Off';
     }
     return 'Discount';
   };
 
   const getDiscountValue = (r: any) => {
+    // Transport fees have discount moved to waived amount
+    if (r.feeStructure?.category === 'transport' && r.discount > 0) {
+      return 0;
+    }
     return r.discount || 0;
   };
 

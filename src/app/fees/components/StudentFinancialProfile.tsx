@@ -672,14 +672,23 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                     
                     // Helper to determine if discount is actually a waived amount
                     const getDiscountLabel = (record: any) => {
-                      if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+                      // Transport fees with discount are considered waivers regardless of status
+                      if (record.feeStructure?.category === 'transport' && record.discount > 0) {
                         return 'Waived Off';
                       }
                       return 'Discount';
                     };
                     
+                    // Calculate proper discount value based on type
+                    const getDiscountValue = (record: any) => {
+                      if (record.feeStructure?.category === 'transport' && record.discount > 0) {
+                        return 0; // Transport fees have discount moved to waived amount
+                      }
+                      return record.discount || 0;
+                    };
+                    
                     const discountLabel = getDiscountLabel(r);
-                    const discountValue = r.discount || 0;
+                    const discountValue = getDiscountValue(r);
                     
                     return (
                       <tr key={r.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
