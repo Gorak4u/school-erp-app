@@ -312,7 +312,23 @@ export function useFeeCollection(
   }, [filteredFees]);
 
   const totalDiscount = useMemo(() => {
-    return filteredFees.reduce((sum, fee) => sum + (fee.discount || 0), 0);
+    return filteredFees.reduce((sum, fee) => {
+      // Check if this is a transport waiver
+      if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
+        return sum; // Don't count transport waivers as discounts
+      }
+      return sum + (fee.discount || 0);
+    }, 0);
+  }, [filteredFees]);
+
+  const totalWaived = useMemo(() => {
+    return filteredFees.reduce((sum, fee) => {
+      // Check if this is a transport waiver
+      if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
+        return sum + (fee.discount || 0);
+      }
+      return sum;
+    }, 0);
   }, [filteredFees]);
 
   const stats = useMemo<FeeStats>(() => ({
@@ -324,8 +340,9 @@ export function useFeeCollection(
     totalPaid,
     totalPending,
     totalDiscount,
+    totalWaived,
     selectedFeesTotal
-  }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, totalDiscount, selectedFeesTotal]);
+  }), [filteredFees, overdueFees, totalAmount, totalPaid, totalPending, totalDiscount, totalWaived, selectedFeesTotal]);
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -419,6 +436,7 @@ export function useFeeCollection(
     totalPending,
     overdueFees,
     totalDiscount,
+    totalWaived,
     selectedFeesTotal,
     
     // Styles

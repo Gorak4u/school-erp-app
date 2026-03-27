@@ -83,10 +83,10 @@ export default function OverviewTab({
           <div className="flex items-center justify-between">
             <div>
               <p className={`text-sm ${textSecondary}`}>Waived</p>
-              <p className={`text-2xl font-bold ${textPrimary}`}>₹{filteredFees.reduce((sum, fee) => sum + (fee.waivedAmount || 0), 0).toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${textPrimary}`}>₹{stats.totalWaived?.toLocaleString() || 0}</p>
             </div>
-            <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
-              <Ban className="w-6 h-6 text-purple-600" />
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+              <Ban className="w-6 h-6 text-orange-500" />
             </div>
           </div>
         </div>

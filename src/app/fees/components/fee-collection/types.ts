@@ -98,6 +98,7 @@ export interface FeeStats {
   totalPaid: number;
   totalPending: number;
   totalDiscount: number;
+  totalWaived: number;
   selectedFeesTotal: number;
 }
 
