@@ -313,9 +313,9 @@ export function useFeeCollection(
 
   const totalDiscount = useMemo(() => {
     return filteredFees.reduce((sum, fee) => {
-      // Check if this is a transport waiver
-      if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
-        return sum; // Don't count transport waivers as discounts
+      // Exclude transport fees from regular discounts (they're handled as waivers)
+      if (fee.feeStructure?.category === 'transport') {
+        return sum;
       }
       return sum + (fee.discount || 0);
     }, 0);
@@ -323,8 +323,8 @@ export function useFeeCollection(
 
   const totalWaived = useMemo(() => {
     return filteredFees.reduce((sum, fee) => {
-      // Check if this is a transport waiver
-      if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
+      // Transport fees with discount are considered waivers regardless of status
+      if (fee.feeStructure?.category === 'transport' && fee.discount > 0) {
         return sum + (fee.discount || 0);
       }
       return sum;

@@ -56,7 +56,8 @@ export default function FeesTab({
 }: FeesTabProps) {
   // Helper to determine if discount is actually a waived amount
   const getDiscountLabel = (fee: any) => {
-    if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
+    // Transport fees with discount are considered waivers regardless of status
+    if (fee.feeStructure?.category === 'transport' && fee.discount > 0) {
       return 'Waived Off';
     }
     return 'Discount';

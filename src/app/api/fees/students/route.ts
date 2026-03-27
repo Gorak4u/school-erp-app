@@ -155,10 +155,17 @@ export async function GET(request: NextRequest) {
       const regularFeesPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
       const regularFeesPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
       // Calculate separate totals for discounts vs waivers
-      const regularFeesDiscount = feeRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
+      const regularFeesDiscount = feeRecords.reduce((sum, record) => {
+        // Exclude transport fees from regular discounts (they're handled as waivers)
+        if (record.feeStructure?.category === 'transport') {
+          return sum;
+        }
+        return sum + (record.discount || 0);
+      }, 0);
       const regularFeesWaived = feeRecords.reduce((sum, record) => {
         // Check if this is a transport waiver
-        if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+        // Transport fees with discount are considered waivers regardless of status
+        if (record.feeStructure?.category === 'transport' && record.discount > 0) {
           return sum + (record.discount || 0);
         }
         return sum;
