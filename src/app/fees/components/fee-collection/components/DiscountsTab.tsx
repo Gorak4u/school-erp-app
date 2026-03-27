@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, DollarSign, CheckCircle, X, Percent } from 'lucide-react';
+import { Award, DollarSign, CheckCircle, X, Percent, Ban } from 'lucide-react';
 
 interface DiscountsTabProps {
   loadingDiscountHistory: boolean;
@@ -36,6 +36,21 @@ export default function DiscountsTab({
   textSecondary,
   inputCls,
 }: DiscountsTabProps) {
+  // Helper to determine if discount is actually a waived amount
+  const getDiscountLabel = (discount: any) => {
+    if (discount.feeCategory === 'transport') {
+      return 'Waived Off';
+    }
+    return 'Discount';
+  };
+
+  const getDiscountColor = (discount: any) => {
+    if (discount.feeCategory === 'transport') {
+      return 'text-orange-600';
+    }
+    return 'text-green-600';
+  };
+
   if (loadingDiscountHistory) {
     return (
       <motion.div
@@ -80,6 +95,13 @@ export default function DiscountsTab({
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  // Calculate separate totals for discounts vs waivers
+  const transportDiscounts = filteredDiscounts.filter((d: any) => d.feeCategory === 'transport');
+  const regularDiscounts = filteredDiscounts.filter((d: any) => d.feeCategory !== 'transport');
+  
+  const transportDiscountAmount = transportDiscounts.reduce((sum: number, d: any) => sum + (d.discountAmount || 0), 0);
+  const regularDiscountAmount = regularDiscounts.reduce((sum: number, d: any) => sum + (d.discountAmount || 0), 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -87,7 +109,7 @@ export default function DiscountsTab({
       className="space-y-6"
     >
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className={`${cardCls} p-4 rounded-xl border`}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -106,8 +128,20 @@ export default function DiscountsTab({
               <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className={`text-sm ${textSecondary}`}>Total Saved</p>
-              <p className={`text-xl font-bold ${textPrimary}`}>₹{(summary.totalDiscountAmount || 0).toLocaleString()}</p>
+              <p className={`text-sm ${textSecondary}`}>Regular Discounts</p>
+              <p className={`text-xl font-bold ${textPrimary}`}>₹{regularDiscountAmount.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className={`${cardCls} p-4 rounded-xl border`}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+              <Ban className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <p className={`text-sm ${textSecondary}`}>Waived Off</p>
+              <p className={`text-xl font-bold ${textPrimary}`}>₹{transportDiscountAmount.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -215,7 +249,8 @@ export default function DiscountsTab({
                   </td>
                   <td className={`px-4 py-3 text-sm ${textPrimary}`}>
                     <div className="text-right">
-                      <div className="font-medium text-green-600">₹{discount.discountAmount.toLocaleString()}</div>
+                      <div className={`font-medium ${getDiscountColor(discount)}`}>₹{discount.discountAmount.toLocaleString()}</div>
+                      <div className={`text-xs ${textSecondary}`}>{getDiscountLabel(discount)}</div>
                       {discount.previousDiscount > 0 && (
                         <div className={`text-xs ${textSecondary}`}>Previous: ₹{discount.previousDiscount.toLocaleString()}</div>
                       )}

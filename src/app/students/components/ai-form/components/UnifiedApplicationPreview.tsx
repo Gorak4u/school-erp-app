@@ -180,10 +180,18 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
               {/* School Letterhead */}
               <div className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-8 text-center">
                 <div className="flex justify-center mb-4">
-                  <Building className="w-16 h-16 text-white/80" />
+                  {schoolDetails.logo_url ? (
+                    <img 
+                      src={schoolDetails.logo_url} 
+                      alt={`${schoolDetails.name} Logo`}
+                      className="w-16 h-16 object-contain bg-white rounded-lg p-1"
+                    />
+                  ) : (
+                    <Building className="w-16 h-16 text-white/80" />
+                  )}
                 </div>
                 <h1 className="text-3xl font-bold mb-2">{schoolDetails.name || 'School Name'}</h1>
-                <p className="text-lg text-blue-100 mb-1">Excellence in Education Since 1985</p>
+                <p className="text-lg text-blue-100 mb-1">Excellence in Education Since {schoolDetails.established || '1985'}</p>
                 <div className="flex justify-center gap-4 text-sm text-blue-100 mt-4">
                   <span className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
@@ -195,7 +203,16 @@ const UnifiedApplicationPreview: React.FC<UnifiedApplicationPreviewProps> = ({
                   </span>
                   <span className="flex items-center gap-1">
                     <Globe className="w-4 h-4" />
-                    {schoolDetails.website || 'www.school-website.edu'}
+                    {schoolDetails.website ? (
+                      <a href={schoolDetails.website.startsWith('http') ? schoolDetails.website : `https://${schoolDetails.website}`} 
+                         target="_blank" 
+                         rel="noopener noreferrer"
+                         className="hover:text-white transition-colors">
+                        {schoolDetails.website}
+                      </a>
+                    ) : (
+                      'www.school-website.edu'
+                    )}
                   </span>
                 </div>
               </div>
