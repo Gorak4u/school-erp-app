@@ -81,12 +81,21 @@ export async function POST(
             data: { transport: 'No', transportRoute: null }
           });
 
-          // Delete the fee records that were pending waiver approval
-          await (tx as any).FeeRecord.deleteMany({
+          // Update the fee records that were pending waiver approval (preserve audit trail)
+          await (tx as any).FeeRecord.updateMany({
             where: {
               studentId: refundRequest.studentId,
               feeStructure: { category: 'transport' },
               status: 'pending_waiver_approval'
+            },
+            data: {
+              status: 'cancelled',
+              notes: `Transport fee waiver approved - Waiver ID: ${id}, Amount: ₹${refundRequest.amount}`,
+              waivedAmount: refundRequest.amount,
+              pendingAmount: 0,
+              // Note: amount field preserved as-is for audit trail, waiver tracked separately
+              cancelledAt: new Date(),
+              cancelledBy: ctx.email || 'system'
             }
           });
 
