@@ -338,7 +338,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
                 amount: feeAnalysis.pendingAmount,
                 adminFee: 0,
                 netAmount: feeAnalysis.pendingAmount,
-                reason: 'Transport fee waiver - auto-approved',
+                reason: 'Transport fee waiver - auto-approved (unpaid)',
                 status: 'approved',
                 priority: 'normal',
                 refundMethod: 'waiver',
@@ -349,12 +349,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
               }
             });
             
-            // Delete the unpaid fee record
-            await (tx as any).FeeRecord.deleteMany({
+            // Update fee record to reflect waiver (preserve audit trail)
+            await (tx as any).FeeRecord.updateMany({
               where: {
                 studentId: assignment.studentId,
                 feeStructure: { category: 'transport' },
                 status: 'pending'
+              },
+              data: { 
+                status: 'cancelled',
+                notes: `Transport cancelled - full amount waived (unpaid)`,
+                waivedAmount: feeAnalysis.pendingAmount,
+                cancelledAt: new Date(),
+                cancelledBy: ctx.user?.email || 'system'
               }
             });
           } else {
@@ -365,18 +372,53 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
                 feeStructure: { category: 'transport' },
                 status: 'pending'
               },
-              data: { status: 'cancelled' }
+              data: { 
+                status: 'cancelled',
+                notes: `Transport cancelled - pending amount kept for recovery`,
+                cancelledAt: new Date(),
+                cancelledBy: ctx.user?.email || 'system'
+              }
             });
           }
         } else if (feeAnalysis.paymentStatus === 'partial') {
-          // For partial payments, handle the pending portion
+          // For partial payments, preserve audit trail and handle pending portion
           if (pendingAction === 'waive') {
             // This is auto-approved case (small amount, no arrears)
-            // Delete the entire fee record (both paid and pending portions)
-            await (tx as any).FeeRecord.deleteMany({
+            // Create auto-approved waiver request for audit trail
+            waiverRequest = await (tx as any).RefundRequest.create({
+              data: {
+                schoolId: ctx.schoolId,
+                studentId: assignment.studentId,
+                type: 'transport_fee_waiver',
+                sourceId: assignment.id,
+                sourceType: 'StudentTransport',
+                amount: feeAnalysis.pendingAmount,
+                adminFee: 0,
+                netAmount: feeAnalysis.pendingAmount,
+                reason: 'Transport fee waiver - auto-approved (partial payment)',
+                status: 'approved',
+                priority: 'normal',
+                refundMethod: 'waiver',
+                approvedBy: ctx.user?.email || 'system',
+                approvedAt: new Date(),
+                processedBy: null,
+                processedAt: null
+              }
+            });
+            
+            // Update fee record to reflect waiver (preserve paid amount for audit)
+            await (tx as any).FeeRecord.updateMany({
               where: {
                 studentId: assignment.studentId,
                 feeStructure: { category: 'transport' }
+              },
+              data: { 
+                status: 'cancelled',
+                // Add metadata for audit trail
+                notes: `Transport cancelled - ₹${feeAnalysis.paidAmount} paid (earned), ₹${feeAnalysis.pendingAmount} waived`,
+                waivedAmount: feeAnalysis.pendingAmount,
+                cancelledAt: new Date(),
+                cancelledBy: ctx.user?.email || 'system'
               }
             });
           } else {
@@ -386,7 +428,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
                 studentId: assignment.studentId,
                 feeStructure: { category: 'transport' }
               },
-              data: { status: 'cancelled' }
+              data: { 
+                status: 'cancelled',
+                notes: `Transport cancelled - pending amount kept for recovery`,
+                cancelledAt: new Date(),
+                cancelledBy: ctx.user?.email || 'system'
+              }
             });
           }
         }

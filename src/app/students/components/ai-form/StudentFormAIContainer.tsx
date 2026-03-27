@@ -13,9 +13,8 @@ import TransportTab from './tabs/TransportTab';
 import DiscountTab from './tabs/DiscountTab';
 import FeeSummaryTab from './tabs/FeeSummaryTab';
 import AdditionalInfoTab from './tabs/AdditionalInfoTab';
-import AdvancedApplicationPreview from './AdvancedApplicationPreview';
+import UnifiedApplicationPreview from './components/UnifiedApplicationPreview';
 import AIInsightsPanel from './components/AIInsightsPanel';
-import FormPreviewModal from './components/FormPreviewModal';
 import AdmissionSummary from './components/AdmissionSummary';
 import { useAIFormProcessor } from './hooks/useAIFormProcessor';
 import { useFormValidation } from './hooks/useFormValidation';
@@ -125,7 +124,6 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewPayload, setPreviewPayload] = useState<any>(null);
-  const [showAdvancedPreview, setShowAdvancedPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<number | null>(null);
   const [createdStudent, setCreatedStudent] = useState<any>(null);
@@ -807,83 +805,6 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     setShowPreview(true);
   }, [buildPreviewPayload, validateBeforeSubmit]);
 
-  // Open advanced preview
-  const openAdvancedPreview = useCallback(() => {
-    if (!validateBeforeSubmit()) {
-      return;
-    }
-    setShowAdvancedPreview(true);
-  }, [validateBeforeSubmit]);
-
-  // Prepare advanced preview data
-  const prepareAdvancedPreviewData = useCallback(() => {
-    return {
-      student: {
-        name: formData.name,
-        photo: formData.photo,
-        admissionNo: formData.admissionNo,
-        admissionDate: formData.admissionDate,
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        placeOfBirth: formData.placeOfBirth,
-        nationality: formData.nationality,
-        bloodGroup: formData.bloodGroup,
-        religion: formData.religion,
-        category: formData.category,
-        motherTongue: formData.motherTongue,
-        stsId: formData.stsId,
-        aadharNumber: formData.aadharNumber,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        pincode: formData.pincode,
-        class: formData.class,
-        section: formData.section,
-        rollNumber: formData.rollNumber,
-        medium: formData.languageMedium,
-        board: formData.boardId,
-        previousSchool: formData.previousSchool,
-        previousClass: formData.previousClass,
-        fatherName: formData.fatherName,
-        fatherPhone: formData.fatherPhone,
-        fatherEmail: formData.fatherEmail,
-        fatherOccupation: formData.fatherOccupation,
-        motherName: formData.motherName,
-        motherPhone: formData.motherPhone,
-        motherEmail: formData.motherEmail,
-        motherOccupation: formData.motherOccupation,
-        medicalConditions: formData.medicalConditions,
-        allergies: formData.allergies
-      },
-      academic: {
-        tuitionAnnual,
-        tuitionFinalTotal,
-        discountAmount: feeCalcs.discountAmount,
-        discountPercent: feeCalcs.savingsPercent,
-        applicableFeeStructures,
-        feeCalcs
-      },
-      transport: {
-        routeName: transportInfo.routeName || '',
-        routeNumber: transportInfo.routeNumber || '',
-        pickupStop: transportInfo.pickupStop,
-        dropStop: transportInfo.dropStop,
-        baseAnnual: transportFeeCalcs.baseAnnual,
-        discountAmount: transportFeeCalcs.discountAmount,
-        finalAnnual: transportFeeCalcs.finalAnnual
-      },
-      combined: {
-        grandTotal: combinedAnnual,
-        totalDiscount: feeCalcs.discountAmount + transportFeeCalcs.discountAmount,
-        savingsPercent: feeCalcs.savingsPercent
-      },
-      academicYear: ayLabel,
-      documents: [] // Add documents if needed
-    };
-  }, [formData, tuitionAnnual, tuitionFinalTotal, feeCalcs, applicableFeeStructures, transportInfo, transportFeeCalcs, combinedAnnual, ayLabel]);
-
   // Submit admission with complete payload
   // Import the old StudentForm's submission logic
   const useOldStudentFormSubmission = useCallback(async (aiFormData: StudentFormData) => {
@@ -1431,31 +1352,18 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
                   </motion.button>
                 )}
 
-                {/* Preview Form Button - Only on last step */}
+                {/* Preview Button - Only on last step */}
                 {currentStepIndex === steps.length - 1 && (
-                  <div className="flex items-center gap-2">
-                    <motion.button
-                      type="button"
-                      onClick={openPreview}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 overflow-hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg border border-white/20`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span className="relative z-10">Quick Preview</span>
-                    </motion.button>
-                    
-                    <motion.button
-                      type="button"
-                      onClick={openAdvancedPreview}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-lg border border-white/20`}
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span className="relative z-10">Advanced Preview</span>
-                    </motion.button>
-                  </div>
+                  <motion.button
+                    type="button"
+                    onClick={openPreview}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-lg border border-white/20`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="relative z-10">Application Resume</span>
+                  </motion.button>
                 )}
 
                 {/* AI Process Button - Only on last step */}
@@ -1499,46 +1407,16 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
           </div>
         </div>
 
-        {/* Form Preview Modal */}
-        <FormPreviewModal
+        {/* Unified Application Preview */}
+        <UnifiedApplicationPreview
           show={showPreview}
           onClose={() => setShowPreview(false)}
           formData={formData}
           aiInsights={aiInsights}
           theme={theme}
-          cardClass={`rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-          onSubmit={(e) => handleSubmit(e)}
+          onSubmit={(e: React.FormEvent) => handleSubmit(e)}
           isSubmitting={isSubmitting}
         />
-
-        {/* Advanced Application Preview */}
-        {showAdvancedPreview && (
-          <AdvancedApplicationPreview
-            data={prepareAdvancedPreviewData()}
-            theme={theme as 'light' | 'dark'}
-            onClose={() => setShowAdvancedPreview(false)}
-            onSave={async (data) => {
-              // Handle save functionality
-            }}
-            onEdit={(section) => {
-              // Handle edit functionality
-              setShowAdvancedPreview(false);
-              // Navigate to the specific section/tab
-              const sectionMap: Record<string, string> = {
-                'personal': 'personal',
-                'academic': 'academicInfo',
-                'fees': 'feeSummary',
-                'transport': 'transport',
-                'parents': 'parentsInfo',
-                'documents': 'documents',
-                'medical': 'additional'
-              };
-              const targetTab = sectionMap[section] || 'personal';
-              setActiveTab(targetTab);
-            }}
-            isLoading={false}
-          />
-        )}
 
         {/* ID Card and Admission Summary - After Successful Submission */}
         {showIdCard && idCardData && (
