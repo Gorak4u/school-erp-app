@@ -54,6 +54,17 @@ export default function FeesTab({
   getStatusColor,
   getPriorityColor,
 }: FeesTabProps) {
+  // Helper to determine if discount is actually a waived amount
+  const getDiscountLabel = (fee: any) => {
+    if (fee.feeStructure?.category === 'transport' && fee.status === 'cancelled' && fee.discount > 0) {
+      return 'Waived Off';
+    }
+    return 'Discount';
+  };
+
+  const getDiscountValue = (fee: any) => {
+    return fee.discount || 0;
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -187,8 +198,10 @@ export default function FeesTab({
                 </div>
                 {fee.discount && fee.discount > 0 && (
                   <div className="flex justify-between">
-                    <span className={`text-sm ${textSecondary}`}>Discount:</span>
-                    <span className="font-medium text-purple-500">-₹{fee.discount.toLocaleString()}</span>
+                    <span className={`text-sm ${textSecondary}`}>{getDiscountLabel(fee)}:</span>
+                    <span className={`font-medium ${getDiscountLabel(fee) === 'Waived Off' ? 'text-orange-500' : 'text-purple-500'}`}>
+                      -₹{fee.discount.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 {fee.waivedAmount && fee.waivedAmount > 0 && (

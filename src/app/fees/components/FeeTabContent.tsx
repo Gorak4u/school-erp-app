@@ -201,6 +201,12 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
                   -₹{student.totalDiscount.toLocaleString()} discount
                 </div>
               )}
+              {/* Show waived amount if available */}
+              {student.totalWaived > 0 && (
+                <div className={`text-xs ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                  -₹{student.totalWaived.toLocaleString()} waived off
+                </div>
+              )}
             </div>
           </td>
         );
@@ -243,10 +249,21 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
           <td key={`${student.studentId}-${columnKey}`} className={`px-6 py-4 whitespace-nowrap ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
-            {student.totalDiscount > 0 ? (
-              <span className="text-green-500 font-medium">
-                ₹{student.totalDiscount.toLocaleString()}
-              </span>
+            {student.totalDiscount > 0 || student.totalWaived > 0 ? (
+              <div className="space-y-1">
+                {student.totalDiscount > 0 && (
+                  <div className="text-green-500 font-medium">
+                    ₹{student.totalDiscount.toLocaleString()}
+                    <span className="text-xs ml-1 text-green-400">(discount)</span>
+                  </div>
+                )}
+                {student.totalWaived > 0 && (
+                  <div className="text-orange-500 font-medium">
+                    ₹{student.totalWaived.toLocaleString()}
+                    <span className="text-xs ml-1 text-orange-400">(waived off)</span>
+                  </div>
+                )}
+              </div>
             ) : (
               <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 No discount

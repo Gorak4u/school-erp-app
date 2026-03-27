@@ -154,7 +154,15 @@ export async function GET(request: NextRequest) {
       const regularFeesTotal = feeRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
       const regularFeesPaid = feeRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
       const regularFeesPending = feeRecords.reduce((sum, record) => sum + (record.pendingAmount || 0), 0);
+      // Calculate separate totals for discounts vs waivers
       const regularFeesDiscount = feeRecords.reduce((sum, record) => sum + (record.discount || 0), 0);
+      const regularFeesWaived = feeRecords.reduce((sum, record) => {
+        // Check if this is a transport waiver
+        if (record.feeStructure?.category === 'transport' && record.status === 'cancelled' && record.discount > 0) {
+          return sum + (record.discount || 0);
+        }
+        return sum;
+      }, 0);
       
       // Calculate fines totals
       const finesTotal = studentFines.reduce((sum: number, fine: any) => sum + (fine.amount || 0), 0);
@@ -167,6 +175,7 @@ export async function GET(request: NextRequest) {
       const totalPaid = regularFeesPaid + finesPaid;
       const totalPending = regularFeesPending + finesPending;
       const totalDiscount = regularFeesDiscount + finesWaived;
+      const totalWaived = regularFeesWaived + finesWaived;
       
       // Get latest payment date
       const allPayments = feeRecords.flatMap(fr => fr.payments || []);
@@ -222,6 +231,7 @@ export async function GET(request: NextRequest) {
         totalPending,
         totalOverdue,
         totalDiscount,
+        totalWaived, // Add separate waived amount
         lastPaymentDate: latestPayment?.paymentDate || '',
         calculatedPaymentStatus,
         // Add fines-specific data
