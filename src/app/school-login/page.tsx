@@ -129,7 +129,7 @@ function AISchoolLoginInner() {
 
   // AI-powered email suggestions
   useEffect(() => {
-    if (email.length > 2 && !email.includes('@')) {
+    if (email.length > 2 && !email.includes('@') && school) {
       setIsAiAnalyzing(true);
       const timer = setTimeout(() => {
         const suggestions = [
@@ -145,10 +145,12 @@ function AISchoolLoginInner() {
     } else {
       setAiSuggestions([]);
     }
-  }, [email, subdomain]);
+  }, [email, subdomain, school]);
 
   // AI insights generation
   useEffect(() => {
+    if (!school) return;
+    
     const insights = [
       `🤖 AI analyzing ${subdomain} school patterns...`,
       `📊 Processing authentication data...`,
@@ -197,7 +199,7 @@ function AISchoolLoginInner() {
 
   // Resolve subdomain
   useEffect(() => {
-    const paramSubdomain = searchParams.get('subdomain');
+    const paramSubdomain = searchParams.get('subdomain')?.toLowerCase().trim();
     const hostnameSubdomain = (() => {
       if (typeof window === 'undefined') return '';
       const host = window.location.hostname;
@@ -207,6 +209,12 @@ function AISchoolLoginInner() {
       if (host.endsWith(`.${appDomain}`)) return host.replace(`.${appDomain}`, '');
       return '';
     })();
+
+    // CRITICAL: Validate subdomain matches hostname
+    if (paramSubdomain && hostnameSubdomain && paramSubdomain !== hostnameSubdomain) {
+      setSchoolError(`Subdomain mismatch: URL shows "${hostnameSubdomain}" but query requests "${paramSubdomain}"`);
+      return;
+    }
 
     const resolved = paramSubdomain || hostnameSubdomain;
     if (resolved) {
@@ -225,7 +233,10 @@ function AISchoolLoginInner() {
       try {
         const response = await fetch(`/api/school/by-subdomain?subdomain=${subdomain}`);
         if (!response.ok) {
-          throw new Error('School not found');
+          if (response.status === 404) {
+            throw new Error('School does not exist');
+          }
+          throw new Error('Failed to load school');
         }
         
         const data = await response.json();
@@ -243,11 +254,9 @@ function AISchoolLoginInner() {
           schoolTagline: data.school.schoolTagline || 'AI-Enhanced Learning Experience',
         });
         
-      } catch (error) {
-        setSchoolError('School not found. Please check your subdomain.');
-        // Fallback AI theme
-        const fallbackTheme = generateAISchoolTheme('Default School');
-        setTheme(fallbackTheme);
+      } catch (error: any) {
+        setSchoolError(error.message || 'School not found. Please check your subdomain.');
+        setSchool(null);
       } finally {
         setLoadingSchool(false);
       }
@@ -273,7 +282,7 @@ function AISchoolLoginInner() {
     }
   };
 
-  // AI Biometric Authentication
+  // AI Biometric Authentication - SECURE: Never store credentials
   const handleBiometricAuth = async () => {
     if ('credentials' in navigator) {
       try {
@@ -281,9 +290,14 @@ function AISchoolLoginInner() {
           password: true,
         });
         if (cred) {
-          setEmail(cred.id);
-          setPassword(cred.password);
+          // Use credentials immediately for login, NEVER store in state
           setAiInsights('🔐 Biometric authentication successful');
+          // Trigger login directly with credentials
+          await signIn('credentials', {
+            email: cred.id,
+            password: cred.password,
+            redirect: false,
+          });
         }
       } catch (error) {
         setAiInsights('❌ Biometric authentication failed');
@@ -305,12 +319,46 @@ function AISchoolLoginInner() {
     setError('');
     setAiInsights('🤖 AI authenticating...');
 
+    // Input validation
+    if (!email.trim() || !password) {
+      setError('Please enter email/employee ID and password');
+      setIsLoading(false);
+      return;
+    }
+
+    // Determine if input is email or employee ID
+    const isEmail = email.includes('@');
+    const loginIdentifier = email.trim();
+
+    // Rate limiting check
+    const now = Date.now();
+    const lastAttempt = localStorage.getItem('lastLoginAttempt');
+    const attemptCount = parseInt(localStorage.getItem('loginAttemptCount') || '0');
+    
+    if (lastAttempt && now - parseInt(lastAttempt) < 1000) {
+      setError('Please wait before trying again');
+      setIsLoading(false);
+      return;
+    }
+    
+    if (attemptCount >= 5) {
+      const lastAttemptTime = parseInt(lastAttempt || '0');
+      if (now - lastAttemptTime < 300000) { // 5 minutes lockout
+        setError('Too many failed attempts. Please try again in 5 minutes.');
+        setIsLoading(false);
+        return;
+      } else {
+        // Reset after lockout period
+        localStorage.setItem('loginAttemptCount', '0');
+      }
+    }
+
     try {
       // AI pre-processing
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const result = await signIn('credentials', {
-        email: email.trim(),
+        email: loginIdentifier,
         password: password,
         redirect: false,
       });
@@ -318,8 +366,14 @@ function AISchoolLoginInner() {
       if (result?.error) {
         setError(result.error);
         setAiInsights('❌ Authentication failed');
+        // Increment failed attempt count
+        const newCount = parseInt(localStorage.getItem('loginAttemptCount') || '0') + 1;
+        localStorage.setItem('loginAttemptCount', newCount.toString());
+        localStorage.setItem('lastLoginAttempt', Date.now().toString());
       } else if (result?.ok) {
         setAiInsights('✅ AI authentication successful');
+        // Reset attempt count on success
+        localStorage.setItem('loginAttemptCount', '0');
         
         // Check if user is super admin
         const sessionRes = await fetch('/api/auth/session');
@@ -339,15 +393,38 @@ function AISchoolLoginInner() {
     }
   };
 
-  const schoolName = school?.name || `${subdomain} School`;
+  const schoolName = school?.name || 'School';
   const schoolLocation = school?.city && school?.state ? `${school.city}, ${school.state}` : school?.city;
-
-  console.log('Component state:', { mounted, theme: !!theme, school: !!school, subdomain });
 
   if (!mounted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  // CRITICAL: Block entire page if school doesn't exist
+  if (schoolError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900/20 to-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-red-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">Access Denied</h1>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-6">
+            <p className="text-red-400 font-semibold text-lg mb-2">{schoolError}</p>
+            <p className="text-gray-400 text-sm">
+              The school &quot;<span className="text-white font-medium">{subdomain}</span>&quot; could not be found in our system.
+            </p>
+          </div>
+          <p className="text-gray-500 text-sm">
+            Please check the URL or contact your administrator for assistance.
+          </p>
+        </div>
       </div>
     );
   }
@@ -491,10 +568,6 @@ function AISchoolLoginInner() {
                     <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
                     <span className="text-white">AI Email Suggestions</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>
-                    <span className="text-white">Neural Security</span>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -526,24 +599,25 @@ function AISchoolLoginInner() {
               <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 rounded-3xl opacity-30 blur-lg" />
               
               <div className="relative bg-black/40 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl">
-                
-                {/* AI Status Bar */}
-                <motion.div
-                  className="mb-4 p-2 bg-gradient-to-r from-purple-600/10 to-blue-600/10 border border-purple-500/30 rounded-lg"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-green-400 font-medium">AI Systems Online</span>
-                    </div>
-                    <span className="text-xs text-gray-400 font-mono">
-                      {isAiAnalyzing ? '🧠 Analyzing...' : '🤖 Ready'}
-                    </span>
-                  </div>
-                </motion.div>
+                <div className="text-center">
+                  {/* School Error Message */}
+                  {schoolError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400"
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className="font-semibold">{schoolError}</span>
+                      </div>
+                      <p className="text-sm text-red-300">
+                        Please check the URL or contact your administrator.
+                      </p>
+                    </motion.div>
+                  )}
 
                 {/* AI Logo */}
                 <motion.div
@@ -627,7 +701,7 @@ function AISchoolLoginInner() {
                 </motion.div>
 
                 {/* Form */}
-                <form onSubmit={handleLogin} className="space-y-3">
+                <form onSubmit={handleLogin} className={`space-y-3 ${schoolError ? 'opacity-50 pointer-events-none' : ''}`}>
                   {/* AI Email Field */}
                   <motion.div
                     initial={{ opacity: 0, x: -30 }}
@@ -641,15 +715,15 @@ function AISchoolLoginInner() {
                       >
                         📧
                       </motion.span>
-                      Email Address
+                      Email / Employee ID
                       <span className="text-xs text-blue-400">AI Enhanced</span>
                     </label>
                     <div className="relative">
                       <input
-                        type="email"
+                        type="text"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Enter your email"
+                        placeholder="Enter your email or employee ID"
                         className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                         style={{
                           backgroundColor: theme?.inputBackgroundColor || 'rgba(255,255,255,0.1)',
@@ -759,7 +833,7 @@ function AISchoolLoginInner() {
                   >
                     <motion.button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !!schoolError}
                       className="w-full relative group py-3 px-6 rounded-lg font-medium transition-all duration-300"
                       style={{
                         background: theme?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
@@ -803,6 +877,7 @@ function AISchoolLoginInner() {
                 </motion.div>
               </div>
             </div>
+          </div>
           </motion.div>
         </div>
       </div>

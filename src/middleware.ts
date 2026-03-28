@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { extractSubdomain } from '@/lib/subdomain';
+import { saasPrisma } from '@/lib/prisma';
 import {
   canCreateStudentsAccess,
   canDeleteStudentsAccess,
@@ -212,6 +213,44 @@ export async function middleware(request: NextRequest) {
   const schoolSubdomain = extractSubdomain(hostname);
 
   if (schoolSubdomain) {
+    // CRITICAL: Validate school exists in database before allowing access
+    try {
+      const school = await (saasPrisma as any).School.findUnique({
+        where: { domain: schoolSubdomain },
+        select: { id: true, isActive: true }
+      });
+
+      if (!school) {
+        console.warn(`🚫 Access attempt to non-existent school: ${schoolSubdomain}`);
+        // Return error page for non-existent school
+        return new NextResponse(
+          `<!DOCTYPE html>
+          <html>
+            <head><title>School Not Found</title></head>
+            <body style="font-family:system-ui;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+              <div style="text-align:center;padding:40px;max-width:400px;">
+                <div style="width:80px;height:80px;background:#ef444420;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+                  <svg width="40" height="40" fill="none" stroke="#ef4444" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h1 style="font-size:24px;margin-bottom:10px;">Access Denied</h1>
+                <p style="color:#ef4444;font-weight:600;">School &quot;${schoolSubdomain}&quot; does not exist.</p>
+                <p style="color:#9ca3af;font-size:14px;">Please check the URL or contact your administrator.</p>
+              </div>
+            </body>
+          </html>`,
+          { status: 404, headers: { 'Content-Type': 'text/html' } }
+        );
+      }
+
+      if (!school.isActive) {
+        console.warn(`🚫 Access attempt to inactive school: ${schoolSubdomain}`);
+        return NextResponse.json({ error: 'School account is inactive' }, { status: 403 });
+      }
+    } catch (error) {
+      console.error(`🚫 Error validating school: ${error}`);
+      return NextResponse.json({ error: 'Failed to validate school' }, { status: 500 });
+    }
+
     // Inject subdomain into request headers so pages can read it
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-school-subdomain', schoolSubdomain);

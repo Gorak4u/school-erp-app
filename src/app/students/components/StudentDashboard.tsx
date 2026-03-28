@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -28,6 +28,9 @@ import {
   ArrowDown,
   Minus,
   Settings,
+  ChevronDown,
+  Filter,
+  School,
   Bell
 } from 'lucide-react';
 import SkeletonLoader, { ModernSpinner, LoadingOverlay } from './SkeletonLoader';
@@ -70,6 +73,114 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const isDark = theme === 'dark';
   
+  // Independent Dashboard Period Filter - separate from Student Management filters
+  const [dashboardPeriod, setDashboardPeriod] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'this_year'>('all');
+  
+  // Filter students based on selected period - INDEPENDENT from management filters
+  const periodFilteredStudents = useMemo(() => {
+    if (dashboardPeriod === 'all' || !students) return students || [];
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return students.filter((student: any) => {
+      const enrollmentDate = student.enrollmentDate ? new Date(student.enrollmentDate) : null;
+      if (!enrollmentDate) return false;
+      
+      switch (dashboardPeriod) {
+        case 'today':
+          return enrollmentDate >= today;
+        case 'this_week':
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay());
+          return enrollmentDate >= weekStart;
+        case 'this_month':
+          return enrollmentDate.getMonth() === now.getMonth() && 
+                 enrollmentDate.getFullYear() === now.getFullYear();
+        case 'this_year':
+          return enrollmentDate.getFullYear() === now.getFullYear();
+        default:
+          return true;
+      }
+    });
+  }, [students, dashboardPeriod]);
+
+  // Calculate dashboard stats from period-filtered students (NOT management filtered)
+  const currentDashboardStats = useMemo(() => {
+    const filtered = periodFilteredStudents;
+    if (!filtered || filtered.length === 0) {
+      return {
+        totalStudents: 0,
+        activeStudents: 0,
+        inactiveStudents: 0,
+        averageAttendance: 0,
+        lowAttendanceStudents: 0,
+        totalFeesCollected: 0,
+        pendingFees: 0,
+        newStudentsThisMonth: 0,
+        graduatedStudents: 0,
+        totalSections: 0,
+        avgStudentsPerSection: 0,
+        feeDefaulters: 0,
+        feeDefaultersAmount: 0,
+        recentActivities: []
+      };
+    }
+
+    const totalStudents = filtered.length;
+    const activeStudents = filtered.filter((s: any) => s.status === 'active').length;
+    const inactiveStudents = filtered.filter((s: any) => s.status === 'inactive').length;
+    const graduatedStudents = filtered.filter((s: any) => s.status === 'graduated').length;
+    
+    // Calculate average attendance
+    const attendanceValues = filtered
+      .map((s: any) => s.attendance?.percentage)
+      .filter((v: number) => typeof v === 'number');
+    const averageAttendance = attendanceValues.length > 0 
+      ? attendanceValues.reduce((a: number, b: number) => a + b, 0) / attendanceValues.length 
+      : 0;
+    const lowAttendanceStudents = filtered.filter((s: any) => (s.attendance?.percentage || 0) < 75).length;
+    
+    // Fee calculations
+    const totalFeesCollected = filtered.reduce((sum: number, s: any) => sum + (s.fees?.paid || 0), 0);
+    const pendingFees = filtered.reduce((sum: number, s: any) => sum + (s.fees?.pending || 0), 0);
+    
+    // New students this month
+    const now = new Date();
+    const newStudentsThisMonth = filtered.filter((s: any) => {
+      if (!s.enrollmentDate) return false;
+      const date = new Date(s.enrollmentDate);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length;
+    
+    // Sections
+    const uniqueSections = new Set(filtered.map((s: any) => `${s.class}-${s.section || 'A'}`));
+    const totalSections = uniqueSections.size;
+    const avgStudentsPerSection = totalSections > 0 ? Math.round(totalStudents / totalSections) : 0;
+    
+    // Fee defaulters
+    const feeDefaultersList = filtered.filter((s: any) => (s.fees?.pending || 0) > 0);
+    const feeDefaulters = feeDefaultersList.length;
+    const feeDefaultersAmount = feeDefaultersList.reduce((sum: number, s: any) => sum + (s.fees?.pending || 0), 0);
+
+    return {
+      totalStudents,
+      activeStudents,
+      inactiveStudents,
+      averageAttendance,
+      lowAttendanceStudents,
+      totalFeesCollected,
+      pendingFees,
+      newStudentsThisMonth,
+      graduatedStudents,
+      totalSections,
+      avgStudentsPerSection,
+      feeDefaulters,
+      feeDefaultersAmount,
+      recentActivities: dashboardStats?.recentActivities || []
+    };
+  }, [periodFilteredStudents, dashboardStats?.recentActivities]);
+
   // Use provided theme functions or fallback
   const cardClass = getCardClass?.() || (isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200');
   const primaryBtnClass = getBtnClass?.('primary') || 'bg-gradient-to-r from-blue-600 to-purple-600 text-white';
@@ -82,81 +193,81 @@ export default function StudentDashboard({
   const statCards = [
     { 
       label: 'Total Students', 
-      value: dashboardStats.totalStudents.toString(), 
+      value: currentDashboardStats.totalStudents.toString(), 
       icon: Users, 
       color: 'blue', 
       gradient: 'from-blue-500 to-cyan-600',
-      trend: { value: `+${dashboardStats.newStudentsThisMonth}`, label: 'this month', type: 'increase' as const },
+      trend: { value: `+${currentDashboardStats.newStudentsThisMonth}`, label: 'this month', type: 'increase' as const },
       bgColor: isDark ? 'from-blue-600/20 to-cyan-600/20' : 'from-blue-500/10 to-cyan-500/10',
       borderColor: isDark ? 'border-blue-500/30' : 'border-blue-500/20'
     },
     { 
       label: 'Active Students', 
-      value: dashboardStats.activeStudents.toString(), 
+      value: currentDashboardStats.activeStudents.toString(), 
       icon: CheckCircle, 
       color: 'green', 
       gradient: 'from-green-500 to-emerald-600',
-      trend: { value: `${((dashboardStats.activeStudents / dashboardStats.totalStudents) * 100).toFixed(1)}%`, label: 'active rate', type: 'increase' as const },
+      trend: { value: `${((currentDashboardStats.activeStudents / currentDashboardStats.totalStudents) * 100).toFixed(1)}%`, label: 'active rate', type: 'increase' as const },
       bgColor: isDark ? 'from-green-600/20 to-emerald-600/20' : 'from-green-500/10 to-emerald-500/10',
       borderColor: isDark ? 'border-green-500/30' : 'border-green-500/20'
     },
     { 
       label: 'Avg Attendance', 
-      value: `${dashboardStats.averageAttendance.toFixed(1)}%`, 
+      value: `${currentDashboardStats.averageAttendance.toFixed(1)}%`, 
       icon: BarChart3, 
       color: 'purple', 
       gradient: 'from-purple-500 to-pink-600',
-      trend: { value: dashboardStats.lowAttendanceStudents, label: 'low attendance', type: 'decrease' as const },
+      trend: { value: currentDashboardStats.lowAttendanceStudents, label: 'low attendance', type: 'decrease' as const },
       bgColor: isDark ? 'from-purple-600/20 to-pink-600/20' : 'from-purple-500/10 to-pink-500/10',
       borderColor: isDark ? 'border-purple-500/30' : 'border-purple-500/20'
     },
     { 
       label: 'Fees Collected', 
-      value: `₹${(dashboardStats.totalFeesCollected / 1000).toFixed(0)}K`, 
+      value: `₹${(currentDashboardStats.totalFeesCollected / 1000).toFixed(0)}K`, 
       icon: DollarSign, 
       color: 'amber', 
       gradient: 'from-amber-500 to-orange-600',
-      trend: { value: `₹${(dashboardStats.pendingFees / 1000).toFixed(0)}K`, label: 'pending', type: 'neutral' as const },
+      trend: { value: `₹${(currentDashboardStats.pendingFees / 1000).toFixed(0)}K`, label: 'pending', type: 'neutral' as const },
       bgColor: isDark ? 'from-amber-600/20 to-orange-600/20' : 'from-amber-500/10 to-orange-500/10',
       borderColor: isDark ? 'border-amber-500/30' : 'border-amber-500/20'
     },
     { 
       label: 'Graduated', 
-      value: dashboardStats.graduatedStudents?.toString() || '0', 
+      value: currentDashboardStats.graduatedStudents?.toString() || '0', 
       icon: GraduationCap, 
       color: 'indigo', 
       gradient: 'from-indigo-500 to-purple-600',
-      trend: { value: `${dashboardStats.graduationRate || 0}%`, label: 'grad rate', type: 'increase' as const },
+      trend: { value: `${currentDashboardStats.graduationRate || 0}%`, label: 'grad rate', type: 'increase' as const },
       bgColor: isDark ? 'from-indigo-600/20 to-purple-600/20' : 'from-indigo-500/10 to-purple-500/10',
       borderColor: isDark ? 'border-indigo-500/30' : 'border-indigo-500/20'
     },
     { 
       label: 'Class Sections', 
-      value: dashboardStats.totalSections?.toString() || '0', 
+      value: currentDashboardStats.totalSections?.toString() || '0', 
       icon: Grid, 
       color: 'teal', 
       gradient: 'from-teal-500 to-cyan-600',
-      trend: { value: `${dashboardStats.avgStudentsPerSection || 0}`, label: 'avg per section', type: 'neutral' as const },
+      trend: { value: `${currentDashboardStats.avgStudentsPerSection || 0}`, label: 'avg per section', type: 'neutral' as const },
       bgColor: isDark ? 'from-teal-600/20 to-cyan-600/20' : 'from-teal-500/10 to-cyan-500/10',
       borderColor: isDark ? 'border-teal-500/30' : 'border-teal-500/20'
     },
     { 
       label: 'Fee Defaulters', 
-      value: dashboardStats.feeDefaulters?.toString() || '0', 
+      value: currentDashboardStats.feeDefaulters?.toString() || '0', 
       icon: AlertTriangle, 
       color: 'red', 
       gradient: 'from-red-500 to-orange-600',
-      trend: { value: `₹${((dashboardStats.feeDefaultersAmount || 0) / 1000).toFixed(0)}K`, label: 'outstanding', type: 'decrease' as const },
+      trend: { value: `₹${((currentDashboardStats.feeDefaultersAmount || 0) / 1000).toFixed(0)}K`, label: 'outstanding', type: 'decrease' as const },
       bgColor: isDark ? 'from-red-600/20 to-orange-600/20' : 'from-red-500/10 to-orange-500/10',
       borderColor: isDark ? 'border-red-500/30' : 'border-red-500/20'
     },
     { 
       label: 'New Admissions', 
-      value: dashboardStats.admissionsThisMonth?.toString() || '0', 
+      value: currentDashboardStats.newStudentsThisMonth?.toString() || '0', 
       icon: UserPlus, 
       color: 'emerald', 
       gradient: 'from-emerald-500 to-teal-600',
-      trend: { value: `${dashboardStats.admissionGrowthRate || 0}%`, label: 'growth', type: 'increase' as const },
+      trend: { value: `${((currentDashboardStats.newStudentsThisMonth || 0) / Math.max(currentDashboardStats.totalStudents, 1) * 100).toFixed(1)}%`, label: 'of total', type: 'increase' as const },
       bgColor: isDark ? 'from-emerald-600/20 to-teal-600/20' : 'from-emerald-500/10 to-teal-500/10',
       borderColor: isDark ? 'border-emerald-500/30' : 'border-emerald-500/20'
     },
@@ -186,7 +297,27 @@ export default function StudentDashboard({
           </div>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {/* Dashboard Period Filter - Independent from Management filters */}
+          <div className="relative">
+            <select
+              value={dashboardPeriod}
+              onChange={(e) => setDashboardPeriod(e.target.value as any)}
+              className={`appearance-none px-4 py-2 pr-8 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+              <option value="this_year">This Year</option>
+            </select>
+            <Calendar className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+          </div>
+          
           {canCreateStudents && (
             <motion.button
               whileHover={{ scale: 1.05 }}

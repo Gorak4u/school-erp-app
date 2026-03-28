@@ -12,6 +12,7 @@ import { isArchivedStudentStatus } from '@/lib/studentStatus';
 export function useStudentState() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]); // For Dashboard - never filtered
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
