@@ -760,6 +760,8 @@ export function useDomainState() {
     bloodGroup: 'all',
     attendanceMin: '',
     attendanceMax: '',
+    ageMin: '',
+    ageMax: '',
     feeStatus: 'all',
     dateOfBirth: '',
     admissionDateFrom: '',

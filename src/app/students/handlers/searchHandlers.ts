@@ -366,11 +366,21 @@ export function createSearchHandlers(ctx: any) {
       if (advancedFilters.bloodGroup !== 'all' && student.bloodGroup !== advancedFilters.bloodGroup) {
         matchesSearch = false;
       }
-      if (advancedFilters.attendanceMin && student.attendance.percentage < parseInt(advancedFilters.attendanceMin)) {
+      if (advancedFilters.attendanceMin && student.attendance?.percentage < parseInt(advancedFilters.attendanceMin)) {
         matchesSearch = false;
       }
-      if (advancedFilters.attendanceMax && student.attendance.percentage > parseInt(advancedFilters.attendanceMax)) {
+      if (advancedFilters.attendanceMax && student.attendance?.percentage > parseInt(advancedFilters.attendanceMax)) {
         matchesSearch = false;
+      }
+      // Age Range Filter
+      if (advancedFilters.ageMin || advancedFilters.ageMax) {
+        const studentAge = student.age || student.dateOfBirth ? 
+          Math.floor((new Date().getTime() - new Date(student.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 
+          null;
+        if (studentAge !== null) {
+          if (advancedFilters.ageMin && studentAge < parseInt(advancedFilters.ageMin)) matchesSearch = false;
+          if (advancedFilters.ageMax && studentAge > parseInt(advancedFilters.ageMax)) matchesSearch = false;
+        }
       }
       if (advancedFilters.feeStatus !== 'all') {
         if (advancedFilters.feeStatus === 'paid' && student.fees.pending > 0) matchesSearch = false;
@@ -393,10 +403,11 @@ export function createSearchHandlers(ctx: any) {
         matchesSearch = false;
       }
       if (advancedFilters.category !== 'all') {
-        if (advancedFilters.category === 'sc' && student.category !== 'SC') matchesSearch = false;
-        if (advancedFilters.category === 'st' && student.category !== 'ST') matchesSearch = false;
-        if (advancedFilters.category === 'obc' && student.category !== 'OBC') matchesSearch = false;
-        if (advancedFilters.category === 'general' && student.category !== 'General') matchesSearch = false;
+        const selectedCategories = advancedFilters.category.split(',').map((c: string) => c.toLowerCase().trim());
+        const studentCategory = (student.category || '').toLowerCase().trim();
+        if (!selectedCategories.includes(studentCategory)) {
+          matchesSearch = false;
+        }
       }
     }
     

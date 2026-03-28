@@ -35,6 +35,7 @@ import {
   BookOpen,
   Award,
   Target,
+  Check,
   Activity
 } from 'lucide-react';
 import { Student } from '../types';
@@ -717,6 +718,54 @@ export default function StudentFilters({
                 </div>
               </div>
 
+              {/* Quick Filter Presets */}
+              <div className="flex flex-wrap gap-2 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                <span className={`text-sm font-medium mr-2 ${secondaryTextClass}`}>Quick Filters:</span>
+                {[
+                  { 
+                    label: '⚠️ Fee Defaulters', 
+                    icon: AlertCircle,
+                    filters: { feeStatus: 'pending' },
+                    color: 'red'
+                  },
+                  { 
+                    label: '📉 Low Attendance', 
+                    icon: TrendingUp,
+                    filters: { attendanceMin: '0', attendanceMax: '75' },
+                    color: 'orange'
+                  },
+                  { 
+                    label: '🎓 Graduating', 
+                    icon: GraduationCap,
+                    filters: { },
+                    color: 'purple',
+                    action: () => setSelectedClass('10')
+                  },
+                  { 
+                    label: '🆕 New Admissions', 
+                    icon: Plus,
+                    filters: { admissionDateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+                    color: 'green'
+                  }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => {
+                      setAdvancedFilters((prev: any) => ({ ...prev, ...preset.filters }));
+                      if (preset.action) preset.action();
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all inline-flex items-center gap-1 ${
+                      theme === 'dark'
+                        ? `bg-${preset.color}-900/30 border-${preset.color}-500/50 text-${preset.color}-300 hover:bg-${preset.color}-900/50`
+                        : `bg-${preset.color}-50 border-${preset.color}-300 text-${preset.color}-700 hover:bg-${preset.color}-100`
+                    }`}
+                  >
+                    <preset.icon className="w-3 h-3" />
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Modern Filter Fields Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 <motion.div
@@ -724,8 +773,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <label className={labelClass}>
-                    <User className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <User className="w-4 h-4 inline mr-2 text-blue-500" />
                     Student Name
                   </label>
                   <input 
@@ -733,7 +782,11 @@ export default function StudentFilters({
                     value={advancedFilters.name} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, name: e.target.value }))} 
                     placeholder="Search by name..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-blue-900/20 border-blue-700/50 text-white placeholder-blue-400/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30' 
+                        : 'bg-blue-50 border-blue-200 text-blue-900 placeholder-blue-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -741,8 +794,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <label className={labelClass}>
-                    <Hash className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Hash className="w-4 h-4 inline mr-2 text-green-500" />
                     Admission No
                   </label>
                   <input 
@@ -750,7 +803,11 @@ export default function StudentFilters({
                     value={advancedFilters.admissionNo} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionNo: e.target.value }))} 
                     placeholder="Admission number..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-green-900/20 border-green-700/50 text-white placeholder-green-400/50 focus:border-green-500 focus:ring-2 focus:ring-green-500/30' 
+                        : 'bg-green-50 border-green-200 text-green-900 placeholder-green-400 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -758,8 +815,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <label className={labelClass}>
-                    <Users className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Users className="w-4 h-4 inline mr-2 text-purple-500" />
                     Parent Name
                   </label>
                   <input 
@@ -767,7 +824,11 @@ export default function StudentFilters({
                     value={advancedFilters.parentName} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, parentName: e.target.value }))} 
                     placeholder="Parent name..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-purple-900/20 border-purple-700/50 text-white placeholder-purple-400/50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30' 
+                        : 'bg-purple-50 border-purple-200 text-purple-900 placeholder-purple-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -775,8 +836,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <label className={labelClass}>
-                    <Phone className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Phone className="w-4 h-4 inline mr-2 text-indigo-500" />
                     Phone
                   </label>
                   <input 
@@ -784,7 +845,11 @@ export default function StudentFilters({
                     value={advancedFilters.phone} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, phone: e.target.value }))} 
                     placeholder="Phone number..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-indigo-900/20 border-indigo-700/50 text-white placeholder-indigo-400/50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30' 
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-900 placeholder-indigo-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -792,8 +857,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <label className={labelClass}>
-                    <Mail className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Mail className="w-4 h-4 inline mr-2 text-pink-500" />
                     Email
                   </label>
                   <input 
@@ -801,7 +866,11 @@ export default function StudentFilters({
                     value={advancedFilters.email} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, email: e.target.value }))} 
                     placeholder="Email..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-pink-900/20 border-pink-700/50 text-white placeholder-pink-400/50 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30' 
+                        : 'bg-pink-50 border-pink-200 text-pink-900 placeholder-pink-400 focus:border-pink-400 focus:ring-2 focus:ring-pink-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -809,14 +878,22 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
                 >
-                  <label className={labelClass}>
-                    <Heart className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Heart className="w-4 h-4 inline mr-2 text-rose-500" />
                     Blood Group
                   </label>
                   <select 
                     value={advancedFilters.bloodGroup} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, bloodGroup: e.target.value }))} 
-                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all appearance-none cursor-pointer ${
+                      advancedFilters.bloodGroup !== 'all'
+                        ? theme === 'dark'
+                          ? 'bg-rose-900/30 border-rose-500 text-rose-200'
+                          : 'bg-rose-50 border-rose-400 text-rose-800'
+                        : theme === 'dark'
+                          ? 'bg-rose-900/20 border-rose-700/50 text-white focus:border-rose-500 focus:ring-2 focus:ring-rose-500/30'
+                          : 'bg-rose-50 border-rose-200 text-rose-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20'
+                    }`}
                   >
                     <option value="all">All Blood Groups</option>
                     <option value="A+">A+</option><option value="A-">A-</option>
@@ -830,14 +907,22 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 }}
                 >
-                  <label className={labelClass}>
-                    <CreditCard className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <CreditCard className="w-4 h-4 inline mr-2 text-amber-500" />
                     Fee Status
                   </label>
                   <select 
                     value={advancedFilters.feeStatus} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, feeStatus: e.target.value }))} 
-                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all appearance-none cursor-pointer ${
+                      advancedFilters.feeStatus !== 'all'
+                        ? theme === 'dark'
+                          ? 'bg-amber-900/30 border-amber-500 text-amber-200'
+                          : 'bg-amber-50 border-amber-400 text-amber-800'
+                        : theme === 'dark'
+                          ? 'bg-amber-900/20 border-amber-700/50 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30'
+                          : 'bg-amber-50 border-amber-200 text-amber-900 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20'
+                    }`}
                   >
                     <option value="all">All Status</option>
                     <option value="paid">Paid</option>
@@ -849,64 +934,156 @@ export default function StudentFilters({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.8 }}
+                  className="lg:col-span-2"
                 >
                   <label className={labelClass}>
                     <Users className="w-4 h-4 inline mr-2" />
-                    Category
+                    Categories (Multi-select)
                   </label>
-                  <select 
-                    value={advancedFilters.category} 
-                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, category: e.target.value }))} 
-                    className={`${selectClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer`}
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="general">General</option>
-                    <option value="obc">OBC</option>
-                    <option value="sc">SC</option>
-                    <option value="st">ST</option>
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'general', label: 'General', color: 'blue' },
+                      { value: 'obc', label: 'OBC', color: 'green' },
+                      { value: 'sc', label: 'SC', color: 'purple' },
+                      { value: 'st', label: 'ST', color: 'orange' },
+                      { value: 'ews', label: 'EWS', color: 'pink' }
+                    ].map((cat) => {
+                      const isSelected = advancedFilters.category?.includes(cat.value) || advancedFilters.category === cat.value;
+                      return (
+                        <button
+                          key={cat.value}
+                          onClick={() => {
+                            const current = advancedFilters.category || 'all';
+                            let newCategories: string[];
+                            if (current === 'all') {
+                              newCategories = [cat.value];
+                            } else {
+                              const currentArray = current.split(',').filter((c: string) => c !== 'all');
+                              if (currentArray.includes(cat.value)) {
+                                newCategories = currentArray.filter((c: string) => c !== cat.value);
+                              } else {
+                                newCategories = [...currentArray, cat.value];
+                              }
+                            }
+                            setAdvancedFilters((prev: any) => ({ 
+                              ...prev, 
+                              category: newCategories.length === 0 ? 'all' : newCategories.join(',')
+                            }));
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                            isSelected
+                              ? theme === 'dark'
+                                ? `bg-${cat.color}-900/50 border-${cat.color}-500 text-${cat.color}-300`
+                                : `bg-${cat.color}-100 border-${cat.color}-400 text-${cat.color}-800`
+                              : theme === 'dark'
+                                ? 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                                : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                          }`}
+                        >
+                          {cat.label}
+                          {isSelected && <Check className="w-3 h-3 inline ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9 }}
+                  className="lg:col-span-2"
                 >
                   <label className={labelClass}>
                     <BarChart3 className="w-4 h-4 inline mr-2" />
-                    Attendance Min %
+                    Attendance Range: {advancedFilters.attendanceMin || 0}% - {advancedFilters.attendanceMax || 100}%
                   </label>
-                  <input 
-                    type="number" 
-                    value={advancedFilters.attendanceMin} 
-                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, attendanceMin: e.target.value }))} 
-                    placeholder="0" 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
-                  />
+                  <div className="px-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={advancedFilters.attendanceMin || 0}
+                        onChange={e => setAdvancedFilters((prev: any) => ({ 
+                          ...prev, 
+                          attendanceMin: e.target.value,
+                          attendanceMax: Math.max(parseInt(e.target.value), parseInt(prev.attendanceMax || '100')).toString()
+                        }))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={advancedFilters.attendanceMax || 100}
+                        onChange={e => setAdvancedFilters((prev: any) => ({ 
+                          ...prev, 
+                          attendanceMax: e.target.value,
+                          attendanceMin: Math.min(parseInt(prev.attendanceMin || '0'), parseInt(e.target.value)).toString()
+                        }))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
                 </motion.div>
+
+                {/* Age Range Slider */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.0 }}
+                  className="lg:col-span-2"
                 >
-                  <label className={labelClass}>
-                    <TrendingUp className="w-4 h-4 inline mr-2" />
-                    Attendance Max %
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Calendar className="w-4 h-4 inline mr-2 text-green-500" />
+                    Age Range: {advancedFilters.ageMin || 5} - {advancedFilters.ageMax || 18} years
                   </label>
-                  <input 
-                    type="number" 
-                    value={advancedFilters.attendanceMax} 
-                    onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, attendanceMax: e.target.value }))} 
-                    placeholder="100" 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
-                  />
+                  <div className="px-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="5"
+                        max="18"
+                        value={advancedFilters.ageMin || 5}
+                        onChange={e => setAdvancedFilters((prev: any) => ({ 
+                          ...prev, 
+                          ageMin: e.target.value,
+                          ageMax: Math.max(parseInt(e.target.value), parseInt(prev.ageMax || '18')).toString()
+                        }))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                      />
+                      <input
+                        type="range"
+                        min="5"
+                        max="18"
+                        value={advancedFilters.ageMax || 18}
+                        onChange={e => setAdvancedFilters((prev: any) => ({ 
+                          ...prev, 
+                          ageMax: e.target.value,
+                          ageMin: Math.min(parseInt(prev.ageMin || '5'), parseInt(e.target.value)).toString()
+                        }))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>5 yrs</span>
+                      <span>11 yrs</span>
+                      <span>18 yrs</span>
+                    </div>
+                  </div>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.1 }}
                 >
-                  <label className={labelClass}>
-                    <MapPin className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <MapPin className="w-4 h-4 inline mr-2 text-cyan-500" />
                     City
                   </label>
                   <input 
@@ -914,7 +1091,11 @@ export default function StudentFilters({
                     value={advancedFilters.city} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, city: e.target.value }))} 
                     placeholder="City..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-cyan-900/20 border-cyan-700/50 text-white placeholder-cyan-400/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30' 
+                        : 'bg-cyan-50 border-cyan-200 text-cyan-900 placeholder-cyan-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -922,8 +1103,8 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.2 }}
                 >
-                  <label className={labelClass}>
-                    <MapPin className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <MapPin className="w-4 h-4 inline mr-2 text-teal-500" />
                     State
                   </label>
                   <input 
@@ -931,7 +1112,11 @@ export default function StudentFilters({
                     value={advancedFilters.state} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, state: e.target.value }))} 
                     placeholder="State..." 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-teal-900/20 border-teal-700/50 text-white placeholder-teal-400/50 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30' 
+                        : 'bg-teal-50 border-teal-200 text-teal-900 placeholder-teal-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -939,15 +1124,23 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.3 }}
                 >
-                  <label className={labelClass}>
-                    <Calendar className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Calendar className="w-4 h-4 inline mr-2 text-orange-500" />
                     Date of Birth
                   </label>
                   <input 
                     type="date" 
                     value={advancedFilters.dateOfBirth} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, dateOfBirth: e.target.value }))} 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all cursor-pointer ${
+                      advancedFilters.dateOfBirth
+                        ? theme === 'dark'
+                          ? 'bg-orange-900/30 border-orange-500 text-orange-200'
+                          : 'bg-orange-50 border-orange-400 text-orange-800'
+                        : theme === 'dark'
+                          ? 'bg-orange-900/20 border-orange-700/50 text-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30'
+                          : 'bg-orange-50 border-orange-200 text-orange-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -955,15 +1148,23 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.4 }}
                 >
-                  <label className={labelClass}>
-                    <Calendar className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Calendar className="w-4 h-4 inline mr-2 text-violet-500" />
                     Admission From
                   </label>
                   <input 
                     type="date" 
                     value={advancedFilters.admissionDateFrom} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionDateFrom: e.target.value }))} 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all cursor-pointer ${
+                      advancedFilters.admissionDateFrom
+                        ? theme === 'dark'
+                          ? 'bg-violet-900/30 border-violet-500 text-violet-200'
+                          : 'bg-violet-50 border-violet-400 text-violet-800'
+                        : theme === 'dark'
+                          ? 'bg-violet-900/20 border-violet-700/50 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30'
+                          : 'bg-violet-50 border-violet-200 text-violet-900 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
@@ -971,15 +1172,23 @@ export default function StudentFilters({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.5 }}
                 >
-                  <label className={labelClass}>
-                    <Calendar className="w-4 h-4 inline mr-2" />
+                  <label className={`block text-sm font-semibold mb-2 ${secondaryTextClass}`}>
+                    <Calendar className="w-4 h-4 inline mr-2 text-fuchsia-500" />
                     Admission To
                   </label>
                   <input 
                     type="date" 
                     value={advancedFilters.admissionDateTo} 
                     onChange={e => setAdvancedFilters((prev: any) => ({ ...prev, admissionDateTo: e.target.value }))} 
-                    className={`${inputClass} px-4 py-3 rounded-xl border-2 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer`} 
+                    className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all cursor-pointer ${
+                      advancedFilters.admissionDateTo
+                        ? theme === 'dark'
+                          ? 'bg-fuchsia-900/30 border-fuchsia-500 text-fuchsia-200'
+                          : 'bg-fuchsia-50 border-fuchsia-400 text-fuchsia-800'
+                        : theme === 'dark'
+                          ? 'bg-fuchsia-900/20 border-fuchsia-700/50 text-white focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/30'
+                          : 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-900 focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-500/20'
+                    }`} 
                   />
                 </motion.div>
                 <motion.div
