@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Student, ModalState } from './types';
 import EnhancedFeeCollection from '../../../fees/components/fee-collection';
 import StudentFines from '../StudentFines';
-import StudentAnalytics from '../StudentAnalytics';
-import StudentMedicalInfo from '../StudentMedicalInfo';
 import AttendanceCalendar from '../../../../components/attendance/AttendanceCalendar';
 
 interface ModalManagerProps {

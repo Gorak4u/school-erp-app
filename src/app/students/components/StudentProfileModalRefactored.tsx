@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare } from 'lucide-react';
 import { ActionButton, ModalState } from './StudentProfile/types';
 import { useStudentProfile, useStudentPermissions, useProfileTabs } from './StudentProfile/hooks';
 import ProfileHeader from './StudentProfile/ProfileHeader';
@@ -11,8 +12,6 @@ import OverviewTab from './StudentProfile/OverviewTab';
 import AcademicsTab from './StudentProfile/AcademicsTab';
 import ModalManager from './StudentProfile/ModalManager';
 import StudentProfileTabs from './StudentProfileTabs';
-import StudentAnalytics from './StudentAnalytics';
-import StudentMedicalInfo from './StudentMedicalInfo';
 import StudentFines from './StudentFines';
 import { buildStudentIdCardSnippet, buildStudentIdCardDocument, StudentIdCardData } from '../../../lib/idCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
@@ -464,35 +463,29 @@ const StudentProfileModalRefactored: React.FC<StudentProfileModalProps> = ({
                     setCalendarStudent={setCalendarStudent}
                   />
 
-                  {/* Analytics Tab */}
-                  {currentTab === 'analytics' && (
+                  {/* Communication Tab */}
+                  {currentTab === 'communication' && (
                     <motion.div
                       variants={cardVariants}
                       initial="hidden"
                       animate="visible"
                       className={getCardClass()}
                     >
-                      <StudentAnalytics
-                        theme={theme}
-                        students={selectedStudent ? [selectedStudent] : []}
-                        onClose={() => setCurrentTab('overview')}
-                      />
-                    </motion.div>
-                  )}
-
-                  {/* Medical Tab */}
-                  {currentTab === 'medical' && (
-                    <motion.div
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      className={getCardClass()}
-                    >
-                      <StudentMedicalInfo
-                        theme={theme}
-                        student={selectedStudent}
-                        onClose={() => setCurrentTab('overview')}
-                      />
+                      <div className="p-6">
+                        <div className="text-center py-12">
+                          <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                            theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            <MessageSquare className="w-8 h-8" />
+                          </div>
+                          <h3 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            Communication Center
+                          </h3>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Send messages and notifications to {selectedStudent?.name}
+                          </p>
+                        </div>
+                      </div>
                     </motion.div>
                   )}
 

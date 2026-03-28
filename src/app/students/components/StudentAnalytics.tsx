@@ -339,45 +339,6 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
 
   return (
     <div className="space-y-6 max-h-[60vh] overflow-y-auto">
-      {/* Enhanced Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r ${
-          isDark 
-            ? 'from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-blue-500/30' 
-            : 'from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-blue-200/50'
-        } backdrop-blur-sm shadow-xl`}
-      >
-        <div className="flex items-center gap-4">
-          <motion.div 
-            className={`p-3 rounded-xl bg-gradient-to-br ${
-              isDark ? 'from-blue-600 to-purple-600' : 'from-blue-500 to-purple-500'
-            } shadow-lg`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <ChartBar className="w-6 h-6 text-white" />
-          </motion.div>
-          <div>
-            <h2 className={`text-2xl font-bold ${textPrimary}`}>Student Analytics</h2>
-            <p className={`${textSecondary} text-sm`}>Comprehensive insights and performance metrics</p>
-          </div>
-        </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onClose}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-            isDark 
-              ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600' 
-              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
-          } shadow-lg`}
-        >
-          Close
-        </motion.button>
-      </motion.div>
-
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
         {tabs.map(tab => (

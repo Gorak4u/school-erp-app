@@ -213,8 +213,6 @@ export const useProfileTabs = (): Array<{ id: string; label: string; icon: strin
     { id: 'fees', label: 'Fees', icon: 'DollarSign' },
     { id: 'fines', label: 'Fines', icon: 'Scale' },
     { id: 'attendance', label: 'Attendance', icon: 'CalendarCheck' },
-    { id: 'analytics', label: 'Analytics', icon: 'BarChart3' },
-    { id: 'medical', label: 'Medical', icon: 'HeartPulse' },
     { id: 'communication', label: 'Communication', icon: 'MessageSquare' },
     { id: 'parents', label: 'Parents', icon: 'Users' }
   ], []);

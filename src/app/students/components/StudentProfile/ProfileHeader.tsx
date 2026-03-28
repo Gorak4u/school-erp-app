@@ -37,32 +37,44 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   canEditStudentRecord
 }) => {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const buttonRef = React.useRef<HTMLButtonElement>(null);
 
   const handleButtonClick = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const dropdownWidth = 224; // w-56 = 14rem = 224px
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       
-      // Calculate right position, but ensure dropdown stays within viewport
-      let rightPosition = viewportWidth - rect.right;
-      if (rect.right + dropdownWidth > viewportWidth) {
-        rightPosition = viewportWidth - rect.right - (rect.right + dropdownWidth - viewportWidth);
+      // Use button width for dropdown
+      const dropdownWidth = rect.width;
+      
+      // Calculate left position to align with button left edge
+      let leftPosition = rect.left;
+      
+      // Ensure dropdown stays within viewport on the left side
+      if (leftPosition < 8) {
+        leftPosition = 8;
       }
       
-      // Calculate top position, but ensure dropdown stays within viewport
+      // Ensure dropdown stays within viewport on the right side
+      if (leftPosition + dropdownWidth > viewportWidth - 8) {
+        leftPosition = viewportWidth - dropdownWidth - 8;
+      }
+      
+      // Calculate top position (below button)
       let topPosition = rect.bottom + 8;
       const dropdownHeight = 300; // Approximate height
-      if (rect.bottom + dropdownHeight > viewportHeight) {
+      
+      // If dropdown would go below viewport, show it above the button
+      if (rect.bottom + dropdownHeight + 8 > viewportHeight) {
         topPosition = rect.top - dropdownHeight - 8;
       }
       
       setDropdownPosition({
         top: topPosition,
-        right: Math.max(8, rightPosition)
+        left: leftPosition,
+        width: dropdownWidth
       });
     }
     setIsQuickActionsOpen(!isQuickActionsOpen);
@@ -186,11 +198,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   style={{
                     position: 'fixed',
                     top: `${dropdownPosition.top}px`,
-                    right: `${dropdownPosition.right}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
                     zIndex: 1000000,
                     transform: 'translateZ(0)'
                   }}
-                  className={`w-56 rounded-xl shadow-2xl border ${
+                  className={`rounded-xl shadow-2xl border overflow-hidden ${
                     theme === 'dark' 
                       ? 'bg-gray-800 border-gray-700' 
                       : 'bg-white border-gray-200'
