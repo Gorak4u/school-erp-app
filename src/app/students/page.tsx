@@ -916,18 +916,11 @@ export default function StudentsPageRefactored() {
                 </div>
               </div>
               
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className={getCardClass()}
-              >
-                <StudentAnalytics 
-                  theme={theme} 
-                  students={students as any[]}
-                  onClose={() => setActiveTab('students')}
-                />
-              </motion.div>
+              <StudentAnalytics 
+                theme={theme} 
+                students={students as any[]}
+                onClose={() => setActiveTab('students')}
+              />
             </motion.div>
           )}
 

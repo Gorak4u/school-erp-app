@@ -338,7 +338,7 @@ export default function StudentAnalytics({ theme, students, onClose }: StudentAn
   );
 
   return (
-    <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+    <div className="space-y-6">
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
         {tabs.map(tab => (
