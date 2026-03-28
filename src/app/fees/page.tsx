@@ -54,9 +54,12 @@ import DiscountManagement from './components/discount/DiscountManagement';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PermissionGuard, AdminOnly, RequirePermission } from '@/components/PermissionGuard';
+import { motion } from 'framer-motion';
+import { BarChart3, Users, TrendingUp, Wallet, FileText, Bell, Gift, Building2 } from 'lucide-react';
 
 export default function FeesPage() {
   const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const state = useFeeState();
   const [useEnhancedModal, setUseEnhancedModal] = useState(true); // Toggle between modals
   const [showBulkAssignmentModal, setShowBulkAssignmentModal] = useState(false);
@@ -143,23 +146,80 @@ export default function FeesPage() {
     });
   };
 
-  // Teachers see only All Students view; manage_fees unlocks everything else
-  const availableTabs: Array<{
-    id: string;
-    label: string;
-    permission: string | null;
-  }> = [
-    { id: 'all-students', label: '👥 All Students', permission: null },
-    { id: 'fee-records', label: '📋 Fee Records', permission: 'manage_fees' },
-    { id: 'structures', label: '🏗️ Structures', permission: 'manage_fees' },
-    { id: 'collections', label: '💵 Collections', permission: 'manage_fees' },
-    { id: 'bulk-assign', label: '🏛️ Bulk Assign', permission: 'manage_fees' },
-    { id: 'discounts', label: '🎁 Discounts', permission: 'manage_fees' },
-    { id: 'reports', label: '📈 Reports', permission: 'manage_fees' },
-    { id: 'invoices', label: '🧾 Invoices', permission: 'manage_fees' },
-    { id: 'analytics', label: '📉 Analytics', permission: 'manage_fees' },
-    { id: 'notifications', label: '🔔 Notifications', permission: 'manage_fees' },
-    { id: 'student-profile', label: '👤 Student Profile', permission: 'view_fees' },
+  // Modern Fee Tabs - matching Student page structure
+  const FEE_TABS = [
+    { 
+      id: 'overview', 
+      label: 'Overview', 
+      icon: BarChart3, 
+      description: 'Fee dashboard and analytics overview',
+      gradient: 'from-green-500 to-emerald-600',
+      permission: null
+    },
+    { 
+      id: 'all-students', 
+      label: 'All Students', 
+      icon: Users, 
+      description: 'Student fee records and management',
+      gradient: 'from-blue-500 to-cyan-600',
+      permission: null
+    },
+    { 
+      id: 'fee-records', 
+      label: 'Fee Records', 
+      icon: FileText, 
+      description: 'Manage fee records and payments',
+      gradient: 'from-purple-500 to-pink-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'structures', 
+      label: 'Structures', 
+      icon: Building2, 
+      description: 'Fee structures and categories',
+      gradient: 'from-amber-500 to-orange-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'collections', 
+      label: 'Collections', 
+      icon: Wallet, 
+      description: 'Fee collections and receipts',
+      gradient: 'from-cyan-500 to-blue-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'discounts', 
+      label: 'Discounts', 
+      icon: Gift, 
+      description: 'Discounts and waivers management',
+      gradient: 'from-rose-500 to-pink-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'reports', 
+      label: 'Reports', 
+      icon: TrendingUp, 
+      description: 'Fee reports and analytics',
+      gradient: 'from-teal-500 to-emerald-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'invoices', 
+      label: 'Invoices', 
+      icon: FileText, 
+      description: 'Invoice generation and management',
+      gradient: 'from-violet-500 to-purple-600',
+      permission: 'manage_fees'
+    },
+    { 
+      id: 'notifications', 
+      label: 'Notifications', 
+      icon: Bell, 
+      description: 'Fee notifications and reminders',
+      gradient: 'from-orange-500 to-red-600',
+      permission: 'manage_fees'
+    },
   ].filter(tab => {
     if (!tab.permission) return true;
     return hasPermission(tab.permission as any);
@@ -218,67 +278,94 @@ export default function FeesPage() {
   return (
     <AppLayout currentPage="fees" title="Fees Management">
       <div className="space-y-0 pb-6">
-        {/* Dashboard Section */}
-        <FeeDashboard ctx={ctx} />
-
-        {/* Filters bar (search + dropdowns + action buttons) */}
-        <FeeFilters ctx={ctx} />
-
-        {/* Tab Navigation — outside the filter tile, above the data table */}
-        <div className={`flex gap-1 overflow-x-auto mb-4 pb-1 scrollbar-hide`}>
-          {availableTabs.map(tab => (
+        {/* Header - Title + Collect Fee Button */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Fees Management
+            </h1>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Manage fee collections, structures, and student payments
+            </p>
+          </div>
+          {canManageFees && (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : theme === 'dark'
-                    ? 'bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              onClick={() => window.location.href = '/fee-collection'}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90 transition-opacity shadow-lg"
             >
-              {tab.label}
+              <Wallet className="w-4 h-4" />
+              Collect Fee
             </button>
-          ))}
+          )}
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'invoices' ? (
-          <FeeInvoiceManagerOptimized theme={theme} activeTab={activeTab} />
-        ) : activeTab === 'analytics' ? (
-          <FeeFinancialAnalytics theme={theme} />
-        ) : activeTab === 'notifications' ? (
-          <FeeNotificationManager theme={theme} />
-        ) : activeTab === 'bulk-assign' ? (
-          <div className="text-center py-12">
-            <div className={`inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4`}>
-              <span className="text-2xl">🏛️</span>
-            </div>
-            <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              Bulk Fee/Fine Assignment
-            </h3>
-            <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Assign fees or fines to students, classes, mediums, or the entire school in bulk
-            </p>
-            <button
-              onClick={() => setShowBulkAssignmentModal(true)}
-              className={`px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
-                theme === 'dark' 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white' 
-                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
-              }`}
-            >
-              Start Bulk Assignment
-            </button>
+        {/* Modern Tabs - Matching Student Page */}
+        <div className="relative mb-4">
+          <div className={`flex space-x-1 p-1 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm border ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
+            {FEE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 relative overflow-hidden group ${
+                  activeTab === tab.id
+                    ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg transform scale-105`
+                    : `${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} hover:scale-105`
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeFeeTab"
+                    className={`absolute inset-0 bg-gradient-to-r ${tab.gradient} opacity-100`}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10">
+                  <tab.icon className="w-4 h-4" />
+                </span>
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            ))}
           </div>
-        ) : activeTab === 'discounts' ? (
-          <DiscountManagement theme={theme} />
-        ) : (
-          <FeeTabContent 
-            ctx={ctx} 
-            onOpenFeeCollection={handleOpenFeeCollection}
-          />
+          
+          {/* Tab Description */}
+          <div className="mt-4 text-center">
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              {FEE_TABS.find(tab => tab.id === activeTab)?.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Overview Tab - Dashboard Only */}
+        {activeTab === 'overview' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <FeeDashboard ctx={ctx} />
+          </motion.div>
+        )}
+
+        {/* Tab Content - Filters + Table */}
+        {activeTab !== 'overview' && (
+          <>
+            {/* Filters bar (search + dropdowns + action buttons) */}
+            <FeeFilters ctx={ctx} />
+
+            {/* Tab Content */}
+            {activeTab === 'invoices' ? (
+              <FeeInvoiceManagerOptimized theme={theme} activeTab={activeTab} />
+            ) : activeTab === 'notifications' ? (
+              <FeeNotificationManager theme={theme} />
+            ) : activeTab === 'discounts' ? (
+              <DiscountManagement theme={theme} />
+            ) : (
+              <FeeTabContent 
+                ctx={ctx} 
+                onOpenFeeCollection={handleOpenFeeCollection}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -312,46 +399,6 @@ export default function FeesPage() {
         moveColumn={moveColumn}
         reorderColumns={reorderColumns}
       />
-      
-      {/* Student Profile Modal */}
-      {activeTab === 'student-profile' && selectedStudents.length === 1 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className={`w-full max-w-6xl max-h-[90vh] rounded-2xl border shadow-2xl ${
-            theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-          }`}>
-            {/* Header */}
-            <div className={`sticky top-0 z-10 flex justify-between items-center px-6 py-4 border-b ${
-              theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-            }`}>
-              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                Student Financial Profile
-              </h2>
-              <button
-                onClick={() => setActiveTab('all-students')}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark' ? 'hover:bg-gray-800 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                }`}
-                title="Close"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Content */}
-            <div className="overflow-y-auto max-h-[calc(90vh-64px)] p-6">
-              <StudentFinancialProfile 
-                theme={theme} 
-                studentId={selectedStudents[0]}
-                studentData={(studentFeeSummaries as { studentId?: string }[]).find(s => s.studentId === selectedStudents[0])}
-                onClose={() => setActiveTab('all-students')}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      
       
       {/* Fee Collection Modal */}
       {feeCollectionModal.show && (

@@ -9,10 +9,9 @@ import { useDomainState } from './useDomainState';
 import { studentsApi } from '@/lib/apiClient';
 import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
-export function useStudentState() {
+export function useStudentState(activeTab: string = 'students') {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
-  const [allStudents, setAllStudents] = useState<Student[]>([]); // For Dashboard - never filtered
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -88,26 +87,6 @@ export function useStudentState() {
 
   // Dashboard State
   const [showDashboard, setShowDashboard] = useState(true);
-  const [dashboardStats, setDashboardStats] = useState({
-    totalStudents: 0,
-    activeStudents: 0,
-    inactiveStudents: 0,
-    graduatedStudents: 0,
-    averageAttendance: 0,
-    totalFeesCollected: 0,
-    pendingFees: 0,
-    recentAdmissions: 0,
-    lowAttendanceStudents: 0,
-    classDistribution: {} as Record<string, number>,
-    genderDistribution: { male: 0, female: 0, other: 0 },
-    recentActivities: [] as Array<{
-      id: string;
-      type: 'admission' | 'fee_payment' | 'status_change' | 'document_upload';
-      description: string;
-      timestamp: string;
-      studentName: string;
-    }>
-  });
   
   // Bulk Operations State
   const [showBulkOperationModal, setShowBulkOperationModal] = useState(false);
@@ -253,37 +232,7 @@ export function useStudentState() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Calculate dashboard statistics
-  useEffect(() => {
-    const stats = {
-      totalStudents: students.length,
-      activeStudents: students.filter(s => s.status === 'active').length,
-      inactiveStudents: students.filter(s => s.status === 'inactive').length,
-      graduatedStudents: students.filter(s => s.status === 'graduated').length,
-      averageAttendance: students.reduce((acc, s) => acc + (s.attendance?.percentage || 0), 0) / students.length || 0,
-      totalFeesCollected: students.reduce((acc, s) => acc + (s.fees?.paid || 0), 0),
-      pendingFees: students.reduce((acc, s) => acc + (s.fees?.pending || 0), 0),
-      recentAdmissions: 0,
-      lowAttendanceStudents: students.filter(s => (s.attendance?.percentage || 0) < 75).length,
-      classDistribution: {} as Record<string, number>,
-      genderDistribution: { male: 0, female: 0, other: 0 },
-      recentActivities: []
-    };
-
-    // Calculate class distribution
-    students.forEach(student => {
-      stats.classDistribution[student.class] = (stats.classDistribution[student.class] || 0) + 1;
-    });
-
-    // Calculate gender distribution
-    students.forEach(student => {
-      if (student.gender === 'Male') stats.genderDistribution.male++;
-      else if (student.gender === 'Female') stats.genderDistribution.female++;
-      else stats.genderDistribution.other++;
-    });
-
-    setDashboardStats(stats);
-  }, [students]);
+  // Dashboard no longer calculates stats here - fetched from API
 
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -323,25 +272,33 @@ export function useStudentState() {
     }
   };
 
-  // Initial load
+  // Initial load - only for students tab
   useEffect(() => { 
-    loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents); 
-  }, []);
+    if (activeTab === 'students') {
+      loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents); 
+    }
+  }, [activeTab]);
 
   useEffect(() => {
-    loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
-  }, [includeArchivedStudents]);
+    if (activeTab === 'students') {
+      loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
+    }
+  }, [includeArchivedStudents, activeTab]);
 
-  // Reload when filters change (debounced)
+  // Reload when filters change (debounced) - only for students tab
   useEffect(() => {
-    const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents), 300);
-    return () => clearTimeout(t);
-  }, [searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents]);
+    if (activeTab === 'students') {
+      const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents), 300);
+      return () => clearTimeout(t);
+    }
+  }, [searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents, activeTab]);
 
-  // Reload when page or pageSize changes
+  // Reload when page or pageSize changes - only for students tab
   useEffect(() => {
-    loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
-  }, [currentPage, pageSize, includeArchivedStudents]);
+    if (activeTab === 'students') {
+      loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
+    }
+  }, [currentPage, pageSize, includeArchivedStudents, activeTab]);
 
   // Persist visibleColumns to user-specific localStorage
   useEffect(() => {
@@ -374,7 +331,6 @@ export function useStudentState() {
     advancedSearch, setAdvancedSearch,
     bulkOperations, setBulkOperations,
     showDashboard, setShowDashboard,
-    dashboardStats, setDashboardStats,
     showBulkOperationModal, setShowBulkOperationModal,
     bulkOperationType, setBulkOperationType,
     bulkOperationData, setBulkOperationData,

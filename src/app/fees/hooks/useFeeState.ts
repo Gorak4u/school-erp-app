@@ -9,7 +9,7 @@ import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 export function useFeeState() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('all-students');
+  const [activeTab, setActiveTab] = useState('overview');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isClient, setIsClient] = useState(false);
 

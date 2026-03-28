@@ -9,12 +9,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (error) return error;
 
     const { id } = await params;
-    const record = await (schoolPrisma as any).feeRecord.findUnique({
+    const record = await (schoolPrisma as any).FeeRecord.findUnique({
       where: { id },
       include: {
-        student: true,
-        feeStructure: true,
-        payments: true,
+        Student: true,
+        FeeStructure: true,
+        Payment: true,
       },
     });
     if (!record) return NextResponse.json({ error: 'Fee record not found' }, { status: 404 });
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         // Non-admin users without school context cannot access any records
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
-      if (record.student?.schoolId !== ctx.schoolId) {
+      if (record.Student?.schoolId !== ctx.schoolId) {
         // Record belongs to different school or has null schoolId
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
@@ -47,21 +47,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     
     // Verify record belongs to user's school before updating - strict isolation
-    const existingRecord = await (schoolPrisma as any).feeRecord.findUnique({
+    const existingRecord = await (schoolPrisma as any).FeeRecord.findUnique({
       where: { id },
-      include: { student: true }
+      include: { Student: true }
     });
     if (!existingRecord) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!ctx.isSuperAdmin) {
       if (!ctx.schoolId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
-      if (existingRecord.student?.schoolId !== ctx.schoolId) {
+      if (existingRecord.Student?.schoolId !== ctx.schoolId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
     }
     
-    const record = await (schoolPrisma as any).feeRecord.update({ where: { id }, data: body });
+    const record = await (schoolPrisma as any).FeeRecord.update({ where: { id }, data: body });
     return NextResponse.json({ record });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -77,21 +77,21 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     
     // Verify record belongs to user's school before deleting - strict isolation
-    const existingRecord = await (schoolPrisma as any).feeRecord.findUnique({
+    const existingRecord = await (schoolPrisma as any).FeeRecord.findUnique({
       where: { id },
-      include: { student: true }
+      include: { Student: true }
     });
     if (!existingRecord) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!ctx.isSuperAdmin) {
       if (!ctx.schoolId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
-      if (existingRecord.student?.schoolId !== ctx.schoolId) {
+      if (existingRecord.Student?.schoolId !== ctx.schoolId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
       }
     }
     
-    await (schoolPrisma as any).feeRecord.delete({ where: { id } });
+    await (schoolPrisma as any).FeeRecord.delete({ where: { id } });
     return NextResponse.json({ message: 'Fee record deleted' });
   } catch (error: any) {
     if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });

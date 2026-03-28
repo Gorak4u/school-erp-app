@@ -146,12 +146,12 @@ export async function GET(request: NextRequest) {
           st.id,
           st."studentId",
           NULL as "feeStructureId",
-          st.fee as amount,
-          st."paidAmount",
-          COALESCE(st."waivedAmount", 0) as discount,
-          st."dueDate",
-          st."createdAt",
-          st."academicYear",
+          st."monthlyFee" as amount,
+          COALESCE(st."refundAmount", 0) as "paidAmount",
+          0 as discount,
+          st."assignedAt"::text as "dueDate",
+          st."assignedAt" as "createdAt",
+          st."academicYearId" as "academicYear",
           NULL as "receiptNumber",
           s.name as "studentName",
           s.class,
@@ -161,8 +161,8 @@ export async function GET(request: NextRequest) {
           'Transport Fee' as "feeStructureName",
           'Transport' as "feeCategory",
           CASE 
-            WHEN st."paidAmount" >= (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'paid'
-            WHEN st."paidAmount" > 0 AND st."paidAmount" < (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'partial'
+            WHEN st."refundAmount" >= st."monthlyFee" THEN 'paid'
+            WHEN st."refundAmount" > 0 AND st."refundAmount" < st."monthlyFee" THEN 'partial'
             ELSE 'pending'
           END as status,
           0 as "totalPayments",
@@ -244,12 +244,12 @@ export async function GET(request: NextRequest) {
         UNION ALL
         
         SELECT 
-          st.fee as amount,
-          st."paidAmount",
-          COALESCE(st."waivedAmount", 0) as discount,
+          st."monthlyFee" as amount,
+          COALESCE(st."refundAmount", 0) as "paidAmount",
+          0 as discount,
           CASE 
-            WHEN st."paidAmount" >= (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'paid'
-            WHEN st."paidAmount" > 0 AND st."paidAmount" < (st.fee - COALESCE(st."waivedAmount", 0)) THEN 'partial'
+            WHEN st."refundAmount" >= st."monthlyFee" THEN 'paid'
+            WHEN st."refundAmount" > 0 AND st."refundAmount" < st."monthlyFee" THEN 'partial'
             ELSE 'pending'
           END as status
         FROM "school"."StudentTransport" st
@@ -411,7 +411,7 @@ export async function POST(request: NextRequest) {
 
     // Verify student belongs to this school
     if (ctx.schoolId) {
-      const student = await (schoolPrisma as any).student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
+      const student = await (schoolPrisma as any).Student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
       if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
@@ -420,7 +420,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pendingAmount = amount - discount;
-    const record = await (schoolPrisma as any).feeRecord.create({
+    const record = await (schoolPrisma as any).FeeRecord.create({
       data: {
         studentId,
         feeStructureId,

@@ -208,7 +208,7 @@ export default function StudentsPageRefactored() {
   // Error/Success states
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const state = useStudentState();
+  const state = useStudentState(activeTab);
   
   // Create context with school config
   const ctx: StudentContext = { ...state, getSetting };
@@ -418,99 +418,26 @@ export default function StudentsPageRefactored() {
   const handlePromoteClass = ((cls: string, section: string) => { setPromotionMode('class'); setPromotionFromClass(cls); setPromotionFromSection(section); setShowPromotionModal(true); }) as (cls: string, section: string) => void;
   const handlePromoteSingle = ((studentId: string) => { setPromotionMode('single'); setPromotionSingleStudentId(studentId); setShowPromotionModal(true); }) as (studentId: string) => void;
 
-  // Calculate dashboard stats from students data
-  useEffect(() => {
-    if (students && students.length > 0) {
-      const totalStudents = students.length;
-      const activeStudents = students.filter((s: any) => s.status === 'active').length;
-      const inactiveStudents = students.filter((s: any) => s.status === 'inactive').length;
-      const graduatedStudents = students.filter((s: any) => s.status === 'graduated').length;
-      
-      // Calculate average attendance
-      const attendanceData = students.map((s: any) => s.attendance?.percentage || 0).filter((p: any) => p > 0);
-      const averageAttendance = attendanceData.length > 0 
-        ? attendanceData.reduce((sum: any, p: any) => sum + p, 0) / attendanceData.length 
-        : 0;
-      
-      // Calculate fee data
-      const totalFeesCollected = students.reduce((sum: any, s: any) => sum + (s.fees?.paid || 0), 0);
-      const pendingFees = students.reduce((sum: any, s: any) => sum + (s.fees?.pending || 0), 0);
-      
-      // Recent admissions (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentAdmissions = students.filter((s: any) => 
-        s.admissionDate && new Date(s.admissionDate) >= thirtyDaysAgo
-      ).length;
-      
-      // Low attendance students (< 75%)
-      const lowAttendanceStudents = students.filter((s: any) => 
-        s.attendance && s.attendance.percentage < 75
-      ).length;
-      
-      // Class distribution
-      const classDistribution: Record<string, number> = {};
-      students.forEach((s: any) => {
-        if (s.class) {
-          classDistribution[s.class] = (classDistribution[s.class] || 0) + 1;
-        }
-      });
-      
-      // Gender distribution
-      const genderDistribution = {
-        male: students.filter((s: any) => s.gender === 'Male').length,
-        female: students.filter((s: any) => s.gender === 'Female').length,
-        other: students.filter((s: any) => s.gender && s.gender !== 'Male' && s.gender !== 'Female').length
-      };
-      
-      // Recent activities (mock data for now)
-      const recentActivities = [
-        {
-          id: '1',
-          type: 'admission' as const,
-          description: 'New student admitted',
-          timestamp: new Date().toISOString(),
-          studentName: 'Recent Student'
-        },
-        {
-          id: '2', 
-          type: 'fee_payment' as const,
-          description: 'Fee payment received',
-          timestamp: new Date().toISOString(),
-          studentName: 'Active Student'
-        }
-      ];
-      
-      setDashboardStats({
-        totalStudents,
-        activeStudents,
-        inactiveStudents,
-        graduatedStudents,
-        averageAttendance,
-        totalFeesCollected,
-        pendingFees,
-        recentAdmissions,
-        lowAttendanceStudents,
-        classDistribution,
-        genderDistribution,
-        recentActivities
-      });
-    }
-  }, [students, setDashboardStats]);
   const { filteredStudents } = ctx;
 
   // Pagination effect (moved from handler to component level for React hooks rules)
   useEffect(() => {
-    setTotalPages(Math.ceil(((filteredStudents as unknown[])?.length || 0) / pageSize));
-  }, [filteredStudents, pageSize]);
+    // Only run pagination effect for students tab, not dashboard
+    if (activeTab === 'students') {
+      setTotalPages(Math.ceil(((filteredStudents as unknown[])?.length || 0) / pageSize));
+    }
+  }, [filteredStudents, pageSize, activeTab]);
 
   // ── Promotion count banner ──────────────────────────────────────────────────
   const [promotionCount, setPromotionCount] = useState(0);
 
   useEffect(() => {
-    const count = (students as { needsPromotion?: boolean; status?: string }[] || []).filter((s) => s.needsPromotion || s.status === 'locked').length;
-    setPromotionCount(count);
-  }, [students]);
+    // Only run promotion count effect for students tab, not dashboard
+    if (activeTab === 'students') {
+      const count = (students as { needsPromotion?: boolean; status?: string }[] || []).filter((s) => s.needsPromotion || s.status === 'locked').length;
+      setPromotionCount(count);
+    }
+  }, [students, activeTab]);
 
   const [showExitModal, setShowExitModal] = useState(false);
   const [exitStudentIds, setExitStudentIds] = useState<string[]>([]);
@@ -651,7 +578,6 @@ export default function StudentsPageRefactored() {
               className="space-y-6"
             >
               <StudentDashboard 
-                dashboardStats={dashboardStats}
                 selectedStudents={selectedStudents}
                 setBulkOperations={setBulkOperations}
                 setShowAddModal={setShowAddModal}
@@ -660,8 +586,6 @@ export default function StudentsPageRefactored() {
                 setShowDashboard={setShowDashboard}
                 showAdvancedFilters={showAdvancedFilters}
                 showDashboard={showDashboard}
-                students={students as any[]}
-                filteredStudents={filteredStudents as any[]}
                 canCreateStudents={canCreateStudents}
                 canManageStudentBulk={canManageStudentBulk}
                 theme={theme}

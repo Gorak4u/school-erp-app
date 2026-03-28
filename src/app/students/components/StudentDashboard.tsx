@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -34,9 +34,9 @@ import {
   Bell
 } from 'lucide-react';
 import SkeletonLoader, { ModernSpinner, LoadingOverlay } from './SkeletonLoader';
+import { useStudentDashboardStats, Period } from '@/hooks/useDashboardStats';
 
 interface StudentDashboardProps {
-  dashboardStats: any;
   selectedStudents: number[];
   setBulkOperations: any;
   setShowAddModal: (v: boolean) => void;
@@ -45,9 +45,7 @@ interface StudentDashboardProps {
   setShowDashboard: (v: boolean) => void;
   showAdvancedFilters: boolean;
   showDashboard: boolean;
-  students: any[];
   theme: 'dark' | 'light';
-  filteredStudents: any[];
   canCreateStudents?: boolean;
   canManageStudentBulk?: boolean;
   themeConfig?: any;
@@ -59,9 +57,9 @@ interface StudentDashboardProps {
 }
 
 export default function StudentDashboard({
-  dashboardStats, selectedStudents, setBulkOperations, setShowAddModal,
+  selectedStudents, setBulkOperations, setShowAddModal,
   setShowAdvancedFilters, setShowBulkOperationModal, setShowDashboard,
-  showAdvancedFilters, showDashboard, students, theme, filteredStudents,
+  showAdvancedFilters, showDashboard, theme,
   canCreateStudents = true,
   canManageStudentBulk = true,
   themeConfig,
@@ -73,114 +71,16 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const isDark = theme === 'dark';
   
-  // Independent Dashboard Period Filter - separate from Student Management filters
-  const [dashboardPeriod, setDashboardPeriod] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'this_year'>('all');
+  // Use the new dashboard stats hook - completely independent from student management
+  const { 
+    stats, 
+    period, 
+    setPeriod, 
+    loading: statsLoading, 
+    error: statsError,
+    refetch 
+  } = useStudentDashboardStats('all');
   
-  // Filter students based on selected period - INDEPENDENT from management filters
-  const periodFilteredStudents = useMemo(() => {
-    if (dashboardPeriod === 'all' || !students) return students || [];
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    return students.filter((student: any) => {
-      const enrollmentDate = student.enrollmentDate ? new Date(student.enrollmentDate) : null;
-      if (!enrollmentDate) return false;
-      
-      switch (dashboardPeriod) {
-        case 'today':
-          return enrollmentDate >= today;
-        case 'this_week':
-          const weekStart = new Date(today);
-          weekStart.setDate(today.getDate() - today.getDay());
-          return enrollmentDate >= weekStart;
-        case 'this_month':
-          return enrollmentDate.getMonth() === now.getMonth() && 
-                 enrollmentDate.getFullYear() === now.getFullYear();
-        case 'this_year':
-          return enrollmentDate.getFullYear() === now.getFullYear();
-        default:
-          return true;
-      }
-    });
-  }, [students, dashboardPeriod]);
-
-  // Calculate dashboard stats from period-filtered students (NOT management filtered)
-  const currentDashboardStats = useMemo(() => {
-    const filtered = periodFilteredStudents;
-    if (!filtered || filtered.length === 0) {
-      return {
-        totalStudents: 0,
-        activeStudents: 0,
-        inactiveStudents: 0,
-        averageAttendance: 0,
-        lowAttendanceStudents: 0,
-        totalFeesCollected: 0,
-        pendingFees: 0,
-        newStudentsThisMonth: 0,
-        graduatedStudents: 0,
-        totalSections: 0,
-        avgStudentsPerSection: 0,
-        feeDefaulters: 0,
-        feeDefaultersAmount: 0,
-        recentActivities: []
-      };
-    }
-
-    const totalStudents = filtered.length;
-    const activeStudents = filtered.filter((s: any) => s.status === 'active').length;
-    const inactiveStudents = filtered.filter((s: any) => s.status === 'inactive').length;
-    const graduatedStudents = filtered.filter((s: any) => s.status === 'graduated').length;
-    
-    // Calculate average attendance
-    const attendanceValues = filtered
-      .map((s: any) => s.attendance?.percentage)
-      .filter((v: number) => typeof v === 'number');
-    const averageAttendance = attendanceValues.length > 0 
-      ? attendanceValues.reduce((a: number, b: number) => a + b, 0) / attendanceValues.length 
-      : 0;
-    const lowAttendanceStudents = filtered.filter((s: any) => (s.attendance?.percentage || 0) < 75).length;
-    
-    // Fee calculations
-    const totalFeesCollected = filtered.reduce((sum: number, s: any) => sum + (s.fees?.paid || 0), 0);
-    const pendingFees = filtered.reduce((sum: number, s: any) => sum + (s.fees?.pending || 0), 0);
-    
-    // New students this month
-    const now = new Date();
-    const newStudentsThisMonth = filtered.filter((s: any) => {
-      if (!s.enrollmentDate) return false;
-      const date = new Date(s.enrollmentDate);
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    }).length;
-    
-    // Sections
-    const uniqueSections = new Set(filtered.map((s: any) => `${s.class}-${s.section || 'A'}`));
-    const totalSections = uniqueSections.size;
-    const avgStudentsPerSection = totalSections > 0 ? Math.round(totalStudents / totalSections) : 0;
-    
-    // Fee defaulters
-    const feeDefaultersList = filtered.filter((s: any) => (s.fees?.pending || 0) > 0);
-    const feeDefaulters = feeDefaultersList.length;
-    const feeDefaultersAmount = feeDefaultersList.reduce((sum: number, s: any) => sum + (s.fees?.pending || 0), 0);
-
-    return {
-      totalStudents,
-      activeStudents,
-      inactiveStudents,
-      averageAttendance,
-      lowAttendanceStudents,
-      totalFeesCollected,
-      pendingFees,
-      newStudentsThisMonth,
-      graduatedStudents,
-      totalSections,
-      avgStudentsPerSection,
-      feeDefaulters,
-      feeDefaultersAmount,
-      recentActivities: dashboardStats?.recentActivities || []
-    };
-  }, [periodFilteredStudents, dashboardStats?.recentActivities]);
-
   // Use provided theme functions or fallback
   const cardClass = getCardClass?.() || (isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200');
   const primaryBtnClass = getBtnClass?.('primary') || 'bg-gradient-to-r from-blue-600 to-purple-600 text-white';
@@ -193,81 +93,83 @@ export default function StudentDashboard({
   const statCards = [
     { 
       label: 'Total Students', 
-      value: currentDashboardStats.totalStudents.toString(), 
+      value: stats?.totalStudents?.toString() || '0', 
       icon: Users, 
       color: 'blue', 
       gradient: 'from-blue-500 to-cyan-600',
-      trend: { value: `+${currentDashboardStats.newStudentsThisMonth}`, label: 'this month', type: 'increase' as const },
+      trend: { value: `+${stats?.newStudentsThisMonth || 0}`, label: 'this month', type: 'increase' as const },
       bgColor: isDark ? 'from-blue-600/20 to-cyan-600/20' : 'from-blue-500/10 to-cyan-500/10',
       borderColor: isDark ? 'border-blue-500/30' : 'border-blue-500/20'
     },
     { 
       label: 'Active Students', 
-      value: currentDashboardStats.activeStudents.toString(), 
+      value: stats?.activeStudents?.toString() || '0', 
       icon: CheckCircle, 
       color: 'green', 
       gradient: 'from-green-500 to-emerald-600',
-      trend: { value: `${((currentDashboardStats.activeStudents / currentDashboardStats.totalStudents) * 100).toFixed(1)}%`, label: 'active rate', type: 'increase' as const },
+      trend: { value: `${stats?.totalStudents ? ((stats.activeStudents / stats.totalStudents) * 100).toFixed(1) : 0}%`, label: 'active rate', type: 'increase' as const },
       bgColor: isDark ? 'from-green-600/20 to-emerald-600/20' : 'from-green-500/10 to-emerald-500/10',
       borderColor: isDark ? 'border-green-500/30' : 'border-green-500/20'
     },
     { 
       label: 'Avg Attendance', 
-      value: `${currentDashboardStats.averageAttendance.toFixed(1)}%`, 
+      value: `${(stats?.averageAttendance || 0).toFixed(1)}%`, 
       icon: BarChart3, 
       color: 'purple', 
       gradient: 'from-purple-500 to-pink-600',
-      trend: { value: currentDashboardStats.lowAttendanceStudents, label: 'low attendance', type: 'decrease' as const },
+      trend: { value: stats?.lowAttendanceStudents || 0, label: 'low attendance', type: 'decrease' as const },
       bgColor: isDark ? 'from-purple-600/20 to-pink-600/20' : 'from-purple-500/10 to-pink-500/10',
       borderColor: isDark ? 'border-purple-500/30' : 'border-purple-500/20'
     },
     { 
       label: 'Fees Collected', 
-      value: `₹${(currentDashboardStats.totalFeesCollected / 1000).toFixed(0)}K`, 
+      value: `₹${((stats?.totalFeesCollected || 0) / 1000).toFixed(0)}K`, 
       icon: DollarSign, 
       color: 'amber', 
       gradient: 'from-amber-500 to-orange-600',
-      trend: { value: `₹${(currentDashboardStats.pendingFees / 1000).toFixed(0)}K`, label: 'pending', type: 'neutral' as const },
+      trend: { value: `₹${((stats?.pendingFees || 0) / 1000).toFixed(0)}K`, label: 'pending', type: 'neutral' as const },
       bgColor: isDark ? 'from-amber-600/20 to-orange-600/20' : 'from-amber-500/10 to-orange-500/10',
       borderColor: isDark ? 'border-amber-500/30' : 'border-amber-500/20'
     },
     { 
       label: 'Graduated', 
-      value: currentDashboardStats.graduatedStudents?.toString() || '0', 
+      value: stats?.graduatedStudents?.toString() || '0', 
       icon: GraduationCap, 
       color: 'indigo', 
       gradient: 'from-indigo-500 to-purple-600',
-      trend: { value: `${currentDashboardStats.graduationRate || 0}%`, label: 'grad rate', type: 'increase' as const },
+      trend: { value: `${stats?.totalStudents ? ((stats.graduatedStudents || 0) / stats.totalStudents * 100).toFixed(0) : 0}%`, label: 'grad rate', type: 'increase' as const },
       bgColor: isDark ? 'from-indigo-600/20 to-purple-600/20' : 'from-indigo-500/10 to-purple-500/10',
       borderColor: isDark ? 'border-indigo-500/30' : 'border-indigo-500/20'
     },
     { 
       label: 'Class Sections', 
-      value: currentDashboardStats.totalSections?.toString() || '0', 
+      value: Object.keys(stats?.classDistribution || {}).length.toString(), 
       icon: Grid, 
       color: 'teal', 
       gradient: 'from-teal-500 to-cyan-600',
-      trend: { value: `${currentDashboardStats.avgStudentsPerSection || 0}`, label: 'avg per section', type: 'neutral' as const },
+      trend: { value: `${stats?.totalStudents && Object.keys(stats?.classDistribution || {}).length > 0 
+        ? Math.round(stats.totalStudents / Object.keys(stats.classDistribution).length) 
+        : 0}`, label: 'avg per section', type: 'neutral' as const },
       bgColor: isDark ? 'from-teal-600/20 to-cyan-600/20' : 'from-teal-500/10 to-cyan-500/10',
       borderColor: isDark ? 'border-teal-500/30' : 'border-teal-500/20'
     },
     { 
       label: 'Fee Defaulters', 
-      value: currentDashboardStats.feeDefaulters?.toString() || '0', 
+      value: stats?.feeDefaulters?.toString() || '0', 
       icon: AlertTriangle, 
       color: 'red', 
       gradient: 'from-red-500 to-orange-600',
-      trend: { value: `₹${((currentDashboardStats.feeDefaultersAmount || 0) / 1000).toFixed(0)}K`, label: 'outstanding', type: 'decrease' as const },
+      trend: { value: `₹${((stats?.pendingFees || 0) / 1000).toFixed(0)}K`, label: 'outstanding', type: 'decrease' as const },
       bgColor: isDark ? 'from-red-600/20 to-orange-600/20' : 'from-red-500/10 to-orange-500/10',
       borderColor: isDark ? 'border-red-500/30' : 'border-red-500/20'
     },
     { 
       label: 'New Admissions', 
-      value: currentDashboardStats.newStudentsThisMonth?.toString() || '0', 
+      value: stats?.newStudentsThisMonth?.toString() || '0', 
       icon: UserPlus, 
       color: 'emerald', 
       gradient: 'from-emerald-500 to-teal-600',
-      trend: { value: `${((currentDashboardStats.newStudentsThisMonth || 0) / Math.max(currentDashboardStats.totalStudents, 1) * 100).toFixed(1)}%`, label: 'of total', type: 'increase' as const },
+      trend: { value: `${stats?.totalStudents ? ((stats.newStudentsThisMonth || 0) / Math.max(stats.totalStudents, 1) * 100).toFixed(1) : 0}%`, label: 'of total', type: 'increase' as const },
       bgColor: isDark ? 'from-emerald-600/20 to-teal-600/20' : 'from-emerald-500/10 to-teal-500/10',
       borderColor: isDark ? 'border-emerald-500/30' : 'border-emerald-500/20'
     },
@@ -301,8 +203,8 @@ export default function StudentDashboard({
           {/* Dashboard Period Filter - Independent from Management filters */}
           <div className="relative">
             <select
-              value={dashboardPeriod}
-              onChange={(e) => setDashboardPeriod(e.target.value as any)}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as Period)}
               className={`appearance-none px-4 py-2 pr-8 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                 isDark 
                   ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' 
@@ -447,10 +349,10 @@ export default function StudentDashboard({
                       </div>
                     </div>
                     <div className={`text-2xl font-bold ${primaryTextClass}`}>
-                      {dashboardStats.monthlyAttendance || '85.2'}%
+                      {stats?.averageAttendance?.toFixed(1) || '85.2'}%
                     </div>
-                    <div className={`text-xs ${dashboardStats.monthlyAttendance > 80 ? 'text-green-500' : 'text-orange-500'}`}>
-                      {dashboardStats.monthlyAttendance > 80 ? 'Excellent' : 'Needs Improvement'}
+                    <div className={`text-xs ${(stats?.averageAttendance || 0) > 80 ? 'text-green-500' : 'text-orange-500'}`}>
+                      {(stats?.averageAttendance || 0) > 80 ? 'Excellent' : 'Needs Improvement'}
                     </div>
                   </motion.div>
 
@@ -469,10 +371,10 @@ export default function StudentDashboard({
                       </div>
                     </div>
                     <div className={`text-2xl font-bold ${primaryTextClass}`}>
-                      {dashboardStats.collectionRate || '78.5'}%
+                      {stats?.collectionRate?.toFixed(1) || '78.5'}%
                     </div>
-                    <div className={`text-xs ${dashboardStats.collectionRate > 75 ? 'text-green-500' : 'text-orange-500'}`}>
-                      {dashboardStats.collectionRate > 75 ? 'On Track' : 'Below Target'}
+                    <div className={`text-xs ${(stats?.collectionRate || 0) > 75 ? 'text-green-500' : 'text-orange-500'}`}>
+                      {(stats?.collectionRate || 0) > 75 ? 'On Track' : 'Below Target'}
                     </div>
                   </motion.div>
 
@@ -491,7 +393,7 @@ export default function StudentDashboard({
                       </div>
                     </div>
                     <div className={`text-2xl font-bold ${primaryTextClass}`}>
-                      {dashboardStats.pendingApprovals || '12'}
+                      {stats?.pendingApprovals || '12'}
                     </div>
                     <div className="text-xs text-orange-500">
                       Action Required
@@ -513,7 +415,7 @@ export default function StudentDashboard({
                       </div>
                     </div>
                     <div className={`text-2xl font-bold ${primaryTextClass}`}>
-                      {dashboardStats.systemHealth || '98'}%
+                      {stats?.systemHealth || '98'}%
                     </div>
                     <div className="text-xs text-green-500">
                       Optimal
@@ -550,11 +452,11 @@ export default function StudentDashboard({
                 
                 <div className="space-y-4">
                   {[
-                    { label: 'Male', value: dashboardStats.genderDistribution.male, color: 'bg-blue-500', icon: User },
-                    { label: 'Female', value: dashboardStats.genderDistribution.female, color: 'bg-pink-500', icon: User },
-                    { label: 'Other', value: dashboardStats.genderDistribution.other, color: 'bg-purple-500', icon: User },
+                    { label: 'Male', value: stats?.genderDistribution?.male || 0, color: 'bg-blue-500', icon: User },
+                    { label: 'Female', value: stats?.genderDistribution?.female || 0, color: 'bg-pink-500', icon: User },
+                    { label: 'Other', value: stats?.genderDistribution?.other || 0, color: 'bg-purple-500', icon: User },
                   ].map((g, index) => {
-                    const total = dashboardStats.genderDistribution.male + dashboardStats.genderDistribution.female + dashboardStats.genderDistribution.other;
+                    const total = (stats?.genderDistribution?.male || 0) + (stats?.genderDistribution?.female || 0) + (stats?.genderDistribution?.other || 0);
                     const pct = total > 0 ? (g.value / total) * 100 : 0;
                     return (
                       <motion.div
@@ -603,7 +505,7 @@ export default function StudentDashboard({
                 </div>
                 
                 <div className="space-y-3">
-                  {dashboardStats.lowAttendanceStudents > 0 && (
+                  {(stats?.lowAttendanceStudents || 0) > 0 && (
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -614,14 +516,14 @@ export default function StudentDashboard({
                       </div>
                       <div className="flex-1">
                         <p className={`text-sm font-semibold ${isDark ? 'text-red-300' : 'text-red-700'}`}>
-                          {dashboardStats.lowAttendanceStudents} students with low attendance
+                          {stats?.lowAttendanceStudents || 0} students with low attendance
                         </p>
                         <p className={`text-xs ${isDark ? 'text-red-400' : 'text-red-600'}`}>Requires attention</p>
                       </div>
                     </motion.div>
                   )}
                   
-                  {dashboardStats.pendingFees > 0 && (
+                  {(stats?.pendingFees || 0) > 0 && (
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -633,14 +535,14 @@ export default function StudentDashboard({
                       </div>
                       <div className="flex-1">
                         <p className={`text-sm font-semibold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
-                          ₹{dashboardStats.pendingFees.toLocaleString()} in pending fees
+                          ₹{(stats?.pendingFees || 0).toLocaleString()} in pending fees
                         </p>
                         <p className={`text-xs ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Payment required</p>
                       </div>
                     </motion.div>
                   )}
                   
-                  {dashboardStats.inactiveStudents > 0 && (
+                  {(stats?.inactiveStudents || 0) > 0 && (
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -652,14 +554,14 @@ export default function StudentDashboard({
                       </div>
                       <div className="flex-1">
                         <p className={`text-sm font-semibold ${mutedTextClass}`}>
-                          {dashboardStats.inactiveStudents} inactive students
+                          {stats?.inactiveStudents || 0} inactive students
                         </p>
                         <p className={`text-xs ${mutedTextClass}`}>Status review needed</p>
                       </div>
                     </motion.div>
                   )}
                   
-                  {dashboardStats.lowAttendanceStudents === 0 && dashboardStats.pendingFees === 0 && dashboardStats.inactiveStudents === 0 && (
+                  {(stats?.lowAttendanceStudents || 0) === 0 && (stats?.pendingFees || 0) === 0 && (stats?.inactiveStudents || 0) === 0 && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -691,7 +593,7 @@ export default function StudentDashboard({
                 </div>
                 
                 <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                  {dashboardStats.recentActivities.length === 0 ? (
+                  {(stats?.recentActivities?.length || 0) === 0 ? (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -704,7 +606,7 @@ export default function StudentDashboard({
                       <p className={`text-xs ${mutedTextClass}`}>Student actions will appear here</p>
                     </motion.div>
                   ) : (
-                    dashboardStats.recentActivities.slice(0, 5).map((activity: any, index: number) => (
+                    stats?.recentActivities?.slice(0, 5).map((activity: any, index: number) => (
                       <motion.div
                         key={activity.id}
                         initial={{ opacity: 0, x: -20 }}
@@ -749,9 +651,9 @@ export default function StudentDashboard({
                 </div>
                 <div>
                   <p className={`text-sm font-medium ${primaryTextClass}`}>
-                    Showing {filteredStudents.length} of {students.length} students
+                    Total School Overview
                   </p>
-                  <p className={`text-xs ${secondaryTextClass}`}>Filtered results</p>
+                  <p className={`text-xs ${secondaryTextClass}`}>{stats?.totalStudents || 0} students across all classes</p>
                 </div>
               </div>
               
