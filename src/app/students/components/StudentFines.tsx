@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle, Clock, Ban, Eye, Calendar, DollarSign, FileText } from 'lucide-react';
+import { showToast } from '@/lib/toastUtils';
 
 interface Fine {
   id: string;
@@ -84,7 +85,7 @@ export default function StudentFines({ student, theme }: StudentFinesProps) {
 
   const handleWaiverRequestSubmit = async () => {
     if (!selectedFine || !waiverForm.reason.trim()) {
-      alert('Please provide a reason for the waiver request');
+      showToast('warning', 'Missing Reason', 'Please provide a reason for the waiver request');
       return;
     }
 
@@ -108,14 +109,14 @@ export default function StudentFines({ student, theme }: StudentFinesProps) {
       }
 
       const result = await response.json();
-      alert('Waiver request submitted successfully!');
+      showToast('success', 'Request Submitted', 'Waiver request submitted successfully!');
       setShowWaiverModal(false);
       setWaiverForm({ reason: '', remarks: '', documents: [] });
       
       // Refresh fines data
       await fetchStudentFines();
     } catch (err: any) {
-      alert(`Error submitting waiver request: ${err.message}`);
+      showToast('error', 'Submission Failed', `Error submitting waiver request: ${err.message}`);
     } finally {
       setSubmittingWaiver(false);
     }

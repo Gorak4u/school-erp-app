@@ -25,6 +25,7 @@ import {
   Archive,
   ArchiveRestore
 } from 'lucide-react';
+import { showToast } from '@/lib/toastUtils';
 
 // Types
 interface FineRule {
@@ -165,11 +166,11 @@ export default function FineRulesPage() {
         fetchRules();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to delete rule');
+        showToast('error', 'Delete Failed', error.error || 'Failed to delete rule');
       }
     } catch (error) {
       console.error('Failed to delete rule:', error);
-      alert('Failed to delete rule');
+      showToast('error', 'Error', 'Failed to delete rule');
     }
   };
 

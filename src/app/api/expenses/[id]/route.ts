@@ -201,7 +201,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     });
 
     // Reverse budget impact
-    const budgetItems = await (schoolPrisma as any).budgetItem.findMany({ where: { expenseId: id } });
+    const budgetItems = await (schoolPrisma as any).budgetItem.findMany({
+      where: {
+        expenseId: id,
+        budget: { schoolId: ctx.schoolId } // Defense-in-depth: ensure school isolation
+      }
+    });
     for (const item of budgetItems) {
       const budget = await (schoolPrisma as any).budget.findUnique({ where: { id: item.budgetId } });
       if (budget) {

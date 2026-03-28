@@ -353,22 +353,6 @@ export default function FeeDashboard({ ctx }: { ctx: any }) {
           )}
         </div>
 
-        <div className="mb-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`rounded-xl p-4 border text-center ${
-              theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-            }`}
-          >
-            <div className="text-lg font-semibold text-green-600 mb-1">🎁 Total Discount Applied</div>
-            <div className="text-3xl font-bold text-green-600">₹{totalDiscount.toLocaleString()}</div>
-            <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Across all students
-            </div>
-          </motion.div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <motion.div
             whileHover={{ scale: 1.02 }}

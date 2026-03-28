@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showToast } from '@/lib/toastUtils';
 
 interface PlanFromDB {
   id: string;
@@ -188,11 +189,11 @@ export default function BillingPage() {
 
           if (verifyData.success) {
             // Payment successful, redirect to dashboard
-            alert('Payment successful! Redirecting to dashboard...');
+            showToast('success', 'Payment Successful', 'Payment successful! Redirecting to dashboard...');
             window.location.href = '/dashboard';
           } else {
             console.error('Payment verification failed:', verifyData.error);
-            alert(`Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
+            showToast('error', 'Payment Failed', `Payment verification failed: ${verifyData.error || 'Unknown error'}. Please contact support.`);
           }
         },
         prefill: {
@@ -214,7 +215,7 @@ export default function BillingPage() {
       razorpay.open();
     } catch (error) {
       console.error('Payment error:', error);
-      alert(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      showToast('error', 'Payment Failed', `Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { showToast } from '@/lib/toastUtils';
 import { Search, Filter, ChevronLeft, ChevronRight, Calendar, User, Clock } from 'lucide-react';
 
 interface EnhancedDiscountApprovalQueueProps {
@@ -314,7 +315,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
       setApprovalNote('');
       fetchRequests(); // Refresh list
     } catch (err: any) {
-      alert(err.message);
+      showToast('error', 'Error', err.message);
     } finally {
       setIsProcessing(false);
     }

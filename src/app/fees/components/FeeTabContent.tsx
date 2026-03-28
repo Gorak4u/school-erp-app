@@ -10,6 +10,7 @@ import FeeReportsTab from './FeeReportsTab';
 import { paymentsApi, feeRecordsApi } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { PDFGenerator } from '@/utils/pdfGenerator';
+import { showToast } from '@/lib/toastUtils';
 
 export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; onOpenFeeCollection?: (studentId: string) => void }) {
   const { dropdowns } = useSchoolConfig();
@@ -45,7 +46,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
       const statementRecords = recordsResult?.records || [];
 
       if (!payment) {
-        alert('No payment receipt is available for this student yet.');
+        showToast('warning', 'No Receipt Available', 'No payment receipt is available for this student yet.');
         return;
       }
 
@@ -91,7 +92,7 @@ export default function FeeTabContent({ ctx, onOpenFeeCollection }: { ctx: any; 
       setShowReceiptModal(true);
     } catch (error) {
       console.error('Failed to load latest receipt', error);
-      alert('Failed to load the latest payment receipt.');
+      showToast('error', 'Error', 'Failed to load the latest payment receipt.');
     }
   };
 

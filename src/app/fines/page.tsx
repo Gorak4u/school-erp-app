@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/hooks/useAuth';
 import { useFinesWebSocket } from '@/hooks/useWebSocket';
 import { useNotifications } from '@/components/RealTimeNotifications';
 import RealTimeNotifications from '@/components/RealTimeNotifications';
@@ -23,10 +24,12 @@ export default function FinesPage() {
   const { theme } = useTheme();
   const { activeAcademicYear } = useSchoolConfig();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const isDark = theme === 'dark';
 
   // WebSocket and notifications
-  const { isConnected, notifications: wsNotifications, sendMessage } = useFinesWebSocket('school-1'); // TODO: Get actual school ID
+  const schoolId = user?.schoolId || 'default';
+  const { isConnected, notifications: wsNotifications, sendMessage } = useFinesWebSocket(schoolId);
   const [isClient, setIsClient] = useState(false);
   const [clientIsConnected, setClientIsConnected] = useState(false);
   

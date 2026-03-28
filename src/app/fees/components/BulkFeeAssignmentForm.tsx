@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { showToast } from '@/lib/toastUtils';
 import { 
   Users, 
   GraduationCap, 
@@ -377,7 +378,7 @@ export default function BulkFeeAssignmentForm({ theme, onClose, onSuccess }: Bul
       setCurrentStep(3);
     } catch (error: any) {
       console.error('Failed to assign fees/fines:', error);
-      alert(error.message || 'Failed to assign fees/fines');
+      showToast('error', 'Assignment Failed', error.message || 'Failed to assign fees/fines');
     } finally {
       setIsSubmitting(false);
     }

@@ -12,6 +12,7 @@ import TeacherAnalyticsTab from './tabs/TeacherAnalyticsTab';
 import TeacherLeaveTab from './tabs/TeacherLeaveTab';
 import TeacherNotesTab from './tabs/TeacherNotesTab';
 import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
+import { showToast } from '@/lib/toastUtils';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -55,7 +56,7 @@ export default function TeacherProfileModal({ teacherId, onClose }: Props) {
       await downloadTeacherIdCard(teacher, schoolConfig);
     } catch (error) {
       console.error('Error downloading ID card:', error);
-      alert('Failed to download ID card. Please try again.');
+      showToast('error', 'Download Failed', 'Failed to download ID card. Please try again.');
     } finally {
       setDownloadingIdCard(false);
     }

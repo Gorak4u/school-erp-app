@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { classesApi, sectionsApi, teachersApi } from '@/lib/apiClient';
+import { showToast } from '@/lib/toastUtils';
 
 interface ClassTeacherAssignment {
   classId: string;
@@ -96,7 +97,7 @@ export default function ClassTeacherAssignments({
 
   const handleAssignClassTeacher = async () => {
     if (!formData.classId || !formData.academicYearId || !formData.teacherId) {
-      alert('Please fill all required fields');
+      showToast('warning', 'Missing Fields', 'Please fill all required fields');
       return;
     }
 
@@ -133,9 +134,10 @@ export default function ClassTeacherAssignments({
       if (onAssignmentChange) {
         onAssignmentChange();
       }
+      showToast('success', 'Assigned', 'Class teacher assigned successfully');
     } catch (error) {
       console.error('Failed to assign class teacher:', error);
-      alert('Failed to assign class teacher');
+      showToast('error', 'Assignment Failed', 'Failed to assign class teacher');
     }
   };
 
@@ -157,7 +159,7 @@ export default function ClassTeacherAssignments({
       }
     } catch (error) {
       console.error('Failed to remove assignment:', error);
-      alert('Failed to remove assignment');
+      showToast('error', 'Remove Failed', 'Failed to remove assignment');
     }
   };
 

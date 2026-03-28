@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showToast } from '@/lib/toastUtils';
 
 interface PromoCode {
   id: string;
@@ -170,11 +171,11 @@ export default function PromoCodeManagement({ theme }: PromoCodeManagementProps)
         resetForm();
       } else {
         const error = await response.json();
-        alert(error.error);
+        showToast('error', 'Save Failed', error.error);
       }
     } catch (error) {
       console.error('Failed to save promo code:', error);
-      alert('Failed to save promo code');
+      showToast('error', 'Error', 'Failed to save promo code');
     }
   };
 
@@ -207,11 +208,11 @@ export default function PromoCodeManagement({ theme }: PromoCodeManagementProps)
         await loadPromoCodes();
       } else {
         const error = await response.json();
-        alert(error.error);
+        showToast('error', 'Delete Failed', error.error);
       }
     } catch (error) {
       console.error('Failed to delete promo code:', error);
-      alert('Failed to delete promo code');
+      showToast('error', 'Error', 'Failed to delete promo code');
     }
   };
 
@@ -226,16 +227,16 @@ export default function PromoCodeManagement({ theme }: PromoCodeManagementProps)
 
       if (response.ok) {
         const result = await response.json();
-        alert(`Cleanup completed: ${result.message}`);
+        showToast('success', 'Cleanup Complete', result.message);
         await loadPromoCodes();
         await loadAlerts();
       } else {
         const error = await response.json();
-        alert(error.error || 'Cleanup failed');
+        showToast('error', 'Cleanup Failed', error.error || 'Cleanup failed');
       }
     } catch (error) {
       console.error('Failed to cleanup promo codes:', error);
-      alert('Failed to cleanup promo codes');
+      showToast('error', 'Error', 'Failed to cleanup promo codes');
     } finally {
       setLoadingData(false);
     }

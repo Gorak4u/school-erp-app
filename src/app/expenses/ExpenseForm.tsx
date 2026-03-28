@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fmt, PAYMENT_METHODS } from './utils';
+import { showToast } from '@/lib/toastUtils';
 
 interface Props {
   form: any;
@@ -159,14 +160,14 @@ export default function ExpenseForm({
       // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
-        alert('Please select a PDF or image file (JPG, PNG, WEBP)');
+        showToast('warning', 'Invalid File', 'Please select a PDF or image file (JPG, PNG, WEBP)');
         return;
       }
       
       // Validate file size (5MB max)
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
-        alert('File size must be less than 5MB');
+        showToast('warning', 'File Too Large', 'File size must be less than 5MB');
         return;
       }
       

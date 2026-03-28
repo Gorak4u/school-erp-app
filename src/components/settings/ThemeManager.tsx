@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { THEME_PRESETS, generateThemeFromPreset, generateCustomTheme, generateAutoTheme, type SchoolTheme, type ThemePreset } from '@/lib/school-theme';
 import { useTheme } from '@/contexts/ThemeContext';
+import { showToast } from '@/lib/toastUtils';
 
 interface ThemeManagerProps {
   schoolId: string;
@@ -111,14 +112,14 @@ export default function ThemeManager({ schoolId, onThemeChange }: ThemeManagerPr
         setCurrentTheme(themeToSave as SchoolTheme);
         onThemeChange?.(themeToSave as SchoolTheme);
         // Show success message
-        alert('Theme saved successfully!');
+        showToast('success', 'Theme Saved', 'Theme saved successfully!');
       } else {
         console.warn('Failed to save theme settings');
-        alert('Failed to save theme. Please try again.');
+        showToast('error', 'Save Failed', 'Failed to save theme. Please try again.');
       }
     } catch (error) {
       console.warn('Error saving theme:', error);
-      alert('Error saving theme. Please try again.');
+      showToast('error', 'Error', 'Error saving theme. Please try again.');
     } finally {
       setIsLoading(false);
     }

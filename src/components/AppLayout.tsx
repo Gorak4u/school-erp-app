@@ -787,7 +787,14 @@ export default function AppLayout({
                           >
                             {item.action === 'logout' ? (
                               <motion.button
-                                onClick={() => signOut()}
+                                onClick={() => {
+                                  const subdomain = window.location.hostname.replace('.localhost', '');
+                                  if (subdomain && subdomain !== 'localhost') {
+                                    window.location.href = `${window.location.protocol}//${subdomain}.localhost${window.location.port ? ':' + window.location.port : ''}/school-login?reason=logout`;
+                                  } else {
+                                    window.location.href = '/login';
+                                  }
+                                }}
                                 className={`w-full flex items-center gap-3 px-6 py-3 text-left transition-colors ${
                                   globalTheme === 'dark'
                                     ? 'hover:bg-red-600/10 text-red-400'

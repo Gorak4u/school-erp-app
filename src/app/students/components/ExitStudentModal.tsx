@@ -6,6 +6,7 @@ import { PDFGenerator } from '@/utils/pdfGenerator';
 import { TCCertificateGenerator } from '@/lib/tcCertificateGenerator';
 import { useSchoolDetails } from '@/contexts/SchoolConfigContext';
 import { generateTcNumber } from '@/lib/tcNumber';
+import { showToast } from '@/lib/toastUtils';
 
 interface ExitStudent {
   id: string;
@@ -194,7 +195,7 @@ export default function ExitStudentModal({ isOpen, onClose, studentIds, theme, o
       await TCCertificateGenerator.generateEnhancedTC(tcData);
     } catch (error) {
       console.error('Failed to generate TC certificate:', error);
-      alert('Failed to generate certificate. Please try again.');
+      showToast('error', 'Generation Failed', 'Failed to generate certificate. Please try again.');
     }
   };
 

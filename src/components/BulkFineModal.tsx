@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, GraduationCap, School, AlertTriangle, CheckCircle } from 'lucide-react';
+import { showToast } from '@/lib/toastUtils';
 
 interface BulkFineModalProps {
   isOpen: boolean;
@@ -292,7 +293,7 @@ export default function BulkFineModal({
       
       if (criticalErrors.length > 0) {
         const errorMessages = criticalErrors.map(([key, message]) => `${getTargetLabel()}: ${message}`).join('\n');
-        alert(`Please fix the following errors:\n\n${errorMessages}`);
+        showToast('warning', 'Validation Errors', `Please fix the following errors:\n\n${errorMessages}`);
       }
       return;
     }

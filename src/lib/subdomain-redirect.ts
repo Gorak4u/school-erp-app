@@ -9,9 +9,10 @@ export function getCurrentSubdomain(): string | null {
   if (typeof window === 'undefined') return null;
   
   const host = window.location.hostname;
-  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
   
-  if (appDomain === 'localhost') {
+  // If no app domain configured, assume localhost
+  if (!appDomain) {
     if (host === 'localhost' || host === 'www.localhost' || host === '127.0.0.1') return null;
     if (host.endsWith('.localhost')) {
       return host.slice(0, -('.localhost'.length)) || null;
@@ -40,18 +41,21 @@ export function getSchoolLoginUrl(): string {
   if (typeof window === 'undefined') return '/login';
   
   const host = window.location.hostname;
-  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
-  const port = window.location.port || '3000';
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
+  const protocol = window.location.protocol;
+  const port = window.location.port;
   const subdomain = getCurrentSubdomain();
   
   if (!subdomain) {
     return '/login';
   }
   
-  if (appDomain === 'localhost') {
-    return `http://${subdomain}.localhost:${port}/school-login`;
+  if (!appDomain) {
+    // Local development with subdomain
+    return port ? `${protocol}//${subdomain}.localhost:${port}/school-login` : `${protocol}//${subdomain}.localhost/school-login`;
   } else {
-    return `https://${subdomain}.${appDomain}/school-login`;
+    // Production with subdomain
+    return `${protocol}//${subdomain}.${appDomain}/school-login`;
   }
 }
 
@@ -73,6 +77,23 @@ export function smartLoginRedirect(error?: string): void {
 export function smartLogoutRedirect(): void {
   if (typeof window === 'undefined') return;
   
-  const baseUrl = getSchoolLoginUrl();
-  window.location.href = `${baseUrl}?reason=logout`;
+  const subdomain = getCurrentSubdomain();
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
+  
+  if (!subdomain) {
+    window.location.href = '/login';
+    return;
+  }
+  
+  if (!appDomain) {
+    // Local development with subdomain - use current protocol
+    const protocol = window.location.protocol;
+    const port = window.location.port;
+    const baseUrl = `${protocol}//${subdomain}.localhost${port ? `:${port}` : ''}`;
+    window.location.href = `${baseUrl}/school-login?reason=logout`;
+  } else {
+    // Production with subdomain
+    const protocol = window.location.protocol;
+    window.location.href = `${protocol}//${subdomain}.${appDomain}/school-login?reason=logout`;
+  }
 }

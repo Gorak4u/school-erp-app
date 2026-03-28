@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import Toast from '@/components/Toast';
+import { showToast } from '@/lib/toastUtils';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '📊', exact: true },
@@ -76,10 +77,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setShowSchoolPicker(false);
         router.push('/dashboard');
       } else {
-        alert(data.error || 'Failed to switch school');
+        showToast('error', 'Switch Failed', data.error || 'Failed to switch school');
       }
     } catch {
-      alert('Network error');
+      showToast('error', 'Network Error', 'Network error');
     } finally {
       setSwitching(false);
     }

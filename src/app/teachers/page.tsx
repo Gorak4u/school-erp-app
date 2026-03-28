@@ -9,6 +9,7 @@ import { teachersApi } from '@/lib/apiClient';
 import { createTeacherSearchHandlers } from './handlers/searchHandlers';
 import StaffForm, { StaffFormData } from './components/StaffForm';
 import { downloadTeacherIdCard } from '@/lib/teacherIdCard';
+import { showToast } from '@/lib/toastUtils';
 
 // Type definitions for teacher data
 interface Teacher {
@@ -438,7 +439,7 @@ export default function StaffPage() {
       await downloadTeacherIdCard(teacher, config);
     } catch (error) {
       console.error('Error downloading ID card:', error);
-      alert('Failed to download ID card. Please try again.');
+      showToast('error', 'Download Failed', 'Failed to download ID card. Please try again.');
     } finally {
       setDownloadingIdCard(null);
     }
@@ -480,7 +481,7 @@ export default function StaffPage() {
       }
     } catch (error) {
       console.error('Error in bulk ID card download:', error);
-      alert('Failed to download ID cards. Please try again.');
+      showToast('error', 'Download Failed', 'Failed to download ID cards. Please try again.');
     } finally {
       setDownloadingIdCard(null);
     }
@@ -524,7 +525,7 @@ export default function StaffPage() {
         });
       }
     } catch (err: any) {
-      alert('Failed to delete teacher: ' + (err.message || 'Unknown error'));
+      showToast('error', 'Delete Failed', 'Failed to delete teacher: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -545,7 +546,7 @@ export default function StaffPage() {
       refresh();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + errorMessage);
+      showToast('error', 'Status Update Failed', `Failed to ${teacher.status === 'active' ? 'deactivate' : 'activate'} teacher: ` + errorMessage);
     }
   };
 

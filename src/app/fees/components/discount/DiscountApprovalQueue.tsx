@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { showToast } from '@/lib/toastUtils';
 
 interface DiscountApprovalQueueProps {
   theme: 'dark' | 'light';
@@ -119,7 +120,7 @@ export default function DiscountApprovalQueue({ theme, userRole, viewMode }: Dis
       setApprovalNote('');
       fetchRequests(); // Refresh list
     } catch (err: any) {
-      alert(err.message);
+      showToast('error', 'Error', err.message);
     } finally {
       setIsProcessing(false);
     }

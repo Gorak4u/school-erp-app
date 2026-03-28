@@ -18,6 +18,7 @@ import {
   DollarSign,
   AlertCircle
 } from 'lucide-react';
+import { showToast } from '@/lib/toastUtils';
 
 interface WaiverRequest {
   id: string;
@@ -137,9 +138,9 @@ export default function WaiverRequestsPage() {
       }
 
       await fetchWaiverRequests();
-      alert('Waiver request approved successfully!');
+      showToast('success', 'Approved', 'Waiver request approved successfully!');
     } catch (err: any) {
-      alert(`Error approving request: ${err.message}`);
+      showToast('error', 'Approval Failed', `Error approving request: ${err.message}`);
     } finally {
       setProcessing(null);
     }
@@ -165,9 +166,9 @@ export default function WaiverRequestsPage() {
       }
 
       await fetchWaiverRequests();
-      alert('Waiver request rejected successfully!');
+      showToast('success', 'Rejected', 'Waiver request rejected successfully!');
     } catch (err: any) {
-      alert(`Error rejecting request: ${err.message}`);
+      showToast('error', 'Rejection Failed', `Error rejecting request: ${err.message}`);
     } finally {
       setProcessing(null);
     }

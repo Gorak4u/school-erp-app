@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { showToast } from '@/lib/toastUtils';
 
 const digitsOnly = (value: string | undefined | null) => (value || '').replace(/\D/g, '');
 const isPhoneValid = (value: string | undefined | null) => {
@@ -247,12 +248,12 @@ export default function TeacherForm({
   };
 
   const validateBeforeSubmit = useCallback(() => {
-    if (!formData.firstName.trim()) { alert('First Name is required'); return; }
-    if (!formData.lastName.trim()) { alert('Last Name is required'); return; }
-    if (!formData.role) { alert('Please select a role'); return; }
-    if (formData.phone && !isPhoneValid(formData.phone)) { alert('Please enter a valid phone number'); return; }
-    if (formData.aadharNumber && !isAadharValid(formData.aadharNumber)) { alert('Please enter a valid 12-digit Aadhar number'); return; }
-    if (formData.bankIfsc && !isIFSCValid(formData.bankIfsc)) { alert('Please enter a valid IFSC code'); return; }
+    if (!formData.firstName.trim()) { showToast('warning', 'Validation Error', 'First Name is required'); return; }
+    if (!formData.lastName.trim()) { showToast('warning', 'Validation Error', 'Last Name is required'); return; }
+    if (!formData.role) { showToast('warning', 'Validation Error', 'Please select a role'); return; }
+    if (formData.phone && !isPhoneValid(formData.phone)) { showToast('warning', 'Validation Error', 'Please enter a valid phone number'); return; }
+    if (formData.aadharNumber && !isAadharValid(formData.aadharNumber)) { showToast('warning', 'Validation Error', 'Please enter a valid 12-digit Aadhar number'); return; }
+    if (formData.bankIfsc && !isIFSCValid(formData.bankIfsc)) { showToast('warning', 'Validation Error', 'Please enter a valid IFSC code'); return; }
     return true;
   }, [formData]);
 
@@ -299,7 +300,7 @@ export default function TeacherForm({
       }
     } catch (error) {
       console.error('Error submitting teacher form:', error);
-      alert('Failed to save teacher. Please try again.');
+      showToast('error', 'Save Failed', 'Failed to save teacher. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -22,6 +22,7 @@ import { useSubscriptionLimits } from './hooks/useSubscriptionLimits';
 import { useIdCard } from './hooks/useIdCard';
 import { useSchoolConfig } from '@/contexts/SchoolConfigContext';
 import { StudentFormData, StudentFormAIProps } from './types';
+import { showToast } from '@/lib/toastUtils';
 
 const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
   student,
@@ -486,39 +487,39 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
 
   // Validation before submit
   const validateBeforeSubmit = useCallback(() => {
-    if (!formData.name.trim()) { alert('Full Name is required'); return false; }
-    if (!formData.dateOfBirth) { alert('Date of Birth is required'); return false; }
-    if (!formData.mediumId) { alert('Please select a Language Medium'); return false; }
+    if (!formData.name.trim()) { showToast('warning', 'Validation Error', 'Full Name is required'); return false; }
+    if (!formData.dateOfBirth) { showToast('warning', 'Validation Error', 'Date of Birth is required'); return false; }
+    if (!formData.mediumId) { showToast('warning', 'Validation Error', 'Please select a Language Medium'); return false; }
     
     // Discount validation
     if (discountData.hasDiscount) {
       if (!discountData.discountCategory) {
-        alert('Please select a discount category'); return false;
+        showToast('warning', 'Validation Error', 'Please select a discount category'); return false;
       }
       if (selectedDiscountFeeIds.length === 0) {
-        alert('Please select at least one fee type for discount'); return false;
+        showToast('warning', 'Validation Error', 'Please select at least one fee type for discount'); return false;
       }
       if (discountData.discountType !== 'full_waiver' && (!discountData.discountValue || Number(discountData.discountValue) <= 0)) {
-        alert('Please enter a valid discount amount'); return false;
+        showToast('warning', 'Validation Error', 'Please enter a valid discount amount'); return false;
       }
       if (!discountData.reason.trim()) { 
-        alert('Please provide a reason for the discount'); return false; 
+        showToast('warning', 'Validation Error', 'Please provide a reason for the discount'); return false; 
       }
       if (discountData.discountType === 'percentage' && Number(discountData.discountValue) > 100) {
-        alert('Percentage discount cannot exceed 100%'); return false;
+        showToast('warning', 'Validation Error', 'Percentage discount cannot exceed 100%'); return false;
       }
     }
     
     // Transport discount validation
     if (transportDiscount.hasDiscount && transportInfo.routeId) {
       if (transportDiscount.discountType !== 'full_waiver' && Number(transportDiscount.discountValue || 0) <= 0) {
-        alert('Please enter a valid transport discount amount'); return false;
+        showToast('warning', 'Validation Error', 'Please enter a valid transport discount amount'); return false;
       }
       if (transportDiscount.discountType === 'percentage' && Number(transportDiscount.discountValue || 0) > 100) {
-        alert('Transport percentage discount cannot exceed 100%'); return false;
+        showToast('warning', 'Validation Error', 'Transport percentage discount cannot exceed 100%'); return false;
       }
       if (!transportDiscount.reason.trim()) {
-        alert('Please provide a reason for the transport discount'); return false;
+        showToast('warning', 'Validation Error', 'Please provide a reason for the transport discount'); return false;
       }
     }
     return true;
@@ -791,7 +792,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       );
     } catch (error) {
       console.error('Failed to generate ID card PDF:', error);
-      alert('Failed to generate ID card PDF. Please try again.');
+      showToast('error', 'PDF Generation Failed', 'Failed to generate ID card PDF. Please try again.');
     }
   }, [createdStudent?.admissionNo, formData.admissionNo]);
 
@@ -944,7 +945,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       setShowIdCard(true);
     } catch (error) {
       console.error('Error submitting student form:', error);
-      alert('Failed to submit student. Please try again.');
+      showToast('error', 'Submission Failed', 'Failed to submit student. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -967,12 +968,12 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     
     // Check subscription limits
     if (limitReached) {
-      alert('Student limit reached. Please upgrade your subscription to add more students.');
+      showToast('warning', 'Subscription Limit', 'Student limit reached. Please upgrade your subscription to add more students.');
       return;
     }
     
     if (planError) {
-      alert(`Subscription error: ${planError}. Please check your subscription status.`);
+      showToast('error', 'Subscription Error', `Subscription error: ${planError}. Please check your subscription status.`);
       return;
     }
     
