@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
     const studentId = searchParams.get('studentId');
     const studentClass = searchParams.get('class');
+    const medium = searchParams.get('medium');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const academicYear = searchParams.get('academicYear');
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
     
     if (studentClass && studentClass !== 'all') {
       whereConditions.class = studentClass;
+    }
+
+    if (medium && medium !== 'all') {
+      whereConditions.languageMedium = medium;
     }
 
     if (studentId) {

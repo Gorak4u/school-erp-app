@@ -293,7 +293,20 @@ export function useFeeState() {
   // Filter fee records based on current filters - memoized to prevent infinite loops
   const filteredFeeRecords = React.useMemo(() => {
     return feeRecords.filter(record => {
-      if (selectedClass !== 'all' && record.student?.class !== selectedClass) return false;
+      if (selectedClass !== 'all') {
+        // Parse composite key: className|mediumName
+        const [className, mediumName] = selectedClass.split('|');
+        const studentClass = record.student?.class;
+        const studentMedium = record.student?.languageMedium;
+        
+        // If composite key has medium, match both class and medium
+        if (mediumName) {
+          if (studentClass !== className || studentMedium !== mediumName) return false;
+        } else {
+          // Otherwise just match class name
+          if (studentClass !== selectedClass) return false;
+        }
+      }
       if (selectedStatus !== 'all' && record.status !== selectedStatus) return false;
       if (debouncedSearchTerm && !record.student?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) return false;
       return true;
@@ -349,7 +362,12 @@ export function useFeeState() {
         includeArchived: includeArchived ? 'true' : 'false'
       });
       if (filters?.search) params.append('search', filters.search);
-      if (filters?.studentClass && filters.studentClass !== 'all') params.append('class', filters.studentClass);
+      if (filters?.studentClass && filters.studentClass !== 'all') {
+        // Parse composite key: className|mediumName
+        const [className, mediumName] = filters.studentClass.split('|');
+        params.append('class', className);
+        if (mediumName) params.append('medium', mediumName);
+      }
       if (filters?.paymentStatus && filters.paymentStatus !== 'all') params.append('paymentStatus', filters.paymentStatus);
       
       const response = await fetch(`/api/fees/students?${params}`);
@@ -379,7 +397,10 @@ export function useFeeState() {
         params.append('academicYear', filters.academicYear);
       }
       if (filters?.studentClass && filters.studentClass !== 'all') {
-        params.append('class', filters.studentClass);
+        // Parse composite key: className|mediumName
+        const [className, mediumName] = filters.studentClass.split('|');
+        params.append('class', className);
+        if (mediumName) params.append('medium', mediumName);
       }
       if (filters?.includeArchived) {
         params.append('includeArchived', 'true');
