@@ -38,6 +38,23 @@ function getPeriodRange(period: Period): { start: Date; end: Date } {
   return { start, end };
 }
 
+// Helper to format relative time
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
 // Student dashboard stats
 async function getStudentStats(schoolId: string, period: Period) {
   const { start, end } = getPeriodRange(period);
@@ -246,6 +263,49 @@ async function getFeeStats(schoolId: string, period: Period) {
     AND "createdAt" <= ${end}
   `;
 
+  // Get real waived amount from FineWaiverRequest table
+  const waivedData = await (schoolPrisma as any).$queryRaw`
+    SELECT COALESCE(SUM("waiveAmount"), 0) as total_waived
+    FROM "school"."FineWaiverRequest"
+    WHERE "schoolId" = ${schoolId}
+    AND "status" = 'approved'
+    AND "createdAt" >= ${start}
+    AND "createdAt" <= ${end}
+  `;
+
+  // Get real recent activities from database
+  const recentPayments = await (schoolPrisma as any).$queryRaw`
+    SELECT 
+      p.id,
+      p.amount,
+      p."paymentMethod",
+      p."createdAt",
+      s.name as student_name,
+      s.id as student_id
+    FROM "school"."Payment" p
+    JOIN "school"."FeeRecord" fr ON p."feeRecordId" = fr.id
+    JOIN "school"."Student" s ON fr."studentId" = s.id
+    WHERE s."schoolId" = ${schoolId}
+    AND p."createdAt" >= ${start}
+    ORDER BY p."createdAt" DESC
+    LIMIT 5
+  `;
+
+  const recentFines = await (schoolPrisma as any).$queryRaw`
+    SELECT 
+      f.id,
+      f.amount,
+      f."fineNumber",
+      f."createdAt",
+      s.name as student_name
+    FROM "school"."Fine" f
+    JOIN "school"."Student" s ON f."studentId" = s.id
+    WHERE s."schoolId" = ${schoolId}
+    AND f."createdAt" >= ${start}
+    ORDER BY f."createdAt" DESC
+    LIMIT 3
+  `;
+
   const totalAmount = Number(feeData[0]?.total_amount || 0);
   const totalPaid = Number(feeData[0]?.total_paid || 0);
   const totalPending = Number(feeData[0]?.total_pending || 0);
@@ -256,11 +316,51 @@ async function getFeeStats(schoolId: string, period: Period) {
   const partialCount = parseInt(feeData[0]?.partial_count?.toString() || '0');
   const overdueCount = parseInt(feeData[0]?.overdue_count?.toString() || '0');
   const totalDiscount = Number(feeData[0]?.total_discount || 0);
+  const totalWaived = Number(waivedData[0]?.total_waived || 0);
   
   // Calculate derived counts
   const fullyPaidCount = paidCount;
   const partiallyPaidCount = partialCount;
   const totalOverdue = overdueCount > 0 ? totalPending * (overdueCount / (pendingCount + partialCount + overdueCount || 1)) : 0;
+
+  // Build real recent activities
+  const activities = [];
+  
+  // Add payment activities
+  if (recentPayments && recentPayments.length > 0) {
+    recentPayments.forEach((payment: any, index: number) => {
+      const timeAgo = getTimeAgo(new Date(payment.createdAt));
+      activities.push({
+        id: `payment-${payment.id}`,
+        icon: '💰',
+        message: `Fee payment of ₹${Math.round(payment.amount).toLocaleString()} received from ${payment.student_name || 'Student'}`,
+        time: timeAgo
+      });
+    });
+  }
+  
+  // Add fine activities
+  if (recentFines && recentFines.length > 0) {
+    recentFines.forEach((fine: any) => {
+      const timeAgo = getTimeAgo(new Date(fine.createdAt));
+      activities.push({
+        id: `fine-${fine.id}`,
+        icon: '⚠️',
+        message: `Fine ${fine.fineNumber || ''} of ₹${Math.round(fine.amount).toLocaleString()} added to ${fine.student_name || 'Student'}`,
+        time: timeAgo
+      });
+    });
+  }
+  
+  // Add summary activity if no recent activities
+  if (activities.length === 0) {
+    activities.push({
+      id: 'summary-1',
+      icon: '✅',
+      message: `${fullyPaidCount} students have fully paid their fees`,
+      time: 'Today'
+    });
+  }
 
   return {
     totalFeesAmount: Math.round(totalAmount),
@@ -276,13 +376,10 @@ async function getFeeStats(schoolId: string, period: Period) {
     overdueCount,
     collectionRate,
     totalStudents,
-    totalDiscount: Math.round(feeData[0]?.total_discount || 0),
-    totalWaived: 0, // Will be calculated from fines
+    totalDiscount: Math.round(totalDiscount),
+    totalWaived: Math.round(totalWaived),
     pendingApprovals: pendingCount + partialCount,
-    recentActivities: [
-      { id: '1', icon: '💰', message: 'Fee collection updated', time: 'Just now' },
-      { id: '2', icon: '✅', message: `${fullyPaidCount} students fully paid`, time: 'Today' },
-    ],
+    recentActivities: activities,
     period,
     lastUpdated: new Date().toISOString()
   };
