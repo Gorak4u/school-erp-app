@@ -4,7 +4,7 @@ import { generateBulkIdCards, downloadBulkIdCards } from '@/lib/bulkIdCards';
 
 export function createActionsHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students, getSetting, includeArchivedStudents = false } = ctx;
+  const { bulkOperationData, bulkOperationType, filteredStudents, filterName, savedFilters, selectedStudents, setAdvancedFilters, setBulkOperationProgress, setFilterName, setSavedFilters, setSelectedStudents, setShowAdvancedFilters, setShowBulkOperationModal, setShowSaveFilterModal, students, getSetting, includeArchivedStudents = false, setSelectedClass, setSelectedStatus, setSelectedGender, setSelectedMedium, setSelectedBloodGroup, setSelectedCategory, setSelectedAttendanceRange, setSelectedFeeStatus, setSearchTerm } = ctx;
 
   // Quick Action Functions (Legacy - replaced by bulk operations)
   const exportStudentsLegacy = () => {
@@ -634,6 +634,7 @@ export function createActionsHandlers(ctx: any) {
 
   // Advanced Filter Functions
   const clearAdvancedFilters = () => {
+    // Reset advanced filters
     setAdvancedFilters({
       name: '',
       admissionNo: '',
@@ -651,6 +652,17 @@ export function createActionsHandlers(ctx: any) {
       state: '',
       category: 'all'
     });
+    
+    // Reset all quick filters
+    setSelectedClass('all');
+    setSelectedStatus('all');
+    setSelectedGender('all');
+    setSelectedMedium('all');
+    setSelectedBloodGroup('all');
+    setSelectedCategory('all');
+    setSelectedAttendanceRange('all');
+    setSelectedFeeStatus('all');
+    setSearchTerm('');
   };
 
   const saveCurrentFilter = () => {

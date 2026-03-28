@@ -5,7 +5,7 @@ import { isArchivedStudentStatus } from '@/lib/studentStatus';
 
 export function createSearchHandlers(ctx: any) {
   // Destructure all needed state from context
-  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, includeArchivedStudents = false, selectedClass, selectedGender, selectedLanguage, selectedStatus, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students, searchTerm } = ctx;
+  const { advancedFilters, advancedSearch, attendanceFilter, editingStudent, includeArchivedStudents = false, selectedClass, selectedGender, selectedLanguage, selectedStatus, selectedMedium, selectedBloodGroup, selectedCategory, selectedAttendanceRange, selectedFeeStatus, classesData, mediumsData, setAdvancedSearch, setEditingStudent, setShowAddModal, setStudents, showAdvancedFilters, students, searchTerm } = ctx;
 
   // Fuzzy matching function
   const fuzzyMatch = (text: string, query: string, threshold: number = 0.7): boolean => {
@@ -400,10 +400,66 @@ export function createSearchHandlers(ctx: any) {
       }
     }
     
-    const matchesClass = selectedClass === 'all' || student.class === selectedClass;
+    // Parse composite class key: "className|mediumName" or just "className"
+    let selectedClassName = selectedClass;
+    let selectedClassMedium = '';
+    
+    if (selectedClass !== 'all' && selectedClass.includes('|')) {
+      const parts = selectedClass.split('|');
+      selectedClassName = parts[0];
+      selectedClassMedium = parts[1] || '';
+    }
+    
+    // Match class name
+    const matchesClass = selectedClass === 'all' || student.class === selectedClassName;
+    
+    // Match class medium (from composite key)
+    let matchesClassMedium = true;
+    if (selectedClass !== 'all' && selectedClassMedium) {
+      matchesClassMedium = student.languageMedium === selectedClassMedium;
+    } else if (selectedClass !== 'all' && classesData && classesData.length > 0) {
+      // Fallback: lookup class data to find medium
+      const selectedClassData = classesData.find((c: any) => (c.name || c.label) === selectedClassName);
+      if (selectedClassData && selectedClassData.mediumId) {
+        const classMedium = mediumsData?.find((m: any) => m.id === selectedClassData.mediumId);
+        if (classMedium) {
+          const classMediumName = classMedium.name || classMedium.label;
+          matchesClassMedium = student.languageMedium === classMediumName;
+        }
+      }
+    }
+    
     const matchesStatus = selectedStatus === 'all' || student.status === selectedStatus;
     const matchesGender = selectedGender === 'all' || student.gender === selectedGender;
     const matchesLanguage = selectedLanguage === 'all' || student.languageMedium === selectedLanguage;
+    
+    // NEW: Additional filter matching
+    const matchesMedium = selectedMedium === 'all' || student.languageMedium === selectedMedium;
+    const matchesBloodGroup = selectedBloodGroup === 'all' || student.bloodGroup === selectedBloodGroup;
+    const matchesCategory = selectedCategory === 'all' || student.category === selectedCategory;
+    
+    // NEW: Attendance range matching
+    let matchesAttendanceRange = true;
+    if (selectedAttendanceRange !== 'all') {
+      const attendance = student.attendance?.percentage || 0;
+      if (selectedAttendanceRange === '90-100') matchesAttendanceRange = attendance >= 90;
+      else if (selectedAttendanceRange === '75-89') matchesAttendanceRange = attendance >= 75 && attendance < 90;
+      else if (selectedAttendanceRange === '60-74') matchesAttendanceRange = attendance >= 60 && attendance < 75;
+      else if (selectedAttendanceRange === 'below-60') matchesAttendanceRange = attendance < 60;
+    }
+    
+    // NEW: Fee status matching
+    let matchesFeeStatus = true;
+    if (selectedFeeStatus !== 'all' && student.fees) {
+      const pending = student.fees.pending || 0;
+      const paid = student.fees.paid || 0;
+      const total = student.fees.total || 0;
+      
+      if (selectedFeeStatus === 'paid') matchesFeeStatus = pending === 0 && paid > 0;
+      else if (selectedFeeStatus === 'pending') matchesFeeStatus = pending > 0;
+      else if (selectedFeeStatus === 'overdue') matchesFeeStatus = pending > 0 && student.fees.overdue;
+      else if (selectedFeeStatus === 'partial') matchesFeeStatus = paid > 0 && pending > 0;
+    }
     
     let matchesAttendance = true;
     if (attendanceFilter === 'low') {
@@ -416,7 +472,7 @@ export function createSearchHandlers(ctx: any) {
     
     const matchesArchived = includeArchivedStudents || !isArchivedStudentStatus(student.status);
 
-    return matchesSearch && matchesClass && matchesStatus && matchesGender && matchesLanguage && matchesAttendance && matchesArchived;
+    return matchesSearch && matchesClass && matchesClassMedium && matchesStatus && matchesGender && matchesLanguage && matchesMedium && matchesBloodGroup && matchesCategory && matchesAttendanceRange && matchesFeeStatus && matchesAttendance && matchesArchived;
   });
 
 

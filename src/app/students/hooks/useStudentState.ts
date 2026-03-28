@@ -17,11 +17,11 @@ export function useStudentState() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedGender, setSelectedGender] = useState('all');
   const [selectedLanguage, setSelectedLanguage] = useState('all');
-  const [selectedMedium, setSelectedMedium] = useState('');
-  const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedAttendanceRange, setSelectedAttendanceRange] = useState('');
-  const [selectedFeeStatus, setSelectedFeeStatus] = useState('');
+  const [selectedMedium, setSelectedMedium] = useState('all');
+  const [selectedBloodGroup, setSelectedBloodGroup] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedAttendanceRange, setSelectedAttendanceRange] = useState('all');
+  const [selectedFeeStatus, setSelectedFeeStatus] = useState('all');
   const [includeArchivedStudents, setIncludeArchivedStudents] = useState(false);
   
   // Advanced Search State
@@ -300,7 +300,13 @@ export function useStudentState() {
       setLoading(true);
       const params: Record<string, string | number> = { page, pageSize: size };
       if (search) params.search = search;
-      if (cls && cls !== 'all') params.class = cls;
+      
+      // Parse composite class key: "className|mediumName" -> send only className to API
+      if (cls && cls !== 'all') {
+        const className = cls.includes('|') ? cls.split('|')[0] : cls;
+        params.class = className;
+      }
+      
       if (status && status !== 'all') params.status = status;
       if (gender && gender !== 'all') params.gender = gender;
       params.includeArchived = includeArchived ? 'true' : 'false';
