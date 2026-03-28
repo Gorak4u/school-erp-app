@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -131,6 +131,9 @@ export default function StudentFilters({
   const [mediumsData, setMediumsData] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const isDark = theme === 'dark';
+  
+  // Debounce timeout ref for search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch classes and mediums from API
   useEffect(() => {
@@ -1246,7 +1249,13 @@ export default function StudentFilters({
             onChange={(newValue) => {
               if (advancedSearch.enabled) {
                 setAdvancedSearch((prev: any) => ({ ...prev, query: newValue }));
-                performAdvancedSearch(newValue);
+                // Debounce the API call
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                }
+                searchTimeoutRef.current = setTimeout(() => {
+                  performAdvancedSearch(newValue);
+                }, 500);
               } else {
                 setSearchTerm(newValue);
               }

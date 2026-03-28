@@ -1,7 +1,10 @@
 // @ts-nocheck
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Student } from '../types';
 import { isArchivedStudentStatus } from '@/lib/studentStatus';
+
+// Module-level timeout reference to persist across calls
+let globalSearchTimeout: NodeJS.Timeout | null = null;
 
 export function createSearchHandlers(ctx: any) {
   // Destructure all needed state from context
@@ -71,60 +74,100 @@ export function createSearchHandlers(ctx: any) {
     initializeSearchEngine();
   }, [students, includeArchivedStudents]);
 
-  // AI-powered search with SmartSearchEngine
+  // AI-powered search with debounce
   const performAdvancedSearch = async (query: string) => {
+    // Clear any pending search using global timeout
+    if (globalSearchTimeout) {
+      clearTimeout(globalSearchTimeout);
+      globalSearchTimeout = null;
+    }
+
+    if (!query || query.trim().length < 2) {
+      setAdvancedSearch(prev => ({ ...prev, recommendations: [], isSearching: false }));
+      return [];
+    }
+
+    // Set searching state immediately for UI feedback
     setAdvancedSearch(prev => ({ ...prev, isSearching: true, query }));
     
-    // Import SmartSearchEngine dynamically to avoid circular dependencies
-    const { StudentSearchEngine } = await import('../search/StudentSearchEngine');
-    const searchEngine = StudentSearchEngine.getInstance();
-    
-    // Ensure index is built
-    if (searchEngine.getMetrics().totalRecords === 0) {
-      searchEngine.buildIndex(students);
-    }
-    
-    // Update search analytics
-    setAdvancedSearch(prev => ({
-      ...prev,
-      searchAnalytics: {
-        ...prev.searchAnalytics,
-        totalSearches: prev.searchAnalytics.totalSearches + 1
-      }
-    }));
-    
-    // Add to search history
-    if (query && !advancedSearch.searchHistory.includes(query)) {
-      setAdvancedSearch(prev => ({
-        ...prev,
-        searchHistory: [query, ...prev.searchHistory.slice(0, 9)]
-      }));
-    }
-    
-    // Execute smart search
-    const searchResult = searchEngine.searchStudents({
-      text: query,
-      includeInactive: false,
-      includeGraduated: includeArchivedStudents,
-      includeArchived: includeArchivedStudents,
-      sortBy: 'name',
-      sortOrder: 'asc'
+    // Debounce the actual API call
+    return new Promise<any[]>((resolve) => {
+      globalSearchTimeout = setTimeout(async () => {
+        try {
+          // Call the real backend API for AI search
+          const response = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
+          
+          if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Search failed');
+          }
+          
+          const apiResults = result.data || [];
+          
+          // Update search analytics
+          setAdvancedSearch(prev => ({
+            ...prev,
+            recommendations: apiResults.slice(0, 5),
+            isSearching: false,
+            searchAnalytics: {
+              ...prev.searchAnalytics,
+              totalSearches: (prev.searchAnalytics?.totalSearches || 0) + 1,
+              averageResults: prev.searchAnalytics?.totalSearches 
+                ? ((prev.searchAnalytics.averageResults * prev.searchAnalytics.totalSearches) + apiResults.length) / (prev.searchAnalytics.totalSearches + 1)
+                : apiResults.length
+            }
+          }));
+          
+          // Add to search history
+          if (query && !advancedSearch.searchHistory?.includes(query)) {
+            setAdvancedSearch(prev => ({
+              ...prev,
+              searchHistory: [query, ...(prev.searchHistory || []).slice(0, 9)]
+            }));
+          }
+          
+          // ALSO update the main students list to show search results
+          if (apiResults.length > 0) {
+            setStudents(apiResults);
+          }
+          
+          resolve(apiResults);
+          
+        } catch (error) {
+          console.error('AI Search API Error:', error);
+          
+          // Fallback to client-side search if API fails
+          const { StudentSearchEngine } = await import('../search/StudentSearchEngine');
+          const searchEngine = StudentSearchEngine.getInstance();
+          
+          if (searchEngine.getMetrics().totalRecords === 0) {
+            searchEngine.buildIndex(students);
+          }
+          
+          const searchResult = searchEngine.searchStudents({
+            text: query,
+            includeInactive: false,
+            includeGraduated: includeArchivedStudents,
+            includeArchived: includeArchivedStudents,
+            sortBy: 'name',
+            sortOrder: 'asc'
+          });
+          
+          setAdvancedSearch(prev => ({
+            ...prev,
+            recommendations: searchResult.students.slice(0, 5),
+            isSearching: false
+          }));
+          
+          resolve(searchResult.students);
+        }
+      }, 500); // 500ms debounce
     });
-    
-    const results = searchResult.students;
-    
-    // Update search state
-    setAdvancedSearch(prev => ({
-      ...prev,
-      recommendations: results.slice(0, 5),
-      isSearching: false,
-      searchAnalytics: {
-        ...prev.searchAnalytics,
-        averageResults: ((prev.searchAnalytics.averageResults * (prev.searchAnalytics.totalSearches - 1)) + results.length) / prev.searchAnalytics.totalSearches
-      }
-    }));
-    
-    return results;
   };
 
   const evaluateCondition = (student: Student, condition: string): boolean => {
@@ -323,15 +366,15 @@ export function createSearchHandlers(ctx: any) {
   const filteredStudents = students.filter(student => {
     let matchesSearch = true;
     
+    // Skip client-side search filtering when AI search is enabled
+    // The API already returned filtered results, no need to filter again
+    // Only apply additional client-side filters (class, status, etc.)
     if (advancedSearch.enabled && advancedSearch.query) {
-      // Use AI-powered advanced search
-      try {
-        matchesSearch = evaluateCondition(student, advancedSearch.query.toLowerCase());
-      } catch {
-        matchesSearch = (student.name || '').toLowerCase().includes(advancedSearch.query.toLowerCase());
-      }
+      // Don't run evaluateCondition - API already filtered
+      // Just check if student exists (always true from API results)
+      matchesSearch = true;
     } else if (searchTerm && !showAdvancedFilters) {
-      // Basic client-side text match (server already filtered, this catches stragglers)
+      // Basic client-side text match for non-AI search
       const q = searchTerm.toLowerCase();
       matchesSearch =
         (student.name || '').toLowerCase().includes(q) ||
