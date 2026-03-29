@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { MessengerMembersModal } from '@/components/MessengerMembersModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessenger } from '@/hooks/useMessenger';
 import { showToast } from '@/lib/toastUtils';
@@ -15,6 +17,7 @@ import {
 
 export default function MessengerPage() {
   const { theme } = useTheme();
+  const { messengerEnabled } = useAppConfig();
   const { user } = useAuth();
   const isDark = theme === 'dark';
   
@@ -22,6 +25,9 @@ export default function MessengerPage() {
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [newChatConversationType, setNewChatConversationType] = useState<'direct' | 'group' | 'broadcast'>('direct');
+  const [newChatTitle, setNewChatTitle] = useState('');
   const [newChatSearch, setNewChatSearch] = useState('');
   const [newChatUsers, setNewChatUsers] = useState<any[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -38,22 +44,24 @@ export default function MessengerPage() {
     sendMessage, 
     markAsRead,
     createConversation 
-  } = useMessenger(selectedConversationId || undefined);
+  } = useMessenger(selectedConversationId || undefined, messengerEnabled);
 
   const card = `rounded-2xl border shadow-lg ${isDark ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`;
   const input = `w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`;
   const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-medium transition-all transform hover:scale-105 shadow-lg ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}`;
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (messengerEnabled) {
+      fetchConversations();
+    }
+  }, [fetchConversations, messengerEnabled]);
 
   useEffect(() => {
-    if (selectedConversationId) {
+    if (messengerEnabled && selectedConversationId) {
       fetchMessages();
       markAsRead();
     }
-  }, [selectedConversationId, fetchMessages, markAsRead]);
+  }, [selectedConversationId, fetchMessages, markAsRead, messengerEnabled]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,7 +90,7 @@ export default function MessengerPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/users?search=${encodeURIComponent(query)}&pageSize=10`);
+      const response = await fetch(`/api/messenger/users?search=${encodeURIComponent(query)}&pageSize=10`);
       if (response.ok) {
         const data = await response.json();
         setNewChatUsers(data.users || []);
@@ -102,9 +110,20 @@ export default function MessengerPage() {
       showToast('error', 'Select Users', 'Please select at least one user');
       return;
     }
+
+    if (newChatConversationType !== 'direct' && !newChatTitle.trim()) {
+      showToast('error', 'Add a title', 'Group and broadcast conversations need a title');
+      return;
+    }
+
     try {
-      const conversation = await createConversation(selectedUsers);
+      const conversation = await createConversation(selectedUsers, {
+        conversationType: newChatConversationType,
+        title: newChatConversationType === 'direct' ? undefined : newChatTitle.trim(),
+      });
       setShowNewChatModal(false);
+      setNewChatConversationType('direct');
+      setNewChatTitle('');
       setSelectedUsers([]);
       setNewChatSearch('');
       setNewChatUsers([]);
@@ -119,6 +138,29 @@ export default function MessengerPage() {
   const filteredConversations = conversations.filter(c => 
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const openMembersModal = () => {
+    if (!selectedConversation) return;
+    setShowMembersModal(true);
+  };
+
+  if (!messengerEnabled) {
+    return (
+      <AppLayout currentPage="messenger" title="Messenger">
+        <div className="h-[calc(100vh-80px)] flex items-center justify-center p-4">
+          <div className={`max-w-lg w-full ${card} p-10 text-center space-y-4`}>
+            <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-600'}`}>
+              <MessageSquare className="w-8 h-8" />
+            </div>
+            <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Messenger is disabled</h2>
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Your school has turned messenger off from App Settings. Ask an admin to enable it if you need chat access.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout currentPage="messenger" title="Messenger">
@@ -218,6 +260,15 @@ export default function MessengerPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {selectedConversation.conversationType !== 'direct' && (
+                    <button
+                      onClick={openMembersModal}
+                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="Manage members"
+                    >
+                      <Users className="w-5 h-5" />
+                    </button>
+                  )}
                   <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
                     <Phone className="w-5 h-5" />
                   </button>
@@ -342,100 +393,145 @@ export default function MessengerPage() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showNewChatModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-            onClick={() => setShowNewChatModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className={`w-full max-w-md ${card} p-6`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  New Conversation
-                </h3>
-                <button onClick={() => setShowNewChatModal(false)} className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Search Users
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={newChatSearch}
-                    onChange={(e) => setNewChatSearch(e.target.value)}
-                    className={input}
-                  />
-                </div>
-
-                {newChatUsers.length > 0 && (
-                  <div className={`max-h-48 overflow-y-auto space-y-2 p-2 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-                    {newChatUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => {
-                          setSelectedUsers((prev) =>
-                            prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
-                          );
-                        }}
-                        className={`w-full p-2 rounded-lg flex items-center gap-3 transition-colors ${
-                          selectedUsers.includes(u.id)
-                            ? isDark ? 'bg-blue-600/20 border border-blue-600/30' : 'bg-blue-50 border border-blue-200'
-                            : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
-                          {u.firstName?.[0]}{u.lastName?.[0]}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {u.firstName} {u.lastName}
-                          </div>
-                          <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {u.email}
-                          </div>
-                        </div>
-                        {selectedUsers.includes(u.id) && (
-                          <Check className="w-4 h-4 text-blue-500" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedUsers.length > 0 && (
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-                    <p className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Selected: {selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleCreateConversation}
-                  disabled={selectedUsers.length === 0}
-                  className={`w-full ${btnPrimary} ${selectedUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+      {messengerEnabled && (
+        <>
+          <AnimatePresence>
+            {showNewChatModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+                onClick={() => setShowNewChatModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className={`w-full max-w-md ${card} p-6`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Create Conversation
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      New Conversation
+                    </h3>
+                    <button onClick={() => setShowNewChatModal(false)} className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Conversation Type
+                      </label>
+                      <select
+                        value={newChatConversationType}
+                        onChange={(e) => setNewChatConversationType(e.target.value as 'direct' | 'group' | 'broadcast')}
+                        className={input}
+                      >
+                        <option value="direct">Direct</option>
+                        <option value="group">Group</option>
+                        <option value="broadcast">Broadcast</option>
+                      </select>
+                    </div>
+
+                    {newChatConversationType !== 'direct' && (
+                      <div>
+                        <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter a title for this conversation"
+                          value={newChatTitle}
+                          onChange={(e) => setNewChatTitle(e.target.value)}
+                          className={input}
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Search Users
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Search by name or email..."
+                        value={newChatSearch}
+                        onChange={(e) => setNewChatSearch(e.target.value)}
+                        className={input}
+                      />
+                    </div>
+
+                    {newChatUsers.length > 0 && (
+                      <div className={`max-h-48 overflow-y-auto space-y-2 p-2 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                        {newChatUsers.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              setSelectedUsers((prev) =>
+                                prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                              );
+                            }}
+                            className={`w-full p-2 rounded-lg flex items-center gap-3 transition-colors ${
+                              selectedUsers.includes(u.id)
+                                ? isDark ? 'bg-blue-600/20 border border-blue-600/30' : 'bg-blue-50 border border-blue-200'
+                                : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+                              {u.firstName?.[0]}{u.lastName?.[0]}
+                            </div>
+                            <div className="flex-1 text-left">
+                              <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {u.firstName} {u.lastName}
+                              </div>
+                              <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {u.email}
+                              </div>
+                            </div>
+                            {selectedUsers.includes(u.id) && (
+                              <Check className="w-4 h-4 text-blue-500" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedUsers.length > 0 && (
+                      <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                        <p className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Selected: {selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleCreateConversation}
+                      disabled={selectedUsers.length === 0}
+                      className={`w-full ${btnPrimary} ${selectedUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Create Conversation
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <MessengerMembersModal
+            isOpen={showMembersModal}
+            conversation={selectedConversation ? {
+              id: selectedConversation.id,
+              title: selectedConversation.title,
+              conversationType: selectedConversation.conversationType,
+            } : null}
+            isDark={isDark}
+            onClose={() => setShowMembersModal(false)}
+          />
+        </>
+      )}
     </AppLayout>
   );
 }

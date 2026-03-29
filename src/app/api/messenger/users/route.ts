@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionContext } from '@/lib/apiAuth';
 import { schoolPrisma } from '@/lib/prisma';
+import { isMessengerEnabledForSchool } from '@/lib/messenger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,14 @@ export async function GET(request: NextRequest) {
 
     if (!ctx.schoolId) {
       return NextResponse.json({ error: { code: 'NO_SCHOOL', message: 'No school context' } }, { status: 400 });
+    }
+
+    const messengerEnabled = await isMessengerEnabledForSchool(ctx.schoolId);
+    if (!messengerEnabled) {
+      return NextResponse.json(
+        { error: { code: 'MESSENGER_DISABLED', message: 'Messenger is disabled for this school' } },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);

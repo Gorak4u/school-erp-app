@@ -326,6 +326,7 @@ export function useAppConfig() {
     smsNotifications: getSetting('app_config', 'sms_notifications', 'false') === 'true',
     emailNotifications: getSetting('app_config', 'email_notifications', 'true') === 'true',
     pushNotifications: getSetting('app_config', 'push_notifications', 'false') === 'true',
+    messengerEnabled: getSetting('app_config', 'messenger_enabled', 'true') === 'true',
     defaultLanguage: getSetting('app_config', 'default_language', 'en'),
     dateFormat: getSetting('app_config', 'date_format', 'DD/MM/YYYY'),
     currency: getSetting('app_config', 'currency', 'INR'),

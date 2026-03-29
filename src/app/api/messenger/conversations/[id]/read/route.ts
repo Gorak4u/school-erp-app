@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionContext } from '@/lib/apiAuth';
 import { schoolPrisma } from '@/lib/prisma';
-import { MarkMessengerReadSchema } from '@/lib/messenger';
+import { MarkMessengerReadSchema, isMessengerEnabledForSchool } from '@/lib/messenger';
 import { getIO } from '@/lib/socketServer';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!ctx.schoolId) {
       return NextResponse.json({ error: { code: 'NO_SCHOOL', message: 'No school context' } }, { status: 400 });
+    }
+
+    const messengerEnabled = await isMessengerEnabledForSchool(ctx.schoolId);
+    if (!messengerEnabled) {
+      return NextResponse.json(
+        { error: { code: 'MESSENGER_DISABLED', message: 'Messenger is disabled for this school' } },
+        { status: 403 }
+      );
     }
 
     const { id: conversationId } = await params;

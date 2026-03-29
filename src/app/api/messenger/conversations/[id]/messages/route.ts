@@ -6,6 +6,7 @@ import {
   ListMessengerMessagesQuerySchema,
   sanitizeMessengerText,
   createMessengerNotification,
+  isMessengerEnabledForSchool,
 } from '@/lib/messenger';
 import { checkRateLimit, apiRateLimiter, getClientIdentifier } from '@/lib/rateLimiter';
 import { getIO } from '@/lib/socketServer';
@@ -17,6 +18,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!ctx.schoolId) {
       return NextResponse.json({ error: { code: 'NO_SCHOOL', message: 'No school context' } }, { status: 400 });
+    }
+
+    const messengerEnabled = await isMessengerEnabledForSchool(ctx.schoolId);
+    if (!messengerEnabled) {
+      return NextResponse.json(
+        { error: { code: 'MESSENGER_DISABLED', message: 'Messenger is disabled for this school' } },
+        { status: 403 }
+      );
     }
 
     const { id: conversationId } = await params;
@@ -151,6 +160,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!ctx.schoolId) {
       return NextResponse.json({ error: { code: 'NO_SCHOOL', message: 'No school context' } }, { status: 400 });
+    }
+
+    const messengerEnabled = await isMessengerEnabledForSchool(ctx.schoolId);
+    if (!messengerEnabled) {
+      return NextResponse.json(
+        { error: { code: 'MESSENGER_DISABLED', message: 'Messenger is disabled for this school' } },
+        { status: 403 }
+      );
     }
 
     const identifier = getClientIdentifier(request);

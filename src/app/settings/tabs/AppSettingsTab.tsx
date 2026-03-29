@@ -28,6 +28,7 @@ interface AppConfig {
   sms_from_number: string;
   email_notifications: string;
   push_notifications: string;
+  messenger_enabled: string;
   
   // System Settings
   enable_notifications: string;
@@ -84,6 +85,7 @@ export const AppSettingsTab: React.FC<AppSettingsTabProps> = ({
     sms_from_number: getSetting('app_config', 'sms_from_number', ''),
     email_notifications: getSetting('app_config', 'email_notifications', 'true'),
     push_notifications: getSetting('app_config', 'push_notifications', 'false'),
+    messenger_enabled: getSetting('app_config', 'messenger_enabled', 'true'),
     
     // System Settings
     enable_notifications: getSetting('app_config', 'enable_notifications', 'true'),
@@ -486,6 +488,25 @@ export const AppSettingsTab: React.FC<AppSettingsTabProps> = ({
                   </option>
                 ))}
               </motion.select>
+            </div>
+
+            <div>
+              <label className={enhancedLabel}>Messenger</label>
+              <motion.select
+                whileFocus={{ scale: 1.02 }}
+                className={enhancedInput}
+                value={appConfig.messenger_enabled}
+                onChange={e => handleConfigChange('messenger_enabled', e.target.value)}
+              >
+                {configOptions.booleanOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </motion.select>
+              <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Disable messenger to hide it from navigation and block messenger APIs.
+              </p>
             </div>
           </div>
         </motion.div>

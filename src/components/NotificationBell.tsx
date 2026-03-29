@@ -14,6 +14,7 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
   metadata?: {
+    module?: string;
     actionUrl?: string;
     requestId?: string;
     entityType?: string;
@@ -58,7 +59,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchUnreadCount, 30000);
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -76,6 +77,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
 
     // Listen for new notifications
     socket.on('notification', (newNotification: Notification) => {
+      if (newNotification.metadata?.module === 'messenger') return;
       setNotifications(prev => [newNotification, ...prev]);
       setUnreadCount(prev => prev + 1);
     });
@@ -101,25 +103,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
       const response = await fetch('/api/notifications?limit=10');
       if (response.ok) {
         const { notifications: data } = await response.json();
-        setNotifications(data);
-        setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
+        const filtered = data.filter((notification: Notification) => notification.metadata?.module !== 'messenger');
+        setNotifications(filtered);
+        setUnreadCount(filtered.filter((n: Notification) => !n.isRead).length);
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await fetch('/api/notifications?isRead=false&limit=1');
-      if (response.ok) {
-        const { total } = await response.json();
-        setUnreadCount(total);
-      }
-    } catch (error) {
-      console.error('Failed to fetch unread count:', error);
     }
   };
 

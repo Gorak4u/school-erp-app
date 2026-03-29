@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { smartLogoutRedirect } from '@/lib/subdomain-redirect';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { NotificationBell } from '@/components/NotificationBell';
+import { MessengerBubble } from '@/components/MessengerBubble';
+import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import Link from 'next/link';
 import Toast from './Toast';
 import TrialBanner from './TrialBanner';
@@ -30,6 +32,7 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const { theme: globalTheme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { messengerEnabled } = useAppConfig();
   const { pendingCount, approvals, showToast, dismissToast } = useNotifications();
   const [isClient, setIsClient] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -472,6 +475,9 @@ export default function AppLayout({
                   )}
                 </div>
               </motion.button>
+
+              {/* Messenger Bubble - real-time messenger notifications */}
+              {messengerEnabled && <MessengerBubble />}
 
               {/* Notification Bell - Real-time notifications */}
               <NotificationBell isDark={globalTheme === 'dark'} userId={user?.id} />

@@ -91,6 +91,11 @@ export async function createMessengerNotification(params: {
   const prisma = schoolPrisma as any;
 
   try {
+    const metadata = {
+      module: 'messenger',
+      ...(params.metadata || {}),
+    };
+
     const notification = await prisma.Notification.create({
       data: {
         schoolId: params.schoolId,
@@ -99,7 +104,7 @@ export async function createMessengerNotification(params: {
         title: params.title,
         message: params.message,
         priority: 'medium',
-        metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+        metadata: JSON.stringify(metadata),
         channel: 'in_app',
         entityType: params.conversationId ? 'MessengerConversation' : 'MessengerMessage',
         entityId: params.messageId || params.conversationId || null,
@@ -108,14 +113,14 @@ export async function createMessengerNotification(params: {
       },
     });
 
-    emitToUser(params.userId, 'notification', {
+    emitToUser(params.userId, 'messenger_notification', {
       id: notification.id,
       type: params.type,
       title: params.title,
       message: params.message,
       isRead: false,
       createdAt: notification.createdAt,
-      metadata: params.metadata || null,
+      metadata,
     });
 
     return notification;
@@ -128,6 +133,32 @@ export async function createMessengerNotification(params: {
       messageId: params.messageId,
     });
     return null;
+  }
+}
+
+export async function isMessengerEnabledForSchool(schoolId: string): Promise<boolean> {
+  try {
+    const prisma = schoolPrisma as any;
+    const setting = await prisma.schoolSetting.findFirst({
+      where: {
+        schoolId,
+        group: 'app_config',
+        key: 'messenger_enabled',
+      },
+      select: { value: true },
+    });
+
+    if (!setting) {
+      return true;
+    }
+
+    return setting.value !== 'false';
+  } catch (error) {
+    logger.warn('Failed to read messenger enabled flag, defaulting to enabled', {
+      error,
+      schoolId,
+    });
+    return true;
   }
 }
 

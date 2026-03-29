@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
-import { useSchoolDetails } from '@/contexts/SchoolConfigContext';
+import { useSchoolDetails, useAppConfig } from '@/contexts/SchoolConfigContext';
 import { hasPermission, DEFAULT_ROLE_PERMISSIONS, isAdminLikeAccess, type Permission } from '@/lib/permissions';
 import { 
   LayoutDashboard, 
@@ -312,6 +312,7 @@ export default function NavigationSidebar({
     permissions: userPermissions,
   });
   const schoolDetails = useSchoolDetails();
+  const { messengerEnabled } = useAppConfig();
 
   useEffect(() => {
     setIsClient(true);
@@ -323,6 +324,8 @@ export default function NavigationSidebar({
       .map(group => ({
         ...group,
         items: group.items.filter(item => {
+          // Hide messenger when disabled by school app settings
+          if (item.pageKey === 'messenger' && !messengerEnabled) return false;
           // Super admin sees everything
           if (userIsSuperAdmin) return true;
           // Admin-only items hidden from non-admins
@@ -339,7 +342,7 @@ export default function NavigationSidebar({
       .filter(group => group.items.length > 0); // Hide empty groups
     
     return filtered;
-  }, [userRole, userPermissions, isAdmin, userIsSuperAdmin]);
+  }, [userRole, userPermissions, isAdmin, userIsSuperAdmin, messengerEnabled]);
 
   const toggleGroup = (groupLabel: string) => {
     setExpandedGroups(prev => 

@@ -38,7 +38,7 @@ interface MessengerMessage {
   createdAt: string;
 }
 
-export function useMessenger(conversationId?: string) {
+export function useMessenger(conversationId?: string, enabled: boolean = true) {
   const { user } = useAuth();
   const [socket, setSocket] = useState<SocketType | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -49,7 +49,7 @@ export function useMessenger(conversationId?: string) {
   const socketRef = useRef<SocketType | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!enabled || !user?.id) return;
 
     const newSocket = io({
       path: '/api/socket',
@@ -149,9 +149,10 @@ export function useMessenger(conversationId?: string) {
       }
       newSocket.disconnect();
     };
-  }, [user?.id, conversationId]);
+  }, [enabled, user?.id, conversationId]);
 
   const fetchConversations = useCallback(async (page: number = 1) => {
+    if (!enabled) return { data: [], pagination: { page, pageSize: 25, total: 0, totalPages: 0, hasMore: false } };
     try {
       setLoading(true);
       const response = await fetch(`/api/messenger/conversations?page=${page}&pageSize=25`);
@@ -178,11 +179,11 @@ export function useMessenger(conversationId?: string) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   const fetchMessages = useCallback(
     async (page: number = 1) => {
-      if (!conversationId) return;
+      if (!enabled || !conversationId) return;
       try {
         setLoading(true);
         const response = await fetch(`/api/messenger/conversations/${conversationId}/messages?page=${page}&pageSize=50`);
@@ -197,12 +198,12 @@ export function useMessenger(conversationId?: string) {
         setLoading(false);
       }
     },
-    [conversationId]
+    [enabled, conversationId]
   );
 
   const sendMessage = useCallback(
     async (content: string, replyToId?: string) => {
-      if (!conversationId || !content.trim()) return;
+      if (!enabled || !conversationId || !content.trim()) return;
       try {
         setSending(true);
         const response = await fetch(`/api/messenger/conversations/${conversationId}/messages`, {
@@ -224,12 +225,12 @@ export function useMessenger(conversationId?: string) {
         setSending(false);
       }
     },
-    [conversationId]
+    [enabled, conversationId]
   );
 
   const markAsRead = useCallback(
     async (messageId?: string) => {
-      if (!conversationId) return;
+      if (!enabled || !conversationId) return;
       try {
         const response = await fetch(`/api/messenger/conversations/${conversationId}/read`, {
           method: 'POST',
@@ -244,19 +245,26 @@ export function useMessenger(conversationId?: string) {
         console.error('Error marking as read:', error);
       }
     },
-    [conversationId]
+    [enabled, conversationId]
   );
 
-  const createConversation = useCallback(async (participantIds: string[], title?: string) => {
+  const createConversation = useCallback(async (
+    participantIds: string[],
+    options?: {
+      title?: string;
+      conversationType?: 'direct' | 'group' | 'broadcast';
+    }
+  ) => {
+    if (!enabled) throw new Error('Messenger is disabled for this school');
     try {
       setLoading(true);
       const response = await fetch('/api/messenger/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversationType: participantIds.length === 1 ? 'direct' : 'group',
+          conversationType: options?.conversationType || (participantIds.length === 1 ? 'direct' : 'group'),
           participantIds,
-          title,
+          title: options?.title,
         }),
       });
       if (!response.ok) throw new Error('Failed to create conversation');
@@ -268,7 +276,7 @@ export function useMessenger(conversationId?: string) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   return {
     socket,
