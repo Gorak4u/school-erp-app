@@ -4,8 +4,7 @@ import { saasPrisma, schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere } from '@/lib/apiAuth';
 import { BASE_ROLE_OPTIONS, canManageUsersAccess } from '@/lib/permissions';
 import bcrypt from 'bcryptjs';
-import { sendSchoolEmail } from '@/lib/email';
-import { generateWelcomeEmail } from '@/lib/email-templates';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 export async function GET() {
   try {
@@ -162,52 +161,46 @@ export async function POST(request: NextRequest) {
           schoolName: school?.name,
           hasSubscription: !!school?.subscription
         });
-
+        
         if (school) {
-          const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-          const emailData = {
-            user: { ...user, name: `${user.firstName} ${user.lastName}` },
-            school,
-            subscription: school.subscription || null,
-            loginUrl: `${baseUrl}/login`,
-            dashboardUrl: `${baseUrl}/dashboard`,
-            paymentUrl: school.subscription?.plan !== 'trial' ? `${baseUrl}/billing` : undefined,
-            password: password // Include plain text password for first login
-          };
-
-          console.log('📧 Email data prepared:', {
-            hasUser: !!emailData.user,
-            hasSchool: !!emailData.school,
-            hasLoginUrl: !!emailData.loginUrl,
-            hasPassword: !!emailData.password
-          });
-
-          const { subject, html } = generateWelcomeEmail(emailData);
-          
-          console.log('📧 Email template generated:', {
-            subject,
-            htmlLength: html.length
-          });
-          
-          const emailResult = await sendSchoolEmail({
-            to: user.email,
-            subject,
-            html,
-            schoolId: targetSchoolId
+          queueCommunicationOutbox({
+            notification: {
+              userId: user.id,
+              type: 'account_created',
+              title: `Welcome to ${school.name}`,
+              message: 'Your account has been created successfully.',
+              priority: 'medium',
+              schoolId: targetSchoolId,
+              entityType: 'user',
+              entityId: user.id,
+            },
+            templateEmail: {
+              templateKey: 'user_welcome_email',
+              schoolId: targetSchoolId,
+              to: user.email,
+              recipientUserId: user.id,
+              variables: {
+                userName: user.firstName || user.email,
+                schoolName: school.name,
+                email: user.email,
+                tempPassword: password,
+                actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/login`,
+              },
+              dedupeKey: `user_welcome:${user.id}`,
+            },
+          }).catch((error) => {
+            console.error('Failed to send user welcome notification:', error);
           });
           
-          console.log('📧 Email send result:', emailResult);
-          console.log(`✅ Welcome email sent to new user ${user.email} using school SMTP`);
+          console.log(`✅ Welcome notification queued for new user ${user.email}`);
         } else {
           console.log(`❌ School not found for ID: ${targetSchoolId}, cannot send welcome email`);
         }
       } catch (emailErr: any) {
-        console.error('❌ Failed to send welcome email to new user:', {
+        console.error('❌ Failed to queue welcome notification:', {
           error: emailErr.message,
-          stack: emailErr.stack,
           userEmail: user.email,
           schoolId: targetSchoolId,
-          errorDetails: emailErr
         });
         // Continue anyway since user creation was successful
       }

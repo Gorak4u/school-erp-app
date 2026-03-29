@@ -207,6 +207,13 @@ const NAV_GROUPS: NavGroup[] = [
         permission: 'manage_fines'
       },
       { 
+        href: '/messenger', 
+        label: 'Messenger', 
+        icon: <MessageSquare className="w-5 h-5 text-purple-500" />, 
+        pageKey: 'messenger', 
+        permission: 'view_messenger'
+      },
+      { 
         href: '/expenses', 
         label: 'Expenses', 
         icon: <FileText className="w-5 h-5 text-rose-500" />, 

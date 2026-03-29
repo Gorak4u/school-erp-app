@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Check, X, AlertCircle, CreditCard, FileText, Clock } from 'lucide-react';
+import { Bell, Check, X, AlertCircle, CreditCard, FileText, Clock, MessageSquare } from 'lucide-react';
 import io from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 
 interface Notification {
   id: string;
-  type: 'approval_request' | 'approval_status' | 'payment' | 'general' | 'fine' | 'refund';
+  type: 'approval_request' | 'approval_status' | 'payment' | 'general' | 'fine' | 'refund' | 'message' | 'conversation' | 'mention';
   title: string;
   message: string;
   isRead: boolean;
@@ -31,6 +31,9 @@ const iconMap: Record<string, React.ElementType> = {
   payment: CreditCard,
   fine: FileText,
   refund: CreditCard,
+  message: MessageSquare,
+  conversation: MessageSquare,
+  mention: MessageSquare,
   general: Bell,
 };
 
@@ -40,6 +43,9 @@ const colorMap: Record<string, string> = {
   payment: 'text-blue-500 bg-blue-100',
   fine: 'text-red-500 bg-red-100',
   refund: 'text-purple-500 bg-purple-100',
+  message: 'text-purple-500 bg-purple-100',
+  conversation: 'text-indigo-500 bg-indigo-100',
+  mention: 'text-orange-500 bg-orange-100',
   general: 'text-gray-500 bg-gray-100',
 };
 

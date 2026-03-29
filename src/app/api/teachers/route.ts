@@ -3,9 +3,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 import { BASE_ROLE_OPTIONS } from '@/lib/permissions';
 import bcrypt from 'bcryptjs';
-import { sendSchoolEmail } from '@/lib/email';
-import { sendTeacherWelcomeEmail } from '@/lib/teacher-welcome-email';
-import { sendTeacherAdminNotificationEmail } from '@/lib/teacher-admin-notification-email';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 import { generateEmployeeId, isValidEmployeeIdFormat } from '@/lib/employeeIdGenerator';
 
 // Type definitions for the API
@@ -355,23 +353,74 @@ export async function POST(request: NextRequest) {
     });
 
     // Send emails (non-blocking)
-    if (ctx.schoolId) {
+    if (ctx.schoolId && result.user) {
+      const schoolName = await (schoolPrisma as any).School.findUnique({
+        where: { id: ctx.schoolId },
+        select: { name: true },
+      }).then((s: any) => s?.name || 'School');
+
       // Send welcome email to teacher
-      sendTeacherWelcomeEmail(result.user, result.teacher, result.defaultPassword, ctx.schoolId).catch((error: any) => {
-        console.error('Teacher welcome email failed:', error);
+      queueCommunicationOutbox({
+        notification: {
+          userId: result.user.id,
+          type: 'account_created',
+          title: 'Welcome to ' + schoolName,
+          message: 'Your teacher account has been created successfully.',
+          priority: 'medium',
+          schoolId: ctx.schoolId,
+          entityType: 'teacher',
+          entityId: result.teacher.id,
+        },
+        templateEmail: result.user.email ? {
+          templateKey: 'teacher_welcome_email',
+          schoolId: ctx.schoolId,
+          to: result.user.email,
+          recipientUserId: result.user.id,
+          variables: {
+            teacherName: result.teacher.name,
+            schoolName,
+            email: result.user.email,
+            employeeId: result.teacher.employeeId,
+            tempPassword: result.defaultPassword,
+            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/login`,
+          },
+          dedupeKey: `teacher_welcome:${result.teacher.id}`,
+        } : undefined,
+      }).catch((error: any) => {
+        console.error('Teacher welcome notification failed:', error);
       });
 
       // Send notification email to admin who added the teacher
-      sendTeacherAdminNotificationEmail(
-        ctx.email, // Admin who created the teacher
-        result.teacher, 
-        result.user,
-        result.defaultPassword,
-        true,
-        ctx.schoolId
-      ).catch((error: any) => {
-        console.error('Teacher admin notification email failed:', error);
-      });
+      if (ctx.userId) {
+        queueCommunicationOutbox({
+          notification: {
+            userId: ctx.userId,
+            type: 'teacher_added',
+            title: 'New Teacher Added',
+            message: `Teacher ${result.teacher.name} has been added successfully.`,
+            priority: 'low',
+            schoolId: ctx.schoolId,
+            entityType: 'teacher',
+            entityId: result.teacher.id,
+          },
+          templateEmail: ctx.email ? {
+            templateKey: 'teacher_admin_notification_email',
+            schoolId: ctx.schoolId,
+            to: ctx.email,
+            recipientUserId: ctx.userId,
+            variables: {
+              teacherName: result.teacher.name,
+              schoolName,
+              email: result.user.email,
+              employeeId: result.teacher.employeeId,
+              department: result.teacher.department || 'N/A',
+            },
+            dedupeKey: `teacher_admin_notif:${result.teacher.id}:${ctx.userId}`,
+          } : undefined,
+        }).catch((error: any) => {
+          console.error('Teacher admin notification failed:', error);
+        });
+      }
     }
 
     return NextResponse.json({ 

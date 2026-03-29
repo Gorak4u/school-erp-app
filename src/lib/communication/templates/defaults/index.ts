@@ -17,6 +17,9 @@ export * from './attendance';
 export * from './discounts';
 export * from './fees';
 export * from './students';
+export * from './leave';
+export * from './staff';
+export * from './payments';
 
 import { DefaultTemplate } from '../types';
 import * as assignments from './assignments';
@@ -24,6 +27,9 @@ import * as attendance from './attendance';
 import * as discounts from './discounts';
 import * as fees from './fees';
 import * as students from './students';
+import * as leave from './leave';
+import * as staff from './staff';
+import * as payments from './payments';
 
 /**
  * All default templates registry
@@ -58,6 +64,22 @@ export const defaultTemplates: Record<string, DefaultTemplate> = {
   [students.leaveSubmittedEmail.key]: students.leaveSubmittedEmail,
   [students.leaveStatusEmail.key]: students.leaveStatusEmail,
   [students.passwordResetEmail.key]: students.passwordResetEmail,
+  
+  // Leave templates
+  [leave.leaveApprovalRequestEmail.key]: leave.leaveApprovalRequestEmail,
+  [leave.leaveApplicationSubmittedEmail.key]: leave.leaveApplicationSubmittedEmail,
+  [leave.leaveStatusUpdateEmail.key]: leave.leaveStatusUpdateEmail,
+  
+  // Staff/Teacher templates
+  [staff.teacherWelcomeEmail.key]: staff.teacherWelcomeEmail,
+  [staff.teacherAdminNotificationEmail.key]: staff.teacherAdminNotificationEmail,
+  [staff.studentWelcomeEmail.key]: staff.studentWelcomeEmail,
+  [staff.parentWelcomeEmail.key]: staff.parentWelcomeEmail,
+  [staff.userWelcomeEmail.key]: staff.userWelcomeEmail,
+  
+  // Payment templates
+  [payments.paymentConfirmationEmail.key]: payments.paymentConfirmationEmail,
+  [payments.discountApprovedEmail.key]: payments.discountApprovedEmail,
 };
 
 export default defaultTemplates;

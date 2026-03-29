@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 export interface NotificationPayload {
   userId: string;
   schoolId: string;
-  type: 'approval_request' | 'approval_status' | 'payment' | 'general' | 'fine' | 'refund';
+  type: 'approval_request' | 'approval_status' | 'payment' | 'general' | 'fine' | 'refund' | 'message' | 'conversation' | 'mention';
   title: string;
   message: string;
   priority?: 'low' | 'medium' | 'high';

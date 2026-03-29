@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
-import { sendSchoolEmail } from '@/lib/email';
-import { generateDiscountApprovedEmail } from '@/lib/discount-email-templates';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 import { canApproveDiscountsAccess, canViewDiscountRequestsAccess, isAdminLikeAccess } from '@/lib/permissions';
 
 // Helper function to resolve class target student IDs
@@ -406,47 +405,35 @@ export async function PATCH(
     }
 
     // Send email notification for approval
-    if (action === 'approve') {
-      try {
-        // Get school name for email
-        const schoolSetting = await (schoolPrisma as any).SchoolSetting.findFirst({
-          where: { group: 'school_details', key: 'name', schoolId: ctx.schoolId }
-        });
-        const schoolName = schoolSetting?.value || 'School';
-
-        // Get submitter user details
-        const submitter = await (schoolPrisma as any).school_User.findUnique({
-          where: { id: result.requestedBy }
-        });
-
-        // Get approver user details
-        const approver = await (schoolPrisma as any).school_User.findUnique({
-          where: { id: ctx.userId }
-        });
-
-        if (submitter && approver) {
-          const emailData = {
-            discountRequest: result,
-            submitter,
-            approver,
-            schoolName
-          };
-          
-          const { subject, html } = generateDiscountApprovedEmail(emailData);
-          
-          await sendSchoolEmail({
-            to: submitter.email || '',
-            subject,
-            html,
-            schoolId: ctx.schoolId || undefined
-          });
-          
-          console.log(`✅ Discount approval email sent to submitter: ${submitter.email}`);
-        }
-      } catch (emailError) {
-        console.error('Failed to send discount approval email:', emailError);
-        // Don't fail the request if email fails
-      }
+    if (action === 'approve' && result.requestedBy) {
+      queueCommunicationOutbox({
+        notification: {
+          userId: result.requestedBy,
+          type: 'discount_approved',
+          title: 'Discount Request Approved',
+          message: `Your discount request for ${result.student?.name || 'student'} has been approved.`,
+          priority: 'medium',
+          schoolId: ctx.schoolId!,
+          entityType: 'discount_request',
+          entityId: result.id,
+        },
+        templateEmail: result.requestedByUser?.email ? {
+          templateKey: 'discount_approved_email',
+          schoolId: ctx.schoolId || undefined,
+          to: result.requestedByUser.email,
+          recipientUserId: result.requestedBy,
+          variables: {
+            studentName: result.student?.name || 'Student',
+            discountCategory: result.discountCategory || 'Fee Discount',
+            discountType: result.discountType || 'Percentage',
+            discountAmount: String(result.discountValue || 0),
+            comments: note || '',
+          },
+          dedupeKey: `discount_approved:${result.id}`,
+        } : undefined,
+      }).catch((error) => {
+        console.error('Failed to send discount approval notification:', error);
+      });
     }
 
     return NextResponse.json({ 

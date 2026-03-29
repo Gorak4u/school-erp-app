@@ -42,6 +42,11 @@ model School {
   announcements Announcement[]
   medicalRecords MedicalRecord[]
   fineRules     FineRule[]
+  messengerConversations MessengerConversation[]
+  messengerMessages      MessengerMessage[]
+  messengerParticipants  MessengerConversationParticipant[]
+  messengerReadReceipts  MessengerMessageReadReceipt[]
+  messengerReactions     MessengerMessageReaction[]
 
   @@index([slug])
   @@index([isActive])
@@ -1236,6 +1241,11 @@ model school_User {
   teacher      Teacher?
   CustomRole   CustomRole? @relation(fields: [customRoleId], references: [id])
   School       School?     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdConversations MessengerConversation[] @relation("ConversationCreator")
+  conversationParticipants MessengerConversationParticipant[]
+  sentMessages MessengerMessage[]
+  messageReadReceipts MessengerMessageReadReceipt[]
+  messageReactions MessengerMessageReaction[]
 
   @@index([customRoleId])
   @@index([schoolId])
@@ -1697,6 +1707,128 @@ model CommunicationOutbox {
   @@unique([channel, dedupeKey])
   @@index([status, nextAttemptAt])
   @@index([schoolId, status, nextAttemptAt])
+  @@schema("school")
+}
+
+model MessengerConversation {
+  id               String   @id @default(cuid())
+  schoolId         String
+  conversationKey  String?  @db.VarChar(255)
+  conversationType String   @default("direct")
+  title            String?
+  description      String?  @db.Text
+  avatar           String?
+  createdBy        String
+  status           String   @default("active")
+  lastMessageAt    DateTime @default(now())
+  lastMessagePreview String? @db.Text
+  deletedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  creator          school_User @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  participants     MessengerConversationParticipant[]
+  messages         MessengerMessage[]
+
+  @@unique([schoolId, conversationKey])
+  @@index([schoolId])
+  @@index([schoolId, conversationType])
+  @@index([schoolId, status])
+  @@index([schoolId, lastMessageAt(sort: Desc)])
+  @@schema("school")
+}
+
+model MessengerConversationParticipant {
+  id                String   @id @default(cuid())
+  schoolId          String
+  conversationId    String
+  userId            String
+  participantRole   String   @default("member")
+  status            String   @default("active")
+  joinedAt          DateTime @default(now())
+  leftAt            DateTime?
+  lastReadAt        DateTime?
+  lastReadMessageId  String?
+  unreadCount       Int      @default(0)
+  isMuted           Boolean  @default(false)
+  isArchived        Boolean  @default(false)
+  deletedAt         DateTime?
+
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  conversation      MessengerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              school_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([schoolId, userId])
+  @@index([schoolId, conversationId])
+  @@index([schoolId, status])
+  @@schema("school")
+}
+
+model MessengerMessage {
+  id                String   @id @default(cuid())
+  schoolId          String
+  conversationId    String
+  senderId          String
+  messageType       String   @default("text")
+  body              String   @db.Text
+  attachments       Json?
+  replyToId         String?
+  editVersion       Int      @default(0)
+  status            String   @default("active")
+  editedAt          DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  conversation      MessengerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender            school_User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo           MessengerMessage? @relation("MessengerMessageReplies", fields: [replyToId], references: [id])
+  replies           MessengerMessage[] @relation("MessengerMessageReplies")
+  readReceipts      MessengerMessageReadReceipt[]
+  reactions         MessengerMessageReaction[]
+
+  @@index([schoolId])
+  @@index([schoolId, conversationId, createdAt(sort: Desc)])
+  @@index([schoolId, senderId])
+  @@index([schoolId, status])
+  @@schema("school")
+}
+
+model MessengerMessageReadReceipt {
+  id          String   @id @default(cuid())
+  schoolId    String
+  messageId   String
+  userId      String
+  readAt      DateTime @default(now())
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  message     MessengerMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        school_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([schoolId, userId])
+  @@index([schoolId, messageId])
+  @@schema("school")
+}
+
+model MessengerMessageReaction {
+  id          String   @id @default(cuid())
+  schoolId    String
+  messageId   String
+  userId      String
+  reaction    String
+  createdAt   DateTime @default(now())
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  message     MessengerMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        school_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, reaction])
+  @@index([schoolId, messageId])
+  @@index([schoolId, userId])
   @@schema("school")
 }
 

@@ -86,6 +86,12 @@ export const ALL_PERMISSIONS = {
   MANAGE_LEAVE_TYPES: 'manage_leave_types',
   VIEW_ALL_LEAVE_REPORTS: 'view_all_leave_reports',
   OVERRIDE_LEAVE_APPROVAL: 'override_leave_approval',
+
+  // Messenger
+  VIEW_MESSENGER: 'view_messenger',
+  SEND_MESSAGES: 'send_messages',
+  CREATE_GROUP_CHATS: 'create_group_chats',
+  SEND_BROADCASTS: 'send_broadcasts',
 } as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[keyof typeof ALL_PERMISSIONS];
@@ -148,6 +154,10 @@ export const PERMISSION_LABELS: Record<string, string> = {
   manage_leave_types: 'Manage Leave Types',
   view_all_leave_reports: 'View All Leave Reports',
   override_leave_approval: 'Override Leave Approval',
+  view_messenger: 'View Messenger',
+  send_messages: 'Send Messages',
+  create_group_chats: 'Create Group Chats',
+  send_broadcasts: 'Send Broadcasts',
 };
 
 // Permission groups for organized display in UI
@@ -198,7 +208,7 @@ export const PERMISSION_GROUPS = [
   },
   {
     label: 'Communication',
-    permissions: ['view_announcements'] as Permission[],
+    permissions: ['view_announcements', 'view_messenger', 'send_messages', 'create_group_chats', 'send_broadcasts'] as Permission[],
   },
   {
     label: 'Leave Management',
@@ -224,6 +234,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_fees',
     'view_reports',
     'view_announcements',
+    'view_messenger', 'send_messages', 'create_group_chats',
     // Leave permissions for teachers
     'view_leave_balance',
     'apply_leave',
@@ -248,6 +259,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_expenses',
     'view_reports',
     'view_announcements',
+    'view_messenger', 'send_messages',
   ],
   staff: [
     'view_dashboard',
@@ -255,6 +267,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'view_assignments',
     'view_reports',
     'view_announcements',
+    'view_messenger', 'send_messages',
     // Leave permissions for staff
     'view_leave_balance',
     'apply_leave',

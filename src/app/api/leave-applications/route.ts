@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendLeaveApprovalRequestEmail } from '@/lib/leave-approval-request-email';
-import { sendLeaveApplicationSubmittedEmail } from '@/lib/leave-notification-emails';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 // GET - Fetch leave applications with pagination and filters
 export async function GET(request: NextRequest) {
@@ -406,87 +405,106 @@ export async function POST(request: NextRequest) {
 
       // Send emails to approvers
       await Promise.all(approverCandidates.map(async approver => {
-        const metadata = {
-          applicationId: application.id,
-          staffName: application.staff.name,
-          leaveType: application.leaveType.name,
-          reason: application.reason,
-          link: `/leave?tab=approvals&applicationId=${application.id}`,
-        };
-        await (schoolPrisma as any).notification.create({
-          data: {
+        await queueCommunicationOutbox({
+          notification: {
             userId: approver.id,
             type: 'leave_approval_request',
             title: 'Leave approval required',
             message: `${application.staff.name} applied for ${application.leaveType.name} leave`,
-            metadata: JSON.stringify(metadata),
+            priority: 'medium',
             schoolId: session.user.schoolId,
-            isRead: false,
-          }
-        });
-
-        if (approver.email && school?.name) {
-          await sendLeaveApprovalRequestEmail({
+            entityType: 'leave_application',
+            entityId: application.id,
+            metadata: {
+              applicationId: application.id,
+              staffName: application.staff.name,
+              leaveType: application.leaveType.name,
+              reason: application.reason,
+              link: `/leave?tab=approvals&applicationId=${application.id}`,
+            },
+          },
+          templateEmail: approver.email ? {
+            templateKey: 'leave_approval_request_email',
+            schoolId: session.user.schoolId,
             to: approver.email,
-            staffName: application.staff.name,
-            leaveType: application.leaveType.name,
-            schoolName: school.name,
-            applicationId: application.id,
-            schoolId: session.user.schoolId,
-          });
-        }
+            recipientUserId: approver.id,
+            variables: {
+              staffName: application.staff.name,
+              leaveType: application.leaveType.name,
+              startDate: application.startDate.toISOString().split('T')[0],
+              endDate: application.endDate.toISOString().split('T')[0],
+              totalDays: String(application.totalDays),
+              reason: application.reason || '',
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/leave?tab=approvals&applicationId=${application.id}`,
+            },
+            dedupeKey: `leave_approval:${application.id}:${approver.id}`,
+          } : undefined,
+        });
       }));
 
       // Send confirmation email to the applicant
-      if (application.staff.email && school?.name) {
-        try {
-          await sendLeaveApplicationSubmittedEmail({
-            to: application.staff.email,
-            staffName: application.staff.name,
-            leaveType: application.leaveType.name,
-            startDate: application.startDate.toISOString(),
-            endDate: application.endDate.toISOString(),
-            totalDays: Number(application.totalDays),
-            reason: application.reason || undefined,
-            status: application.status,
-            schoolName: school.name,
-            applicationId: application.id,
+      if (application.staff.email && application.staff.id) {
+        queueCommunicationOutbox({
+          notification: {
+            userId: application.staff.id,
+            type: 'leave_application_submitted',
+            title: 'Leave Application Submitted',
+            message: `Your ${application.leaveType.name} leave application has been submitted.`,
+            priority: 'low',
             schoolId: session.user.schoolId,
-          });
-        } catch (emailError) {
-          console.error('Failed to send application confirmation email:', emailError);
-          // Don't fail the request if email fails
-        }
+            entityType: 'leave_application',
+            entityId: application.id,
+          },
+          templateEmail: {
+            templateKey: 'leave_application_submitted_email',
+            schoolId: session.user.schoolId,
+            to: application.staff.email,
+            recipientUserId: application.staff.id,
+            variables: {
+              leaveType: application.leaveType.name,
+              startDate: application.startDate.toISOString().split('T')[0],
+              endDate: application.endDate.toISOString().split('T')[0],
+              totalDays: String(application.totalDays),
+              reason: application.reason || '',
+            },
+            dedupeKey: `leave_submitted:${application.id}`,
+          },
+        }).catch((error) => {
+          console.error('Failed to send application confirmation:', error);
+        });
       }
     }
 
     // If auto-approved, send confirmation email to applicant
-    if (status === 'approved' && application.staff.email) {
-      const school = await schoolPrisma.school.findUnique({
-        where: { id: session.user.schoolId },
-        select: { name: true },
-      });
-
-      if (school?.name) {
-        try {
-          await sendLeaveApplicationSubmittedEmail({
-            to: application.staff.email,
-            staffName: application.staff.name,
+    if (status === 'approved' && application.staff.email && application.staff.id) {
+      queueCommunicationOutbox({
+        notification: {
+          userId: application.staff.id,
+          type: 'leave_application_submitted',
+          title: 'Leave Application Auto-Approved',
+          message: `Your ${application.leaveType.name} leave application has been auto-approved.`,
+          priority: 'medium',
+          schoolId: session.user.schoolId,
+          entityType: 'leave_application',
+          entityId: application.id,
+        },
+        templateEmail: {
+          templateKey: 'leave_application_submitted_email',
+          schoolId: session.user.schoolId,
+          to: application.staff.email,
+          recipientUserId: application.staff.id,
+          variables: {
             leaveType: application.leaveType.name,
-            startDate: application.startDate.toISOString(),
-            endDate: application.endDate.toISOString(),
-            totalDays: Number(application.totalDays),
-            reason: application.reason || undefined,
-            status: application.status,
-            schoolName: school.name,
-            applicationId: application.id,
-            schoolId: session.user.schoolId,
-          });
-        } catch (emailError) {
-          console.error('Failed to send auto-approval email:', emailError);
-          // Don't fail the request if email fails
-        }
-      }
+            startDate: application.startDate.toISOString().split('T')[0],
+            endDate: application.endDate.toISOString().split('T')[0],
+            totalDays: String(application.totalDays),
+            reason: application.reason || '',
+          },
+          dedupeKey: `leave_auto_approved:${application.id}`,
+        },
+      }).catch((error) => {
+        console.error('Failed to send auto-approval notification:', error);
+      });
     }
 
     return NextResponse.json({ application }, { status: 201 });

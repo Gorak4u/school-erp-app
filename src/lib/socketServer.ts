@@ -18,14 +18,22 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
     // Join user-specific room
     socket.on('join', (userId: string) => {
       socket.join(`user:${userId}`);
+      socket.data = { ...socket.data, userId };
       console.log(`User ${userId} joined their room`);
     });
 
     // Join school-specific room
     socket.on('joinSchool', (schoolId: string) => {
       socket.join(`school:${schoolId}`);
+      socket.data = { ...socket.data, schoolId };
       console.log(`School ${schoolId} joined`);
     });
+
+    // Register messenger handlers
+    if (socket.data?.userId && socket.data?.schoolId) {
+      const { registerMessengerHandlers } = require('./socket/messengerHandlers');
+      registerMessengerHandlers(io, socket);
+    }
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);

@@ -354,7 +354,6 @@ export default function FinesPage() {
           `Successfully created ${data.data.successCount} fines`
         );
       }
-    }  
     } catch (error: any) {
       console.error('Error creating bulk fines:', error);
       showError('Bulk Creation Failed', error.message || 'Failed to create bulk fines');

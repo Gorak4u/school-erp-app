@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, checkSubscriptionLimit } from '@/lib/apiAuth';
 import { rateLimit, getClientIdentifier, validateSearchQuery, sanitizePaginationParams } from '@/lib/apiSecurity';
-import { welcomeEmailHtml, parentWelcomeEmailHtml } from '@/lib/email';
 import { apiError } from '@/lib/apiError';
 import { logAuditAction } from '@/lib/auditLog';
-import { enqueueEmailBatch } from '@/lib/queues/emailQueue';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 import { getActiveAcademicYearForSchool } from '@/lib/schoolScope';
 import { canCreateStudentsAccess, canViewStudentsAccess } from '@/lib/permissions';
 import { ARCHIVED_STUDENT_STATUSES } from '@/lib/studentStatus';
@@ -592,26 +591,46 @@ async function autoApplyFees(tx: any, {
 function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName: string) {
   try {
     if (!schoolId) return;
-    const jobs = [] as any[];
-    const placeholders = {
-      name: student.name,
-      admissionNo: student.admissionNo,
-      className: student.class,
-    };
 
-    if (student.email?.trim()) {
-      jobs.push({
-        to: student.email,
-        subject: `Welcome to ${schoolName} - Admission ${student.admissionNo}`,
-        html: welcomeEmailHtml(placeholders.name, placeholders.admissionNo, placeholders.className, schoolName),
-        schoolId,
+    // Send welcome email to student if they have an email and userId
+    if (student.email?.trim() && student.userId) {
+      queueCommunicationOutbox({
+        notification: {
+          userId: student.userId,
+          type: 'student_welcome',
+          title: `Welcome to ${schoolName}`,
+          message: `Your admission has been confirmed. Admission No: ${student.admissionNo}`,
+          priority: 'medium',
+          schoolId,
+          entityType: 'student',
+          entityId: student.id,
+        },
+        templateEmail: {
+          templateKey: 'student_welcome_email',
+          schoolId,
+          to: student.email,
+          recipientUserId: student.userId,
+          variables: {
+            studentName: student.name,
+            schoolName,
+            admissionNo: student.admissionNo,
+            className: student.class || '',
+            section: student.section || '',
+            rollNo: student.rollNo || '',
+            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/student/dashboard`,
+          },
+          dedupeKey: `student_welcome:${student.id}`,
+        },
+      }).catch((error) => {
+        console.error('Failed to send student welcome email:', error);
       });
     }
 
+    // Send welcome emails to parents
     const parentTargets = [
-      { email: student.parentEmail, name: student.parentName || 'Parent' },
-      { email: student.fatherEmail, name: student.fatherName || 'Father' },
-      { email: student.motherEmail, name: student.motherName || 'Mother' },
+      { email: student.parentEmail, name: student.parentName || 'Parent', userId: student.parentUserId },
+      { email: student.fatherEmail, name: student.fatherName || 'Father', userId: student.fatherUserId },
+      { email: student.motherEmail, name: student.motherName || 'Mother', userId: student.motherUserId },
     ];
 
     const seen = new Set<string>();
@@ -619,15 +638,40 @@ function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName:
       const email = target.email?.trim();
       if (!email || seen.has(email)) continue;
       seen.add(email);
-      jobs.push({
-        to: email,
-        subject: `Student Admission Confirmation - ${student.name}`,
-        html: parentWelcomeEmailHtml(student.name, student.admissionNo, student.class, schoolName, target.name),
-        schoolId,
-      });
-    }
 
-    if (jobs.length) enqueueEmailBatch(jobs);
+      // Only send if we have a userId for the parent
+      if (target.userId) {
+        queueCommunicationOutbox({
+          notification: {
+            userId: target.userId,
+            type: 'parent_welcome',
+            title: `Student Admission Confirmation`,
+            message: `${student.name} has been admitted. Admission No: ${student.admissionNo}`,
+            priority: 'medium',
+            schoolId,
+            entityType: 'student',
+            entityId: student.id,
+          },
+          templateEmail: {
+            templateKey: 'parent_welcome_email',
+            schoolId,
+            to: email,
+            recipientUserId: target.userId,
+            variables: {
+              studentName: student.name,
+              schoolName,
+              admissionNo: student.admissionNo,
+              className: student.class || '',
+              section: student.section || '',
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/parent/dashboard`,
+            },
+            dedupeKey: `parent_welcome:${student.id}:${target.userId}`,
+          },
+        }).catch((error) => {
+          console.error(`Failed to send parent welcome email to ${email}:`, error);
+        });
+      }
+    }
   } catch (error) {
     console.error('Failed to enqueue welcome emails:', error);
   }

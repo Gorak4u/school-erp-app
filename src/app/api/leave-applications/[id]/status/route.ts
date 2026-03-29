@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendLeaveApprovalRequestEmail } from '@/lib/leave-approval-request-email';
-import { sendLeaveStatusUpdateEmail } from '@/lib/leave-notification-emails';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 // PUT - Update leave application status
 export async function PUT(
@@ -201,41 +200,62 @@ export async function PUT(
     // Send email notifications
     try {
       // Send email to the applicant about status change
-      if (application.staff.email && school?.name) {
-        await sendLeaveStatusUpdateEmail({
-          to: application.staff.email,
-          staffName: application.staff.name,
-          leaveType: application.leaveType.name,
-          startDate: application.startDate.toISOString(),
-          endDate: application.endDate.toISOString(),
-          totalDays: Number(application.totalDays),
-          reason: application.reason || undefined,
-          status: status,
-          approverName: session.user.name || 'Administrator',
-          comments: comments || undefined,
-          schoolName: school.name,
-          applicationId: application.id,
-          schoolId: session.user.schoolId,
+      if (application.staff.email && application.staff.id) {
+        queueCommunicationOutbox({
+          notification: {
+            userId: application.staff.id,
+            type: 'leave_status_update',
+            title: `Leave ${status}`,
+            message: `Your ${application.leaveType.name} leave application has been ${status}.`,
+            priority: status === 'approved' ? 'medium' : 'high',
+            schoolId: session.user.schoolId,
+            entityType: 'leave_application',
+            entityId: application.id,
+          },
+          templateEmail: {
+            templateKey: 'leave_status_update_email',
+            schoolId: session.user.schoolId,
+            to: application.staff.email,
+            recipientUserId: application.staff.id,
+            variables: {
+              leaveType: application.leaveType.name,
+              status: status,
+              comments: comments || '',
+            },
+            dedupeKey: `leave_status:${application.id}:${status}`,
+          },
+        }).catch((error) => {
+          console.error('Failed to send leave status notification:', error);
         });
       }
 
-      // Send confirmation email to the approver
-      if (session.user.email && school?.name) {
-        // Send a different email to approver confirming their action
-        await sendLeaveStatusUpdateEmail({
-          to: session.user.email,
-          staffName: application.staff.name,
-          leaveType: application.leaveType.name,
-          startDate: application.startDate.toISOString(),
-          endDate: application.endDate.toISOString(),
-          totalDays: Number(application.totalDays),
-          reason: application.reason || undefined,
-          status: status,
-          approverName: session.user.name || 'Administrator',
-          comments: `You have ${status} this leave application`,
-          schoolName: school.name,
-          applicationId: application.id,
-          schoolId: session.user.schoolId,
+      // Send confirmation to the approver
+      if (session.user.email && session.user.id) {
+        queueCommunicationOutbox({
+          notification: {
+            userId: session.user.id,
+            type: 'leave_action_confirmation',
+            title: 'Leave Action Confirmed',
+            message: `You have ${status} the leave application for ${application.staff.name}.`,
+            priority: 'low',
+            schoolId: session.user.schoolId,
+            entityType: 'leave_application',
+            entityId: application.id,
+          },
+          templateEmail: {
+            templateKey: 'leave_status_update_email',
+            schoolId: session.user.schoolId,
+            to: session.user.email,
+            recipientUserId: session.user.id,
+            variables: {
+              leaveType: application.leaveType.name,
+              status: status,
+              comments: `You have ${status} this leave application`,
+            },
+            dedupeKey: `leave_approver_confirm:${application.id}:${session.user.id}`,
+          },
+        }).catch((error) => {
+          console.error('Failed to send approver confirmation:', error);
         });
       }
     } catch (emailError) {
