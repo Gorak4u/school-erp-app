@@ -11,8 +11,8 @@ import { showToast } from '@/lib/toastUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, Search, Plus, Send, Paperclip, 
-  Image, Smile, MoreVertical, Phone, Video,
-  Archive, Trash2, Users, X, Check, CheckCheck
+  Smile, MoreVertical, Phone, Video,
+  Trash2, Users, X, Check, CheckCheck, Mic, Edit2
 } from 'lucide-react';
 
 export default function MessengerPage() {
@@ -31,17 +31,24 @@ export default function MessengerPage() {
   const [newChatSearch, setNewChatSearch] = useState('');
   const [newChatUsers, setNewChatUsers] = useState<any[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const { 
     conversations, 
     messages, 
     loading, 
     sending,
-    isConnected,
     fetchConversations, 
     fetchMessages, 
     sendMessage, 
+    editMessage,
+    deleteMessage,
     markAsRead,
     createConversation 
   } = useMessenger(selectedConversationId || undefined, messengerEnabled);
@@ -68,10 +75,30 @@ export default function MessengerPage() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversationId) return;
+    if (!selectedConversationId) return;
+
+    const trimmedMessage = messageInput.trim();
+    if (!trimmedMessage && pendingAttachments.length === 0 && !editingMessageId) return;
+    if (editingMessageId && !trimmedMessage) {
+      showToast('error', 'Enter message text', 'Edited messages cannot be empty');
+      return;
+    }
+
     try {
-      await sendMessage(messageInput);
+      if (editingMessageId) {
+        await editMessage(editingMessageId, trimmedMessage);
+        showToast('success', 'Message updated');
+      } else {
+        await sendMessage(trimmedMessage, {
+          attachments: pendingAttachments,
+          messageType: pendingAttachments.length > 0 ? 'file' : 'text',
+        });
+        showToast('success', 'Message sent');
+      }
       setMessageInput('');
+      setPendingAttachments([]);
+      setEditingMessageId(null);
+      setShowEmojiPicker(false);
     } catch (error) {
       showToast('error', 'Failed to send message');
     }
@@ -138,6 +165,129 @@ export default function MessengerPage() {
   const filteredConversations = conversations.filter(c => 
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const emojiOptions = ['😀', '😁', '😂', '😅', '😍', '🤔', '👍', '🙏', '🎉', '❤️'];
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAttachmentChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (files.length === 0) return;
+
+    try {
+      const uploadedAttachments: any[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', 'messenger');
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to upload attachment');
+        }
+
+        uploadedAttachments.push({
+          url: data.url,
+          filename: data.filename,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+      }
+
+      setPendingAttachments((prev) => [...prev, ...uploadedAttachments]);
+      showToast('success', 'Attachment added', `${uploadedAttachments.length} file(s) ready to send`);
+    } catch (error: any) {
+      showToast('error', 'Attachment upload failed', error.message || 'Please try again');
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const handleEmojiInsert = (emoji: string) => {
+    setMessageInput((prev) => `${prev}${prev ? ' ' : ''}${emoji}`);
+    setShowEmojiPicker(false);
+  };
+
+  const handleToggleVoiceInput = () => {
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      showToast('warning', 'Voice input unavailable', 'Your browser does not support speech recognition');
+      return;
+    }
+
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+
+      if (transcript) {
+        setMessageInput((prev) => `${prev}${prev ? ' ' : ''}${transcript}`);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
+  };
+
+  const handleStartEditMessage = (msg: any) => {
+    setEditingMessageId(msg.id);
+    setMessageInput(msg.body || '');
+    setPendingAttachments([]);
+    setShowEmojiPicker(false);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('Delete this message?')) return;
+
+    try {
+      await deleteMessage(messageId);
+      showToast('success', 'Message deleted');
+    } catch (error) {
+      showToast('error', 'Failed to delete message');
+    }
+  };
+
+  useEffect(() => {
+    setPendingAttachments([]);
+    setShowEmojiPicker(false);
+    setEditingMessageId(null);
+    setMessageInput('');
+    setIsRecording(false);
+    recognitionRef.current?.stop?.();
+  }, [selectedConversationId]);
 
   const openMembersModal = () => {
     if (!selectedConversation) return;
@@ -294,12 +444,13 @@ export default function MessengerPage() {
                 ) : (
                   messages.map((msg) => {
                     const isOwnMessage = msg.sender.id === user?.id;
+                    const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
                     return (
                       <motion.div
                         key={msg.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        className={`group flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                       >
                         <div className={`max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                           {!isOwnMessage && (
@@ -322,7 +473,24 @@ export default function MessengerPage() {
                                 <div className="truncate">{msg.replyTo.body}</div>
                               </div>
                             )}
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
+                            {attachments.length > 0 && (
+                              <div className="mb-2 space-y-2">
+                                {attachments.map((attachment: any, index: number) => {
+                                  const isImage = attachment?.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(attachment?.url || attachment?.name || '');
+                                  return isImage ? (
+                                    <a key={`${msg.id}-attachment-${index}`} href={attachment.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/10">
+                                      <img src={attachment.url} alt={attachment.name || 'Attachment'} className="max-h-56 w-full object-cover" />
+                                    </a>
+                                  ) : (
+                                    <a key={`${msg.id}-attachment-${index}`} href={attachment.url} target="_blank" rel="noreferrer" className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${isOwnMessage ? 'border-white/20 bg-white/10 text-white' : isDark ? 'border-gray-600 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'}`}>
+                                      <Paperclip className="h-4 w-4" />
+                                      <span className="truncate">{attachment.name || attachment.filename || 'Attachment'}</span>
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -336,6 +504,24 @@ export default function MessengerPage() {
                               )
                             )}
                           </div>
+                          {isOwnMessage && (
+                            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                              <button
+                                onClick={() => handleStartEditMessage(msg)}
+                                className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                                title="Edit message"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-red-50 text-red-600'}`}
+                                title="Delete message"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     );
@@ -345,37 +531,124 @@ export default function MessengerPage() {
               </div>
 
               <div className={`p-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="flex items-end gap-2">
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
-                    <Image className="w-5 h-5" />
-                  </button>
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
-                    <Smile className="w-5 h-5" />
-                  </button>
-                  <textarea
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type a message..."
-                    rows={1}
-                    className={`flex-1 px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                {editingMessageId && (
+                  <div className={`mb-3 flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${isDark ? 'border-blue-600/30 bg-blue-600/10 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+                    <span>Editing message</span>
+                    <button onClick={() => { setEditingMessageId(null); setMessageInput(''); }} className="font-medium underline-offset-2 hover:underline">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {pendingAttachments.length > 0 && (
+                  <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                    {pendingAttachments.map((attachment, index) => {
+                      const isImage = attachment?.type?.startsWith('image/');
+                      return (
+                        <div key={`${attachment.filename || attachment.name}-${index}`} className={`relative rounded-xl border p-2 ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                          <button
+                            onClick={() => handleRemoveAttachment(index)}
+                            className={`absolute right-2 top-2 rounded-full p-1 ${isDark ? 'bg-gray-900/80 text-gray-300' : 'bg-white text-gray-600'} shadow-sm`}
+                            title="Remove attachment"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                          {isImage ? (
+                            <img src={attachment.url} alt={attachment.name || 'Attachment'} className="mb-2 h-28 w-full rounded-lg object-cover" />
+                          ) : (
+                            <div className={`mb-2 flex h-28 items-center justify-center rounded-lg ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white text-gray-500'}`}>
+                              <Paperclip className="h-8 w-8" />
+                            </div>
+                          )}
+                          <div className="pr-8">
+                            <p className={`truncate text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{attachment.name}</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{Math.round((attachment.size || 0) / 1024)} KB</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="relative mb-2">
+                  <AnimatePresence>
+                    {showEmojiPicker && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className={`absolute bottom-full left-0 mb-2 grid grid-cols-5 gap-2 rounded-2xl border p-3 shadow-xl ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}
+                      >
+                        {emojiOptions.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleEmojiInsert(emoji)}
+                            className={`rounded-xl p-2 text-xl transition-transform hover:scale-110 ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    hidden
+                    accept="image/*,application/pdf,text/plain,audio/*,video/mp4,.doc,.docx,.xls,.xlsx,.zip"
+                    onChange={handleAttachmentChange}
                   />
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sending}
-                    className={`p-2.5 rounded-xl transition-all ${
-                      messageInput.trim() && !sending
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : isDark
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
+
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAttachmentClick}
+                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="Add attachment"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                      className={`p-2 rounded-lg ${showEmojiPicker ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900') : isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="Emoji picker"
+                    >
+                      <Smile className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleToggleVoiceInput}
+                      className={`p-2 rounded-lg ${isRecording ? 'bg-red-500/10 text-red-500' : isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="Voice input"
+                    >
+                      <Mic className="w-5 h-5" />
+                    </button>
+                    <textarea
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
+                      rows={1}
+                      className={`flex-1 px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={sending || ((editingMessageId ? !messageInput.trim() : !messageInput.trim() && pendingAttachments.length === 0))}
+                      className={`p-2.5 rounded-xl transition-all ${
+                        (!editingMessageId && (messageInput.trim() || pendingAttachments.length > 0) || (editingMessageId && messageInput.trim())) && !sending
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : isDark
+                          ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {editingMessageId ? <Edit2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

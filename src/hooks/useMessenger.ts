@@ -38,6 +38,43 @@ interface MessengerMessage {
   createdAt: string;
 }
 
+interface SendMessageOptions {
+  replyToId?: string;
+  attachments?: any[];
+  messageType?: string;
+}
+
+function playIncomingMessageTone() {
+  if (typeof window === 'undefined') return;
+
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  try {
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.0001;
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.start();
+    gain.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
+    oscillator.stop(audioContext.currentTime + 0.36);
+
+    oscillator.onended = () => {
+      audioContext.close().catch(() => {});
+    };
+  } catch (error) {
+    console.warn('Failed to play messenger tone:', error);
+  }
+}
+
 export function useMessenger(conversationId?: string, enabled: boolean = true) {
   const { user } = useAuth();
   const [socket, setSocket] = useState<SocketType | null>(null);
@@ -91,6 +128,10 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
 
     newSocket.on('message:received', (data: any) => {
       console.log('📨 Message received:', data);
+
+      if (user?.id && data.sender?.id !== user.id) {
+        playIncomingMessageTone();
+      }
       
       // Add message to current conversation if viewing it
       if (conversationId && data.conversationId === conversationId) {
@@ -119,6 +160,16 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
       });
+    });
+
+    newSocket.on('message:updated', (data: any) => {
+      setMessages((prev) => prev.map((message) => (message.id === data.id ? { ...message, ...data } : message)));
+      void fetchConversations().catch(() => {});
+    });
+
+    newSocket.on('message:deleted', (data: any) => {
+      setMessages((prev) => prev.filter((message) => message.id !== data.id));
+      void fetchConversations().catch(() => {});
     });
 
     // Handle new conversations
@@ -201,18 +252,76 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     [enabled, conversationId]
   );
 
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      if (!enabled || !conversationId || !messageId || !content.trim()) return;
+
+      try {
+        setSending(true);
+        const response = await fetch(`/api/messenger/messages/${messageId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: content.trim() }),
+        });
+        if (!response.ok) throw new Error('Failed to edit message');
+        const data = await response.json();
+        const updatedMessage = data.data;
+
+        setMessages((prev) => prev.map((message) => (message.id === messageId ? { ...message, ...updatedMessage } : message)));
+        void fetchConversations().catch(() => {});
+        return updatedMessage;
+      } catch (error) {
+        console.error('Error editing message:', error);
+        throw error;
+      } finally {
+        setSending(false);
+      }
+    },
+    [enabled, conversationId, fetchConversations]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!enabled || !conversationId || !messageId) return;
+
+      try {
+        setSending(true);
+        const response = await fetch(`/api/messenger/messages/${messageId}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) throw new Error('Failed to delete message');
+
+        setMessages((prev) => prev.filter((message) => message.id !== messageId));
+        void fetchConversations().catch(() => {});
+        return true;
+      } catch (error) {
+        console.error('Error deleting message:', error);
+        throw error;
+      } finally {
+        setSending(false);
+      }
+    },
+    [enabled, conversationId, fetchConversations]
+  );
+
   const sendMessage = useCallback(
-    async (content: string, replyToId?: string) => {
-      if (!enabled || !conversationId || !content.trim()) return;
+    async (content: string, options?: SendMessageOptions) => {
+      if (!enabled || !conversationId) return;
+
+      const trimmedContent = content.trim();
+      const attachments = options?.attachments || [];
+      if (!trimmedContent && attachments.length === 0) return;
+
       try {
         setSending(true);
         const response = await fetch(`/api/messenger/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: content.trim(),
-            messageType: 'text',
-            replyToId,
+            content: trimmedContent,
+            messageType: options?.messageType || (attachments.length > 0 ? 'file' : 'text'),
+            replyToId: options?.replyToId,
+            attachments,
           }),
         });
         if (!response.ok) throw new Error('Failed to send message');
@@ -288,6 +397,8 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     fetchConversations,
     fetchMessages,
     sendMessage,
+    editMessage,
+    deleteMessage,
     markAsRead,
     createConversation,
   };

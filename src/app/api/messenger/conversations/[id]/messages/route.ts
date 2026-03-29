@@ -186,6 +186,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { content, messageType, replyToId, attachments } = result.data;
     const sanitizedContent = sanitizeMessengerText(content);
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+    if (!sanitizedContent && !hasAttachments) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Message content or attachment is required' } }, { status: 400 });
+    }
 
     const prisma = schoolPrisma as any;
 
@@ -223,7 +228,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       where: { id: conversationId },
       data: {
         lastMessageAt: new Date(),
-        lastMessagePreview: sanitizedContent.substring(0, 200),
+        lastMessagePreview: sanitizedContent ? sanitizedContent.substring(0, 200) : hasAttachments ? '[Attachment]' : '',
       },
     });
 

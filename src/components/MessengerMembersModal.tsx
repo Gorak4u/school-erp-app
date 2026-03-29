@@ -21,6 +21,7 @@ interface ConversationMember {
   avatar?: string | null;
   role: 'admin' | 'member' | string;
   status: string;
+  isArchived?: boolean;
 }
 
 interface MessengerUser {
@@ -125,6 +126,31 @@ export function MessengerMembersModal({ isOpen, conversation, isDark, onClose }:
     } catch (error: any) {
       console.error('Failed to add member:', error);
       showToast('error', 'Failed to add member', error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateMember = async (participantId: string, updates: { participantRole?: 'admin' | 'member'; isMuted?: boolean; isArchived?: boolean; status?: 'active' | 'inactive' }) => {
+    if (!conversation?.id) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/messenger/conversations/${conversation.id}/participants`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId, ...updates }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error?.message || 'Failed to update member');
+
+      setMembers((prev) =>
+        prev.map((member) => (member.userId === participantId ? { ...member, ...updates } : member))
+      );
+      showToast('success', 'Member updated');
+    } catch (error: any) {
+      console.error('Failed to update member:', error);
+      showToast('error', 'Failed to update member', error.message);
     } finally {
       setSaving(false);
     }
@@ -303,16 +329,48 @@ export function MessengerMembersModal({ isOpen, conversation, isDark, onClose }:
                           </div>
                         </div>
 
-                        {canRemove && (
-                          <button
-                            onClick={() => removeMember(member.userId)}
-                            disabled={saving}
-                            className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
-                          >
-                            <X className="h-4 w-4" />
-                            {isSelf ? 'Leave' : 'Remove'}
-                          </button>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          {canManageMembers && !isSelf && (
+                            <button
+                              onClick={() => updateMember(member.userId, { participantRole: member.role === 'admin' ? 'member' : 'admin' })}
+                              disabled={saving}
+                              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                member.role === 'admin'
+                                  ? 'border-amber-500/30 text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-500/10'
+                                  : 'border-blue-500/30 text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10'
+                              }`}
+                            >
+                              <Shield className="h-4 w-4" />
+                              {member.role === 'admin' ? 'Demote' : 'Promote'}
+                            </button>
+                          )}
+
+                          {canManageMembers && !isSelf && (
+                            <button
+                              onClick={() => updateMember(member.userId, { isArchived: !Boolean(member.isArchived) })}
+                              disabled={saving}
+                              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                member.isArchived
+                                  ? 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10'
+                                  : 'border-gray-500/30 text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-500/10'
+                              }`}
+                            >
+                              <Users className="h-4 w-4" />
+                              {member.isArchived ? 'Unarchive' : 'Archive'}
+                            </button>
+                          )}
+
+                          {canRemove && (
+                            <button
+                              onClick={() => removeMember(member.userId)}
+                              disabled={saving}
+                              className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                            >
+                              <X className="h-4 w-4" />
+                              {isSelf ? 'Leave' : 'Remove'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

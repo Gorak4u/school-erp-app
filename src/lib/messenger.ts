@@ -46,10 +46,14 @@ export const ListMessengerConversationsQuerySchema = z.object({
 });
 
 export const SendMessengerMessageSchema = z.object({
-  content: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+  content: z.string().trim().max(MAX_MESSAGE_LENGTH).optional().default(''),
   messageType: MessengerMessageTypeSchema.default('text'),
   replyToId: z.string().trim().min(1).optional().nullable(),
   attachments: z.array(z.any()).optional().default([]),
+});
+
+export const UpdateMessengerMessageSchema = z.object({
+  content: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
 });
 
 export const ListMessengerMessagesQuerySchema = z.object({
