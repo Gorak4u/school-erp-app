@@ -24,6 +24,7 @@ export default function MessengerPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [conversationFilter, setConversationFilter] = useState<'all' | 'direct' | 'group' | 'broadcast'>('all');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [newChatConversationType, setNewChatConversationType] = useState<'direct' | 'group' | 'broadcast'>('direct');
@@ -162,9 +163,24 @@ export default function MessengerPage() {
   };
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
-  const filteredConversations = conversations.filter(c => 
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredConversations = conversations.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = conversationFilter === 'all' || c.conversationType === conversationFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const conversationCounts = {
+    all: conversations.length,
+    direct: conversations.filter((c) => c.conversationType === 'direct').length,
+    group: conversations.filter((c) => c.conversationType === 'group').length,
+    broadcast: conversations.filter((c) => c.conversationType === 'broadcast').length,
+  };
+
+  const typeLabelMap: Record<'direct' | 'group' | 'broadcast', string> = {
+    direct: 'Direct',
+    group: 'Group',
+    broadcast: 'Broadcast',
+  };
 
   const emojiOptions = ['😀', '😁', '😂', '😅', '😍', '🤔', '👍', '🙏', '🎉', '❤️'];
 
@@ -335,6 +351,30 @@ export default function MessengerPage() {
                 className={`${input} pl-10`}
               />
             </div>
+
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {(['all', 'direct', 'group', 'broadcast'] as const).map((filterKey) => (
+                <button
+                  key={filterKey}
+                  type="button"
+                  onClick={() => setConversationFilter(filterKey)}
+                  className={`rounded-xl px-2.5 py-2 text-xs font-medium transition-colors ${
+                    conversationFilter === filterKey
+                      ? isDark
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-blue-600 text-white'
+                      : isDark
+                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {filterKey === 'all' ? 'All' : typeLabelMap[filterKey as 'direct' | 'group' | 'broadcast']}
+                  <span className="ml-1 opacity-70">
+                    {conversationCounts[filterKey]}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -368,9 +408,21 @@ export default function MessengerPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className={`font-semibold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {conv.title}
-                        </h3>
+                        <div className="min-w-0 flex-1 pr-2">
+                          <h3 className={`truncate font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {conv.title}
+                          </h3>
+                          <div className="mt-1 flex items-center gap-2 text-[11px]">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                              {typeLabelMap[conv.conversationType as 'direct' | 'group' | 'broadcast'] || conv.conversationType}
+                            </span>
+                            {conv.conversationType !== 'direct' && (
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${isDark ? 'bg-blue-600/15 text-blue-300' : 'bg-blue-50 text-blue-600'}`}>
+                                {conv.participants?.length || 0} members
+                              </span>
+                            )}
+                          </div>
+                        </div>
                         {conv.unreadCount > 0 && (
                           <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-medium">
                             {conv.unreadCount > 99 ? '99+' : conv.unreadCount}

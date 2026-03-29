@@ -192,9 +192,7 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error?.message || 'Failed to fetch conversations';
         const errorDetails = errorData.error?.details;
-        
-        console.error('Fetch conversations error:', errorData);
-        
+
         if (errorData.error?.code === 'DATABASE_SCHEMA_ERROR') {
           showToast('error', 'Database Setup Required', errorDetails || 'Please run database migration');
         } else {
@@ -206,7 +204,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
       setConversations(data.data);
       return data;
     } catch (error) {
-      console.error('Error fetching conversations:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -224,7 +221,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         setMessages(data.data);
         return data;
       } catch (error) {
-        console.error('Error fetching messages:', error);
         throw error;
       } finally {
         setLoading(false);
@@ -252,7 +248,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         void fetchConversations().catch(() => {});
         return updatedMessage;
       } catch (error) {
-        console.error('Error editing message:', error);
         throw error;
       } finally {
         setSending(false);
@@ -276,7 +271,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         void fetchConversations().catch(() => {});
         return true;
       } catch (error) {
-        console.error('Error deleting message:', error);
         throw error;
       } finally {
         setSending(false);
@@ -309,7 +303,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         const data = await response.json();
         return data.data;
       } catch (error) {
-        console.error('Error sending message:', error);
         throw error;
       } finally {
         setSending(false);
@@ -331,8 +324,8 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
         setConversations((prev) =>
           prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
         );
-      } catch (error) {
-        console.error('Error marking as read:', error);
+      } catch {
+        // Ignore read receipt errors to avoid disrupting the chat UI.
       }
     },
     [enabled, conversationId]
@@ -361,7 +354,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
       const data = await response.json();
       return data.data;
     } catch (error) {
-      console.error('Error creating conversation:', error);
       throw error;
     } finally {
       setLoading(false);

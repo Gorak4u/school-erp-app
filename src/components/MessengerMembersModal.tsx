@@ -63,7 +63,6 @@ export function MessengerMembersModal({ isOpen, conversation, isDark, onClose }:
       setMembers(data.data?.participants || []);
       setCanManageMembers(Boolean(data.data?.canManageMembers));
     } catch (error: any) {
-      console.error('Failed to load conversation members:', error);
       showToast('error', 'Failed to load members', error.message);
     } finally {
       setLoading(false);

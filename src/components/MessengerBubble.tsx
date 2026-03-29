@@ -76,8 +76,7 @@ export function MessengerBubble() {
           (notification: MessengerNotification) => notification?.metadata?.module === 'messenger'
         );
         setNotifications(messengerItems);
-      } catch (error) {
-        console.error('Failed to fetch messenger notifications:', error);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -93,8 +92,7 @@ export function MessengerBubble() {
       const response = await fetch(`/api/notifications/${id}/read`, { method: 'PUT' });
       if (!response.ok) return;
       setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
-    } catch (error) {
-      console.error('Failed to mark messenger notification as read:', error);
+    } catch {
     }
   };
 
