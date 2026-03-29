@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext, tenantWhere, SessionContext } from '@/lib/apiAuth';
 import { resolveUserDisplayName } from '@/lib/userName';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 import { sendSchoolEmail } from '@/lib/email';
 import { generateDiscountPendingEmail } from '@/lib/discount-email-templates';
 import {
@@ -561,45 +562,85 @@ export async function POST(request: NextRequest) {
         ]);
 
         if (approvers.length > 0 && submitter) {
-          // Send email to all approvers
+          // Send in-app notification + template email to all approvers
           for (const approver of approvers) {
-            const emailData = {
-              discountRequest: result,
-              submitter,
-              approver,
-              schoolName
-            };
-            
-            const { subject, html } = generateDiscountPendingEmail(emailData);
-            
-            await sendSchoolEmail({
-              to: approver.email || '',
-              subject: subject,
-              html: html,
-              schoolId: ctx.schoolId || undefined
+            await queueCommunicationOutbox({
+              notification: {
+                userId: approver.id,
+                type: 'approval_request',
+                title: 'Discount Request - Pending Approval',
+                message: `A fee discount request has been submitted by ${submitter.firstName || submitter.email} and requires your review.`,
+                priority: 'medium',
+                schoolId: ctx.schoolId!,
+                entityType: 'discount_request',
+                entityId: result.id,
+                metadata: {
+                  requestId: result.id,
+                  actionUrl: '/fees/discount-requests',
+                },
+              },
+              templateEmail: approver.email ? {
+                templateKey: 'discount_request_email',
+                schoolId: ctx.schoolId || undefined,
+                to: approver.email,
+                recipientUserId: approver.id,
+                variables: {
+                  studentName: result.student?.name || 'Student',
+                  admissionNo: result.student?.admissionNo || '',
+                  className: result.student?.class || '',
+                  section: result.student?.section || '',
+                  discountCategory: result.discountCategory || 'Fee Discount',
+                  discountType: result.discountType || 'Percentage',
+                  requestedAmount: String(result.discountValue || 0),
+                  requesterName: submitter.firstName || submitter.email || 'User',
+                  reason: reason || 'No reason provided',
+                  actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/fees/discount-requests`,
+                },
+                dedupeKey: `discount_request:${result.id}:${approver.id}`,
+              } : undefined,
             });
             
-            console.log(`✅ Discount pending email sent to approver: ${approver.email}`);
+            console.log(`✅ Discount request notification sent to approver: ${approver.email}`);
           }
 
-          // Send confirmation email to submitter
-          const submitterEmailData = {
-            discountRequest: result,
-            submitter,
-            approver: submitter, // Self-reference for submitter email
-            schoolName
-          };
+          // Send confirmation to submitter
+          await queueCommunicationOutbox({
+            notification: {
+              userId: submitter.id,
+              type: 'submission_confirmation',
+              title: 'Discount Request Submitted',
+              message: 'Your fee discount request has been submitted successfully and is pending approval.',
+              priority: 'low',
+              schoolId: ctx.schoolId!,
+              entityType: 'discount_request',
+              entityId: result.id,
+              metadata: {
+                requestId: result.id,
+                actionUrl: '/fees/discount-requests',
+              },
+            },
+            templateEmail: submitter.email ? {
+              templateKey: 'discount_request_email',
+              schoolId: ctx.schoolId || undefined,
+              to: submitter.email,
+              recipientUserId: submitter.id,
+              variables: {
+                studentName: result.student?.name || 'Student',
+                admissionNo: result.student?.admissionNo || '',
+                className: result.student?.class || '',
+                section: result.student?.section || '',
+                discountCategory: result.discountCategory || 'Fee Discount',
+                discountType: result.discountType || 'Percentage',
+                requestedAmount: String(result.discountValue || 0),
+                requesterName: 'You',
+                reason: reason || 'No reason provided',
+                actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/fees/discount-requests`,
+              },
+              dedupeKey: `discount_request_submitter:${result.id}:${submitter.id}`,
+            } : undefined,
+          });
           
-          const { subject: submitterSubject, html: submitterHtml } = generateDiscountPendingEmail(submitterEmailData);
-          
-          await sendSchoolEmail({
-              to: submitter.email || '',
-              subject: submitterSubject.replace('Pending Approval', 'Submitted - Pending Approval'),
-              html: submitterHtml.replace('requires your approval', 'has been submitted and is pending approval'),
-              schoolId: ctx.schoolId || undefined
-            });
-          
-          console.log(`✅ Discount submission confirmation email sent to: ${submitter.email}`);
+          console.log(`✅ Discount submission confirmation sent to: ${submitter.email}`);
         }
       } catch (emailError) {
         console.error('Failed to send discount request emails:', emailError);

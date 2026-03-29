@@ -293,18 +293,6 @@ export default function FinesPage() {
       fetchFines();
       
       showSuccess('Fine Created', 'Fine has been created successfully');
-      
-      // Send real-time notification
-      addNotification({
-        type: 'fine_created',
-        title: 'New Fine Created',
-        message: `Fine ${data.fineNumber} created for ${data.student?.name || 'Student'}`,
-        data: {
-          fineNumber: data.fineNumber,
-          studentName: data.student?.name,
-          amount: data.amount
-        }
-      });
     } catch (error: any) {
       console.error('Error creating fine:', error);
       showError('Creation Failed', error.message || 'Failed to create fine');
@@ -366,20 +354,7 @@ export default function FinesPage() {
           `Successfully created ${data.data.successCount} fines`
         );
       }
-      
-      // Send real-time notification
-      addNotification({
-        type: 'fine_created',
-        title: 'Bulk Fines Created',
-        message: `${data.data.successCount} fines created for ${bulkData.targetType}: ${bulkData.targetValue}`,
-        data: {
-          targetType: bulkData.targetType,
-          targetValue: bulkData.targetValue,
-          successCount: data.data.successCount,
-          totalAmount: data.data.successCount * parseFloat(bulkData.amount)
-        }
-      });
-      
+    }  
     } catch (error: any) {
       console.error('Error creating bulk fines:', error);
       showError('Bulk Creation Failed', error.message || 'Failed to create bulk fines');
@@ -455,18 +430,6 @@ export default function FinesPage() {
       fetchFines();
       
       showSuccess('Waiver Request Submitted', 'Your waiver request has been submitted successfully');
-      
-      // Send real-time notification
-      addNotification({
-        type: 'waiver_requested',
-        title: 'Waiver Request Submitted',
-        message: `Waiver request submitted for fine ${selectedFineForWaiver.fineNumber}`,
-        data: {
-          fineNumber: selectedFineForWaiver.fineNumber,
-          studentName: selectedFineForWaiver.student?.name,
-          amount: waiveAmount
-        }
-      });
     } catch (error: any) {
       console.error('Error submitting waiver request:', error);
       showError('Submission Failed', error.message || 'Failed to submit waiver request');
@@ -511,17 +474,6 @@ export default function FinesPage() {
       
       fetchWaiverRequests();
       showSuccess('Waiver Approved', 'Waiver request has been approved successfully');
-      
-      // Send real-time notification
-      addNotification({
-        type: 'waiver_approved',
-        title: 'Waiver Approved',
-        message: `Waiver request for fine has been approved`,
-        data: {
-          fineNumber: requestId, // This would be the fine number in real implementation
-          amount: 0 // This would be the approved amount
-        }
-      });
     } catch (error) {
       console.error('Error approving waiver:', error);
       showError('Approval Failed', 'Failed to approve waiver request');
@@ -546,17 +498,6 @@ export default function FinesPage() {
       
       fetchWaiverRequests();
       showSuccess('Waiver Rejected', 'Waiver request has been rejected successfully');
-      
-      // Send real-time notification
-      addNotification({
-        type: 'waiver_rejected',
-        title: 'Waiver Rejected',
-        message: `Waiver request for fine has been rejected`,
-        data: {
-          fineNumber: requestId, // This would be the fine number in real implementation
-          reason: reason
-        }
-      });
     } catch (error) {
       console.error('Error rejecting waiver:', error);
       showError('Rejection Failed', 'Failed to reject waiver request');

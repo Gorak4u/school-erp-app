@@ -189,13 +189,44 @@ export async function queueAssignmentRecipientNotifications(input: {
       }),
       ...uniqueValues([target.studentEmail, ...target.parentEmails]).map(async (email) => {
         emailCount += 1;
+        const templateKeyMap: Record<AssignmentEventType, string> = {
+          published: 'assignment_published_email',
+          due_soon: 'assignment_due_soon_email',
+          overdue: 'assignment_overdue_email',
+          graded: 'assignment_graded_email',
+          submitted: 'assignment_submitted_email',
+        };
         return queueCommunicationOutbox({
-          email: {
-            to: email,
-            subject: content.emailSubject,
-            html: `<div><h2>${content.title}</h2><p>${content.message}</p><p>Student: ${target.name}</p><p>Class: ${target.className} - ${target.sectionName}</p></div>`,
-            schoolId: input.schoolId || undefined,
+          notification: {
+            userId: target.userIds[0] || '',
+            type: content.type,
+            title: content.title,
+            message: content.message,
+            priority: input.eventType === 'overdue' ? 'high' : 'medium',
+            schoolId: input.schoolId,
+            entityType: 'assignment',
+            entityId: input.assignmentId,
             templateKey: content.type,
+            dedupeKey: `${content.type}:${input.assignmentId}:${target.studentId}:${email}`,
+            metadata: {
+              assignmentId: input.assignmentId,
+              studentId: target.studentId,
+              eventType: input.eventType,
+            },
+          },
+          templateEmail: {
+            templateKey: templateKeyMap[input.eventType],
+            schoolId: input.schoolId || undefined,
+            to: email,
+            variables: {
+              assignmentTitle: input.assignmentTitle,
+              subject: 'Assignment',
+              dueDate: input.dueDate,
+              studentName: target.name,
+              className: target.className,
+              section: target.sectionName,
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/assignments/${input.assignmentId}`,
+            },
             dedupeKey: `${content.type}_email:${input.assignmentId}:${target.studentId}:${email}`,
           },
         });
@@ -263,12 +294,35 @@ export async function queueAttendanceAbsenceNotifications(input: {
       ...uniqueValues([target.studentEmail, ...target.parentEmails]).map(async (email) => {
         emailCount += 1;
         return queueCommunicationOutbox({
-          email: {
-            to: email,
-            subject: `${title} - ${target.name}`,
-            html: `<div><h2>${title}</h2><p>${message}</p><p>Student: ${target.name}</p><p>Class: ${target.className} - ${target.sectionName}</p></div>`,
-            schoolId: input.schoolId || undefined,
+          notification: {
+            userId: target.userIds[0] || '',
+            type,
+            title,
+            message,
+            priority: status === 'absent' ? 'high' : 'medium',
+            schoolId: input.schoolId,
+            entityType: 'attendance_record',
+            entityId: `${target.studentId}:${input.date}:${input.subject || 'general'}`,
             templateKey: type,
+            dedupeKey: `${type}:${target.studentId}:${input.date}:${input.subject || 'general'}:${email}`,
+            metadata: {
+              studentId: target.studentId,
+              attendanceDate: input.date,
+              subject: input.subject || null,
+              status,
+            },
+          },
+          templateEmail: {
+            templateKey: type === 'attendance_absent' ? 'attendance_absent_email' : 'attendance_late_email',
+            schoolId: input.schoolId || undefined,
+            to: email,
+            variables: {
+              studentName: target.name,
+              className: target.className,
+              section: target.sectionName,
+              date: input.date,
+              subject: input.subject || '',
+            },
             dedupeKey: `${type}_email:${target.studentId}:${input.date}:${input.subject || 'general'}:${email}`,
           },
         });

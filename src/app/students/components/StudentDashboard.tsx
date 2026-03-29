@@ -224,17 +224,6 @@ export default function StudentDashboard({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddModal(true)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all transform ${primaryBtnClass} shadow-lg flex items-center gap-2`}
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Student
-            </motion.button>
-          )}
-          {canCreateStudents && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => setBulkOperations((prev: any) => ({ ...prev, showImportModal: true }))}
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all transform border-2 ${secondaryBtnClass} flex items-center gap-2`}
             >

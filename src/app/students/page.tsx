@@ -456,39 +456,146 @@ export default function StudentsPageRefactored() {
     <AppLayout currentPage="students" title="Students Management">
       <div className="space-y-0 pb-6">
         {/* Modern Tabs */}
-        <div className="relative">
-          <div className={`flex space-x-1 p-1 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm border ${themeConfig.border}`}>
-            {STUDENT_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 relative overflow-hidden group ${
-                  activeTab === tab.id
-                    ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg transform scale-105`
-                    : `${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} hover:scale-105`
-                }`}
-              >
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className={`absolute inset-0 bg-gradient-to-r ${tab.gradient} opacity-100`}
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10">
-                  <tab.icon className="w-4 h-4" />
-                </span>
-                <span className="relative z-10">{tab.label}</span>
-              </button>
-            ))}
+        <div className="relative flex items-start justify-between">
+          <div className="flex-1">
+            <div className={`flex space-x-1 p-1 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm border ${themeConfig.border}`}>
+              {STUDENT_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 relative overflow-hidden group ${
+                    activeTab === tab.id
+                      ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg transform scale-105`
+                      : `${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} hover:scale-105`
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className={`absolute inset-0 bg-gradient-to-r ${tab.gradient} opacity-100`}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10">
+                    <tab.icon className="w-4 h-4" />
+                  </span>
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+            
+            {/* Tab Description */}
+            <div className="mt-4 text-center">
+              <p className={`text-sm ${getTextClass('secondary')}`}>
+                {STUDENT_TABS.find(tab => tab.id === activeTab)?.description}
+              </p>
+            </div>
           </div>
           
-          {/* Tab Description */}
-          <div className="mt-4 text-center">
-            <p className={`text-sm ${getTextClass('secondary')}`}>
-              {STUDENT_TABS.find(tab => tab.id === activeTab)?.description}
-            </p>
-          </div>
+          {/* Add Student Button - Top Right */}
+          {canCreateStudents && (
+            <motion.div className="relative ml-4">
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowAddModal(true)}
+                className={`
+                  relative px-4 py-2 rounded-lg font-semibold
+                  flex items-center gap-2
+                  transition-all duration-300
+                  ${getBtnClass('primary')}
+                  shadow-lg hover:shadow-xl
+                  border-2 border-transparent
+                  hover:border-blue-500/30
+                  group
+                `}
+              >
+                {/* AI Glow Effect */}
+                <motion.div
+                  className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                />
+                
+                {/* Button Content */}
+                <div className="relative flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <motion.div
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-purple-500 rounded-full"
+                      animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  </motion.div>
+                  
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs font-bold">Add Student</span>
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="text-xs opacity-80"
+                    >
+                      AI
+                    </motion.span>
+                  </div>
+                  
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                  >
+                    <Sparkles className="w-2 h-2 text-purple-400" />
+                  </motion.div>
+                </div>
+                
+                {/* Hover Particles */}
+                <motion.div
+                  className="absolute inset-0 rounded-lg overflow-hidden"
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                >
+                  {[...Array(2)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-0.5 h-0.5 bg-blue-400 rounded-full"
+                      initial={{ 
+                        x: Math.random() * 100, 
+                        y: Math.random() * 100,
+                        opacity: 0
+                      }}
+                      animate={{ 
+                        x: Math.random() * 100, 
+                        y: Math.random() * 100,
+                        opacity: [0, 1, 0]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                        ease: "easeInOut"
+                      }}
+                    />
+                  ))}
+                </motion.div>
+              </motion.button>
+              
+              {/* Tooltip */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileHover={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 rounded-lg bg-gray-900 text-white text-xs whitespace-nowrap pointer-events-none"
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="font-semibold">AI-Enhanced Registration</span>
+                  <span className="text-gray-300">Smart form</span>
+                  <div className="w-2 h-2 bg-gray-900 rotate-45 absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </div>
 
         {/* Error/Success Messages */}
@@ -617,110 +724,6 @@ export default function StudentsPageRefactored() {
                     <p className={`text-sm ${getTextClass('secondary')}`}>Manage student records and information</p>
                   </div>
                 </div>
-                {canCreateStudents && (
-                  <motion.div className="relative">
-                    <motion.button
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowAddModal(true)}
-                      className={`
-                        relative px-6 py-3 rounded-xl font-semibold
-                        flex items-center gap-3
-                        transition-all duration-300
-                        ${getBtnClass('primary')}
-                        shadow-lg hover:shadow-xl
-                        border-2 border-transparent
-                        hover:border-blue-500/30
-                        group
-                      `}
-                    >
-                      {/* AI Glow Effect */}
-                      <motion.div
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      />
-                      
-                      {/* Button Content */}
-                      <div className="relative flex items-center gap-3">
-                        <motion.div
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="relative"
-                        >
-                          <Plus className="w-5 h-5" />
-                          <motion.div
-                            className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full"
-                            animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
-                          />
-                        </motion.div>
-                        
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-bold">Add Student</span>
-                          <motion.span
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="text-xs opacity-80"
-                          >
-                            AI-Powered
-                          </motion.span>
-                        </div>
-                        
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.5 }}
-                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
-                        >
-                          <Sparkles className="w-3 h-3 text-purple-400" />
-                          <span className="text-xs font-bold text-purple-400">AI</span>
-                        </motion.div>
-                      </div>
-                      
-                      {/* Hover Particles */}
-                      <motion.div
-                        className="absolute inset-0 rounded-xl overflow-hidden"
-                        initial={{ opacity: 0 }}
-                        whileHover={{ opacity: 1 }}
-                      >
-                        {[...Array(3)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            className="absolute w-1 h-1 bg-blue-400 rounded-full"
-                            initial={{ 
-                              x: Math.random() * 100, 
-                              y: Math.random() * 100,
-                              opacity: 0
-                            }}
-                            animate={{ 
-                              x: Math.random() * 100, 
-                              y: Math.random() * 100,
-                              opacity: [0, 1, 0]
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              delay: i * 0.2,
-                              ease: "easeInOut"
-                            }}
-                          />
-                        ))}
-                      </motion.div>
-                    </motion.button>
-                    
-                    {/* Tooltip */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      whileHover={{ opacity: 1, y: 0 }}
-                      className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs whitespace-nowrap pointer-events-none"
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="font-semibold">AI-Enhanced Student Registration</span>
-                        <span className="text-gray-300">Smart form with auto-suggestions</span>
-                        <div className="w-2 h-2 bg-gray-900 rotate-45 absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
               </div>
 
               <StudentFilters 

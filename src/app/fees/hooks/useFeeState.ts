@@ -522,20 +522,31 @@ export function useFeeState() {
     }
   };
 
-  // Tab-based data loading
+  // Load shared data once on mount
   useEffect(() => {
-    const loadTabData = async () => {
+    const loadSharedData = async () => {
       try {
-        // Load common data (structures, discounts)
         const [feeStructuresResponse, discountsResponse] = await Promise.all([
           feeStructuresApi.list(),
           discountsApi.list()
         ]);
-        
+
         setFeeStructures(feeStructuresResponse?.feeStructures || feeStructuresResponse?.structures || []);
         setDiscounts(discountsResponse?.discounts || discountsResponse || []);
-        
-        // Load tab-specific data
+      } catch (error) {
+        console.error('Error loading shared fee data:', error);
+      } finally {
+        setIsClient(true);
+      }
+    };
+
+    loadSharedData();
+  }, []);
+
+  // Tab-based data loading
+  useEffect(() => {
+    const loadTabData = async () => {
+      try {
         switch (activeTab) {
           case 'collections':
             await loadCollectionsData();
@@ -551,13 +562,11 @@ export function useFeeState() {
         }
       } catch (error) {
         console.error('Error loading tab data:', error);
-      } finally {
-        setIsClient(true);
       }
     };
     
     loadTabData();
-  }, [activeTab]); // Reload data when tab changes
+  }, [activeTab]); // Reload only tab-specific data when tab changes
 
   // Keep the fee student cache in sync with the archived-student toggle and server-side filters
   useEffect(() => {

@@ -1,6 +1,5 @@
-import { schoolPrisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { defaultTemplates, DefaultTemplate } from './defaults/index';
+import { seedDefaultTemplates } from './seedTemplates';
 
 let isTemplatesInitialized = false;
 
@@ -17,52 +16,15 @@ export async function ensureDefaultTemplates() {
   try {
     logger.info('Checking default communication templates...');
 
-    // Check if any templates exist
-    const count = await (schoolPrisma as any).CommunicationTemplate.count({
-      where: { isDefault: true }
-    });
+    // Reconcile all default templates from code into the database.
+    // This backfills missing templates and refreshes outdated ones.
+    const seedResult = await seedDefaultTemplates();
 
-    if (count > 0) {
-      logger.info(`Found ${count} default templates in database, skipping auto-seed`);
-      isTemplatesInitialized = true;
-      return;
-    }
-
-    logger.info('No default templates found, auto-seeding...');
-
-    const results = [];
-
-    for (const [key, templateData] of Object.entries(defaultTemplates)) {
-      const template = templateData as DefaultTemplate;
-      try {
-        const created = await (schoolPrisma as any).CommunicationTemplate.create({
-          data: {
-            schoolId: null,
-            category: template.category,
-            type: template.type,
-            key: template.key,
-            name: template.name,
-            description: template.description,
-            subject: template.subject,
-            htmlBody: template.htmlBody,
-            textBody: template.textBody,
-            smsBody: template.smsBody,
-            variablesSchema: template.variablesSchema,
-            primaryColor: template.primaryColor,
-            accentColor: template.accentColor,
-            isDefault: true,
-            isActive: true,
-            version: template.version || 1
-          }
-        });
-        results.push({ key: template.key, id: created.id });
-      } catch (err) {
-        logger.error(`Failed to seed template ${key}:`, { error: String(err) });
-      }
-    }
-
-    logger.info(`Auto-seeded ${results.length} default templates`, {
-      templates: results.map(r => r.key)
+    logger.info('Default communication templates reconciled', {
+      created: seedResult.created,
+      updated: seedResult.updated,
+      skipped: seedResult.skipped,
+      errors: seedResult.errors.length,
     });
 
     isTemplatesInitialized = true;
