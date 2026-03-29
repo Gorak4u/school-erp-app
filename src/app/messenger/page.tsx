@@ -47,6 +47,12 @@ export default function MessengerPage() {
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [showCallModal, setShowCallModal] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
+  const [incomingCallData, setIncomingCallData] = useState<{
+    from: string;
+    conversationId: string;
+    callType: 'voice' | 'video';
+    callerName?: string;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -56,6 +62,7 @@ export default function MessengerPage() {
     messages, 
     loading, 
     sending,
+    socket,
     fetchConversations, 
     fetchMessages, 
     sendMessage, 
@@ -109,6 +116,36 @@ export default function MessengerPage() {
     }, 8000);
     return () => clearInterval(interval);
   }, [selectedConversationId, conversations, user?.id]);
+
+  useEffect(() => {
+    if (!socket || !user?.id) return;
+
+    const handleIncomingCall = (data: {
+      from: string;
+      conversationId: string;
+      callType: 'voice' | 'video';
+      callerName?: string;
+    }) => {
+      if (data.from === user.id) return;
+
+      const conversation = conversations.find((c) => c.id === data.conversationId);
+      const callerName =
+        data.callerName ||
+        conversation?.participants?.find((p: any) => p.id === data.from)?.name ||
+        'Unknown';
+
+      setIncomingCallData({ ...data, callerName });
+      setCallType(data.callType);
+      setShowCallModal(true);
+      showToast('info', `${data.callType === 'video' ? 'Video' : 'Voice'} call`, `${callerName} is calling you`);
+    };
+
+    socket.on('call-incoming', handleIncomingCall);
+
+    return () => {
+      socket.off('call-incoming', handleIncomingCall);
+    };
+  }, [socket, conversations, user?.id]);
 
   const isUserOnline = (userId: string) => onlineUsers.has(userId);
 
@@ -354,6 +391,7 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
+      setIncomingCallData(null);
       setCallType('voice');
       setShowCallModal(true);
     } else {
@@ -367,6 +405,7 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
+      setIncomingCallData(null);
       setCallType('video');
       setShowCallModal(true);
     } else {
@@ -1190,11 +1229,17 @@ export default function MessengerPage() {
 
           <CallModal
             isOpen={showCallModal}
-            onClose={() => setShowCallModal(false)}
+            onClose={() => {
+              setShowCallModal(false);
+              setIncomingCallData(null);
+            }}
             conversationId={selectedConversationId || undefined}
             targetUserId={callParticipant?.id}
             targetUserName={callParticipant?.name || selectedConversation?.title || 'Unknown'}
             initialCallType={callType}
+            signalingSocket={socket}
+            isIncomingCall={Boolean(incomingCallData)}
+            incomingCallData={incomingCallData || undefined}
             enabled={showCallModal} // Only enable WebRTC when call modal is open
           />
         </>

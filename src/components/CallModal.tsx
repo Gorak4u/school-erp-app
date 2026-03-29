@@ -16,7 +16,14 @@ interface CallModalProps {
   targetUserName?: string;
   initialCallType?: 'voice' | 'video';
   enabled?: boolean;
+  signalingSocket?: any;
   isIncomingCall?: boolean;
+  incomingCallData?: {
+    from: string;
+    conversationId: string;
+    callType: 'voice' | 'video';
+    callerName?: string;
+  };
   onAcceptCall?: () => void;
   onRejectCall?: () => void;
 }
@@ -29,7 +36,9 @@ export const CallModal: React.FC<CallModalProps> = ({
   targetUserName,
   initialCallType = 'voice',
   enabled,
+  signalingSocket,
   isIncomingCall = false,
+  incomingCallData,
   onAcceptCall,
   onRejectCall,
 }) => {
@@ -51,7 +60,7 @@ export const CallModal: React.FC<CallModalProps> = ({
     toggleScreenShare,
     setLocalVideoRef,
     setRemoteVideoRef,
-  } = useWebRTCCall(conversationId, enabled ?? isOpen);
+  } = useWebRTCCall(conversationId, enabled ?? isOpen, signalingSocket);
 
   // Set video refs
   useEffect(() => {
@@ -61,10 +70,10 @@ export const CallModal: React.FC<CallModalProps> = ({
 
   // Handle incoming call
   useEffect(() => {
-    if (isIncomingCall && callState.isIncomingCall && onAcceptCall) {
+    if ((isIncomingCall || Boolean(incomingCallData)) && callState.isIncomingCall && onAcceptCall) {
       onAcceptCall();
     }
-  }, [isIncomingCall, callState.isIncomingCall, onAcceptCall]);
+  }, [isIncomingCall, incomingCallData, callState.isIncomingCall, onAcceptCall]);
 
   // Start outgoing call when modal opens
   useEffect(() => {
@@ -80,21 +89,26 @@ export const CallModal: React.FC<CallModalProps> = ({
   };
 
   const handleAcceptCall = () => {
-    if (callState.remoteUserId) {
+    const callerId = incomingCallData?.from || callState.remoteUserId;
+    const callerName = incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown';
+    const callKind = incomingCallData?.callType || callState.callType;
+
+    if (callerId) {
       acceptCall({
         type: 'call-offer',
-        from: callState.remoteUserId,
+        from: callerId,
         to: '',
         conversationId: conversationId || '',
-        callType: callState.callType,
-        payload: { callerName: callState.remoteUserName }
+        callType: callKind,
+        payload: { callerName }
       });
     }
   };
 
   const handleRejectCall = () => {
-    if (callState.remoteUserId) {
-      rejectCall(callState.remoteUserId);
+    const callerId = incomingCallData?.from || callState.remoteUserId;
+    if (callerId) {
+      rejectCall(callerId);
     }
     onClose();
   };
@@ -120,7 +134,8 @@ export const CallModal: React.FC<CallModalProps> = ({
   if (!isOpen) return null;
 
   const isDark = true; // You can get this from theme context
-  const isInitializingCall = !callState.isIncomingCall && !callState.isOutgoingCall && !callState.isInCall;
+  const showIncomingAlert = Boolean(incomingCallData) || isIncomingCall || callState.isIncomingCall;
+  const isInitializingCall = !showIncomingAlert && !callState.isOutgoingCall && !callState.isInCall;
   const isFailedCall = callState.connectionState === 'failed' && !callState.isInCall;
 
   return (
@@ -175,10 +190,10 @@ export const CallModal: React.FC<CallModalProps> = ({
           )}
 
           {/* Incoming Call Screen */}
-          {callState.isIncomingCall && !callState.isInCall && (
+          {showIncomingAlert && !callState.isInCall && (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <div className="mb-8">
-                {callState.callType === 'video' ? (
+                {(incomingCallData?.callType || callState.callType) === 'video' ? (
                   <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                     <Video className="w-16 h-16 text-white" />
                   </div>
@@ -190,10 +205,10 @@ export const CallModal: React.FC<CallModalProps> = ({
               </div>
               
               <h2 className="text-3xl font-bold text-white mb-2">
-                {callState.remoteUserName}
+                {incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown'}
               </h2>
               <p className="text-gray-400 mb-8">
-                {callState.callType === 'video' ? 'Video Call' : 'Voice Call'} Incoming...
+                {(incomingCallData?.callType || callState.callType) === 'video' ? 'Video Call' : 'Voice Call'} Incoming...
               </p>
               
               <div className="flex gap-4">

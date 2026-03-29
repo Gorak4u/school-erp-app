@@ -23,9 +23,6 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     
     // Forward the signal to the target user
     io.to(`user:${signal.to}`).emit('call-signal', signal);
-    
-    // Also emit to conversation room for group calls
-    io.to(`conversation:${signal.conversationId}`).emit('call-signal', signal);
   });
 
   // Handle call initiation
@@ -37,16 +34,7 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
       from: data.from,
       conversationId: data.conversationId,
       callType: data.callType,
-      // You might want to fetch caller details here
-      callerName: 'Unknown User', // This should be fetched from database
-    });
-    
-    // Also notify conversation participants
-    io.to(`conversation:${data.conversationId}`).emit('call-incoming', {
-      from: data.from,
-      conversationId: data.conversationId,
-      callType: data.callType,
-      callerName: 'Unknown User',
+      callerName: (data as any).callerName || 'Unknown User',
     });
   });
 

@@ -31,7 +31,7 @@ export interface CallSignal {
   payload?: any;
 }
 
-export const useWebRTCCall = (conversationId?: string, enabled: boolean = false) => {
+export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   
@@ -60,15 +60,21 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Initialize socket connection only when needed for calls
+  // Reuse the messenger socket when available so call signaling uses the same
+  // authenticated connection as chat delivery.
   useEffect(() => {
     if (!enabled || !user?.id) return;
 
-    // Only create socket if we don't already have one
+    if (signalingSocket) {
+      setSocket(signalingSocket);
+      socketRef.current = signalingSocket;
+      setIsConnected(Boolean(signalingSocket.connected));
+      return;
+    }
+
+    // Fallback for environments where the messenger socket is unavailable.
     if (socketRef.current) return;
 
-    // Create a minimal socket connection just for call signaling
-    // This won't interfere with the messenger socket
     const newSocket = io({
       path: '/api/socket',
       transports: ['websocket', 'polling'],
@@ -95,7 +101,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
         newSocket.close();
       }
     };
-  }, [enabled, user?.id]);
+  }, [enabled, user?.id, signalingSocket]);
 
   // Initialize local media stream
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
@@ -219,7 +225,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
           from: user.id,
           to: targetUserId,
           conversationId,
-          callType
+          callType,
+          callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
         });
       }
 
