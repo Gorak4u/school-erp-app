@@ -346,13 +346,12 @@ export default function FeesPage() {
           </motion.div>
         )}
 
-        {/* Tab Content - Filters + Table */}
+        {/* Tab Content */}
         {activeTab !== 'overview' && (
           <>
-            {/* Filters bar (search + dropdowns + action buttons) */}
-            <FeeFilters ctx={ctx} />
+            {/* Filters bar (All Students only) */}
+            {activeTab === 'all-students' && <FeeFilters ctx={ctx} />}
 
-            {/* Tab Content */}
             {activeTab === 'invoices' ? (
               <FeeInvoiceManagerOptimized theme={theme} activeTab={activeTab} />
             ) : activeTab === 'notifications' ? (
