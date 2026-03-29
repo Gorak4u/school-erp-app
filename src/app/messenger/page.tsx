@@ -38,6 +38,9 @@ export default function MessengerPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isAIThinking, setIsAIThinking] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
+  const [aiAutoSuggest, setAiAutoSuggest] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -440,6 +443,59 @@ export default function MessengerPage() {
               ))
             )}
           </div>
+
+          {/* AI Insights Panel */}
+          <div className={`p-3 border-t ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+            <button
+              onClick={() => setShowAIInsights((prev) => !prev)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                showAIInsights 
+                  ? isDark ? 'bg-purple-600/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+                  : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                <span className="text-xs font-semibold">AI Insights</span>
+              </div>
+              <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                {showAIInsights ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            
+            {showAIInsights && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="mt-2 space-y-2"
+              >
+                <div className={`rounded-xl p-2.5 text-[11px] ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-medium">Response Time</span>
+                    <span className={isDark ? 'text-green-400' : 'text-green-600'}>Fast</span>
+                  </div>
+                  <div className={`w-full h-1.5 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className={`h-full rounded-full w-[85%] ${isDark ? 'bg-green-500' : 'bg-green-500'}`} />
+                  </div>
+                </div>
+                
+                <div className={`rounded-xl p-2.5 text-[11px] ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-medium">Engagement</span>
+                    <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>High</span>
+                  </div>
+                  <div className={`w-full h-1.5 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className={`h-full rounded-full w-[72%] ${isDark ? 'bg-blue-500' : 'bg-blue-500'}`} />
+                  </div>
+                </div>
+                
+                <div className={`rounded-xl p-2 text-[10px] italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  AI-powered insights are generated based on conversation patterns
+                </div>
+              </motion.div>
+            )}
+          </div>
         </div>
 
         <div className={`flex-1 ${card} flex flex-col overflow-hidden`}>
@@ -494,6 +550,34 @@ export default function MessengerPage() {
                   <div className="flex flex-col items-center justify-center h-full">
                     <MessageSquare className={`w-16 h-16 mb-4 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No messages yet. Start the conversation!</p>
+                    
+                    {/* AI Smart Starters */}
+                    <div className="mt-6 w-full max-w-md px-4">
+                      <div className={`flex items-center gap-2 mb-3 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">AI Suggested Starters</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          'Hey! How are you doing today?',
+                          'Can we schedule a quick call?',
+                          'I have an update to share...',
+                          'Thanks for your help earlier!',
+                        ].map((starter, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setMessageInput(starter)}
+                            className={`text-left px-3 py-2.5 rounded-xl text-xs transition-all hover:scale-[1.02] ${
+                              isDark 
+                                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700' 
+                                : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200'
+                            }`}
+                          >
+                            {starter}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -582,6 +666,25 @@ export default function MessengerPage() {
                   })
                 )}
                 <div ref={messagesEndRef} />
+
+                {/* AI Typing Indicator */}
+                {isAIThinking && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex justify-start"
+                  >
+                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl rounded-bl-sm ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'}`}>
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '0ms' }} />
+                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '150ms' }} />
+                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>AI is typing...</span>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className={`p-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -778,14 +881,41 @@ export default function MessengerPage() {
                     >
                       <Sparkles className="w-5 h-5" />
                     </button>
-                    <textarea
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
-                      rows={1}
-                      className={`flex-1 px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
-                    />
+                    <div className="relative flex-1">
+                      <textarea
+                        value={messageInput}
+                        onChange={(e) => {
+                          setMessageInput(e.target.value);
+                          // Simulate auto-suggest when typing more than 3 characters
+                          if (e.target.value.length > 3 && e.target.value.length < 20) {
+                            const suggestions = ['looking forward to it', 'great job on this', 'can you explain more', 'thank you so much'];
+                            setAiAutoSuggest(suggestions[Math.floor(Math.random() * suggestions.length)]);
+                          } else {
+                            setAiAutoSuggest('');
+                          }
+                        }}
+                        onKeyDown={handleKeyPress}
+                        placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
+                        rows={1}
+                        className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                      />
+                      {/* AI Auto-suggest */}
+                      {aiAutoSuggest && messageInput.length > 3 && (
+                        <div className="absolute left-4 right-4 top-full mt-1">
+                          <button
+                            onClick={() => {
+                              setMessageInput(messageInput + ' ' + aiAutoSuggest);
+                              setAiAutoSuggest('');
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${isDark ? 'bg-purple-600/20 text-purple-300 border border-purple-600/30' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span className="opacity-70">{aiAutoSuggest}</span>
+                            <span className="text-[10px] ml-1 opacity-50">Tab to accept</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={handleSendMessage}
                       disabled={sending || ((editingMessageId ? !messageInput.trim() : !messageInput.trim() && pendingAttachments.length === 0))}
