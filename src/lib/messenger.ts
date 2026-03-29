@@ -24,11 +24,25 @@ export const CreateMessengerConversationSchema = z.object({
 });
 
 export const ListMessengerConversationsQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(MESSENGER_PAGE_SIZE),
-  search: z.string().trim().max(120).optional(),
-  conversationType: MessengerConversationTypeSchema.optional(),
-  status: z.enum(['active', 'archived']).optional(),
+  page: z.string().nullable().optional().transform(val => {
+    if (!val) return 1;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? 1 : Math.max(1, num);
+  }),
+  pageSize: z.string().nullable().optional().transform(val => {
+    if (!val) return MESSENGER_PAGE_SIZE;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? MESSENGER_PAGE_SIZE : Math.min(100, Math.max(1, num));
+  }),
+  search: z.string().trim().max(120).nullable().optional(),
+  conversationType: z.string().nullable().optional().refine(
+    (val) => !val || ['direct', 'group', 'broadcast'].includes(val),
+    { message: 'Invalid conversation type' }
+  ).transform(val => val as 'direct' | 'group' | 'broadcast' | null | undefined),
+  status: z.string().nullable().optional().refine(
+    (val) => !val || ['active', 'archived'].includes(val),
+    { message: 'Invalid status' }
+  ).transform(val => val as 'active' | 'archived' | null | undefined),
 });
 
 export const SendMessengerMessageSchema = z.object({

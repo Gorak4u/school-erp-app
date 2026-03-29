@@ -34,16 +34,27 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const queryResult = ListMessengerConversationsQuerySchema.safeParse({
+    const queryParams = {
       page: searchParams.get('page'),
       pageSize: searchParams.get('pageSize'),
       search: searchParams.get('search'),
       conversationType: searchParams.get('conversationType'),
       status: searchParams.get('status'),
-    });
+    };
+    
+    console.log('GET /api/messenger/conversations - Query params:', queryParams);
+    
+    const queryResult = ListMessengerConversationsQuerySchema.safeParse(queryParams);
 
     if (!queryResult.success) {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', details: queryResult.error.issues } }, { status: 400 });
+      console.log('GET /api/messenger/conversations - Validation failed:', queryResult.error.issues);
+      return NextResponse.json({ 
+        error: { 
+          code: 'VALIDATION_ERROR', 
+          message: 'Invalid query parameters',
+          details: queryResult.error.issues 
+        } 
+      }, { status: 400 });
     }
 
     const { page, pageSize, search, conversationType, status } = queryResult.data;

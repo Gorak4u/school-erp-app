@@ -247,7 +247,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     try {
       const io = getIO();
-      io.to(`conversation:${conversationId}`).emit('message:received', {
+      const messageData = {
         id: message.id,
         conversationId,
         sender: {
@@ -259,9 +259,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         messageType: message.messageType,
         attachments: message.attachments,
         createdAt: message.createdAt,
-      });
+      };
+      
+      // Emit to conversation room (for users actively viewing the conversation)
+      io.to(`conversation:${conversationId}`).emit('message:received', messageData);
+      
+      // Also emit to each participant's user room (for users not in conversation room)
+      for (const p of otherParticipants) {
+        io.to(`user:${p.userId}`).emit('message:received', messageData);
+      }
+      
+      console.log(`📨 Message broadcast to conversation:${conversationId} and ${otherParticipants.length} users`);
     } catch (socketError) {
-      console.warn('Socket.IO not available, skipping real-time broadcast');
+      console.warn('Socket.IO not available, skipping real-time broadcast:', socketError);
     }
 
     return NextResponse.json({ data: message }, { status: 201 });

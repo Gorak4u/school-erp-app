@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import io, { Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
 import { showToast } from '@/lib/toastUtils';
+
+type SocketType = ReturnType<typeof io>;
 
 interface MessengerConversation {
   id: string;
@@ -38,13 +40,13 @@ interface MessengerMessage {
 
 export function useMessenger(conversationId?: string) {
   const { user } = useAuth();
-  const [socket, setSocket] = useState<typeof Socket | null>(null);
+  const [socket, setSocket] = useState<SocketType | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [conversations, setConversations] = useState<MessengerConversation[]>([]);
   const [messages, setMessages] = useState<MessengerMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const socketRef = useRef<typeof Socket | null>(null);
+  const socketRef = useRef<SocketType | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -52,9 +54,30 @@ export function useMessenger(conversationId?: string) {
     const newSocket = io({
       path: '/api/socket',
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     newSocket.on('connect', () => {
+      console.log('✅ Socket connected');
+      setIsConnected(true);
+      newSocket.emit('join', user.id);
+      
+      // Join conversation room if viewing a conversation
+      if (conversationId) {
+        console.log('🔗 Joining conversation:', conversationId);
+        newSocket.emit('conversation:join', { conversationId });
+      }
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('❌ Socket disconnected');
+      setIsConnected(false);
+    });
+
+    newSocket.on('reconnect', (attemptNumber: number) => {
+      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
       setIsConnected(true);
       newSocket.emit('join', user.id);
       if (conversationId) {
@@ -62,16 +85,25 @@ export function useMessenger(conversationId?: string) {
       }
     });
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
+    newSocket.on('conversation:joined', (data: any) => {
+      console.log('✅ Joined conversation:', data.conversationId);
     });
 
     newSocket.on('message:received', (data: any) => {
+      console.log('📨 Message received:', data);
+      
+      // Add message to current conversation if viewing it
       if (conversationId && data.conversationId === conversationId) {
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => {
+          // Prevent duplicates
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
       }
-      setConversations((prev) =>
-        prev.map((c) =>
+      
+      // Update conversations list and sort by latest message
+      setConversations((prev) => {
+        const updated = prev.map((c) =>
           c.id === data.conversationId
             ? {
                 ...c,
@@ -80,8 +112,26 @@ export function useMessenger(conversationId?: string) {
                 unreadCount: data.sender.id !== user.id ? c.unreadCount + 1 : c.unreadCount,
               }
             : c
-        )
-      );
+        );
+        
+        // Sort by most recent message
+        return updated.sort((a, b) => 
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+        );
+      });
+    });
+
+    // Handle new conversations
+    newSocket.on('conversation:created', (data: any) => {
+      console.log('💬 New conversation created:', data);
+      setConversations((prev) => [data, ...prev]);
+    });
+
+    // Handle typing indicators
+    newSocket.on('user:typing', (data: any) => {
+      if (conversationId && data.conversationId === conversationId) {
+        console.log('⌨️ User typing:', data.userId);
+      }
     });
 
     newSocket.on('message:readReceipt', (data: any) => {

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx scripts/startup-init.ts && next dev",
+    "dev": "tsx scripts/startup-init.ts && tsx server.js",
     "build": "prisma generate && next build",
-    "start": "tsx scripts/startup-init.ts && next start",
+    "start": "tsx scripts/startup-init.ts && NODE_ENV=production tsx server.js",
     "lint": "eslint",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",

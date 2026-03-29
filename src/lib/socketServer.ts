@@ -20,6 +20,10 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };
       console.log(`User ${userId} joined their room`);
+      
+      // Register messenger handlers immediately after user joins
+      const { registerMessengerHandlers } = require('./socket/messengerHandlers');
+      registerMessengerHandlers(io, socket);
     });
 
     // Join school-specific room
@@ -28,12 +32,6 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       socket.data = { ...socket.data, schoolId };
       console.log(`School ${schoolId} joined`);
     });
-
-    // Register messenger handlers
-    if (socket.data?.userId && socket.data?.schoolId) {
-      const { registerMessengerHandlers } = require('./socket/messengerHandlers');
-      registerMessengerHandlers(io, socket);
-    }
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
@@ -44,6 +42,11 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
 }
 
 export function getIO(): SocketIOServer {
+  // Try to get io from global (custom server) or local instance
+  const globalIo = (global as any).io;
+  if (globalIo) {
+    return globalIo;
+  }
   if (!io) {
     throw new Error('Socket.IO not initialized');
   }
@@ -51,13 +54,19 @@ export function getIO(): SocketIOServer {
 }
 
 export function emitToUser(userId: string, event: string, data: any) {
-  if (io) {
-    io.to(`user:${userId}`).emit(event, data);
+  try {
+    const ioInstance = getIO();
+    ioInstance.to(`user:${userId}`).emit(event, data);
+  } catch (error) {
+    console.warn('Socket.IO not available for emitToUser:', error);
   }
 }
 
 export function emitToSchool(schoolId: string, event: string, data: any) {
-  if (io) {
-    io.to(`school:${schoolId}`).emit(event, data);
+  try {
+    const ioInstance = getIO();
+    ioInstance.to(`school:${schoolId}`).emit(event, data);
+  } catch (error) {
+    console.warn('Socket.IO not available for emitToSchool:', error);
   }
 }

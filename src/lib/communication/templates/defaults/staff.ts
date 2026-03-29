@@ -41,28 +41,6 @@ export const teacherAdminNotificationEmail: DefaultTemplate = {
   isDefault: true,
 };
 
-export const studentWelcomeEmail: DefaultTemplate = {
-  key: 'student_welcome_email',
-  category: 'email',
-  type: 'notification',
-  name: 'Student Welcome Email',
-  subject: 'Welcome to {{schoolName}} - {{studentName}}',
-  htmlBody: `<p>Dear <strong>{{studentName}}</strong>,</p><p>Welcome to {{schoolName}}!</p><p><strong>Student Details:</strong></p><ul><li>Admission No: {{admissionNo}}</li><li>Class: {{className}} {{section}}</li><li>Roll No: {{rollNo}}</li></ul>{{#if loginEmail}}<p><strong>Login Credentials:</strong></p><ul><li>Email: {{loginEmail}}</li><li>Password: {{tempPassword}}</li></ul>{{/if}}{{#if actionUrl}}<p><a href="{{actionUrl}}">Access Portal</a></p>{{/if}}`,
-  textBody: `Welcome to {{schoolName}}\n\nDear {{studentName}},\n\nAdmission No: {{admissionNo}}\nClass: {{className}} {{section}}\nRoll No: {{rollNo}}\n{{#if loginEmail}}\nLogin Email: {{loginEmail}}\nPassword: {{tempPassword}}\n{{/if}}{{#if actionUrl}}Portal: {{actionUrl}}{{/if}}`,
-  variablesSchema: JSON.stringify({ variables: [
-    { name: 'studentName', type: 'string', required: true },
-    { name: 'schoolName', type: 'string', required: true },
-    { name: 'admissionNo', type: 'string', required: true },
-    { name: 'className', type: 'string', required: true },
-    { name: 'section', type: 'string', required: false },
-    { name: 'rollNo', type: 'string', required: false },
-    { name: 'loginEmail', type: 'string', required: false },
-    { name: 'tempPassword', type: 'string', required: false },
-    { name: 'actionUrl', type: 'string', required: false }
-  ]}),
-  isDefault: true,
-};
-
 export const parentWelcomeEmail: DefaultTemplate = {
   key: 'parent_welcome_email',
   category: 'email',

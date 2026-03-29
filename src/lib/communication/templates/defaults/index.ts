@@ -73,13 +73,11 @@ export const defaultTemplates: Record<string, DefaultTemplate> = {
   // Staff/Teacher templates
   [staff.teacherWelcomeEmail.key]: staff.teacherWelcomeEmail,
   [staff.teacherAdminNotificationEmail.key]: staff.teacherAdminNotificationEmail,
-  [staff.studentWelcomeEmail.key]: staff.studentWelcomeEmail,
   [staff.parentWelcomeEmail.key]: staff.parentWelcomeEmail,
   [staff.userWelcomeEmail.key]: staff.userWelcomeEmail,
   
   // Payment templates
   [payments.paymentConfirmationEmail.key]: payments.paymentConfirmationEmail,
-  [payments.discountApprovedEmail.key]: payments.discountApprovedEmail,
 };
 
 export default defaultTemplates;

@@ -23,21 +23,3 @@ export const paymentConfirmationEmail: DefaultTemplate = {
   ]}),
   isDefault: true,
 };
-
-export const discountApprovedEmail: DefaultTemplate = {
-  key: 'discount_approved_email',
-  category: 'email',
-  type: 'notification',
-  name: 'Discount Approved',
-  subject: 'Discount Approved - {{studentName}}',
-  htmlBody: `<p>Your discount request for <strong>{{studentName}}</strong> has been approved.</p><p><strong>Discount Details:</strong></p><ul><li>Category: {{discountCategory}}</li><li>Type: {{discountType}}</li><li>Amount: {{discountAmount}}</li></ul>{{#if comments}}<p><strong>Comments:</strong> {{comments}}</p>{{/if}}`,
-  textBody: `Discount Approved\n\nStudent: {{studentName}}\nCategory: {{discountCategory}}\nType: {{discountType}}\nAmount: {{discountAmount}}\n{{#if comments}}Comments: {{comments}}{{/if}}`,
-  variablesSchema: JSON.stringify({ variables: [
-    { name: 'studentName', type: 'string', required: true },
-    { name: 'discountCategory', type: 'string', required: true },
-    { name: 'discountType', type: 'string', required: true },
-    { name: 'discountAmount', type: 'string', required: true },
-    { name: 'comments', type: 'string', required: false }
-  ]}),
-  isDefault: true,
-};
