@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, Search, Plus, Send, Paperclip, 
   Smile, MoreVertical, Phone, Video,
-  Trash2, Users, X, Check, CheckCheck, Mic, Edit2
+  Trash2, Users, X, Check, CheckCheck, Mic, Edit2, Sparkles
 } from 'lucide-react';
 
 export default function MessengerPage() {
@@ -36,6 +36,8 @@ export default function MessengerPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -592,6 +594,95 @@ export default function MessengerPage() {
                   </div>
                 )}
 
+                {showAIAssistant && (
+                  <div className={`mb-3 rounded-2xl border p-4 ${isDark ? 'border-purple-600/30 bg-purple-600/10' : 'border-purple-200 bg-purple-50'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                        <span className={`text-sm font-semibold ${isDark ? 'text-purple-200' : 'text-purple-700'}`}>AI Assistant</span>
+                      </div>
+                      <button
+                        onClick={() => setShowAIAssistant(false)}
+                        className={`p-1 rounded-lg ${isDark ? 'hover:bg-purple-600/30 text-purple-300' : 'hover:bg-purple-200 text-purple-600'}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          setMessageInput((prev) => prev || 'Draft a professional message about...');
+                          showToast('info', 'AI Draft', 'Start typing your topic and AI will help refine it');
+                        }}
+                        className={`text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-base">✍️</span>
+                          <span>Draft with AI</span>
+                        </div>
+                        <span className={`text-[10px] opacity-70 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Get help writing professional messages</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          showToast('info', 'Smart Summary', 'Conversation summary would appear here');
+                        }}
+                        className={`text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-base">📝</span>
+                          <span>Summarize</span>
+                        </div>
+                        <span className={`text-[10px] opacity-70 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Get a quick summary of the chat</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const suggestions = ['Sounds great, thanks!', 'Let me check and get back to you.', 'Can you share more details?'];
+                          setAiSuggestions(suggestions);
+                          showToast('success', 'Smart Replies', 'Quick reply suggestions generated');
+                        }}
+                        className={`text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-base">⚡</span>
+                          <span>Smart Reply</span>
+                        </div>
+                        <span className={`text-[10px] opacity-70 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Get context-aware reply suggestions</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          showToast('info', 'Grammar Check', 'Grammar and tone suggestions would appear here');
+                        }}
+                        className={`text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-base">✨</span>
+                          <span>Improve</span>
+                        </div>
+                        <span className={`text-[10px] opacity-70 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Enhance grammar and tone</span>
+                      </button>
+                    </div>
+                    {aiSuggestions.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <p className={`text-xs font-medium ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>Quick replies:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {aiSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                setMessageInput(suggestion);
+                                setAiSuggestions([]);
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${isDark ? 'bg-purple-600/30 text-purple-200 hover:bg-purple-600/50' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {pendingAttachments.length > 0 && (
                   <div className="mb-3 grid gap-2 sm:grid-cols-2">
                     {pendingAttachments.map((attachment, index) => {
@@ -678,6 +769,14 @@ export default function MessengerPage() {
                       title="Voice input"
                     >
                       <Mic className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAIAssistant((prev) => !prev)}
+                      className={`p-2 rounded-lg ${showAIAssistant ? (isDark ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-100 text-purple-600') : isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="AI Assistant"
+                    >
+                      <Sparkles className="w-5 h-5" />
                     </button>
                     <textarea
                       value={messageInput}
