@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
-import { sendNotification } from '@/lib/notificationService';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 // Helper function to generate receipt numbers
 function generateReceiptNumber(): string {
@@ -181,19 +181,21 @@ export async function POST(
       }
     });
 
-    // Send payment confirmation notification
-    await sendNotification({
-      userId: fine.studentId,
-      schoolId: ctx.schoolId!,
-      type: 'payment',
-      title: 'Fine Payment Received',
-      message: `Payment of ₹${amount} received for fine #${fine.fineNumber || id.slice(-6)}. Receipt: ${receiptNumber}.`,
-      priority: 'medium',
-      metadata: {
-        requestId: payment.id,
-        actionUrl: `/fines?id=${id}`,
-        entityType: 'fine_payment',
-        entityId: id,
+    // Queue payment confirmation notification (auto-processes in-app immediately)
+    await queueCommunicationOutbox({
+      notification: {
+        userId: fine.studentId,
+        schoolId: ctx.schoolId!,
+        type: 'payment',
+        title: 'Fine Payment Received',
+        message: `Payment of ₹${amount} received for fine #${fine.fineNumber || id.slice(-6)}. Receipt: ${receiptNumber}.`,
+        priority: 'medium',
+        metadata: {
+          requestId: payment.id,
+          actionUrl: `/fines?id=${id}`,
+          entityType: 'fine_payment',
+          entityId: id,
+        },
       },
     });
 

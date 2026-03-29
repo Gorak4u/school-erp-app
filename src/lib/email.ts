@@ -206,6 +206,12 @@ export async function wrapEmailWithBranding(html: string, schoolId?: string): Pr
       logger.debug('No schoolId provided for email branding');
     }
 
+    // If HTML is already a complete email document (contains doctype/html tags), don't wrap it again
+    if (html && (html.includes('<!DOCTYPE html') || html.includes('<!doctype html'))) {
+      logger.debug('HTML is already a complete email document, skipping branding wrapper');
+      return html;
+    }
+
     // Create branded email template
     const brandedHtml = `
       <!DOCTYPE html>

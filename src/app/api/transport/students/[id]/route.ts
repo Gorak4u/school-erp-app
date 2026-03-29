@@ -4,7 +4,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 import { analyzeTransportFees, calculateRefundEligibility, validateRefundAmount } from '@/lib/transportFeeAnalyzer';
 import { showToast } from '@/lib/toastUtils';
-import { sendNotification, sendNotificationToApprovers } from '@/lib/notificationService';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -451,20 +451,36 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       }
     });
 
-    // Send notification if waiver was created and requires approval
+    // Queue notification if waiver was created and requires approval (auto-processes in-app)
     if (waiverRequest && waiverRequest.status === 'pending') {
-      await sendNotificationToApprovers(ctx.schoolId, {
-        type: 'approval_request',
-        title: 'Transport Waiver Request',
-        message: `A transport fee waiver request of ₹${waiverRequest.amount} requires your approval.`,
-        priority: 'high',
-        metadata: {
-          requestId: waiverRequest.id,
-          actionUrl: '/transport/refunds',
-          entityType: 'transport_waiver',
-          entityId: waiverRequest.id,
+      const prisma = schoolPrisma as any;
+      const adminUsers = await prisma.school_User.findMany({
+        where: {
+          schoolId: ctx.schoolId,
+          role: { in: ['admin', 'super_admin'] },
+          isActive: true,
         },
+        select: { id: true },
       });
+
+      for (const admin of adminUsers) {
+        await queueCommunicationOutbox({
+          notification: {
+            userId: admin.id,
+            schoolId: ctx.schoolId!,
+            type: 'approval_request',
+            title: 'Transport Waiver Request',
+            message: `A transport fee waiver request of ₹${waiverRequest.amount} requires your approval.`,
+            priority: 'high',
+            metadata: {
+              requestId: waiverRequest.id,
+              actionUrl: '/transport/refunds',
+              entityType: 'transport_waiver',
+              entityId: waiverRequest.id,
+            },
+          },
+        });
+      }
     }
 
     // Return success response with refund details if created

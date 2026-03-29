@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
-import { sendNotification, sendNotificationToApprovers } from '@/lib/notificationService';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 // Simple in-memory cache for waiver requests pagination (5 minutes TTL)
 const waiverCache = new Map<string, { data: any; timestamp: number }>();
@@ -219,19 +219,54 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Send notification to approvers
-    await sendNotificationToApprovers(ctx.schoolId!, {
-      type: 'approval_request',
-      title: 'Fine Waiver Request',
-      message: `A waiver request of ₹${actualWaiveAmount} has been submitted for fine #${fine.fineNumber || fineId.slice(-6)}.`,
-      priority: 'medium',
-      metadata: {
-        requestId: waiverRequest.id,
-        actionUrl: `/fines/waiver-requests`,
-        entityType: 'fine_waiver',
-        entityId: waiverRequest.id,
+    // Queue notification to approvers (auto-processes in-app immediately)
+    const prisma = schoolPrisma as any;
+    const adminUsers = await prisma.school_User.findMany({
+      where: {
+        schoolId: ctx.schoolId,
+        role: { in: ['admin', 'super_admin'] },
+        isActive: true,
       },
+      select: { id: true, email: true },
     });
+
+    for (const admin of adminUsers) {
+      await queueCommunicationOutbox({
+        notification: {
+          userId: admin.id,
+          schoolId: ctx.schoolId!,
+          type: 'approval_request',
+          title: 'Fine Waiver Request',
+          message: `A waiver request of ₹${actualWaiveAmount} has been submitted for fine #${fine.fineNumber || fineId.slice(-6)}.`,
+          priority: 'medium',
+          metadata: {
+            requestId: waiverRequest.id,
+            actionUrl: `/fines/waiver-requests`,
+            entityType: 'fine_waiver',
+            entityId: waiverRequest.id,
+          },
+        },
+        templateEmail: admin.email ? {
+          templateKey: 'fine_waiver_request_email',
+          schoolId: ctx.schoolId || undefined,
+          to: admin.email,
+          recipientUserId: admin.id,
+          variables: {
+            studentName: fine.student.name,
+            admissionNo: fine.student.admissionNo,
+            className: fine.student.class,
+            section: fine.student.section,
+            fineNumber: fine.fineNumber || fineId.slice(-6),
+            fineType: fine.type,
+            fineAmount: fine.amount,
+            requesterName: fine.student.name,
+            reason: reason || 'Not provided',
+            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/fines/waiver-requests`,
+          },
+          dedupeKey: `fine_waiver_request:${waiverRequest.id}:${admin.id}`,
+        } : undefined,
+      });
+    }
 
     // Clear cache for this school after creating a waiver request
     clearWaiverCache(ctx.schoolId!);

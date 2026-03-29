@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionContext } from '@/lib/apiAuth';
 import { schoolPrisma } from '@/lib/prisma';
-import { sendNotification } from '@/lib/notificationService';
 
 export async function POST(
   request: NextRequest,

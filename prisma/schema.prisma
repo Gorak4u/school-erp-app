@@ -2270,3 +2270,39 @@ model RefundTransaction {
   @@index([status])
   @@schema("school")
 }
+
+model CommunicationTemplate {
+  id          String   @id @default(cuid())
+  schoolId    String?  // null = global template, else school-specific override
+  category    String   // 'email', 'sms', 'push'
+  type        String   // 'welcome', 'fee_reminder', 'leave_approved', etc.
+  key         String   // unique identifier like 'student_welcome_email'
+  name        String   // human-readable name
+  description String?
+  
+  // Template content
+  subject     String?  // for emails
+  htmlBody    String?  // email HTML template
+  textBody    String?  // fallback plain text
+  smsBody     String?  // for SMS (160 char optimized)
+  
+  // Styling
+  designSystem String?  // 'modern', 'classic', 'minimal' - references design tokens
+  primaryColor String?  // hex or variable name
+  accentColor  String?
+  
+  // Variables schema (JSON) - for validation & UI
+  variablesSchema String? // [{"name": "studentName", "type": "string", "required": true}]
+  
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false) // fallback if school has no custom
+  version     Int      @default(1)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([schoolId, key])
+  @@index([schoolId, category, type])
+  @@index([isDefault, isActive])
+  @@schema("school")
+}

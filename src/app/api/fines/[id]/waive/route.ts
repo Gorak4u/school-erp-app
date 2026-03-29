@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
-import { sendNotification } from '@/lib/notificationService';
+import { queueCommunicationOutbox } from '@/lib/communicationOutbox';
 
 // POST /api/fines/[id]/waive - Request or process fine waiver
 export async function POST(
@@ -116,21 +116,55 @@ export async function POST(
         }
       });
 
-      // Send notification to approvers
-      await sendNotification({
-        userId: fine.studentId,
-        schoolId: ctx.schoolId!,
-        type: 'approval_request',
-        title: 'Fine Waiver Request',
-        message: `A waiver request has been submitted for fine #${fine.fineNumber || id.slice(-6)}. Amount: ₹${fine.amount}. Reason: ${reason || 'Not provided'}.`,
-        priority: 'medium',
-        metadata: {
-          requestId: waiverRequest.id,
-          actionUrl: `/fines?id=${id}&tab=waivers`,
-          entityType: 'fine_waiver',
-          entityId: id,
+      // Queue notification to approvers using new template system
+      const prisma = schoolPrisma as any;
+      const adminUsers = await prisma.school_User.findMany({
+        where: {
+          schoolId: ctx.schoolId,
+          role: { in: ['admin', 'super_admin'] },
+          isActive: true,
         },
+        select: { id: true, email: true },
       });
+
+      // Send templated email to admins + in-app notification (unified)
+      for (const admin of adminUsers) {
+        await queueCommunicationOutbox({
+          notification: {
+            userId: admin.id,
+            schoolId: ctx.schoolId!,
+            type: 'approval_request',
+            title: 'Fine Waiver Request',
+            message: `A waiver request has been submitted for fine #${fine.fineNumber || id.slice(-6)}. Amount: ₹${fine.amount}. Reason: ${reason || 'Not provided'}.`,
+            priority: 'medium',
+            metadata: {
+              requestId: waiverRequest.id,
+              actionUrl: `/fines?id=${id}&tab=waivers`,
+              entityType: 'fine_waiver',
+              entityId: id,
+            },
+          },
+          templateEmail: admin.email ? {
+            templateKey: 'fine_waiver_request_email',
+            schoolId: ctx.schoolId || undefined,
+            to: admin.email,
+            recipientUserId: admin.id,
+            variables: {
+              studentName: fine.student.name,
+              admissionNo: fine.student.admissionNo,
+              className: fine.student.class,
+              section: fine.student.section,
+              fineNumber: fine.fineNumber || id.slice(-6),
+              fineType: fine.type,
+              fineAmount: fine.amount,
+              requesterName: fine.student.name,
+              reason: reason || 'Not provided',
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/fines?id=${id}&tab=waivers`,
+            },
+            dedupeKey: `fine_waiver_request:${waiverRequest.id}:${admin.id}`,
+          } : undefined,
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -217,21 +251,40 @@ export async function POST(
         }
       });
 
-      // Send waiver approval notification
-      await sendNotification({
-        userId: fine.studentId,
-        schoolId: ctx.schoolId!,
-        type: 'approval_status',
-        title: 'Fine Waiver Approved',
-        message: `Your waiver request for fine #${fine.fineNumber || id.slice(-6)} has been approved. Amount waived: ₹${actualWaiveAmount}.`,
-        priority: 'medium',
-        metadata: {
-          requestId: pendingRequest.id,
-          actionUrl: `/fines?id=${id}`,
-          entityType: 'fine_waiver',
-          entityId: id,
-        },
-      });
+        // Send templated email notification for waiver approval
+        await queueCommunicationOutbox({
+          notification: {
+            userId: fine.studentId,
+            schoolId: ctx.schoolId!,
+            type: 'approval_status',
+            title: 'Fine Waiver Approved',
+            message: `Your waiver request for fine #${fine.fineNumber || id.slice(-6)} has been approved. Amount waived: ₹${actualWaiveAmount}.`,
+            priority: 'medium',
+            metadata: {
+              requestId: pendingRequest.id,
+              actionUrl: `/fines?id=${id}`,
+              entityType: 'fine_waiver',
+              entityId: id,
+            },
+          },
+          templateEmail: fine.student.email ? {
+            templateKey: 'fine_waiver_approved_email',
+            schoolId: ctx.schoolId || undefined,
+            to: fine.student.email,
+            recipientUserId: fine.studentId,
+            variables: {
+              studentName: fine.student.name,
+              fineNumber: fine.fineNumber || id.slice(-6),
+              fineType: fine.type,
+              originalAmount: fine.amount,
+              waivedAmount: actualWaiveAmount,
+              pendingAmount: Math.max(0, newPendingAmount),
+              remarks: remarks || '',
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/fines?id=${id}`,
+            },
+            dedupeKey: `fine_waiver_approved:${id}:${fine.studentId}`,
+          } : undefined,
+        });
 
       return NextResponse.json({
         success: true,

@@ -7,6 +7,7 @@ import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
+import { TemplateInitializer } from "@/components/TemplateInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning={true}
       >
+        <TemplateInitializer />
         <SessionProviderWrapper>
           <SessionVerifier />
           <ThemeProvider>

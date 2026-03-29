@@ -22,6 +22,10 @@ interface AppConfig {
   // Notification Settings
   attendance_auto_absent: string;
   sms_notifications: string;
+  sms_provider: string;
+  sms_api_key: string;
+  sms_api_secret: string;
+  sms_from_number: string;
   email_notifications: string;
   push_notifications: string;
   
@@ -74,6 +78,10 @@ export const AppSettingsTab: React.FC<AppSettingsTabProps> = ({
     // Notification Settings
     attendance_auto_absent: getSetting('app_config', 'attendance_auto_absent', 'true'),
     sms_notifications: getSetting('app_config', 'sms_notifications', 'false'),
+    sms_provider: getSetting('app_config', 'sms_provider', 'twilio'),
+    sms_api_key: getSetting('app_config', 'sms_api_key', ''),
+    sms_api_secret: getSetting('app_config', 'sms_api_secret', ''),
+    sms_from_number: getSetting('app_config', 'sms_from_number', ''),
     email_notifications: getSetting('app_config', 'email_notifications', 'true'),
     push_notifications: getSetting('app_config', 'push_notifications', 'false'),
     
@@ -393,6 +401,60 @@ export const AppSettingsTab: React.FC<AppSettingsTabProps> = ({
                 ))}
               </motion.select>
             </div>
+
+            {appConfig.sms_notifications === 'true' && (
+              <>
+                <div>
+                  <label className={enhancedLabel}>SMS Provider</label>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className={enhancedInput}
+                    value={appConfig.sms_provider}
+                    onChange={e => handleConfigChange('sms_provider', e.target.value)}
+                  >
+                    <option value="twilio">Twilio</option>
+                    <option value="msg91">MSG91</option>
+                    <option value="textlocal">TextLocal</option>
+                  </motion.select>
+                </div>
+
+                <div>
+                  <label className={enhancedLabel}>SMS API Key / Account SID</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="text"
+                    className={enhancedInput}
+                    value={appConfig.sms_api_key}
+                    onChange={e => handleConfigChange('sms_api_key', e.target.value)}
+                    placeholder="Enter API Key or Account SID"
+                  />
+                </div>
+
+                <div>
+                  <label className={enhancedLabel}>SMS API Secret / Auth Token</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="password"
+                    className={enhancedInput}
+                    value={appConfig.sms_api_secret}
+                    onChange={e => handleConfigChange('sms_api_secret', e.target.value)}
+                    placeholder="Enter API Secret or Auth Token"
+                  />
+                </div>
+
+                <div>
+                  <label className={enhancedLabel}>SMS From Number / Sender ID</label>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    type="text"
+                    className={enhancedInput}
+                    value={appConfig.sms_from_number}
+                    onChange={e => handleConfigChange('sms_from_number', e.target.value)}
+                    placeholder="+1234567890 or SENDERID"
+                  />
+                </div>
+              </>
+            )}
 
             <div>
               <label className={enhancedLabel}>Email Notifications</label>
