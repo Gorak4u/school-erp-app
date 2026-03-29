@@ -4,6 +4,7 @@ import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
 import { analyzeTransportFees, calculateRefundEligibility, validateRefundAmount } from '@/lib/transportFeeAnalyzer';
 import { showToast } from '@/lib/toastUtils';
+import { sendNotification, sendNotificationToApprovers } from '@/lib/notificationService';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -449,6 +450,22 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         }
       }
     });
+
+    // Send notification if waiver was created and requires approval
+    if (waiverRequest && waiverRequest.status === 'pending') {
+      await sendNotificationToApprovers(ctx.schoolId, {
+        type: 'approval_request',
+        title: 'Transport Waiver Request',
+        message: `A transport fee waiver request of ₹${waiverRequest.amount} requires your approval.`,
+        priority: 'high',
+        metadata: {
+          requestId: waiverRequest.id,
+          actionUrl: '/transport/refunds',
+          entityType: 'transport_waiver',
+          entityId: waiverRequest.id,
+        },
+      });
+    }
 
     // Return success response with refund details if created
     const response: any = { 

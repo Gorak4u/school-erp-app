@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionContext } from '@/lib/apiAuth';
 import { schoolPrisma } from '@/lib/prisma';
+import { sendNotification } from '@/lib/notificationService';
 
 export async function POST(
   request: NextRequest,
@@ -168,6 +169,25 @@ export async function POST(
           console.log(`Transport refund rejected for student ${refundRequest.student.name}`);
         }
       }
+    });
+
+    // Auto-mark related notifications as read
+    const prisma = schoolPrisma as any;
+    await prisma.Notification.updateMany({
+      where: {
+        schoolId: ctx.schoolId,
+        userId: ctx.userId,
+        type: 'approval_request',
+        metadata: {
+          path: ['requestId'],
+          equals: id,
+        },
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
     });
 
     return NextResponse.json({

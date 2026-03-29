@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendNotification } from '@/lib/notificationService';
 
 // Helper function to generate receipt numbers
 function generateReceiptNumber(): string {
@@ -180,8 +181,21 @@ export async function POST(
       }
     });
 
-    // TODO: Send payment confirmation notification
-    // await sendPaymentConfirmation(updatedFine, payment);
+    // Send payment confirmation notification
+    await sendNotification({
+      userId: fine.studentId,
+      schoolId: ctx.schoolId!,
+      type: 'payment',
+      title: 'Fine Payment Received',
+      message: `Payment of ₹${amount} received for fine #${fine.fineNumber || id.slice(-6)}. Receipt: ${receiptNumber}.`,
+      priority: 'medium',
+      metadata: {
+        requestId: payment.id,
+        actionUrl: `/fines?id=${id}`,
+        entityType: 'fine_payment',
+        entityId: id,
+      },
+    });
 
     return NextResponse.json({
       success: true,

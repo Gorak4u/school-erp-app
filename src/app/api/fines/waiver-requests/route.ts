@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendNotification, sendNotificationToApprovers } from '@/lib/notificationService';
 
 // Simple in-memory cache for waiver requests pagination (5 minutes TTL)
 const waiverCache = new Map<string, { data: any; timestamp: number }>();
@@ -218,6 +219,20 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Send notification to approvers
+    await sendNotificationToApprovers(ctx.schoolId!, {
+      type: 'approval_request',
+      title: 'Fine Waiver Request',
+      message: `A waiver request of ₹${actualWaiveAmount} has been submitted for fine #${fine.fineNumber || fineId.slice(-6)}.`,
+      priority: 'medium',
+      metadata: {
+        requestId: waiverRequest.id,
+        actionUrl: `/fines/waiver-requests`,
+        entityType: 'fine_waiver',
+        entityId: waiverRequest.id,
+      },
+    });
+
     // Clear cache for this school after creating a waiver request
     clearWaiverCache(ctx.schoolId!);
 
@@ -324,6 +339,36 @@ export async function PATCH(request: NextRequest) {
 
     // Clear cache for this school
     clearWaiverCache(ctx.schoolId!);
+
+    // Auto-mark related notifications as read
+    // First, fetch unread approval notifications for this user
+    const unreadNotifications = await (schoolPrisma as any).Notification.findMany({
+      where: {
+        schoolId: ctx.schoolId,
+        userId: ctx.userId,
+        type: 'approval_request',
+        isRead: false,
+      },
+      select: { id: true, metadata: true },
+    });
+
+    // Filter notifications that have metadata.requestId matching our requestId
+    const notificationIdsToUpdate = unreadNotifications
+      .filter((n: any) => n.metadata?.requestId === requestId)
+      .map((n: any) => n.id);
+
+    // Update only matching notifications
+    if (notificationIdsToUpdate.length > 0) {
+      await (schoolPrisma as any).Notification.updateMany({
+        where: {
+          id: { in: notificationIdsToUpdate },
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { getSessionContext } from '@/lib/apiAuth';
+import { sendNotification } from '@/lib/notificationService';
 
 // POST /api/fines/[id]/waive - Request or process fine waiver
 export async function POST(
@@ -115,8 +116,21 @@ export async function POST(
         }
       });
 
-      // TODO: Send notification to approvers
-      // await sendWaiverRequestNotification(waiverRequest);
+      // Send notification to approvers
+      await sendNotification({
+        userId: fine.studentId,
+        schoolId: ctx.schoolId!,
+        type: 'approval_request',
+        title: 'Fine Waiver Request',
+        message: `A waiver request has been submitted for fine #${fine.fineNumber || id.slice(-6)}. Amount: ₹${fine.amount}. Reason: ${reason || 'Not provided'}.`,
+        priority: 'medium',
+        metadata: {
+          requestId: waiverRequest.id,
+          actionUrl: `/fines?id=${id}&tab=waivers`,
+          entityType: 'fine_waiver',
+          entityId: id,
+        },
+      });
 
       return NextResponse.json({
         success: true,
@@ -203,8 +217,21 @@ export async function POST(
         }
       });
 
-      // TODO: Send waiver approval notification
-      // await sendWaiverApprovalNotification(updatedFine, actualWaiveAmount);
+      // Send waiver approval notification
+      await sendNotification({
+        userId: fine.studentId,
+        schoolId: ctx.schoolId!,
+        type: 'approval_status',
+        title: 'Fine Waiver Approved',
+        message: `Your waiver request for fine #${fine.fineNumber || id.slice(-6)} has been approved. Amount waived: ₹${actualWaiveAmount}.`,
+        priority: 'medium',
+        metadata: {
+          requestId: pendingRequest.id,
+          actionUrl: `/fines?id=${id}`,
+          entityType: 'fine_waiver',
+          entityId: id,
+        },
+      });
 
       return NextResponse.json({
         success: true,

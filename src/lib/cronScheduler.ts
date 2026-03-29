@@ -67,6 +67,14 @@ const DEFAULT_JOBS = [
     schedule: '0 2 * * 0',
     enabled: true,
   },
+  {
+    jobName: 'cleanup-notifications',
+    scope: 'school',
+    category: 'maintenance',
+    description: 'Delete notifications older than 90 days',
+    schedule: '0 3 * * 0',
+    enabled: true,
+  },
   // ── SaaS jobs ──
   {
     jobName: 'process-renewals',
