@@ -71,7 +71,6 @@ function playIncomingMessageTone() {
       audioContext.close().catch(() => {});
     };
   } catch (error) {
-    console.warn('Failed to play messenger tone:', error);
   }
 }
 
@@ -97,24 +96,20 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ Socket connected');
       setIsConnected(true);
       newSocket.emit('join', user.id);
       
       // Join conversation room if viewing a conversation
       if (conversationId) {
-        console.log('🔗 Joining conversation:', conversationId);
         newSocket.emit('conversation:join', { conversationId });
       }
     });
 
     newSocket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
       setIsConnected(false);
     });
 
-    newSocket.on('reconnect', (attemptNumber: number) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+    newSocket.on('reconnect', (_attemptNumber: number) => {
       setIsConnected(true);
       newSocket.emit('join', user.id);
       if (conversationId) {
@@ -122,13 +117,7 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
       }
     });
 
-    newSocket.on('conversation:joined', (data: any) => {
-      console.log('✅ Joined conversation:', data.conversationId);
-    });
-
     newSocket.on('message:received', (data: any) => {
-      console.log('📨 Message received:', data);
-
       if (user?.id && data.sender?.id !== user.id) {
         playIncomingMessageTone();
       }
@@ -174,15 +163,7 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
 
     // Handle new conversations
     newSocket.on('conversation:created', (data: any) => {
-      console.log('💬 New conversation created:', data);
       setConversations((prev) => [data, ...prev]);
-    });
-
-    // Handle typing indicators
-    newSocket.on('user:typing', (data: any) => {
-      if (conversationId && data.conversationId === conversationId) {
-        console.log('⌨️ User typing:', data.userId);
-      }
     });
 
     newSocket.on('message:readReceipt', (data: any) => {

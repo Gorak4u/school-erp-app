@@ -85,7 +85,6 @@ export function MessengerMembersModal({ isOpen, conversation, isDark, onClose }:
       const existingIds = new Set(members.map((member) => member.userId));
       setSearchResults((data.users || []).filter((candidate: MessengerUser) => !existingIds.has(candidate.id)));
     } catch (error) {
-      console.error('Failed to search messenger users:', error);
       setSearchResults([]);
     } finally {
       setSearching(false);
