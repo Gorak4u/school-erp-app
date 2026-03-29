@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { MessengerMembersModal } from '@/components/MessengerMembersModal';
+import { CallModal } from '@/components/CallModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessenger } from '@/hooks/useMessenger';
+import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { showToast } from '@/lib/toastUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -41,6 +43,10 @@ export default function MessengerPage() {
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [aiAutoSuggest, setAiAutoSuggest] = useState<string>('');
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callType, setCallType] = useState<'voice' | 'video'>('voice');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -79,6 +85,32 @@ export default function MessengerPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Simulate online presence - mark conversation participants as online
+  useEffect(() => {
+    if (!conversations.length) return;
+    const allParticipantIds = conversations.flatMap((c) => c.participants?.map((p: any) => p.userId) || []);
+    const uniqueIds = [...new Set(allParticipantIds)].slice(0, 5); // Simulate first 5 users online
+    setOnlineUsers(new Set(uniqueIds));
+  }, [conversations]);
+
+  // Simulate typing indicators for demo
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    const interval = setInterval(() => {
+      const conv = conversations.find((c) => c.id === selectedConversationId);
+      if (conv && conv.participants && conv.participants.length > 1) {
+        const otherParticipant = conv.participants.find((p: any) => p.userId !== user?.id);
+        if (otherParticipant && Math.random() > 0.7) {
+          setTypingUsers({ [selectedConversationId]: otherParticipant.user?.name || 'Someone' });
+          setTimeout(() => setTypingUsers({}), 3000);
+        }
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [selectedConversationId, conversations, user?.id]);
+
+  const isUserOnline = (userId: string) => onlineUsers.has(userId);
 
   const handleSendMessage = async () => {
     if (!selectedConversationId) return;
@@ -168,6 +200,7 @@ export default function MessengerPage() {
   };
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+  const callParticipant = selectedConversation?.participants?.find((p: any) => p.id !== user?.id);
   const filteredConversations = conversations.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = conversationFilter === 'all' || c.conversationType === conversationFilter;
@@ -315,6 +348,32 @@ export default function MessengerPage() {
     setShowMembersModal(true);
   };
 
+  const handleVoiceCall = () => {
+    if (!selectedConversation) return;
+    
+    // Find the other participant for direct calls
+    const otherParticipant = callParticipant;
+    if (otherParticipant) {
+      setCallType('voice');
+      setShowCallModal(true);
+    } else {
+      showToast('error', 'Cannot initiate call', 'No other participants found');
+    }
+  };
+
+  const handleVideoCall = () => {
+    if (!selectedConversation) return;
+    
+    // Find the other participant for direct calls
+    const otherParticipant = callParticipant;
+    if (otherParticipant) {
+      setCallType('video');
+      setShowCallModal(true);
+    } else {
+      showToast('error', 'Cannot initiate call', 'No other participants found');
+    }
+  };
+
   if (!messengerEnabled) {
     return (
       <AppLayout currentPage="messenger" title="Messenger">
@@ -404,11 +463,23 @@ export default function MessengerPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                      {conv.avatar ? (
-                        <img src={conv.avatar} alt={conv.title} className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        <MessageSquare className="w-6 h-6" />
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                        {conv.avatar ? (
+                          <img src={conv.avatar} alt={conv.title} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <MessageSquare className="w-6 h-6" />
+                        )}
+                      </div>
+                      {/* Online status indicator for direct messages */}
+                      {conv.conversationType === 'direct' && conv.participants?.[0]?.userId && isUserOnline(conv.participants[0].userId) && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full" />
+                      )}
+                      {/* Online count for groups */}
+                      {conv.conversationType !== 'direct' && (
+                        <span className="absolute -bottom-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-green-500 text-white text-[10px] font-bold border-2 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
+                          {conv.participants?.filter((p: any) => isUserOnline(p.userId)).length || 0}
+                        </span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -503,11 +574,16 @@ export default function MessengerPage() {
             <>
               <div className={`p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                    {selectedConversation.avatar ? (
-                      <img src={selectedConversation.avatar} alt={selectedConversation.title} className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                      <MessageSquare className="w-5 h-5" />
+                  <div className="relative">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-600/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                      {selectedConversation.avatar ? (
+                        <img src={selectedConversation.avatar} alt={selectedConversation.title} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <MessageSquare className="w-5 h-5" />
+                      )}
+                    </div>
+                    {selectedConversation.conversationType === 'direct' && selectedConversation.participants?.[0]?.userId && isUserOnline(selectedConversation.participants[0].userId) && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full" />
                     )}
                   </div>
                   <div>
@@ -515,7 +591,23 @@ export default function MessengerPage() {
                       {selectedConversation.title}
                     </h2>
                     <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {selectedConversation.participants.length} participants
+                      {selectedConversationId && typingUsers[selectedConversationId] ? (
+                        <span className="flex items-center gap-1.5 text-green-500">
+                          <span className="flex gap-0.5">
+                            <span className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </span>
+                          {selectedConversationId && typingUsers[selectedConversationId]} is typing...
+                        </span>
+                      ) : (
+                        <>
+                          {selectedConversation.participants.length} participants
+                          {selectedConversation.conversationType === 'direct' && selectedConversation.participants?.[0]?.userId && isUserOnline(selectedConversation.participants[0].userId) && (
+                            <span className="ml-2 text-green-500">● Online</span>
+                          )}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -529,10 +621,18 @@ export default function MessengerPage() {
                       <Users className="w-5 h-5" />
                     </button>
                   )}
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
+                  <button 
+                    onClick={handleVoiceCall}
+                    className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                    title="Voice call"
+                  >
                     <Phone className="w-5 h-5" />
                   </button>
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
+                  <button 
+                    onClick={handleVideoCall}
+                    className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                    title="Video call"
+                  >
                     <Video className="w-5 h-5" />
                   </button>
                   <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
@@ -630,6 +730,7 @@ export default function MessengerPage() {
                             )}
                             {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
                           </div>
+                          
                           <div className="flex items-center gap-2">
                             <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -642,24 +743,26 @@ export default function MessengerPage() {
                               )
                             )}
                           </div>
-                          {isOwnMessage && (
-                            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                              <button
-                                onClick={() => handleStartEditMessage(msg)}
-                                className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-                                title="Edit message"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteMessage(msg.id)}
-                                className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-red-50 text-red-600'}`}
-                                title="Delete message"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            {isOwnMessage && (
+                              <>
+                                <button
+                                  onClick={() => handleStartEditMessage(msg)}
+                                  className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                                  title="Edit message"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-red-50 text-red-600'}`}
+                                  title="Delete message"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     );
@@ -697,7 +800,7 @@ export default function MessengerPage() {
                   </div>
                 )}
 
-                {showAIAssistant && (
+                {pendingAttachments.length > 0 && (
                   <div className={`mb-3 rounded-2xl border p-4 ${isDark ? 'border-purple-600/30 bg-purple-600/10' : 'border-purple-200 bg-purple-50'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -1083,6 +1186,16 @@ export default function MessengerPage() {
             } : null}
             isDark={isDark}
             onClose={() => setShowMembersModal(false)}
+          />
+
+          <CallModal
+            isOpen={showCallModal}
+            onClose={() => setShowCallModal(false)}
+            conversationId={selectedConversationId || undefined}
+            targetUserId={callParticipant?.id}
+            targetUserName={callParticipant?.name || selectedConversation?.title || 'Unknown'}
+            initialCallType={callType}
+            enabled={showCallModal} // Only enable WebRTC when call modal is open
           />
         </>
       )}

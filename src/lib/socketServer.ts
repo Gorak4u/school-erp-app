@@ -24,6 +24,10 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       // Register messenger handlers immediately after user joins
       const { registerMessengerHandlers } = require('./socket/messengerHandlers');
       registerMessengerHandlers(io, socket);
+      
+      // Register call handlers for voice/video calling
+      const { registerCallHandlers } = require('./socket/callHandlers');
+      registerCallHandlers(io, socket);
     });
 
     // Join school-specific room
