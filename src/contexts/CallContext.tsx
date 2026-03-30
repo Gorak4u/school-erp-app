@@ -100,7 +100,22 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
 
 export function useCallContext() {
   const context = useContext(CallContext);
+  
+  // During SSR/build, provide safe defaults instead of throwing
   if (!context) {
+    if (typeof window === 'undefined') {
+      // Server-side: return safe defaults
+      return {
+        incomingCallData: null,
+        showCallModal: false,
+        isOnMessengerPage: false,
+        setShowCallModal: () => {},
+        setIsOnMessengerPage: () => {},
+        acceptCall: async () => {},
+        rejectCall: () => {},
+        dismissCall: () => {},
+      };
+    }
     throw new Error('useCallContext must be used within CallProvider');
   }
   return context;
