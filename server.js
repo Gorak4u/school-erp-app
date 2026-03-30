@@ -37,10 +37,23 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('✅ Client connected:', socket.id);
 
-    socket.on('join', (userId) => {
+    // Simple ping/pong for connection testing
+    socket.on('ping', (data, callback) => {
+      console.log('🏓 Ping received from:', socket.id, 'data:', data);
+      if (callback && typeof callback === 'function') {
+        callback({ pong: true, timestamp: Date.now(), socketId: socket.id, received: data });
+      }
+    });
+
+    socket.on('join', (userId, callback) => {
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };
       console.log(`👤 User ${userId} joined their room`);
+      
+      // Send acknowledgment if callback provided
+      if (callback && typeof callback === 'function') {
+        callback({ joined: true, room: `user:${userId}`, socketId: socket.id });
+      }
       
       // Register messenger handlers
       try {
@@ -49,6 +62,15 @@ app.prepare().then(() => {
         console.log('✅ Messenger handlers registered for user:', userId);
       } catch (error) {
         console.error('❌ Error registering messenger handlers:', error.message);
+      }
+      
+      // Register call handlers for voice/video
+      try {
+        const { registerCallHandlers } = require('./src/lib/socket/callHandlers.ts');
+        registerCallHandlers(io, socket);
+        console.log('✅ Call handlers registered for user:', userId);
+      } catch (error) {
+        console.error('❌ Error registering call handlers:', error.message);
       }
     });
 

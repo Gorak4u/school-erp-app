@@ -215,7 +215,17 @@ export async function middleware(request: NextRequest) {
   // ── Subdomain Detection ──────────────────────────────────────────────────
   const schoolSubdomain = extractSubdomain(hostname);
 
-  if (schoolSubdomain) {
+  // ── Non-subdomain deployment: Allow API routes to pass through ────────────
+  // This handles production deployments on Railway/Heroku/Vercel without subdomains
+  if (!schoolSubdomain && pathname.startsWith('/api/')) {
+    // Check auth but don't redirect - let API handle 401/403 responses
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token) {
+      // Return JSON 401 for API routes instead of redirect
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Continue with normal API handling (permission checks below)
+  } else if (schoolSubdomain) {
     // CRITICAL: Validate school exists in database before allowing access
     try {
       const school = await (saasPrisma as any).School.findUnique({
