@@ -47,7 +47,7 @@ function playMessageSound() {
 
     oscillator.type = 'sine';
     oscillator.frequency.value = 880;
-    gain.gain.value = 0.0001;
+    gain.gain.value = 0.3;
 
     oscillator.connect(gain);
     gain.connect(audioContext.destination);
@@ -75,6 +75,12 @@ export function FloatingMessengerBubble() {
   const [loading, setLoading] = useState(false);
   const [, setSocket] = useState<SocketType | null>(null);
   const [mounted, setMounted] = useState(false);
+  
+  console.log('🫧 [FloatingMessengerBubble] Component render:', { 
+    hasUser: !!user, 
+    messengerEnabled, 
+    mounted 
+  });
   
   // Default position - bottom right (24px from edges)
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -115,20 +121,33 @@ export function FloatingMessengerBubble() {
 
   // Socket connection
   useEffect(() => {
-    if (!messengerEnabled || !user?.id) return;
+    if (!messengerEnabled || !user?.id) {
+      console.log('🫧 [FloatingMessengerBubble] Socket not connecting:', { messengerEnabled, hasUser: !!user });
+      return;
+    }
 
-    const socketInstance = io({
+    console.log('🫧 [FloatingMessengerBubble] Creating socket connection for user:', user.id);
+    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001', {
       path: '/api/socket',
       transports: ['websocket', 'polling'],
       reconnection: true,
     });
 
     socketInstance.on('connect', () => {
+      console.log('🫧 [FloatingMessengerBubble] Socket connected, emitting join for user:', user.id);
       socketInstance.emit('join', user.id);
     });
 
+    socketInstance.on('disconnect', () => {
+      console.log('🫧 [FloatingMessengerBubble] Socket disconnected');
+    });
+
     socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
-      setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
+      console.log('📩 [FloatingMessengerBubble] Messenger notification received:', notification);
+      setNotifications((prev) => {
+        console.log('📬 [FloatingMessengerBubble] Updating notifications, current count:', prev.length);
+        return [notification, ...prev.filter((item) => item.id !== notification.id)];
+      });
     });
 
     // Add message:received event for sound notifications
