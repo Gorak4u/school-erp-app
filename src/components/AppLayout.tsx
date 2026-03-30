@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { smartLogoutRedirect } from '@/lib/subdomain-redirect';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { NotificationBell } from '@/components/NotificationBell';
-import { MessengerBubble } from '@/components/MessengerBubble';
+import { FloatingMessengerBubble } from '@/components/FloatingMessengerBubble';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import Link from 'next/link';
 import Toast from './Toast';
@@ -503,9 +503,6 @@ export default function AppLayout({
                 </div>
               </motion.button>
 
-              {/* Messenger Bubble - real-time messenger notifications */}
-              {messengerEnabled && <MessengerBubble />}
-
               {/* Notification Bell - Real-time notifications */}
               <NotificationBell isDark={globalTheme === 'dark'} userId={user?.id} />
 
@@ -919,6 +916,9 @@ export default function AppLayout({
           signalingSocket={socket}
         />
       )}
+
+      {/* Floating Messenger Bubble - draggable, stays on top of all pages */}
+      {isClient && <FloatingMessengerBubble />}
     </div>
   );
 }
