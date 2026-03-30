@@ -29,19 +29,28 @@ export interface CallSignal {
   conversationId: string;
   callType: 'voice' | 'video' | 'screen';
   payload?: any;
-  offer?: any; // SDP offer from caller
+  offer?: any;
+}
+
+export interface IncomingCallData {
+  from: string;
+  conversationId: string;
+  callType: 'voice' | 'video';
+  callerName?: string;
+  offer?: any;
 }
 
 export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  
-  // Use the existing socket from useMessenger instead of creating a new one
-  // We'll get the socket from the messenger hook or create a minimal one for signaling
-  const [socket, setSocket] = useState<any>(null);
   const socketRef = useRef<any>(null);
   const socketReadyRef = useRef<boolean>(false);
-  
+
+  // Use refs for values needed inside peer callbacks to avoid stale closures
+  const remoteUserIdRef = useRef<string>('');
+  const conversationIdRef = useRef<string>(conversationId || '');
+  const localStreamRef = useRef<MediaStream | null>(null);
+
   const [callState, setCallState] = useState<CallState>({
     isInCall: false,
     isIncomingCall: false,
@@ -56,72 +65,52 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  
+
   const peerRef = useRef<SimplePeer.Instance | null>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Helper to wait for socket to be ready (connected + joined to room)
-  const waitForSocketReady = useCallback(async (timeoutMs: number = 5000): Promise<boolean> => {
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < timeoutMs) {
-      // Check current socketRef value (live reference)
-      const currentSocket = socketRef.current;
-      
-      if (currentSocket && currentSocket.connected) {
-        console.log('✅ Socket is connected and ready:', currentSocket.id);
+  // Keep refs in sync
+  useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
+
+  // Wait for socket to be connected
+  const waitForSocketReady = useCallback(async (timeoutMs = 5000): Promise<boolean> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (socketRef.current?.connected) {
         socketReadyRef.current = true;
         return true;
       }
-      
-      // Wait 100ms before checking again
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(r => setTimeout(r, 100));
     }
-    
-    console.log('⏰ Socket readiness timeout');
     return false;
   }, []);
 
-  // Initialize socket for call signaling
+  // Initialize socket
   useEffect(() => {
     if (!enabled || !user?.id) return;
 
-    let cleanup = () => {};
+    const init = async () => {
+      // Prefer messenger socket
+      if (signalingSocket?.connected) {
+        socketRef.current = signalingSocket;
+        socketReadyRef.current = true;
+        setIsConnected(true);
+        return;
+      }
 
-    const initializeSocket = async () => {
-      // Try to use messenger socket first
+      // Wait briefly for messenger socket
       if (signalingSocket) {
-        console.log('� Attempting to use messenger socket for WebRTC');
-        
-        const isReady = await waitForSocketReady(3000);
-        
-        if (isReady) {
-          console.log('✅ Using messenger socket for WebRTC:', signalingSocket.id);
-          setSocket(signalingSocket);
-          socketRef.current = signalingSocket;
-          setIsConnected(true);
-          socketReadyRef.current = true;
-          return;
-        } else {
-          console.log('⚠️ Messenger socket not ready, will create fallback');
-        }
+        socketRef.current = signalingSocket;
+        const ready = await waitForSocketReady(3000);
+        if (ready) { setIsConnected(true); return; }
       }
 
-      // Create fallback socket
-      if (socketRef.current) {
-        console.log('🔍 Fallback socket already exists, reusing');
-        const isReady = await waitForSocketReady(2000);
-        if (isReady) {
-          setIsConnected(true);
-          return;
-        }
-      }
+      // Fallback: create own socket
+      if (socketRef.current?.connected) { setIsConnected(true); return; }
 
-      console.log('🔌 Creating new fallback socket for WebRTC');
       const serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
-      console.log('🔗 Fallback socket connecting to:', serverUrl);
       const newSocket = io(serverUrl, {
         path: '/api/socket',
         transports: ['websocket', 'polling'],
@@ -130,523 +119,402 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         reconnectionDelay: 1000,
       });
 
-      // Set socketRef immediately so waitForSocketReady can find it
       socketRef.current = newSocket;
-      let joinAcknowledged = false;
 
       newSocket.on('connect', () => {
-        console.log('🔌 Fallback socket connected:', newSocket.id);
-        console.log('🔗 Connected to server:', serverUrl, 'with path:', newSocket.io.opts.path);
-        
-        // Immediate test - emit right away
-        console.log('📡 Testing immediate emit...');
-        newSocket.emit('ping', { test: true }, (pong: any) => {
-          console.log('🏓 Ping/pong successful:', pong);
+        newSocket.emit('join', user.id, (ack: any) => {
+          console.log('✅ Socket joined room:', ack);
         });
-        
-        // Then join with retry
-        const tryJoin = () => {
-          console.log('📡 Emitting join for user:', user.id);
-          newSocket.emit('join', user.id, (ack: any) => {
-            console.log('✅ Server acknowledged join:', ack);
-            joinAcknowledged = true;
-          });
-        };
-        
-        // Try join immediately and after a short delay
-        tryJoin();
-        setTimeout(tryJoin, 500);
+        socketReadyRef.current = true;
+        setIsConnected(true);
       });
 
       newSocket.on('connect_error', (err: Error) => {
-        console.error('❌ Fallback socket connection error:', err.message);
-      });
-
-      newSocket.on('error', (err: Error) => {
-        console.error('❌ Fallback socket error:', err);
+        console.error('❌ Socket connect error:', err.message);
       });
 
       newSocket.on('disconnect', () => {
-        console.log('🔌 Fallback socket disconnected');
-        setIsConnected(false);
         socketReadyRef.current = false;
-        joinAcknowledged = false;
+        setIsConnected(false);
       });
 
-      // Wait for connection and room join
-      const isReady = await waitForSocketReady(5000);
-      
-      if (isReady) {
-        console.log('✅ Fallback socket ready for WebRTC');
-        setSocket(newSocket);
-        setIsConnected(true);
-      } else {
-        console.error('❌ Failed to initialize fallback socket');
-        showToast('error', 'Connection Error', 'Could not establish call connection');
-      }
-
-      cleanup = () => {
-        if (newSocket) {
-          newSocket.disconnect();
-        }
-      };
+      const ready = await waitForSocketReady(5000);
+      if (!ready) showToast('error', 'Connection Error', 'Could not establish call connection');
     };
 
-    initializeSocket();
+    init();
 
     return () => {
-      cleanup();
+      if (socketRef.current && !signalingSocket) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, [enabled, user?.id, signalingSocket, waitForSocketReady]);
 
-  // Initialize local media stream
+  // Get local media stream
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
     try {
       let stream: MediaStream;
-
       if (callType === 'screen') {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
       } else {
-        const constraints = {
-          video: callType === 'video',
-          audio: true
-        };
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: callType === 'video' ? { width: 1280, height: 720 } : false,
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
       }
-
       setLocalStream(stream);
-      
-      // Set local video if video call
-      if (callType === 'video' && localVideoRef.current) {
+      localStreamRef.current = stream;
+      if ((callType === 'video' || callType === 'screen') && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-
       return stream;
     } catch (error) {
-      console.error('Failed to get media stream:', error);
-      showToast('error', 'Media Access Denied', 'Please allow camera/microphone access');
+      console.error('❌ Media access error:', error);
+      showToast('error', 'Media Access Denied', 'Please allow camera/microphone access and try again');
       throw error;
     }
   }, []);
 
-  // Create WebRTC peer connection - returns peer and promise that resolves with first signal
-  const createPeer = useCallback((isInitiator: boolean, stream: MediaStream): { peer: SimplePeer.Instance; offerPromise: Promise<any> } => {
+  // Clean up all media and peer
+  const cleanupCall = useCallback(() => {
+    if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
+    if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+    const stream = localStreamRef.current;
+    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+    localStreamRef.current = null;
+    setLocalStream(null);
+    setRemoteStream(null);
+    remoteUserIdRef.current = '';
+  }, []);
+
+  // Create WebRTC peer - IMPORTANT: remoteUserId and callType passed as params to avoid stale closures
+  const createPeer = useCallback((
+    isInitiator: boolean,
+    stream: MediaStream,
+    remoteUserId: string,
+    callType: 'voice' | 'video' | 'screen'
+  ): { peer: SimplePeer.Instance; firstSignalPromise: Promise<any> } => {
     const peer = new SimplePeer({
       initiator: isInitiator,
       trickle: true,
-      stream: stream,
+      stream,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
         ]
       }
     });
 
-    // Create promise that resolves with first signal (the offer for initiator)
-    const offerPromise = new Promise<any>((resolve) => {
-      const handleSignal = (data: any) => {
+    // Promise resolves with the first signal (SDP offer/answer)
+    let firstSignalResolved = false;
+    const firstSignalPromise = new Promise<any>((resolve) => {
+      peer.once('signal', (data: any) => {
+        firstSignalResolved = true;
         resolve(data);
-        peer.off('signal', handleSignal);
-      };
-      peer.once('signal', handleSignal);
+      });
     });
 
     peer.on('signal', (data: any) => {
-      if (socketRef.current && user && conversationId) {
-        const signal: CallSignal = {
-          type: isInitiator ? 'call-offer' : 'call-answer',
-          from: user.id,
-          to: callState.remoteUserId || '',
-          conversationId,
-          callType: callState.callType,
-          payload: data
-        };
-        socketRef.current.emit('call-signal', signal);
-      }
+      if (!socketRef.current || !user || !conversationIdRef.current) return;
+      // Don't re-emit the first signal if it's already sent via call-initiated
+      const type = isInitiator
+        ? (firstSignalResolved ? 'call-offer' : 'call-offer')
+        : 'call-answer';
+
+      socketRef.current.emit('call-signal', {
+        type,
+        from: user.id,
+        to: remoteUserId,       // use parameter, not stale state
+        conversationId: conversationIdRef.current,
+        callType,               // use parameter
+        payload: data,
+      } as CallSignal);
     });
 
     peer.on('connect', () => {
+      console.log('✅ Peer connected!');
       setCallState(prev => ({ ...prev, connectionState: 'connected' }));
-      showToast('success', 'Call Connected', 'You are now connected');
+      // Start timer only when truly connected
+      if (!callTimerRef.current) {
+        callTimerRef.current = setInterval(() => {
+          setCallState(prev => ({ ...prev, callDuration: prev.callDuration + 1 }));
+        }, 1000);
+      }
     });
 
-    peer.on('stream', (remoteStream: MediaStream) => {
-      setRemoteStream(remoteStream);
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
+    peer.on('stream', (remote: MediaStream) => {
+      setRemoteStream(remote);
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
     });
 
     peer.on('close', () => {
-      endCall();
+      setCallState(prev => ({
+        ...prev, isInCall: false, isOutgoingCall: false, isIncomingCall: false,
+        connectionState: 'ended',
+      }));
+      cleanupCall();
     });
 
-    peer.on('error', (error: any) => {
-      console.error('Peer connection error:', error);
+    peer.on('error', (err: any) => {
+      console.error('❌ Peer error:', err);
       setCallState(prev => ({ ...prev, connectionState: 'failed' }));
       showToast('error', 'Call Failed', 'Connection failed. Please try again.');
-      endCall();
+      cleanupCall();
+      setCallState({
+        isInCall: false, isOutgoingCall: false, isIncomingCall: false,
+        callType: 'voice', isMuted: false, isCameraOff: false,
+        isScreenSharing: false, callDuration: 0, connectionState: 'failed',
+      });
     });
 
-    return { peer, offerPromise };
-  }, [user, conversationId, callState.remoteUserId, callState.callType]);
+    return { peer, firstSignalPromise };
+  }, [user, cleanupCall]);
+
+  // End call - notify remote and clean up
+  const endCall = useCallback(() => {
+    const remoteId = remoteUserIdRef.current;
+    const convId = conversationIdRef.current;
+
+    if (socketRef.current?.connected && user && remoteId && convId) {
+      socketRef.current.emit('call-signal', {
+        type: 'call-hangup',
+        from: user.id,
+        to: remoteId,
+        conversationId: convId,
+        callType: 'voice',
+      } as CallSignal);
+    }
+
+    cleanupCall();
+    setCallState({
+      isInCall: false, isOutgoingCall: false, isIncomingCall: false,
+      callType: 'voice', isMuted: false, isCameraOff: false,
+      isScreenSharing: false, callDuration: 0, connectionState: 'connecting',
+    });
+  }, [user, cleanupCall]);
 
   // Start outgoing call
   const startCall = useCallback(async (targetUserId: string, targetUserName: string, callType: 'voice' | 'video') => {
-    if (!user || !conversationId) return;
+    if (!user || !conversationId) {
+      showToast('error', 'Call Error', 'Missing conversation or user data');
+      return;
+    }
 
     try {
-      // Ensure socket is ready before starting call
-      if (!socketRef.current || !socketRef.current.connected) {
-        console.log('⏳ Waiting for socket to be ready...');
-        const isReady = await waitForSocketReady(5000);
-        
-        if (!isReady) {
-          console.error('❌ Socket not ready for call');
-          showToast('error', 'Connection Error', 'Could not establish connection. Please try again.');
+      if (!socketRef.current?.connected) {
+        const ready = await waitForSocketReady(5000);
+        if (!ready) {
+          showToast('error', 'Connection Error', 'Could not connect. Please try again.');
           return;
         }
       }
 
+      remoteUserIdRef.current = targetUserId;
+
       setCallState({
-        isInCall: true,
-        isOutgoingCall: true,
-        isIncomingCall: false,
-        callType,
-        remoteUserId: targetUserId,
-        remoteUserName: targetUserName,
-        isMuted: false,
-        isCameraOff: false,
-        isScreenSharing: false,
-        callDuration: 0,
-        connectionState: 'connecting',
+        isInCall: true, isOutgoingCall: true, isIncomingCall: false,
+        callType, remoteUserId: targetUserId, remoteUserName: targetUserName,
+        isMuted: false, isCameraOff: false, isScreenSharing: false,
+        callDuration: 0, connectionState: 'connecting',
       });
 
       const stream = await initializeLocalStream(callType);
-      const { peer, offerPromise } = createPeer(true, stream);
-      
+      const { peer, firstSignalPromise } = createPeer(true, stream, targetUserId, callType);
       peerRef.current = peer;
 
-      // Wait for SDP offer to be generated
-      console.log('⏳ Waiting for SDP offer...');
-      const offer = await offerPromise;
-      console.log('✅ SDP offer generated:', offer.type);
+      // Wait for SDP offer
+      const offer = await Promise.race([
+        firstSignalPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Offer timeout')), 10000)),
+      ]);
+      console.log('✅ SDP offer ready, type:', (offer as any).type);
 
-      // Start call timer
-      callTimerRef.current = setInterval(() => {
-        setCallState(prev => ({ ...prev, callDuration: prev.callDuration + 1 }));
-      }, 1000);
-
-      // Notify server about outgoing call WITH the offer
-      if (socketRef.current && socketRef.current.connected) {
-        console.log('📤 Emitting call-initiated with offer:', {
-          from: user.id,
-          to: targetUserId,
-          conversationId,
-          callType,
-          callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
-          hasOffer: !!offer
-        });
-        
-        socketRef.current.emit('call-initiated', {
-          from: user.id,
-          to: targetUserId,
-          conversationId,
-          callType,
-          callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
-          offer: offer  // Include the SDP offer
-        }, (ack: any) => {
-          console.log('📨 Server acknowledgment:', ack);
-        });
-        
-        console.log('✅ call-initiated event emitted with offer');
-      } else {
-        console.error('❌ Socket not connected for call initiation');
-        showToast('error', 'Connection Error', 'Lost connection. Please try again.');
-        return;
-      }
+      socketRef.current.emit('call-initiated', {
+        from: user.id,
+        to: targetUserId,
+        conversationId,
+        callType,
+        callerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        offer,
+      }, (ack: any) => {
+        console.log('📨 call-initiated ack:', ack);
+      });
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);
     } catch (error) {
-      console.error('Failed to start call:', error);
+      console.error('❌ startCall error:', error);
+      cleanupCall();
       setCallState({
-        isInCall: false,
-        isOutgoingCall: false,
-        isIncomingCall: false,
-        callType: 'voice',
-        isMuted: false,
-        isCameraOff: false,
-        isScreenSharing: false,
-        callDuration: 0,
-        connectionState: 'failed',
+        isInCall: false, isOutgoingCall: false, isIncomingCall: false,
+        callType: 'voice', isMuted: false, isCameraOff: false,
+        isScreenSharing: false, callDuration: 0, connectionState: 'failed',
       });
-      showToast('error', 'Call Failed', 'Could not start the call. Please check microphone/camera permissions.');
+      showToast('error', 'Call Failed', 'Could not start the call. Check mic/camera permissions.');
     }
-  }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady]);
+  }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
-  // Accept incoming call
-  const acceptCall = useCallback(async (signal: CallSignal) => {
+  // Accept incoming call - takes IncomingCallData directly
+  const acceptCall = useCallback(async (callData: IncomingCallData) => {
     if (!user) return;
 
     try {
-      // Ensure socket is ready
-      if (!socketRef.current || !socketRef.current.connected) {
-        console.log('⏳ Waiting for socket before accepting call...');
-        const isReady = await waitForSocketReady(3000);
-        if (!isReady) {
-          console.error('❌ Socket not ready to accept call');
-          showToast('error', 'Connection Error', 'Could not establish connection');
+      if (!socketRef.current?.connected) {
+        const ready = await waitForSocketReady(3000);
+        if (!ready) {
+          showToast('error', 'Connection Error', 'Could not connect to accept the call');
           return;
         }
       }
 
+      remoteUserIdRef.current = callData.from;
+      conversationIdRef.current = callData.conversationId;
+
       setCallState({
-        isInCall: true,
-        isOutgoingCall: false,
-        isIncomingCall: false,
-        callType: signal.callType,
-        remoteUserId: signal.from,
-        remoteUserName: signal.payload?.callerName || 'Unknown',
-        isMuted: false,
-        isCameraOff: false,
-        isScreenSharing: false,
-        callDuration: 0,
-        connectionState: 'connecting',
+        isInCall: true, isOutgoingCall: false, isIncomingCall: false,
+        callType: callData.callType, remoteUserId: callData.from,
+        remoteUserName: callData.callerName || 'Unknown',
+        isMuted: false, isCameraOff: false, isScreenSharing: false,
+        callDuration: 0, connectionState: 'connecting',
       });
 
-      const stream = await initializeLocalStream(signal.callType);
-      const { peer, offerPromise } = createPeer(false, stream);
-      
+      const stream = await initializeLocalStream(callData.callType);
+      const { peer } = createPeer(false, stream, callData.from, callData.callType);
       peerRef.current = peer;
-      
-      // Use the offer from call-incoming event
-      const offer = signal.offer || signal.payload;
-      console.log('🔍 Accepting call with offer:', offer);
-      
-      if (offer && typeof offer === 'object' && (offer.sdp || offer.candidate)) {
-        peer.signal(offer);
-        console.log('✅ Applied offer to peer in acceptCall');
-      } else {
-        console.warn('⚠️ Invalid offer in acceptCall:', offer);
-      }
 
-      // Start call timer
-      callTimerRef.current = setInterval(() => {
-        setCallState(prev => ({ ...prev, callDuration: prev.callDuration + 1 }));
-      }, 1000);
+      // Apply the offer
+      const offer = callData.offer;
+      console.log('🔍 Applying offer in acceptCall:', offer?.type || offer);
+
+      if (offer && typeof offer === 'object' && offer.sdp) {
+        peer.signal(offer);
+        console.log('✅ Applied SDP offer to peer');
+      } else {
+        console.error('❌ No valid SDP offer in callData:', offer);
+        showToast('error', 'Call Error', 'Invalid call data. Please ask caller to try again.');
+        cleanupCall();
+        return;
+      }
 
       showToast('success', 'Call Accepted', 'Connecting...');
     } catch (error) {
-      console.error('Failed to accept call:', error);
+      console.error('❌ acceptCall error:', error);
+      cleanupCall();
       showToast('error', 'Call Error', 'Could not accept the call');
     }
-  }, [user, initializeLocalStream, createPeer, waitForSocketReady]);
+  }, [user, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
   // Reject incoming call
-  const rejectCall = useCallback((fromUserId: string) => {
-    if (socketRef.current && user && conversationId) {
-      const signal: CallSignal = {
+  const rejectCall = useCallback((fromUserId: string, convId?: string) => {
+    const targetConvId = convId || conversationIdRef.current || conversationId;
+    if (socketRef.current?.connected && user && targetConvId) {
+      socketRef.current.emit('call-signal', {
         type: 'call-hangup',
         from: user.id,
         to: fromUserId,
-        conversationId,
-        callType: 'voice', // Default type for hangup
-      };
-      socketRef.current.emit('call-signal', signal);
-      showToast('info', 'Call Rejected', 'You rejected the incoming call');
+        conversationId: targetConvId,
+        callType: 'voice',
+      } as CallSignal);
     }
+    showToast('info', 'Call Declined', 'You declined the incoming call');
   }, [user, conversationId]);
-
-  // End call
-  const endCall = useCallback(() => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-      peerRef.current = null;
-    }
-
-    if (callTimerRef.current) {
-      clearInterval(callTimerRef.current);
-      callTimerRef.current = null;
-    }
-
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-
-    setRemoteStream(null);
-
-    // Notify other party
-    if (socketRef.current && user && callState.remoteUserId && conversationId) {
-      const signal: CallSignal = {
-        type: 'call-hangup',
-        from: user.id,
-        to: callState.remoteUserId,
-        conversationId,
-        callType: callState.callType,
-      };
-      socketRef.current.emit('call-signal', signal);
-    }
-
-    setCallState({
-      isInCall: false,
-      isIncomingCall: false,
-      isOutgoingCall: false,
-      callType: 'voice',
-      isMuted: false,
-      isCameraOff: false,
-      isScreenSharing: false,
-      callDuration: 0,
-      connectionState: 'connecting',
-    });
-
-    showToast('info', 'Call Ended', 'The call has been ended');
-  }, [user, callState.remoteUserId, callState.callType, conversationId, localStream]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {
-    if (localStream) {
-      const audioTracks = localStream.getAudioTracks();
-      audioTracks.forEach(track => {
-        track.enabled = !callState.isMuted;
-      });
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
       setCallState(prev => ({ ...prev, isMuted: !prev.isMuted }));
     }
-  }, [localStream, callState.isMuted]);
+  }, []);
 
   // Toggle camera
   const toggleCamera = useCallback(() => {
-    if (localStream && callState.callType === 'video') {
-      const videoTracks = localStream.getVideoTracks();
-      videoTracks.forEach(track => {
-        track.enabled = !callState.isCameraOff;
-      });
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
       setCallState(prev => ({ ...prev, isCameraOff: !prev.isCameraOff }));
     }
-  }, [localStream, callState.isCameraOff, callState.callType]);
+  }, []);
 
   // Toggle screen sharing
   const toggleScreenShare = useCallback(async () => {
+    const peer = peerRef.current;
+    const stream = localStreamRef.current;
+
     if (callState.isScreenSharing) {
-      // Stop screen sharing and switch back to camera
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: callState.callType === 'video',
-          audio: true
-        });
-        
-        if (peerRef.current && localStream) {
-          const videoTrack = stream.getVideoTracks()[0];
-          const oldVideoTrack = localStream.getVideoTracks()[0];
-          if (videoTrack && oldVideoTrack) {
-            peerRef.current.replaceTrack(videoTrack, oldVideoTrack, localStream);
-          }
+        const camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (peer && stream) {
+          const newTrack = camStream.getVideoTracks()[0];
+          const oldTrack = stream.getVideoTracks()[0];
+          if (newTrack && oldTrack) peer.replaceTrack(newTrack, oldTrack, stream);
+          oldTrack?.stop();
         }
-        
-        if (localStream) {
-          localStream.getVideoTracks().forEach(track => track.stop());
-        }
-        
-        setLocalStream(stream);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-        
+        setLocalStream(camStream);
+        localStreamRef.current = camStream;
+        if (localVideoRef.current) localVideoRef.current.srcObject = camStream;
         setCallState(prev => ({ ...prev, isScreenSharing: false }));
-        showToast('info', 'Screen Sharing Stopped', 'Switched back to camera');
-      } catch (error) {
-        console.error('Failed to stop screen sharing:', error);
+        showToast('info', 'Screen Share Stopped', 'Switched back to camera');
+      } catch (err) {
+        console.error('❌ Stop screen share error:', err);
       }
     } else {
-      // Start screen sharing
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
-        
-        if (peerRef.current && localStream) {
-          const screenVideoTrack = screenStream.getVideoTracks()[0];
-          const oldVideoTrack = localStream.getVideoTracks()[0];
-          if (screenVideoTrack && oldVideoTrack) {
-            peerRef.current.replaceTrack(screenVideoTrack, oldVideoTrack, localStream);
-          }
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        if (peer && stream) {
+          const newTrack = screenStream.getVideoTracks()[0];
+          const oldTrack = stream.getVideoTracks()[0];
+          if (newTrack && oldTrack) peer.replaceTrack(newTrack, oldTrack, stream);
+          oldTrack?.stop();
         }
-        
-        if (localStream) {
-          localStream.getVideoTracks().forEach(track => track.stop());
-        }
-        
         setLocalStream(screenStream);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = screenStream;
-        }
-        
+        localStreamRef.current = screenStream;
+        if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
         setCallState(prev => ({ ...prev, isScreenSharing: true }));
-        showToast('info', 'Screen Sharing Started', 'You are now sharing your screen');
-        
-        // Auto-stop when user ends screen sharing
+        showToast('info', 'Screen Sharing', 'You are now sharing your screen');
+
         screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+          setCallState(prev => ({ ...prev, isScreenSharing: true }));
           toggleScreenShare();
         });
-      } catch (error) {
-        console.error('Failed to start screen sharing:', error);
-        showToast('error', 'Screen Sharing Failed', 'Could not share screen');
+      } catch (err) {
+        console.error('❌ Start screen share error:', err);
+        showToast('error', 'Screen Share Failed', 'Could not share screen');
       }
     }
-  }, [callState.isScreenSharing, callState.callType, localStream]);
+  }, [callState.isScreenSharing]);
 
-  // Handle incoming signals
+  // Listen for incoming call signals
   useEffect(() => {
-    if (!socketRef.current) return;
+    const sock = socketRef.current;
+    if (!sock) return;
 
     const handleCallSignal = (signal: CallSignal) => {
-      if (signal.to !== user?.id || signal.conversationId !== conversationId) return;
+      if (signal.to !== user?.id) return;
 
       switch (signal.type) {
-        case 'call-offer':
-          setCallState(prev => ({
-            ...prev,
-            isIncomingCall: true,
-            remoteUserId: signal.from,
-            remoteUserName: signal.payload?.callerName || 'Unknown',
-            callType: signal.callType,
-          }));
-          // Store the offer for later use when accepting
-          break;
-
         case 'call-answer':
-          if (peerRef.current && signal.payload) {
+          if (peerRef.current && signal.payload?.sdp) {
             try {
-              // Validate signal data before applying
-              if (typeof signal.payload === 'object' && (signal.payload.sdp || signal.payload.candidate)) {
-                peerRef.current.signal(signal.payload);
-                console.log('✅ Applied call-answer signal');
-              } else {
-                console.warn('⚠️ Invalid call-answer signal payload:', signal.payload);
-              }
-            } catch (error) {
-              console.error('❌ Error applying call-answer signal:', error);
+              peerRef.current.signal(signal.payload);
+              console.log('✅ Applied call-answer');
+            } catch (e) {
+              console.error('❌ Error applying answer:', e);
             }
           }
           break;
 
+        case 'call-offer':
         case 'call-ice-candidate':
           if (peerRef.current && signal.payload) {
             try {
-              // Validate ICE candidate before applying
-              if (typeof signal.payload === 'object' && signal.payload.candidate) {
-                peerRef.current.signal(signal.payload);
-                console.log('✅ Applied ICE candidate');
-              } else {
-                console.warn('⚠️ Invalid ICE candidate payload:', signal.payload);
-              }
-            } catch (error) {
-              console.error('❌ Error applying ICE candidate:', error);
+              peerRef.current.signal(signal.payload);
+            } catch (e) {
+              console.error('❌ Error applying ICE/offer signal:', e);
             }
           }
           break;
@@ -655,54 +523,32 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           endCall();
           showToast('info', 'Call Ended', 'The other party ended the call');
           break;
-
-        case 'call-screen-share':
-          // Handle screen sharing state changes
-          break;
       }
     };
 
-    socketRef.current.on('call-signal', handleCallSignal);
+    sock.on('call-signal', handleCallSignal);
+    return () => { sock.off('call-signal', handleCallSignal); };
+  }, [user?.id, endCall]);
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off('call-signal', handleCallSignal);
-      }
-    };
-  }, [user, conversationId, endCall]);
-
-  // Cleanup on unmount or when disabled
+  // Cleanup on disable/unmount
   useEffect(() => {
     return () => {
       if (!enabled) {
-        // Clean up everything when disabled
-        if (socketRef.current) {
-          socketRef.current.close();
+        cleanupCall();
+        if (socketRef.current && !signalingSocket) {
+          socketRef.current.disconnect();
           socketRef.current = null;
         }
-        if (peerRef.current) {
-          peerRef.current.destroy();
-          peerRef.current = null;
-        }
-        if (callTimerRef.current) {
-          clearInterval(callTimerRef.current);
-          callTimerRef.current = null;
-        }
-        if (localStream) {
-          localStream.getTracks().forEach(track => track.stop());
-        }
-        setLocalStream(null);
-        setRemoteStream(null);
-        setSocket(null);
         setIsConnected(false);
       }
     };
-  }, [enabled, localStream]);
+  }, [enabled, signalingSocket, cleanupCall]);
 
   return {
     callState,
     localStream,
     remoteStream,
+    isConnected,
     startCall,
     acceptCall,
     rejectCall,

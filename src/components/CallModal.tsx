@@ -4,9 +4,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Phone, Video, VideoOff, Mic, MicOff, Monitor, MonitorOff, 
-  Maximize2, Minimize2, X, Users
+  Maximize2, Minimize2, X, PhoneOff
 } from 'lucide-react';
-import { useWebRTCCall } from '@/hooks/useWebRTCCall';
+import { useWebRTCCall, IncomingCallData } from '@/hooks/useWebRTCCall';
 
 interface CallModalProps {
   isOpen: boolean;
@@ -18,12 +18,7 @@ interface CallModalProps {
   enabled?: boolean;
   signalingSocket?: any;
   isIncomingCall?: boolean;
-  incomingCallData?: {
-    from: string;
-    conversationId: string;
-    callType: 'voice' | 'video';
-    callerName?: string;
-  };
+  incomingCallData?: IncomingCallData;
   onAcceptCall?: () => void;
   onRejectCall?: () => void;
 }
@@ -39,11 +34,8 @@ export const CallModal: React.FC<CallModalProps> = ({
   signalingSocket,
   isIncomingCall = false,
   incomingCallData,
-  onAcceptCall,
-  onRejectCall,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showParticipants, setShowParticipants] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -60,67 +52,66 @@ export const CallModal: React.FC<CallModalProps> = ({
     toggleScreenShare,
     setLocalVideoRef,
     setRemoteVideoRef,
-  } = useWebRTCCall(conversationId, enabled ?? isOpen, signalingSocket);
+  } = useWebRTCCall(
+    incomingCallData?.conversationId || conversationId,
+    enabled ?? isOpen,
+    signalingSocket
+  );
 
-  // Set video refs
+  // Set video element refs
   useEffect(() => {
     setLocalVideoRef(localVideoRef.current);
     setRemoteVideoRef(remoteVideoRef.current);
   }, [setLocalVideoRef, setRemoteVideoRef]);
 
-  // Handle incoming call
+  // Attach remote stream to video element when available
   useEffect(() => {
-    if ((isIncomingCall || Boolean(incomingCallData)) && callState.isIncomingCall && onAcceptCall) {
-      onAcceptCall();
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [isIncomingCall, incomingCallData, callState.isIncomingCall, onAcceptCall]);
+  }, [remoteStream]);
 
-  // Start outgoing call when modal opens
+  // Attach local stream to video element when available
   useEffect(() => {
-    if (isOpen && !isIncomingCall && targetUserId && targetUserName && !callState.isInCall) {
+    if (localStream && localVideoRef.current && callState.callType !== 'voice') {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, callState.callType]);
+
+  // Auto-start outgoing call when modal opens
+  useEffect(() => {
+    if (isOpen && !isIncomingCall && !incomingCallData && targetUserId && targetUserName && !callState.isInCall && !callState.isOutgoingCall) {
       startCall(targetUserId, targetUserName, initialCallType);
     }
-  }, [isOpen, isIncomingCall, targetUserId, targetUserName, initialCallType, startCall, callState.isInCall]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  // Handle call end
   const handleEndCall = () => {
     endCall();
     onClose();
   };
 
   const handleAcceptCall = () => {
-    const callerId = incomingCallData?.from || callState.remoteUserId;
-    const callerName = incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown';
-    const callKind = incomingCallData?.callType || callState.callType;
-
-    if (callerId) {
-      acceptCall({
-        type: 'call-offer',
-        from: callerId,
-        to: '',
-        conversationId: conversationId || '',
-        callType: callKind,
-        payload: { callerName }
-      });
-    }
+    if (!incomingCallData) return;
+    acceptCall(incomingCallData);
   };
 
   const handleRejectCall = () => {
     const callerId = incomingCallData?.from || callState.remoteUserId;
     if (callerId) {
-      rejectCall(callerId);
+      rejectCall(callerId, incomingCallData?.conversationId);
     }
     onClose();
   };
 
-  // Format call duration
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const formatDuration = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   };
 
-  // Toggle fullscreen
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
@@ -133,10 +124,11 @@ export const CallModal: React.FC<CallModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isDark = true; // You can get this from theme context
-  const showIncomingAlert = Boolean(incomingCallData) || isIncomingCall || callState.isIncomingCall;
-  const isInitializingCall = !showIncomingAlert && !callState.isOutgoingCall && !callState.isInCall;
-  const isFailedCall = callState.connectionState === 'failed' && !callState.isInCall;
+  const showIncomingAlert = (Boolean(incomingCallData) || isIncomingCall) && !callState.isInCall;
+  const showOutgoingRinging = callState.isOutgoingCall && !callState.isInCall;
+  const showActiveCall = callState.isInCall;
+  const showFailed = callState.connectionState === 'failed' && !callState.isInCall && !showIncomingAlert;
+  const activeCallType = incomingCallData?.callType || callState.callType || initialCallType;
 
   return (
     <AnimatePresence>
@@ -144,142 +136,113 @@ export const CallModal: React.FC<CallModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center"
+        className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center"
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className={`w-full h-full ${isFullscreen ? '' : 'max-w-6xl max-h-[90vh]'} rounded-2xl overflow-hidden bg-gray-900 border border-gray-800`}
+          exit={{ scale: 0.92, opacity: 0 }}
+          className={`${isFullscreen ? 'w-full h-full rounded-none' : 'w-full h-full max-w-5xl max-h-[92vh] rounded-2xl'} overflow-hidden bg-gray-950 border border-white/10 flex flex-col`}
         >
-          {isInitializingCall && (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mb-5 animate-pulse">
-                {initialCallType === 'video' ? <Video className="w-10 h-10 text-blue-400" /> : <Phone className="w-10 h-10 text-green-400" />}
+          {/* ── INCOMING CALL ── */}
+          {showIncomingAlert && (
+            <div className="flex flex-col items-center justify-center flex-1 p-8 text-center gap-6">
+              <div className="relative">
+                <div className={`w-36 h-36 rounded-full flex items-center justify-center ${
+                  activeCallType === 'video'
+                    ? 'bg-gradient-to-br from-blue-600 to-purple-700'
+                    : 'bg-gradient-to-br from-green-600 to-teal-700'
+                }`}>
+                  {activeCallType === 'video'
+                    ? <Video className="w-16 h-16 text-white" />
+                    : <Phone className="w-16 h-16 text-white" />}
+                </div>
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-5 w-5 bg-green-500" />
+                </span>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {targetUserName || 'Connecting'}
-              </h2>
-              <p className="text-gray-400 mb-6">
-                Preparing {initialCallType === 'video' ? 'video' : 'voice'} call...
-              </p>
-              <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin border-blue-500" />
-            </div>
-          )}
 
-          {isFailedCall && (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-5 border border-red-500/30">
-                <X className="w-10 h-10 text-red-400" />
+              <div>
+                <h2 className="text-3xl font-bold text-white">
+                  {incomingCallData?.callerName || 'Unknown Caller'}
+                </h2>
+                <p className="text-gray-400 mt-1">
+                  Incoming {activeCallType === 'video' ? 'Video' : 'Voice'} Call
+                </p>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2">
-                Call failed
-              </h2>
-              <p className="text-gray-400 mb-6 max-w-md">
-                We couldn’t start the call. Please check microphone and camera permissions, then try again.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Incoming Call Screen */}
-          {showIncomingAlert && !callState.isInCall && (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <div className="mb-8">
-                {(incomingCallData?.callType || callState.callType) === 'video' ? (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Video className="w-16 h-16 text-white" />
-                  </div>
-                ) : (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center">
-                    <Phone className="w-16 h-16 text-white" />
-                  </div>
-                )}
-              </div>
-              
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown'}
-              </h2>
-              <p className="text-gray-400 mb-8">
-                {(incomingCallData?.callType || callState.callType) === 'video' ? 'Video Call' : 'Voice Call'} Incoming...
-              </p>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={handleRejectCall}
-                  className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={handleAcceptCall}
-                  className="p-4 rounded-full bg-green-500 hover:bg-green-600 text-white transition-colors"
-                >
-                  <Phone className="w-6 h-6" />
-                </button>
+              <div className="flex items-center gap-8 mt-4">
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={handleRejectCall}
+                    className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg shadow-red-900/40"
+                  >
+                    <PhoneOff className="w-7 h-7" />
+                  </button>
+                  <span className="text-gray-400 text-sm">Decline</span>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={handleAcceptCall}
+                    className="w-16 h-16 rounded-full bg-green-600 hover:bg-green-500 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg shadow-green-900/40 animate-bounce"
+                  >
+                    <Phone className="w-7 h-7" />
+                  </button>
+                  <span className="text-gray-400 text-sm">Accept</span>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Active Call Screen */}
-          {callState.isInCall && (
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 backdrop-blur-sm">
+          {/* ── OUTGOING RINGING ── */}
+          {showOutgoingRinging && (
+            <div className="flex flex-col items-center justify-center flex-1 p-8 text-center gap-6">
+              <div className="w-36 h-36 rounded-full bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center animate-pulse">
+                {callState.callType === 'video'
+                  ? <Video className="w-16 h-16 text-white" />
+                  : <Phone className="w-16 h-16 text-white" />}
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">{callState.remoteUserName}</h2>
+                <p className="text-gray-400 mt-1">
+                  {callState.callType === 'video' ? 'Video' : 'Voice'} Call · Ringing...
+                </p>
+              </div>
+              <button
+                onClick={handleEndCall}
+                className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg shadow-red-900/40"
+              >
+                <PhoneOff className="w-7 h-7" />
+              </button>
+            </div>
+          )}
+
+          {/* ── ACTIVE CALL ── */}
+          {showActiveCall && (
+            <div className="flex flex-col flex-1 h-full">
+              {/* Top bar */}
+              <div className="flex items-center justify-between px-5 py-3 bg-black/40 backdrop-blur-sm border-b border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                    {callState.callType === 'video' ? (
-                      <Video className="w-5 h-5 text-blue-400" />
-                    ) : (
-                      <Phone className="w-5 h-5 text-green-400" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">
-                      {callState.remoteUserName || 'Unknown'}
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      {callState.connectionState === 'connected' 
-                        ? formatDuration(callState.callDuration)
-                        : 'Connecting...'
-                      }
-                    </p>
-                  </div>
+                  <div className={`w-2 h-2 rounded-full ${callState.connectionState === 'connected' ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`} />
+                  <span className="text-white font-semibold">{callState.remoteUserName || 'Unknown'}</span>
+                  <span className="text-gray-400 text-sm">
+                    {callState.connectionState === 'connected'
+                      ? formatDuration(callState.callDuration)
+                      : 'Connecting...'}
+                  </span>
                 </div>
-                
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowParticipants(!showParticipants)}
-                    className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-colors"
-                  >
-                    <Users className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-colors"
-                  >
-                    {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-                  </button>
-                  <button
-                    onClick={handleEndCall}
-                    className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
-                  >
-                    <X className="w-5 h-5" />
+                  <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 transition-colors">
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {/* Video Area */}
-              <div className="flex-1 relative bg-black">
-                {/* Remote Video */}
-                {callState.callType === 'video' && (
+              {/* Media area */}
+              <div className="flex-1 relative bg-black overflow-hidden">
+                {/* Remote video (fullscreen) */}
+                {(callState.callType === 'video' || callState.isScreenSharing) ? (
                   <>
                     <video
                       ref={remoteVideoRef}
@@ -287,9 +250,8 @@ export const CallModal: React.FC<CallModalProps> = ({
                       playsInline
                       className="w-full h-full object-cover"
                     />
-                    
-                    {/* Local Video (Picture-in-Picture) */}
-                    <div className="absolute top-4 right-4 w-32 h-24 rounded-lg overflow-hidden bg-gray-800 border-2 border-gray-600">
+                    {/* Local PiP */}
+                    <div className="absolute top-4 right-4 w-36 h-24 rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl bg-gray-900">
                       <video
                         ref={localVideoRef}
                         autoPlay
@@ -297,126 +259,113 @@ export const CallModal: React.FC<CallModalProps> = ({
                         muted
                         className="w-full h-full object-cover"
                       />
+                      {callState.isCameraOff && (
+                        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                          <VideoOff className="w-8 h-8 text-gray-500" />
+                        </div>
+                      )}
                     </div>
                   </>
-                )}
-
-                {/* Voice Call UI */}
-                {callState.callType === 'voice' && (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <div className="w-48 h-48 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center mb-8">
-                      <Phone className="w-24 h-24 text-white" />
+                ) : (
+                  /* Voice call */
+                  <div className="flex flex-col items-center justify-center h-full gap-5">
+                    <div className="w-44 h-44 rounded-full bg-gradient-to-br from-green-700 to-teal-800 flex items-center justify-center shadow-2xl">
+                      <Phone className="w-20 h-20 text-white" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-2">
-                      {callState.remoteUserName || 'Unknown'}
-                    </h2>
-                    <p className="text-gray-400">
-                      {callState.connectionState === 'connected' 
-                        ? formatDuration(callState.callDuration)
-                        : 'Connecting...'
-                      }
-                    </p>
-                  </div>
-                )}
-
-                {/* Connection Status Overlay */}
-                {callState.connectionState === 'connecting' && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 border-blue-500" />
-                      <p className="text-white">Connecting...</p>
+                      <h2 className="text-4xl font-bold text-white">{callState.remoteUserName}</h2>
+                      <p className="text-2xl text-green-400 mt-2 font-mono">
+                        {callState.connectionState === 'connected'
+                          ? formatDuration(callState.callDuration)
+                          : <span className="text-yellow-400 text-base animate-pulse">Connecting...</span>}
+                      </p>
                     </div>
                   </div>
                 )}
 
-                {callState.connectionState === 'failed' && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <div className="text-center">
-                      <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                      <p className="text-white">Connection Failed</p>
-                    </div>
+                {/* Connecting overlay */}
+                {callState.connectionState === 'connecting' && callState.callType === 'video' && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4">
+                    <div className="w-14 h-14 border-4 border-t-blue-500 border-white/20 rounded-full animate-spin" />
+                    <p className="text-white text-lg">Connecting...</p>
                   </div>
                 )}
               </div>
 
-              {/* Controls */}
-              <div className="p-4 bg-gray-800/50 backdrop-blur-sm">
-                <div className="flex items-center justify-center gap-4">
-                  {/* Mute */}
+              {/* Controls bar */}
+              <div className="flex items-center justify-center gap-4 px-6 py-5 bg-black/50 backdrop-blur-sm border-t border-white/5">
+                {/* Mute */}
+                <div className="flex flex-col items-center gap-1">
                   <button
                     onClick={toggleMute}
-                    className={`p-3 rounded-full transition-colors ${
-                      callState.isMuted 
-                        ? 'bg-red-500 hover:bg-red-600 text-white' 
-                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      callState.isMuted ? 'bg-red-600 hover:bg-red-500' : 'bg-white/15 hover:bg-white/25'
                     }`}
                   >
-                    {callState.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                    {callState.isMuted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
                   </button>
+                  <span className="text-xs text-gray-400">{callState.isMuted ? 'Unmute' : 'Mute'}</span>
+                </div>
 
-                  {/* Camera (Video calls only) */}
-                  {callState.callType === 'video' && (
+                {/* Camera (video only) */}
+                {callState.callType === 'video' && (
+                  <div className="flex flex-col items-center gap-1">
                     <button
                       onClick={toggleCamera}
-                      className={`p-3 rounded-full transition-colors ${
-                        callState.isCameraOff 
-                          ? 'bg-red-500 hover:bg-red-600 text-white' 
-                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                        callState.isCameraOff ? 'bg-red-600 hover:bg-red-500' : 'bg-white/15 hover:bg-white/25'
                       }`}
                     >
-                      {callState.isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                      {callState.isCameraOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
                     </button>
-                  )}
+                    <span className="text-xs text-gray-400">{callState.isCameraOff ? 'Start Video' : 'Stop Video'}</span>
+                  </div>
+                )}
 
-                  {/* Screen Share */}
+                {/* Screen share */}
+                <div className="flex flex-col items-center gap-1">
                   <button
                     onClick={toggleScreenShare}
-                    className={`p-3 rounded-full transition-colors ${
-                      callState.isScreenSharing 
-                        ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      callState.isScreenSharing ? 'bg-blue-600 hover:bg-blue-500' : 'bg-white/15 hover:bg-white/25'
                     }`}
                   >
-                    {callState.isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                    {callState.isScreenSharing ? <MonitorOff className="w-6 h-6 text-white" /> : <Monitor className="w-6 h-6 text-white" />}
                   </button>
+                  <span className="text-xs text-gray-400">{callState.isScreenSharing ? 'Stop Share' : 'Share Screen'}</span>
+                </div>
 
-                  {/* End Call */}
+                {/* End Call */}
+                <div className="flex flex-col items-center gap-1">
                   <button
                     onClick={handleEndCall}
-                    className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                    className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg shadow-red-900/40"
                   >
-                    <Phone className="w-5 h-5 transform rotate-135" />
+                    <PhoneOff className="w-6 h-6" />
                   </button>
+                  <span className="text-xs text-gray-400">End</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Outgoing Call Ringing */}
-          {callState.isOutgoingCall && !callState.isInCall && (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <div className="mb-8">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center animate-pulse">
-                  {callState.callType === 'video' ? (
-                    <Video className="w-16 h-16 text-white" />
-                  ) : (
-                    <Phone className="w-16 h-16 text-white" />
-                  )}
-                </div>
+          {/* ── FAILED ── */}
+          {showFailed && (
+            <div className="flex flex-col items-center justify-center flex-1 p-8 text-center gap-5">
+              <div className="w-24 h-24 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                <PhoneOff className="w-10 h-10 text-red-400" />
               </div>
-              
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {callState.remoteUserName}
-              </h2>
-              <p className="text-gray-400 mb-8">
-                {callState.callType === 'video' ? 'Video Call' : 'Voice Call'} Ringing...
-              </p>
-              
+              <div>
+                <h2 className="text-2xl font-bold text-white">Call Failed</h2>
+                <p className="text-gray-400 mt-1 max-w-sm">
+                  Could not connect. Check mic/camera permissions and try again.
+                </p>
+              </div>
               <button
-                onClick={handleEndCall}
-                className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition-colors"
               >
-                <X className="w-6 h-6" />
+                Close
               </button>
             </div>
           )}
