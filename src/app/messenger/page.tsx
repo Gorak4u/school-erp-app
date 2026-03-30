@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, Search, Plus, Send, Paperclip, 
   Smile, MoreVertical, Phone, Video,
-  Trash2, Users, X, Check, CheckCheck, Mic, Edit2, Sparkles
+  Trash2, Users, X, Check, CheckCheck, Mic, Edit2, Sparkles, Archive
 } from 'lucide-react';
 import { MessageBubble } from '@/components/MessageBubble';
 import { TypingIndicator } from '@/components/TypingIndicator';
@@ -64,6 +64,8 @@ export default function MessengerPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showConversationMenu, setShowConversationMenu] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
   
   // Use centralized call context
@@ -76,6 +78,9 @@ export default function MessengerPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  // Guard to prevent multiple call initiations from rapid clicks
+  const callInitiatingRef = useRef<boolean>(false);
+  const lastCallAttemptRef = useRef<number>(0);
 
   const { 
     conversations, 
@@ -89,6 +94,7 @@ export default function MessengerPage() {
     editMessage,
     deleteMessage,
     markAsRead,
+    archiveConversation, 
     createConversation 
   } = useMessenger(selectedConversationId || undefined, messengerEnabled);
 
@@ -98,9 +104,9 @@ export default function MessengerPage() {
 
   useEffect(() => {
     if (messengerEnabled) {
-      fetchConversations();
+      fetchConversations(1, showArchived ? 'true' : 'false');
     }
-  }, [fetchConversations, messengerEnabled]);
+  }, [fetchConversations, messengerEnabled, showArchived]);
 
   useEffect(() => {
     if (messengerEnabled && selectedConversationId) {
@@ -240,7 +246,8 @@ export default function MessengerPage() {
   const filteredConversations = conversations.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = conversationFilter === 'all' || c.conversationType === conversationFilter;
-    return matchesSearch && matchesFilter;
+    const matchesArchived = showArchived ? c.isArchived : !c.isArchived;
+    return matchesSearch && matchesFilter && matchesArchived;
   });
 
   const conversationCounts = {
@@ -387,19 +394,44 @@ export default function MessengerPage() {
   const handleVoiceCall = () => {
     if (!selectedConversation) return;
     
+    // GUARD: Prevent multiple rapid clicks (debounce 2 seconds)
+    const now = Date.now();
+    if (callInitiatingRef.current || showCallModal || (now - lastCallAttemptRef.current < 2000)) {
+      console.log('⏭️ Ignoring duplicate voice call click');
+      return;
+    }
+    
+    callInitiatingRef.current = true;
+    lastCallAttemptRef.current = now;
+    
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
       dismissCall();
       setCallType('voice');
       setShowCallModal(true);
+      // Reset guard after modal opens
+      setTimeout(() => {
+        callInitiatingRef.current = false;
+      }, 1000);
     } else {
       showToast('error', 'Cannot initiate call', 'No other participants found');
+      callInitiatingRef.current = false;
     }
   };
 
   const handleVideoCall = () => {
     if (!selectedConversation) return;
+    
+    // GUARD: Prevent multiple rapid clicks (debounce 2 seconds)
+    const now = Date.now();
+    if (callInitiatingRef.current || showCallModal || (now - lastCallAttemptRef.current < 2000)) {
+      console.log('⏭️ Ignoring duplicate video call click');
+      return;
+    }
+    
+    callInitiatingRef.current = true;
+    lastCallAttemptRef.current = now;
     
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
@@ -407,8 +439,13 @@ export default function MessengerPage() {
       dismissCall();
       setCallType('video');
       setShowCallModal(true);
+      // Reset guard after modal opens
+      setTimeout(() => {
+        callInitiatingRef.current = false;
+      }, 1000);
     } else {
       showToast('error', 'Cannot initiate call', 'No other participants found');
+      callInitiatingRef.current = false;
     }
   };
 
@@ -454,28 +491,44 @@ export default function MessengerPage() {
               />
             </div>
 
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {(['all', 'direct', 'group', 'broadcast'] as const).map((filterKey) => (
-                <button
-                  key={filterKey}
-                  type="button"
-                  onClick={() => setConversationFilter(filterKey)}
-                  className={`rounded-xl px-2.5 py-2 text-xs font-medium transition-colors ${
-                    conversationFilter === filterKey
-                      ? isDark
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-blue-600 text-white'
-                      : isDark
-                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {filterKey === 'all' ? 'All' : typeLabelMap[filterKey as 'direct' | 'group' | 'broadcast']}
-                  <span className="ml-1 opacity-70">
-                    {conversationCounts[filterKey]}
-                  </span>
-                </button>
-              ))}
+            <div className="mt-4 flex items-center justify-between">
+              <div className="grid grid-cols-4 gap-2 flex-1">
+                {(['all', 'direct', 'group', 'broadcast'] as const).map((filterKey) => (
+                  <button
+                    key={filterKey}
+                    type="button"
+                    onClick={() => setConversationFilter(filterKey)}
+                    className={`rounded-xl px-2.5 py-2 text-xs font-medium transition-colors ${
+                      conversationFilter === filterKey
+                        ? isDark
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-600 text-white'
+                        : isDark
+                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {filterKey === 'all' ? 'All' : typeLabelMap[filterKey as 'direct' | 'group' | 'broadcast']}
+                    <span className="ml-1 opacity-70">
+                      {conversationCounts[filterKey]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  setShowArchived(!showArchived);
+                  setSelectedConversationId(null);
+                }}
+                className={`ml-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  showArchived
+                    ? isDark ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                    : isDark ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                }`}
+                title={showArchived ? 'Show active conversations' : 'Show archived conversations'}
+              >
+                <Archive className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -673,9 +726,46 @@ export default function MessengerPage() {
                   >
                     <Video className="w-5 h-5" />
                   </button>
-                  <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}>
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowConversationMenu(!showConversationMenu)}
+                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="More options"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                    
+                    {showConversationMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className={`absolute right-0 top-full mt-2 w-48 rounded-xl border shadow-lg z-50 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
+                      >
+                        <button
+                          onClick={async () => {
+                            const isArchived = selectedConversation?.isArchived;
+                            if (window.confirm(isArchived ? 'Unarchive this conversation?' : 'Archive this conversation? It will be hidden from your main list but other participants can still see it.')) {
+                              try {
+                                await archiveConversation(selectedConversation.id, !isArchived);
+                                showToast('success', isArchived ? 'Conversation unarchived' : 'Conversation archived');
+                                if (!isArchived) {
+                                  setSelectedConversationId(null);
+                                }
+                              } catch {
+                                showToast('error', 'Failed to archive conversation');
+                              }
+                            }
+                            setShowConversationMenu(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left flex items-center gap-3 rounded-xl transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'}`}
+                        >
+                          <Archive className="w-4 h-4" />
+                          <span className="text-sm">{selectedConversation?.isArchived ? 'Unarchive' : 'Archive'}</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
 

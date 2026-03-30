@@ -188,11 +188,12 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     };
   }, [enabled, user?.id, conversationId]);
 
-  const fetchConversations = useCallback(async (page: number = 1) => {
+  const fetchConversations = useCallback(async (page: number = 1, archived?: string) => {
     if (!enabled) return { data: [], pagination: { page, pageSize: 25, total: 0, totalPages: 0, hasMore: false } };
     try {
       setLoading(true);
-      const response = await fetch(`/api/messenger/conversations?page=${page}&pageSize=25`);
+      const archivedParam = archived ? `&archived=${archived}` : '';
+      const response = await fetch(`/api/messenger/conversations?page=${page}&pageSize=25${archivedParam}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error?.message || 'Failed to fetch conversations';
@@ -336,6 +337,32 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     [enabled, conversationId]
   );
 
+  const archiveConversation = useCallback(
+    async (targetConversationId: string, archived: boolean) => {
+      if (!enabled) return;
+      try {
+        const response = await fetch(`/api/messenger/conversations/${targetConversationId}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived }),
+        });
+        if (!response.ok) throw new Error('Failed to archive conversation');
+        
+        // Update local state to remove archived conversation or update isArchived status
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === targetConversationId ? { ...c, isArchived: archived } : c
+          )
+        );
+        return true;
+      } catch (error) {
+        console.error('Failed to archive conversation:', error);
+        throw error;
+      }
+    },
+    [enabled]
+  );
+
   const createConversation = useCallback(async (
     participantIds: string[],
     options?: {
@@ -378,6 +405,7 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     editMessage,
     deleteMessage,
     markAsRead,
+    archiveConversation,
     createConversation,
   };
 }

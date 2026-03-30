@@ -93,6 +93,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const processedSignalsRef = useRef<Map<string, number>>(new Map());
   // Track if we're in an active call to ignore stale signals
   const isActiveCallRef = useRef<boolean>(false);
+  // Guard to prevent multiple simultaneous startCall invocations
+  const isStartingCallRef = useRef<boolean>(false);
 
   // Keep refs in sync
   useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
@@ -489,6 +491,13 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       return;
     }
 
+    // CRITICAL GUARD: Prevent multiple simultaneous startCall invocations
+    if (isStartingCallRef.current) {
+      console.log('⏭️ [GUARD] startCall already in progress, ignoring duplicate call');
+      return;
+    }
+    isStartingCallRef.current = true;
+
     // GUARDRAIL: Clean up any existing connection before starting new call
     console.log('🛡️ [GUARDRAIL] Cleaning up before starting new call');
     cleanupCall();
@@ -546,12 +555,24 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isScreenSharing: false, callDuration: 0, connectionState: 'failed',
       });
       showToast('error', 'Call Failed', 'Could not start the call. Check mic/camera permissions.');
+    } finally {
+      // Reset guard after a short delay to allow next call
+      setTimeout(() => {
+        isStartingCallRef.current = false;
+      }, 2000);
     }
   }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
   // Accept incoming call - takes IncomingCallData directly
   const acceptCall = useCallback(async (callData: IncomingCallData) => {
     if (!user) return;
+
+    // CRITICAL GUARD: Prevent multiple simultaneous acceptCall invocations
+    if (isStartingCallRef.current) {
+      console.log('⏭️ [GUARD] acceptCall already in progress, ignoring duplicate accept');
+      return;
+    }
+    isStartingCallRef.current = true;
 
     // GUARDRAIL: Clean up any existing connection before accepting new call
     console.log('🛡️ [GUARDRAIL] Cleaning up before accepting call');
@@ -611,6 +632,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       console.error('❌ acceptCall error:', error);
       cleanupCall();
       showToast('error', 'Call Error', 'Could not accept the call');
+    } finally {
+      // Reset guard after a short delay to allow retry if needed
+      setTimeout(() => {
+        isStartingCallRef.current = false;
+      }, 2000);
     }
   }, [user, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 

@@ -43,6 +43,10 @@ export const ListMessengerConversationsQuerySchema = z.object({
     (val) => !val || ['active', 'archived'].includes(val),
     { message: 'Invalid status' }
   ).transform(val => val as 'active' | 'archived' | null | undefined),
+  archived: z.string().nullable().optional().refine(
+    (val) => !val || ['true', 'false'].includes(val),
+    { message: 'Invalid archived value' }
+  ).transform(val => val as 'true' | 'false' | null | undefined),
 });
 
 export const SendMessengerMessageSchema = z.object({

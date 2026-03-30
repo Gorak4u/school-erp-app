@@ -158,6 +158,13 @@ export const CallModal: React.FC<CallModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       if (!callStartedRef.current && !isIncomingCall && !incomingCallData && targetUserId && targetUserName) {
+        // Additional guard: prevent starting if already in a call or if call was just started
+        if (callState.isInCall || callState.isOutgoingCall) {
+          console.log('⏭️ [CallModal] Skipping auto-start - call already in progress');
+          return;
+        }
+        
+        console.log('🚀 [CallModal] Auto-starting outgoing call');
         callStartedRef.current = true;
         startCall(targetUserId, targetUserName, initialCallType);
       }

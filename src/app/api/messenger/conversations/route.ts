@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get('search'),
       conversationType: searchParams.get('conversationType'),
       status: searchParams.get('status'),
+      archived: searchParams.get('archived'),
     };
     
     console.log('GET /api/messenger/conversations - Query params:', queryParams);
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { page, pageSize, search, conversationType, status } = queryResult.data;
+    const { page, pageSize, search, conversationType, status, archived } = queryResult.data;
     const skip = (page - 1) * pageSize;
 
     const prisma = schoolPrisma as any;
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
         some: {
           userId: ctx.userId,
           status: 'active',
+          isArchived: archived === 'true' ? true : { not: true },
         },
       },
     };
