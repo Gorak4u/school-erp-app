@@ -224,7 +224,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       }, 1000);
 
       // Notify server about outgoing call
-      if (socketRef.current) {
+      if (socketRef.current && socketRef.current.connected) {
         console.log('📤 Emitting call-initiated:', {
           from: user.id,
           to: targetUserId,
@@ -232,6 +232,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
         });
+        console.log('🔍 Socket state:', {
+          connected: socketRef.current.connected,
+          id: socketRef.current.id,
+          rooms: Array.from(socketRef.current.rooms || [])
+        });
+        
         socketRef.current.emit('call-initiated', {
           from: user.id,
           to: targetUserId,
@@ -239,8 +245,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
         });
+        
+        console.log('✅ call-initiated event emitted');
       } else {
-        console.error('❌ No socket available for call initiation');
+        console.error('❌ Socket not available or not connected for call initiation');
+        console.log('🔍 Socket ref:', socketRef.current);
+        console.log('🔍 Socket connected:', socketRef.current?.connected);
       }
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);
