@@ -16,6 +16,44 @@ interface CallInitiated {
   callType: 'voice' | 'video';
 }
 
+// Deduplication: Track recent call-initiated events to prevent duplicates
+// Use global to persist across module reloads in dev mode
+const globalAny = global as any;
+if (!globalAny.__recentCalls) {
+  globalAny.__recentCalls = new Map<string, number>();
+}
+const recentCalls: Map<string, number> = globalAny.__recentCalls;
+const CALL_DEDUP_WINDOW_MS = 5000; // 5 seconds
+
+function getCallKey(from: string, to: string, conversationId: string): string {
+  return `${from}:${to}:${conversationId}`;
+}
+
+function isDuplicateCall(from: string, to: string, conversationId: string): boolean {
+  const key = getCallKey(from, to, conversationId);
+  const now = Date.now();
+  const lastCall = recentCalls.get(key);
+  
+  console.log('🔍 Deduplication check:', { key, lastCall, now, diff: lastCall ? now - lastCall : 'N/A', mapSize: recentCalls.size });
+  
+  // Clean up old entries
+  for (const [k, timestamp] of recentCalls.entries()) {
+    if (now - timestamp > CALL_DEDUP_WINDOW_MS) {
+      console.log('🧹 Cleaning old entry:', k);
+      recentCalls.delete(k);
+    }
+  }
+  
+  if (lastCall && (now - lastCall < CALL_DEDUP_WINDOW_MS)) {
+    console.log('⏭️ Deduplication: Found duplicate within window');
+    return true; // Duplicate within window
+  }
+  
+  recentCalls.set(key, now);
+  console.log('✅ Deduplication: New call tracked');
+  return false;
+}
+
 export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   console.log('🔧 Registering call handlers for socket:', socket.id);
   
@@ -53,6 +91,15 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
 
   // Handle call initiation
   socket.on('call-initiated', (data: CallInitiated & { callerName?: string; offer?: any }, callback?: Function) => {
+    // Check for duplicate calls from same caller to same receiver
+    if (isDuplicateCall(data.from, data.to, data.conversationId)) {
+      console.log('⏭️ Ignoring duplicate call-initiated from:', data.from, 'to:', data.to);
+      if (callback && typeof callback === 'function') {
+        callback({ received: true, duplicate: true, timestamp: Date.now() });
+      }
+      return;
+    }
+    
     console.log('📞 Call initiated received:', {
       from: data.from,
       to: data.to,

@@ -69,12 +69,11 @@ export const CallModal: React.FC<CallModalProps> = ({
   conversationId,
   targetUserId,
   targetUserName,
-  currentUserName = 'You',
   initialCallType = 'voice',
-  enabled,
-  signalingSocket,
-  isIncomingCall = false,
   incomingCallData,
+  isIncomingCall = false,
+  signalingSocket,
+  enabled = isOpen,
   onScheduleMeeting,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -157,15 +156,17 @@ export const CallModal: React.FC<CallModalProps> = ({
   // Auto-start outgoing call ONCE per modal open
   useEffect(() => {
     if (isOpen) {
+      // Extra safety: don't auto-start if already in any call state
+      if (callState.isInCall || callState.isOutgoingCall || callState.isIncomingCall) {
+        console.log('⏭️ [CallModal] Already in call state, skipping auto-start');
+        return;
+      }
+      
       if (!callStartedRef.current && !isIncomingCall && !incomingCallData && targetUserId && targetUserName) {
-        // Additional guard: prevent starting if already in a call or if call was just started
-        if (callState.isInCall || callState.isOutgoingCall) {
-          console.log('⏭️ [CallModal] Skipping auto-start - call already in progress');
-          return;
-        }
+        // Set ref IMMEDIATELY to prevent any race conditions
+        callStartedRef.current = true;
         
         console.log('🚀 [CallModal] Auto-starting outgoing call');
-        callStartedRef.current = true;
         startCall(targetUserId, targetUserName, initialCallType);
       }
     } else {
@@ -258,7 +259,7 @@ export const CallModal: React.FC<CallModalProps> = ({
     if (!text || !signalingSocket || !activeConvId) return;
     signalingSocket.emit('send-message', { conversationId: activeConvId, content: text });
     setChatMessages(prev => [...prev, {
-      id: Date.now().toString(), from: currentUserName, text, mine: true,
+      id: Date.now().toString(), from: targetUserName || 'You', text, mine: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }]);
     setChatInput('');

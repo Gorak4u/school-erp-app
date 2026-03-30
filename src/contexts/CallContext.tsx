@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 
 interface IncomingCallData {
   from: string;
@@ -32,11 +31,8 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
   const [isOnMessengerPage, setIsOnMessengerPage] = useState(false);
   const listenerRegisteredRef = useRef(false);
 
-  const { acceptCall: webrtcAccept, rejectCall: webrtcReject } = useWebRTCCall(
-    incomingCallData?.conversationId,
-    true,
-    socket
-  );
+  // NOTE: CallProvider doesn't need useWebRTCCall - it only manages incoming call state
+  // The actual WebRTC logic is handled by CallModal when it opens
 
   useEffect(() => {
     if (!socket || !user?.id || listenerRegisteredRef.current) return;
@@ -60,17 +56,18 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
   }, [socket, user?.id]);
 
   const acceptCall = async (data: IncomingCallData) => {
-    try {
-      await webrtcAccept(data);
-      setShowCallModal(true);
-    } catch (error) {
-      console.error('[CallProvider] Failed to accept call:', error);
-    }
+    // Just set state - CallModal will handle the actual WebRTC connection
+    setIncomingCallData(data);
+    setShowCallModal(true);
   };
 
   const rejectCall = () => {
-    if (incomingCallData) {
-      webrtcReject(incomingCallData.from, incomingCallData.conversationId);
+    if (incomingCallData && socket) {
+      // Send reject signal
+      socket.emit('call-reject', { 
+        conversationId: incomingCallData.conversationId,
+        to: incomingCallData.from 
+      });
     }
     dismissCall();
   };

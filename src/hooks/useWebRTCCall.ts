@@ -9,6 +9,15 @@ import { showToast } from '@/lib/toastUtils';
 
 type SocketType = ReturnType<typeof io>;
 
+// GLOBAL GUARD: Module-level flag to prevent multiple simultaneous calls across ALL hook instances
+let globalCallLock = false;
+let globalCallLockTimeout: NodeJS.Timeout | null = null;
+
+// EMISSION GUARD: Track last call-initiated emission to prevent duplicates from StrictMode remounts
+let lastCallEmissionKey = '';
+let lastCallEmissionTime = 0;
+const CALL_EMISSION_WINDOW_MS = 5000; // 5 seconds
+
 export interface CallState {
   isInCall: boolean;
   isIncomingCall: boolean;
@@ -284,6 +293,13 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     
     console.log('✅ Call cleanup complete');
     
+    // Release global lock to allow future calls
+    globalCallLock = false;
+    if (globalCallLockTimeout) {
+      clearTimeout(globalCallLockTimeout);
+      globalCallLockTimeout = null;
+    }
+    
     // Reset cleanup guard after a delay to allow new calls
     setTimeout(() => {
       isCleaningUpRef.current = false;
@@ -318,6 +334,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     // For initiator: skip the very first signal because it's the SDP offer
     // already sent embedded in call-initiated. Subsequent signals are ICE candidates.
     let offerAlreadySent = isInitiator;
+    
+    // Deduplication: track which ICE candidates we've already sent
+    const sentCandidates = new Set<string>();
+    // Track if we've already sent the offer (prevent duplicate call-initiated)
+    let offerSent = false;
+    // Throttling: track last candidate send time to prevent flooding
+    let lastCandidateTime = 0;
+    const CANDIDATE_THROTTLE_MS = 50; // Min 50ms between candidates
 
     // Promise resolves with the first signal (the SDP offer for the initiator)
     const firstSignalPromise = new Promise<any>((resolve) => {
@@ -347,6 +371,24 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           hasConversationId: !!conversationIdRef.current,
         });
         return;
+      }
+
+      // Deduplication: skip if we've already sent this exact candidate
+      if (data.candidate) {
+        const candidateKey = `${data.candidate.candidate}-${data.candidate.sdpMid}-${data.candidate.sdpMLineIndex}`;
+        if (sentCandidates.has(candidateKey)) {
+          console.log('⏭️ Skipping duplicate ICE candidate');
+          return;
+        }
+        
+        // Throttling: don't send candidates too frequently
+        const now = Date.now();
+        if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
+          console.log('⏭️ Throttling ICE candidate (too frequent)');
+          return;
+        }
+        lastCandidateTime = now;
+        sentCandidates.add(candidateKey);
       }
 
       // Derive signal type from the actual payload so ICE candidates are routed correctly
@@ -482,18 +524,50 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
     
     console.log('✅ Call ended, state reset');
+    
+    // Release global lock to allow future calls
+    globalCallLock = false;
+    if (globalCallLockTimeout) {
+      clearTimeout(globalCallLockTimeout);
+      globalCallLockTimeout = null;
+    }
   }, [user, cleanupCall]);
 
   // Start outgoing call
   const startCall = useCallback(async (targetUserId: string, targetUserName: string, callType: 'voice' | 'video') => {
-    if (!user || !conversationId) {
-      showToast('error', 'Call Error', 'Missing conversation or user data');
+    // EMISSION GUARD: Check if we already emitted a call-initiated for this exact call recently
+    const emissionKey = `${user?.id}:${targetUserId}:${conversationId}`;
+    const now = Date.now();
+    if (emissionKey === lastCallEmissionKey && (now - lastCallEmissionTime) < CALL_EMISSION_WINDOW_MS) {
+      console.log('⏭️ [EMISSION GUARD] Duplicate call emission blocked:', emissionKey);
       return;
     }
+    
+    if (!user || !conversationId) {
+      showToast('error', 'Call Error', 'Missing conversation or user data');
+      globalCallLock = false;
+      return;
+    }
+
+    // GLOBAL GUARD: Check across ALL hook instances first
+    if (globalCallLock) {
+      console.log('⏭️ [GLOBAL GUARD] Call already in progress globally, ignoring duplicate');
+      return;
+    }
+    
+    // Set global lock immediately
+    globalCallLock = true;
+    // Auto-release lock after 30 seconds as safety net
+    if (globalCallLockTimeout) clearTimeout(globalCallLockTimeout);
+    globalCallLockTimeout = setTimeout(() => {
+      console.log('🔓 [GLOBAL GUARD] Auto-releasing lock after timeout');
+      globalCallLock = false;
+    }, 30000);
 
     // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
       console.log('⏭️ [GUARD] startCall already in progress, ignoring duplicate call');
+      globalCallLock = false;
       return;
     }
     isStartingCallRef.current = true;
@@ -507,6 +581,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         const ready = await waitForSocketReady(5000);
         if (!ready) {
           showToast('error', 'Connection Error', 'Could not connect. Please try again.');
+          globalCallLock = false;
+          isStartingCallRef.current = false;
           return;
         }
       }
@@ -534,6 +610,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       ]);
       console.log('✅ SDP offer ready, type:', (offer as any).type);
 
+      // Record emission BEFORE emitting to prevent duplicates from StrictMode remounts
+      lastCallEmissionKey = emissionKey;
+      lastCallEmissionTime = Date.now();
+      
       socketRef.current.emit('call-initiated', {
         from: user.id,
         to: targetUserId,
@@ -546,6 +626,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       });
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);
+      
+      // Reset guard ONLY after all async work completes successfully
+      isStartingCallRef.current = false;
     } catch (error) {
       console.error('❌ startCall error:', error);
       cleanupCall();
@@ -555,19 +638,39 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isScreenSharing: false, callDuration: 0, connectionState: 'failed',
       });
       showToast('error', 'Call Failed', 'Could not start the call. Check mic/camera permissions.');
-    } finally {
-      // Reset guard to allow next call
+      // Reset guard on error too
       isStartingCallRef.current = false;
+      // Release global lock on error
+      globalCallLock = false;
     }
   }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
   // Accept incoming call - takes IncomingCallData directly
   const acceptCall = useCallback(async (callData: IncomingCallData) => {
-    if (!user) return;
+    if (!user) {
+      globalCallLock = false;
+      return;
+    }
+
+    // GLOBAL GUARD: Check across ALL hook instances first
+    if (globalCallLock) {
+      console.log('⏭️ [GLOBAL GUARD] Call already in progress globally, ignoring accept');
+      return;
+    }
+    
+    // Set global lock immediately
+    globalCallLock = true;
+    // Auto-release lock after 30 seconds as safety net
+    if (globalCallLockTimeout) clearTimeout(globalCallLockTimeout);
+    globalCallLockTimeout = setTimeout(() => {
+      console.log('🔓 [GLOBAL GUARD] Auto-releasing lock after timeout');
+      globalCallLock = false;
+    }, 30000);
 
     // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
       console.log('⏭️ [GUARD] acceptCall already in progress, ignoring duplicate accept');
+      globalCallLock = false;
       return;
     }
     isStartingCallRef.current = true;
@@ -581,6 +684,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         const ready = await waitForSocketReady(3000);
         if (!ready) {
           showToast('error', 'Connection Error', 'Could not connect to accept the call');
+          globalCallLock = false;
+          isStartingCallRef.current = false;
           return;
         }
       }
@@ -626,13 +731,17 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       }
 
       showToast('success', 'Call Accepted', 'Connecting...');
+      
+      // Reset guard ONLY after all async work completes successfully
+      isStartingCallRef.current = false;
     } catch (error) {
       console.error('❌ acceptCall error:', error);
       cleanupCall();
       showToast('error', 'Call Error', 'Could not accept the call');
-    } finally {
-      // Reset guard to allow retry if needed
+      // Reset guard on error too
       isStartingCallRef.current = false;
+      // Release global lock on error
+      globalCallLock = false;
     }
   }, [user, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 

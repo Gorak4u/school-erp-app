@@ -9,7 +9,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessenger } from '@/hooks/useMessenger';
-import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { showToast } from '@/lib/toastUtils';
 import { useCallContext } from '@/contexts/CallContext';
 import { unlockAudio } from '@/lib/ringtone';
