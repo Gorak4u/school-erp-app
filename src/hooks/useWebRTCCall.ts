@@ -349,14 +349,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
 
     peer.on('signal', (data: any) => {
-      console.log('🔔 Peer signal emitted:', {
-        isInitiator,
-        signalType: data.type,
-        offerAlreadySent,
-        remoteUserId,
-        hasSocket: !!socketRef.current,
-      });
-
+      // Only log important signals, not every ICE candidate
+      if (data.type === 'offer' || data.type === 'answer') {
+        console.log('🔔 Peer signal emitted:', { isInitiator, signalType: data.type, offerAlreadySent, remoteUserId: remoteUserIdRef.current, hasSocket: !!socketRef.current });
+      }
+      
       // Skip the first signal for the initiator — it's the offer, sent via call-initiated
       if (offerAlreadySent) {
         console.log('⏭️ Skipping first signal (offer already sent via call-initiated)');
