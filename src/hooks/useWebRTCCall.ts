@@ -135,10 +135,25 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
       newSocket.on('connect', () => {
         console.log('🔌 Fallback socket connected:', newSocket.id);
+        
+        // Test ping/pong first
+        newSocket.emit('ping', (pong: any) => {
+          console.log('🏓 Ping/pong successful:', pong);
+        });
+        
+        // Then join
         newSocket.emit('join', user.id, (ack: any) => {
           console.log('✅ Server acknowledged join:', ack);
           joinAcknowledged = true;
         });
+      });
+
+      newSocket.on('connect_error', (err: Error) => {
+        console.error('❌ Fallback socket connection error:', err.message);
+      });
+
+      newSocket.on('error', (err: Error) => {
+        console.error('❌ Fallback socket error:', err);
       });
 
       newSocket.on('disconnect', () => {

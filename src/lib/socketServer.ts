@@ -15,6 +15,14 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
+    // Simple ping/pong for connection testing
+    socket.on('ping', (callback?: Function) => {
+      console.log('🏓 Ping received from:', socket.id);
+      if (callback && typeof callback === 'function') {
+        callback({ pong: true, timestamp: Date.now(), socketId: socket.id });
+      }
+    });
+
     // Join user-specific room
     socket.on('join', (userId: string, callback?: Function) => {
       console.log('👤 User joining room:', userId, 'Socket:', socket.id);
