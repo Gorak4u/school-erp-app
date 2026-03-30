@@ -598,7 +598,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       remoteUserIdRef.current = targetUserId;
 
       setCallState({
-        isInCall: true, isOutgoingCall: true, isIncomingCall: false,
+        isInCall: false, isOutgoingCall: true, isIncomingCall: false,
         callType, remoteUserId: targetUserId, remoteUserName: targetUserName,
         isMuted: false, isCameraOff: false, isScreenSharing: false,
         callDuration: 0, connectionState: 'connecting',
@@ -982,6 +982,17 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       if (signal.payload && peerRef.current) {
         try {
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
+          
+          // If this is an answer to our outgoing call, mark as connected
+          if (signal.type === 'call-answer' && callState.isOutgoingCall && !callState.isInCall) {
+            console.log('🤝 Call connected - received answer');
+            setCallState(prev => ({
+              ...prev,
+              isInCall: true,
+              connectionState: 'connected'
+            }));
+          }
+          
           peerRef.current.signal(signal.payload);
           console.log('✅ Signal applied successfully to peer');
         } catch (e) {
