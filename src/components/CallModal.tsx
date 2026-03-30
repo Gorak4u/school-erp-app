@@ -158,7 +158,6 @@ export const CallModal: React.FC<CallModalProps> = ({
     if (isOpen) {
       // Extra safety: don't auto-start if already in any call state
       if (callState.isInCall || callState.isOutgoingCall || callState.isIncomingCall) {
-        console.log('⏭️ [CallModal] Already in call state, skipping auto-start');
         return;
       }
       
@@ -166,7 +165,6 @@ export const CallModal: React.FC<CallModalProps> = ({
         // Set ref IMMEDIATELY to prevent any race conditions
         callStartedRef.current = true;
         
-        console.log('🚀 [CallModal] Auto-starting outgoing call');
         startCall(targetUserId, targetUserName, initialCallType);
       }
     } else {
@@ -174,8 +172,7 @@ export const CallModal: React.FC<CallModalProps> = ({
       setCallEnded(false);
       wasInCallRef.current = false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, targetUserId, targetUserName, initialCallType, isIncomingCall, incomingCallData, callState.isInCall, callState.isOutgoingCall, callState.isIncomingCall, startCall]);
 
   // Track when call goes active so we can detect when it ends
   useEffect(() => {

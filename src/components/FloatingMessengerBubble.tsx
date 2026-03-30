@@ -27,20 +27,16 @@ type SocketType = ReturnType<typeof io>;
 
 // Message notification sound function
 function playMessageSound() {
-  console.log('🎵 playMessageSound called');
   if (typeof window === 'undefined') {
-    console.log('❌ Window not available');
     return;
   }
 
   const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
   if (!AudioContextClass) {
-    console.log('❌ AudioContext not available');
     return;
   }
 
   try {
-    console.log('🔊 Creating audio context and oscillator');
     const audioContext = new AudioContextClass();
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -56,14 +52,12 @@ function playMessageSound() {
     gain.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
     oscillator.stop(audioContext.currentTime + 0.36);
-    console.log('✅ Sound playing successfully');
 
     oscillator.onended = () => {
-      console.log('🔇 Sound ended, closing audio context');
       audioContext.close().catch(() => {});
     };
   } catch (error) {
-    console.error('❌ Error playing sound:', error);
+    // Error handled silently
   }
 }
 
@@ -75,12 +69,6 @@ export function FloatingMessengerBubble() {
   const [loading, setLoading] = useState(false);
   const [, setSocket] = useState<SocketType | null>(null);
   const [mounted, setMounted] = useState(false);
-  
-  console.log('🫧 [FloatingMessengerBubble] Component render:', { 
-    hasUser: !!user, 
-    messengerEnabled, 
-    mounted 
-  });
   
   // Default position - bottom right (24px from edges)
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -122,12 +110,9 @@ export function FloatingMessengerBubble() {
   // Socket connection
   useEffect(() => {
     if (!messengerEnabled || !user?.id) {
-      console.log('🫧 [FloatingMessengerBubble] Socket not connecting:', { messengerEnabled, hasUser: !!user });
       return;
     }
 
-    console.log('🫧 [FloatingMessengerBubble] Creating socket connection for user:', user.id);
-    console.log('🫧 [FloatingMessengerBubble] Using default socket URL (same as useMessenger)');
     const socketInstance = io({
       path: '/api/socket',
       transports: ['websocket', 'polling'],
@@ -135,24 +120,21 @@ export function FloatingMessengerBubble() {
     });
 
     socketInstance.on('connect', () => {
-      console.log('🫧 [FloatingMessengerBubble] Socket connected, emitting join for user:', user.id);
       socketInstance.emit('join', user.id);
     });
 
     socketInstance.on('connect_error', (error: any) => {
-      console.error('🫧 [FloatingMessengerBubble] Socket connection error:', error);
+      // Connection error handled silently
     });
 
     socketInstance.on('disconnect', (reason: any) => {
-      console.log('🫧 [FloatingMessengerBubble] Socket disconnected, reason:', reason);
+      // Disconnect handled silently
     });
 
-    // Debug: Listen for common events that might be sent
+    // Listen for message events
     socketInstance.on('message:received', (data: any) => {
-      console.log('📩 [FloatingMessengerBubble] message:received event:', data);
       // Play sound and show toast for incoming messages
       if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
-        console.log('🎵 [FloatingMessengerBubble] Playing notification sound and showing toast');
         playMessageSound();
         // Show toast notification
         if (typeof window !== 'undefined') {
@@ -168,23 +150,15 @@ export function FloatingMessengerBubble() {
     });
     
     socketInstance.on('new-message', (data: any) => {
-      console.log('📩 [FloatingMessengerBubble] new-message event:', data);
+      // Handle new-message events
     });
 
     socketInstance.on('notification', (data: any) => {
-      console.log('📩 [FloatingMessengerBubble] notification event:', data);
+      // Handle notification events
     });
 
     socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
-      console.log('📩 [FloatingMessengerBubble] Messenger notification received:', notification);
-      setNotifications((prev) => {
-        console.log('📬 [FloatingMessengerBubble] Updating notifications, current count:', prev.length);
-        return [notification, ...prev.filter((item) => item.id !== notification.id)];
-      });
-    });
-
-    socketInstance.on('disconnect', () => {
-      console.log('🫧 [FloatingMessengerBubble] Socket disconnected');
+      setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
     });
 
     setSocket(socketInstance);

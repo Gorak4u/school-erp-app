@@ -351,22 +351,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     peer.on('signal', (data: any) => {
       // Only log important signals, not every ICE candidate
       if (data.type === 'offer' || data.type === 'answer') {
-        console.log('🔔 Peer signal emitted:', { isInitiator, signalType: data.type, offerAlreadySent, remoteUserId: remoteUserIdRef.current, hasSocket: !!socketRef.current });
+        // Important signal processed
       }
       
       // Skip the first signal for the initiator — it's the offer, sent via call-initiated
       if (offerAlreadySent) {
-        console.log('⏭️ Skipping first signal (offer already sent via call-initiated)');
         offerAlreadySent = false;
         return;
       }
 
       if (!socketRef.current || !user || !conversationIdRef.current) {
-        console.error('❌ Cannot send signal - missing socket/user/conversationId:', {
-          hasSocket: !!socketRef.current,
-          hasUser: !!user,
-          hasConversationId: !!conversationIdRef.current,
-        });
         return;
       }
 
@@ -376,7 +370,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       else if (data.type === 'answer') sigType = 'call-answer';
       else sigType = 'call-ice-candidate'; // candidate / renegotiation
 
-      console.log('📤 Sending signal:', {
+      socketRef.current.emit('call-signal', {
         sigType,
         from: user.id,
         to: remoteUserIdRef.current,
@@ -390,7 +384,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       if (sigType === 'call-ice-candidate') {
         const now = Date.now();
         if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
-          console.log('⏭️ Throttling ICE candidate (too frequent)');
           return;
         }
         lastCandidateTime = now;
@@ -400,17 +393,13 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       socketRef.current.emit('call-signal', {
         type: sigType,
         from: user.id,
-        to: remoteUserId,
+        to: remoteUserIdRef.current,
         conversationId: conversationIdRef.current,
-        callType,
         payload: data,
-      } as CallSignal);
-
-      console.log('✅ Signal sent successfully');
+      });
     });
 
     peer.on('connect', () => {
-      console.log('✅ Peer connected!');
       setCallState(prev => ({ 
         ...prev, 
         isInCall: true,
