@@ -599,13 +599,33 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
         case 'call-answer':
           if (peerRef.current && signal.payload) {
-            peerRef.current.signal(signal.payload);
+            try {
+              // Validate signal data before applying
+              if (typeof signal.payload === 'object' && (signal.payload.sdp || signal.payload.candidate)) {
+                peerRef.current.signal(signal.payload);
+                console.log('✅ Applied call-answer signal');
+              } else {
+                console.warn('⚠️ Invalid call-answer signal payload:', signal.payload);
+              }
+            } catch (error) {
+              console.error('❌ Error applying call-answer signal:', error);
+            }
           }
           break;
 
         case 'call-ice-candidate':
           if (peerRef.current && signal.payload) {
-            peerRef.current.signal(signal.payload);
+            try {
+              // Validate ICE candidate before applying
+              if (typeof signal.payload === 'object' && signal.payload.candidate) {
+                peerRef.current.signal(signal.payload);
+                console.log('✅ Applied ICE candidate');
+              } else {
+                console.warn('⚠️ Invalid ICE candidate payload:', signal.payload);
+              }
+            } catch (error) {
+              console.error('❌ Error applying ICE candidate:', error);
+            }
           }
           break;
 
