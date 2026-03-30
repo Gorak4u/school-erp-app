@@ -1254,9 +1254,9 @@ export default function MessengerPage() {
               setShowCallModal(false);
               setIncomingCallData(null);
             }}
-            conversationId={selectedConversationId || undefined}
-            targetUserId={callParticipant?.id}
-            targetUserName={callParticipant?.name || selectedConversation?.title || 'Unknown'}
+            conversationId={incomingCallData?.conversationId || selectedConversationId || undefined}
+            targetUserId={callParticipant?.id || incomingCallData?.from}
+            targetUserName={callParticipant?.name || selectedConversation?.title || incomingCallData?.callerName || 'Unknown'}
             initialCallType={callType}
             signalingSocket={socket}
             isIncomingCall={Boolean(incomingCallData)}
