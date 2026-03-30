@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare, Bell, X, GripVertical, Send, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import io from 'socket.io-client';
-import { MessageSquare, X, Bell, GripVertical } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
+import io from 'socket.io-client';
 
 interface MessengerNotification {
   id: string;
@@ -24,6 +24,36 @@ interface MessengerNotification {
 }
 
 type SocketType = ReturnType<typeof io>;
+
+// Chat functionality functions
+const fetchConversationMessages = async (conversationId: string) => {
+  try {
+    const response = await fetch(`/api/messenger/conversations/${conversationId}/messages`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.messages || [];
+    }
+  } catch (error) {
+    // Error handled silently
+  }
+  return [];
+};
+
+const sendMessage = async (conversationId: string, content: string) => {
+  try {
+    const response = await fetch(`/api/messenger/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+    return response.ok;
+  } catch (error) {
+    // Error handled silently
+  }
+  return false;
+};
 
 // Message notification sound function
 function playMessageSound() {
@@ -69,6 +99,12 @@ export function FloatingMessengerBubble() {
   const [loading, setLoading] = useState(false);
   const [, setSocket] = useState<SocketType | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [chatView, setChatView] = useState<'notifications' | 'chat'>('notifications');
+  const [selectedConversation, setSelectedConversation] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Default position - bottom right (24px from edges)
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -79,7 +115,54 @@ export function FloatingMessengerBubble() {
     [notifications]
   );
 
-  // Set initial position after mount (to get window dimensions)
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Handle opening chat from notification
+  const openChat = async (notification: MessengerNotification) => {
+    if (!notification.conversationId) return;
+    
+    setChatView('chat');
+    setSelectedConversation({
+      id: notification.conversationId,
+      name: notification.title,
+    });
+    
+    // Fetch messages
+    const conversationMessages = await fetchConversationMessages(notification.conversationId);
+    setMessages(conversationMessages);
+    
+    markAsRead(notification.id);
+  };
+
+  // Handle sending message
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedConversation || sendingMessage) return;
+    
+    setSendingMessage(true);
+    const success = await sendMessage(selectedConversation.id, messageInput.trim());
+    
+    if (success) {
+      setMessageInput('');
+      // Refresh messages
+      const conversationMessages = await fetchConversationMessages(selectedConversation.id);
+      setMessages(conversationMessages);
+    }
+    
+    setSendingMessage(false);
+  };
+
+  // Handle back to notifications
+  const handleBackToNotifications = () => {
+    setChatView('notifications');
+    setSelectedConversation(null);
+    setMessages([]);
+    setMessageInput('');
+  };
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem('messengerBubblePosition');
@@ -285,7 +368,7 @@ export function FloatingMessengerBubble() {
 
           {/* Notifications Panel */}
           <AnimatePresence>
-            {isOpen && (
+            {isOpen && chatView === 'notifications' && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -321,11 +404,7 @@ export function FloatingMessengerBubble() {
                     notifications.map((notification) => (
                       <button
                         key={notification.id}
-                        onClick={() => {
-                          markAsRead(notification.id);
-                          setIsOpen(false);
-                          window.location.href = '/messenger';
-                        }}
+                        onClick={() => openChat(notification)}
                         className={`w-full text-left px-4 py-3 border-b last:border-b-0 transition-colors ${
                           notification.isRead
                             ? 'bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/40'
@@ -357,6 +436,89 @@ export function FloatingMessengerBubble() {
                   <Link href="/messenger" className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
                     Open Messenger
                   </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Chat Panel */}
+          <AnimatePresence>
+            {isOpen && chatView === 'chat' && selectedConversation && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.18 }}
+                className="absolute bottom-full right-0 mb-4 w-96 h-[500px] max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border overflow-hidden bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 flex flex-col"
+              >
+                {/* Chat Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleBackToNotifications}
+                      className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConversation.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Active now</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender?.id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] px-3 py-2 rounded-lg ${
+                          message.sender?.id === user?.id
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className={`text-xs mt-1 ${
+                          message.sender?.id === user?.id ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Message Input */}
+                <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder="Type a message..."
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={sendingMessage}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!messageInput.trim() || sendingMessage}
+                      className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
