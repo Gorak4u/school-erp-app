@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, Video, X } from 'lucide-react';
-import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 
 interface GlobalCallNotificationProps {
   incomingCallData: {
@@ -23,31 +22,13 @@ export function GlobalCallNotification({
   onReject,
   socket 
 }: GlobalCallNotificationProps) {
-  const { acceptCall, rejectCall } = useWebRTCCall(
-    incomingCallData?.conversationId,
-    true,
-    socket
-  );
-
   if (!incomingCallData) return null;
 
-  const handleAccept = async () => {
-    try {
-      await acceptCall({
-        from: incomingCallData.from,
-        conversationId: incomingCallData.conversationId,
-        callType: incomingCallData.callType,
-        callerName: incomingCallData.callerName,
-        offer: incomingCallData.offer,
-      });
-      onAccept();
-    } catch (error) {
-      console.error('Failed to accept call:', error);
-    }
+  const handleAccept = () => {
+    onAccept();
   };
 
   const handleReject = () => {
-    rejectCall(incomingCallData.from, incomingCallData.conversationId);
     onReject();
   };
 

@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMessenger } from '@/hooks/useMessenger';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { showToast } from '@/lib/toastUtils';
+import { useCallContext } from '@/contexts/CallContext';
 import { unlockAudio } from '@/lib/ringtone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -59,15 +60,16 @@ export default function MessengerPage() {
   const [aiAutoSuggest, setAiAutoSuggest] = useState<string>('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
-  const [showCallModal, setShowCallModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
-  const [incomingCallData, setIncomingCallData] = useState<{
-    from: string;
-    conversationId: string;
-    callType: 'voice' | 'video';
-    callerName?: string;
-  } | null>(null);
+  
+  // Use centralized call context
+  const { incomingCallData, showCallModal, setShowCallModal, setIsOnMessengerPage, dismissCall } = useCallContext();
+  
+  useEffect(() => {
+    setIsOnMessengerPage(true);
+    return () => setIsOnMessengerPage(false);
+  }, [setIsOnMessengerPage]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -132,56 +134,14 @@ export default function MessengerPage() {
     return () => clearInterval(interval);
   }, [selectedConversationId, conversations, user?.id]);
 
+  // Call listener removed - now handled by centralized CallProvider
+  // Show toast when incoming call data changes
   useEffect(() => {
-    if (!socket || !user?.id) {
-      console.log('🚫 Socket or user not available for call-incoming listener');
-      return;
+    if (incomingCallData && user?.id && incomingCallData.from !== user.id) {
+      showToast('info', `${incomingCallData.callType === 'video' ? 'Video' : 'Voice'} call`, `${incomingCallData.callerName || 'Unknown'} is calling you`);
+      setCallType(incomingCallData.callType);
     }
-
-    console.log('🔧 Setting up call-incoming listener for user:', user.id);
-    console.log('🔍 Socket connected:', socket.connected);
-    console.log('🔍 Socket ID:', socket.id);
-
-    const handleIncomingCall = (data: {
-      from: string;
-      conversationId: string;
-      callType: 'voice' | 'video';
-      callerName?: string;
-    }) => {
-      console.log('🔔 Received incoming call:', data);
-      console.log('👤 Current user ID:', user.id);
-      console.log('📞 Call from:', data.from, 'to:', user.id);
-      
-      if (data.from === user.id) {
-        console.log('🚫 Ignoring call from self');
-        return;
-      }
-
-      const conversation = conversations.find((c) => c.id === data.conversationId);
-      const callerName =
-        data.callerName ||
-        conversation?.participants?.find((p: any) => p.id === data.from)?.name ||
-        'Unknown';
-
-      console.log('📞 Setting up incoming call modal for:', callerName);
-      console.log('🏠 Available conversations:', conversations.map(c => ({ id: c.id, title: c.title })));
-      
-      setIncomingCallData({ ...data, callerName });
-      setCallType(data.callType);
-      setShowCallModal(true);
-      showToast('info', `${data.callType === 'video' ? 'Video' : 'Voice'} call`, `${callerName} is calling you`);
-      
-      console.log('✅ Call modal opened for incoming call');
-    };
-
-    socket.on('call-incoming', handleIncomingCall);
-    console.log('✅ call-incoming listener registered');
-
-    return () => {
-      console.log('🔧 Cleaning up call-incoming listener');
-      socket.off('call-incoming', handleIncomingCall);
-    };
-  }, [socket, conversations, user?.id]);
+  }, [incomingCallData, user?.id]);
 
   const isUserOnline = (userId: string) => onlineUsers.has(userId);
 
@@ -427,7 +387,7 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
-      setIncomingCallData(null);
+      dismissCall();
       setCallType('voice');
       setShowCallModal(true);
     } else {
@@ -441,7 +401,7 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
-      setIncomingCallData(null);
+      dismissCall();
       setCallType('video');
       setShowCallModal(true);
     } else {
@@ -1267,7 +1227,7 @@ export default function MessengerPage() {
             isOpen={showCallModal}
             onClose={() => {
               setShowCallModal(false);
-              setIncomingCallData(null);
+              dismissCall();
             }}
             conversationId={incomingCallData?.conversationId || selectedConversationId || undefined}
             targetUserId={callParticipant?.id || incomingCallData?.from}

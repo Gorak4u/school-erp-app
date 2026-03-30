@@ -20,6 +20,7 @@ import { GlobalCallNotification } from '@/components/GlobalCallNotification';
 import { unlockAudio } from '@/lib/ringtone';
 import { useGlobalSocket } from '@/contexts/SocketContext';
 import { useRouter } from 'next/navigation';
+import { CallProvider, useCallContext } from '@/contexts/CallContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -29,7 +30,7 @@ interface AppLayoutProps {
   onThemeChange?: (theme: 'dark' | 'light') => void;
 }
 
-export default function AppLayout({ 
+function AppLayoutInner({ 
   children, 
   currentPage, 
   title = 'School ERP',
@@ -48,18 +49,19 @@ export default function AppLayout({
   const [sidebarTimeout, setSidebarTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const { socket } = useGlobalSocket();
-  const [showCallModal, setShowCallModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [incomingCallData, setIncomingCallData] = useState<any>(null);
-  const [isMessengerPage, setIsMessengerPage] = useState(false);
   const router = useRouter();
+  
+  // Use centralized call context
+  const { incomingCallData, isOnMessengerPage, setIsOnMessengerPage, dismissCall } = useCallContext();
+  
+  useEffect(() => {
+    setIsOnMessengerPage(window.location.pathname === '/messenger');
+  }, [setIsOnMessengerPage]);
 
   useEffect(() => {
     setIsClient(true);
     unlockAudio();
-    
-    // Track if we're on messenger page
-    setIsMessengerPage(window.location.pathname === '/messenger');
 
     const unlockHandler = () => unlockAudio();
     window.addEventListener('click', unlockHandler);
@@ -90,25 +92,7 @@ export default function AppLayout({
     };
   }, []);
 
-  // Global Call Listener - only show full modal on non-messenger pages
-  useEffect(() => {
-    if (!socket || !user?.id) return;
-
-    const handleIncomingCall = (data: any) => {
-      console.log('📞 Global incoming call:', data);
-      setIncomingCallData(data);
-      
-      // Only open full modal if NOT on messenger page (messenger has its own)
-      if (typeof window !== 'undefined' && window.location.pathname !== '/messenger') {
-        setShowCallModal(true);
-      }
-    };
-
-    socket.on('call-incoming', handleIncomingCall);
-    return () => {
-      socket.off('call-incoming', handleIncomingCall);
-    };
-  }, [socket, user?.id]);
+  // Call listener removed - now handled by CallProvider context
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -912,17 +896,17 @@ export default function AppLayout({
       <Toast theme={globalTheme} />
 
       {/* Global Call UI - Compact notification on non-messenger pages */}
-      {isClient && !isMessengerPage && incomingCallData && (
+      {isClient && !isOnMessengerPage && incomingCallData && (
         <GlobalCallNotification
           incomingCallData={incomingCallData}
           socket={socket}
           onAccept={() => {
             // Redirect to messenger and open call modal there
-            setIncomingCallData(null);
+            dismissCall();
             router.push('/messenger');
           }}
           onReject={() => {
-            setIncomingCallData(null);
+            dismissCall();
           }}
         />
       )}
@@ -936,5 +920,15 @@ export default function AppLayout({
         />
       )}
     </div>
+  );
+}
+
+export default function AppLayout(props: AppLayoutProps) {
+  const { socket } = useGlobalSocket();
+  
+  return (
+    <CallProvider socket={socket}>
+      <AppLayoutInner {...props} />
+    </CallProvider>
   );
 }
