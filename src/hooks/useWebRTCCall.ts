@@ -206,21 +206,66 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
   }, []);
 
-  // Clean up all media and peer
+  // Clean up all media and peer - COMPLETE cleanup to prevent duplicate calls
   const cleanupCall = useCallback(() => {
-    if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
-    if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+    console.log('🧹 Starting complete call cleanup...');
+    
+    // Destroy peer connection
+    if (peerRef.current) {
+      try {
+        peerRef.current.destroy();
+      } catch (e) {
+        console.warn('Peer destroy error:', e);
+      }
+      peerRef.current = null;
+    }
+    
+    // Clear timer
+    if (callTimerRef.current) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+    
+    // Stop all local media tracks
     const stream = localStreamRef.current;
-    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+    if (stream) {
+      stream.getTracks().forEach(t => {
+        t.stop();
+        console.log('🛑 Stopped track:', t.kind, t.label);
+      });
+    }
+    
+    // Stop screen share track if active
+    if (screenTrackRef.current) {
+      try {
+        screenTrackRef.current.stop();
+      } catch (e) {}
+      screenTrackRef.current = null;
+    }
+    
+    // Clear all refs
     localStreamRef.current = null;
+    remoteUserIdRef.current = '';
+    
+    // Clear state
     setLocalStream(null);
     setRemoteStream(null);
+    
     // Stop remote audio
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = null;
       remoteAudioRef.current.pause();
     }
-    remoteUserIdRef.current = '';
+    
+    // Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    console.log('✅ Call cleanup complete');
   }, []);
 
   // Create WebRTC peer - IMPORTANT: remoteUserId and callType passed as params to avoid stale closures
@@ -352,12 +397,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     return { peer, firstSignalPromise };
   }, [user, cleanupCall]);
 
-  // End call - notify remote and clean up
+  // End call - notify remote and clean up EVERYTHING
   const endCall = useCallback(() => {
+    console.log('📞 Ending call...');
     const remoteId = remoteUserIdRef.current;
     const convId = conversationIdRef.current;
 
+    // Notify remote party
     if (socketRef.current?.connected && user && remoteId && convId) {
+      console.log('📤 Sending hangup signal to:', remoteId);
       socketRef.current.emit('call-signal', {
         type: 'call-hangup',
         from: user.id,
@@ -367,12 +415,25 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       } as CallSignal);
     }
 
+    // Complete cleanup
     cleanupCall();
+    
+    // Reset ALL state to fresh
     setCallState({
-      isInCall: false, isOutgoingCall: false, isIncomingCall: false,
-      callType: 'voice', isMuted: false, isCameraOff: false,
-      isScreenSharing: false, callDuration: 0, connectionState: 'connecting',
+      isInCall: false,
+      isOutgoingCall: false,
+      isIncomingCall: false,
+      callType: 'voice',
+      remoteUserId: undefined,
+      remoteUserName: undefined,
+      isMuted: false,
+      isCameraOff: false,
+      isScreenSharing: false,
+      callDuration: 0,
+      connectionState: 'connecting',
     });
+    
+    console.log('✅ Call ended, state reset');
   }, [user, cleanupCall]);
 
   // Start outgoing call
@@ -517,12 +578,19 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
   }, []);
 
-  // Toggle camera
+  // Toggle camera - affects ONLY local user's video, remote video unaffected
   const toggleCamera = useCallback(() => {
     const stream = localStreamRef.current;
     if (stream) {
-      stream.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+      const videoTracks = stream.getVideoTracks();
+      const willBeOff = !videoTracks[0]?.enabled;
+      videoTracks.forEach(t => {
+        t.enabled = !t.enabled;
+        console.log(`📹 Local video ${t.enabled ? 'enabled' : 'disabled'}`);
+      });
       setCallState(prev => ({ ...prev, isCameraOff: !prev.isCameraOff }));
+      showToast('info', willBeOff ? 'Camera Off' : 'Camera On', 
+        willBeOff ? 'Your camera is now off' : 'Your camera is now on');
     }
   }, []);
 

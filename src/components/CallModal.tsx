@@ -122,13 +122,21 @@ export const CallModal: React.FC<CallModalProps> = ({
     setRemoteAudioRef(remoteAudioRef.current);
   }, [setLocalVideoRef, setRemoteVideoRef, setRemoteAudioRef]);
 
-  // Ringtone
+  // Ringtone: Receiver hears incoming ringtone, Caller hears ringback
   useEffect(() => {
-    const incoming = (Boolean(incomingCallData) || isIncomingCall) && !callState.isInCall && !callEnded;
-    const ringing  = callState.isOutgoingCall && !callState.isInCall;
-    if (incoming)     playIncomingRingtone();
-    else if (ringing) playRingbackTone();
-    else              stopRingtone();
+    const isReceivingCall = (Boolean(incomingCallData) || isIncomingCall) && !callState.isInCall && !callEnded;
+    const isCallingOut = callState.isOutgoingCall && !callState.isInCall && !callEnded;
+    
+    if (isReceivingCall) {
+      // Receiver: play incoming ringtone (someone is calling you)
+      playIncomingRingtone();
+    } else if (isCallingOut) {
+      // Caller: play ringback tone (waiting for other party to answer)
+      playRingbackTone();
+    } else {
+      stopRingtone();
+    }
+    
     return () => stopRingtone();
   }, [incomingCallData, isIncomingCall, callState.isInCall, callState.isOutgoingCall, callEnded]);
 
@@ -167,17 +175,17 @@ export const CallModal: React.FC<CallModalProps> = ({
     }
   }, [callState.isInCall]);
 
-  // AUTO-CLOSE FIX: when call transitions active → ended, auto-close (prevents re-showing incoming screen)
+  // AUTO-CLOSE FIX: detect call end and show ended state, RESET all refs for next call
   useEffect(() => {
-    if (wasInCallRef.current && !callState.isInCall && !callState.isOutgoingCall) {
-      wasInCallRef.current = false;
+    if (wasInCallRef.current && !callState.isInCall && callState.connectionState === 'ended') {
       setCallEnded(true);
-      stopRingtone();
-      const t = setTimeout(() => { onClose(); setCallEnded(false); }, 2000);
-      return () => clearTimeout(t);
+      // Reset refs to ensure clean state for next call
+      callStartedRef.current = false;
+      wasInCallRef.current = false;
+      setTimeout(() => { onClose(); }, 3000);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callState.isInCall]);
+    wasInCallRef.current = callState.isInCall;
+  }, [callState.isInCall, callState.connectionState, onClose]);
 
   // Auto-hide controls during video call
   const resetHideTimer = useCallback(() => {
