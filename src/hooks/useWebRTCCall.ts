@@ -65,16 +65,18 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   useEffect(() => {
     if (!enabled || !user?.id) return;
 
-    if (signalingSocket) {
+    if (signalingSocket && signalingSocket.connected) {
+      console.log('🔌 Using connected messenger socket for WebRTC:', signalingSocket.id);
       setSocket(signalingSocket);
       socketRef.current = signalingSocket;
-      setIsConnected(Boolean(signalingSocket.connected));
+      setIsConnected(true);
       return;
     }
 
-    // Fallback for environments where the messenger socket is unavailable.
+    // Fallback for environments where the messenger socket is unavailable or not connected.
     if (socketRef.current) return;
 
+    console.log('🔌 Creating fallback socket for WebRTC (messenger socket not connected)');
     const newSocket = io({
       path: '/api/socket',
       transports: ['websocket', 'polling'],
@@ -84,6 +86,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
 
     newSocket.on('connect', () => {
+      console.log('🔌 Fallback socket connected:', newSocket.id);
       setIsConnected(true);
       newSocket.emit('join', user.id);
       setSocket(newSocket);
@@ -92,13 +95,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
-      setSocket(null);
-      socketRef.current = null;
     });
 
+    socketRef.current = newSocket;
+    setSocket(newSocket);
+
     return () => {
-      if (newSocket && newSocket !== socketRef.current) {
-        newSocket.close();
+      if (newSocket) {
+        newSocket.disconnect();
       }
     };
   }, [enabled, user?.id, signalingSocket]);
@@ -221,6 +225,13 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
       // Notify server about outgoing call
       if (socketRef.current) {
+        console.log('📤 Emitting call-initiated:', {
+          from: user.id,
+          to: targetUserId,
+          conversationId,
+          callType,
+          callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        });
         socketRef.current.emit('call-initiated', {
           from: user.id,
           to: targetUserId,
@@ -228,6 +239,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
         });
+      } else {
+        console.error('❌ No socket available for call initiation');
       }
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);

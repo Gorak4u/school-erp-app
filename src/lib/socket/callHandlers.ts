@@ -26,16 +26,25 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   });
 
   // Handle call initiation
-  socket.on('call-initiated', (data: CallInitiated) => {
-    console.log('Call initiated:', data);
+  socket.on('call-initiated', (data: CallInitiated & { callerName?: string }) => {
+    console.log('📞 Call initiated:', data);
+    console.log('📍 Target user room:', `user:${data.to}`);
+    console.log('🏠 Caller socket rooms:', socket.rooms);
+    
+    // Check if target user room exists
+    const targetRoom = `user:${data.to}`;
+    const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
+    console.log('🔍 Sockets in target room:', socketsInRoom);
     
     // Notify the target user about the incoming call
-    io.to(`user:${data.to}`).emit('call-incoming', {
+    io.to(targetRoom).emit('call-incoming', {
       from: data.from,
       conversationId: data.conversationId,
       callType: data.callType,
-      callerName: (data as any).callerName || 'Unknown User',
+      callerName: data.callerName || 'Unknown User',
     });
+    
+    console.log('✅ Emitted call-incoming to user:', data.to);
   });
 
   // Handle joining a call room

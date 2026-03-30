@@ -126,7 +126,11 @@ export default function MessengerPage() {
       callType: 'voice' | 'video';
       callerName?: string;
     }) => {
-      if (data.from === user.id) return;
+      console.log('🔔 Received incoming call:', data);
+      if (data.from === user.id) {
+        console.log('🚫 Ignoring call from self');
+        return;
+      }
 
       const conversation = conversations.find((c) => c.id === data.conversationId);
       const callerName =
@@ -134,6 +138,7 @@ export default function MessengerPage() {
         conversation?.participants?.find((p: any) => p.id === data.from)?.name ||
         'Unknown';
 
+      console.log('📞 Setting up incoming call modal for:', callerName);
       setIncomingCallData({ ...data, callerName });
       setCallType(data.callType);
       setShowCallModal(true);
