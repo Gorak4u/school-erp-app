@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { MessengerMembersModal } from '@/components/MessengerMembersModal';
 import { CallModal } from '@/components/CallModal';
+import { ScheduleMeetingModal } from '@/components/ScheduleMeetingModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,6 +60,7 @@ export default function MessengerPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
   const [incomingCallData, setIncomingCallData] = useState<{
     from: string;
@@ -1270,11 +1272,25 @@ export default function MessengerPage() {
             conversationId={incomingCallData?.conversationId || selectedConversationId || undefined}
             targetUserId={callParticipant?.id || incomingCallData?.from}
             targetUserName={callParticipant?.name || selectedConversation?.title || incomingCallData?.callerName || 'Unknown'}
+            currentUserName={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'You'}
             initialCallType={callType}
             signalingSocket={socket}
             isIncomingCall={Boolean(incomingCallData)}
             incomingCallData={incomingCallData || undefined}
-            enabled={showCallModal} // Only enable WebRTC when call modal is open
+            enabled={showCallModal}
+            onScheduleMeeting={() => setShowScheduleModal(true)}
+          />
+
+          <ScheduleMeetingModal
+            isOpen={showScheduleModal}
+            onClose={() => setShowScheduleModal(false)}
+            currentConversationParticipants={selectedConversation?.participants?.map((p: any) => ({
+              id: p.userId || p.id || '',
+              name: p.name || p.firstName ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'User',
+              role: p.role,
+            })) || []}
+            signalingSocket={socket}
+            currentConversationId={selectedConversationId || undefined}
           />
         </>
       )}
