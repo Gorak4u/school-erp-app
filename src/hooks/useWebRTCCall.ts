@@ -397,6 +397,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
 
     peer.on('error', (err: any) => {
+      // Ignore "User-Initiated Abort" errors - these are expected during hangup
+      const isNormalClose = err.message?.includes('User-Initiated Abort') || 
+                           err.message?.includes('Close called') ||
+                           err.code === 'ERR_CONNECTION_FAILURE';
+      
+      if (isNormalClose) {
+        console.log('ℹ️ Peer closed normally (user hangup)');
+        return;
+      }
+      
       console.error('❌ Peer error:', err);
       setCallState(prev => ({ ...prev, connectionState: 'failed' }));
       showToast('error', 'Call Failed', 'Connection failed. Please try again.');
@@ -755,8 +765,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         return;
       }
 
+      // Ignore signals when not in active call (stale ICE candidates from previous call)
+      if (!peerRef.current) {
+        console.log('⏭️ Ignoring signal - no active peer (likely stale from previous call)');
+        return;
+      }
+
       // For all other signal types (offer, answer, ice-candidate), forward to peer
-      if (peerRef.current && signal.payload) {
+      if (signal.payload) {
         try {
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
           peerRef.current.signal(signal.payload);
@@ -765,10 +781,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           console.error('❌ Error applying signal to peer:', signal.type, e);
         }
       } else {
-        console.error('❌ Cannot apply signal - missing peer or payload:', {
-          hasPeer: !!peerRef.current,
-          hasPayload: !!signal.payload,
-        });
+        console.warn('⚠️ Signal received without payload:', signal.type);
       }
     };
 
