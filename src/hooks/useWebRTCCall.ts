@@ -110,6 +110,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Use global socket for incoming calls
       if (globalSocket && globalSocketConnected) {
         socketRef.current = globalSocket;
+        // CRITICAL: Join user room so signals can be delivered
+        globalSocket.emit('join', user.id, (ack: any) => {
+          console.log('✅ Global socket joined user room:', ack);
+        });
         socketReadyRef.current = true;
         setIsConnected(true);
         return;
@@ -118,6 +122,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Fallback: messenger socket if available
       if (signalingSocket?.connected) {
         socketRef.current = signalingSocket;
+        // CRITICAL: Join user room so signals can be delivered
+        signalingSocket.emit('join', user.id, (ack: any) => {
+          console.log('✅ Signaling socket joined user room:', ack);
+        });
         socketReadyRef.current = true;
         setIsConnected(true);
         return;
