@@ -29,8 +29,14 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       registerMessengerHandlers(io, socket);
       
       // Register call handlers for voice/video calling
-      const { registerCallHandlers } = require('./socket/callHandlers');
-      registerCallHandlers(io, socket);
+      try {
+        const { registerCallHandlers } = require('./socket/callHandlers');
+        console.log('🔧 About to register call handlers for socket:', socket.id);
+        registerCallHandlers(io, socket);
+        console.log('✅ Call handlers registered for user:', userId);
+      } catch (error) {
+        console.error('❌ Error registering call handlers:', error);
+      }
       
       console.log('🔧 All handlers registered for user:', userId);
     });
