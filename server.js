@@ -45,6 +45,36 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle call initiation
+    socket.on('call-initiated', (data, callback) => {
+      console.log('📞 Call initiated received:', data);
+      
+      if (callback && typeof callback === 'function') {
+        callback({ received: true, timestamp: Date.now() });
+      }
+      
+      const targetRoom = `user:${data.to}`;
+      const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
+      console.log('📍 Target room:', targetRoom, 'Sockets:', socketsInRoom ? socketsInRoom.size : 0);
+      
+      if (!socketsInRoom || socketsInRoom.size === 0) {
+        console.error('❌ Target user not connected:', data.to);
+        return;
+      }
+      
+      // Forward to target user with the offer included
+      io.to(targetRoom).emit('call-incoming', {
+        from: data.from,
+        conversationId: data.conversationId,
+        callType: data.callType,
+        callerName: data.callerName || 'Unknown User',
+        offer: data.offer  // Include the SDP offer
+      });
+      
+      console.log('✅ Emitted call-incoming to user:', data.to, 'with offer:', !!data.offer);
+    });
+
+    // Join user-specific room
     socket.on('join', (userId, callback) => {
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };

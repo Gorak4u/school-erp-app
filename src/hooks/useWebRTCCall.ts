@@ -231,8 +231,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
   }, []);
 
-  // Create WebRTC peer connection
-  const createPeer = useCallback((isInitiator: boolean, stream: MediaStream) => {
+  // Create WebRTC peer connection - returns peer and promise that resolves with first signal
+  const createPeer = useCallback((isInitiator: boolean, stream: MediaStream): { peer: SimplePeer.Instance; offerPromise: Promise<any> } => {
     const peer = new SimplePeer({
       initiator: isInitiator,
       trickle: true,
@@ -243,6 +243,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           { urls: 'stun:stun1.l.google.com:19302' },
         ]
       }
+    });
+
+    // Create promise that resolves with first signal (the offer for initiator)
+    const offerPromise = new Promise<any>((resolve) => {
+      const handleSignal = (data: any) => {
+        resolve(data);
+        peer.off('signal', handleSignal);
+      };
+      peer.once('signal', handleSignal);
     });
 
     peer.on('signal', (data: any) => {
@@ -282,7 +291,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       endCall();
     });
 
-    return peer;
+    return { peer, offerPromise };
   }, [user, conversationId, callState.remoteUserId, callState.callType]);
 
   // Start outgoing call
@@ -317,28 +326,29 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       });
 
       const stream = await initializeLocalStream(callType);
-      const peer = createPeer(true, stream);
+      const { peer, offerPromise } = createPeer(true, stream);
       
       peerRef.current = peer;
+
+      // Wait for SDP offer to be generated
+      console.log('⏳ Waiting for SDP offer...');
+      const offer = await offerPromise;
+      console.log('✅ SDP offer generated:', offer.type);
 
       // Start call timer
       callTimerRef.current = setInterval(() => {
         setCallState(prev => ({ ...prev, callDuration: prev.callDuration + 1 }));
       }, 1000);
 
-      // Notify server about outgoing call
+      // Notify server about outgoing call WITH the offer
       if (socketRef.current && socketRef.current.connected) {
-        console.log('📤 Emitting call-initiated:', {
+        console.log('📤 Emitting call-initiated with offer:', {
           from: user.id,
           to: targetUserId,
           conversationId,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
-        });
-        console.log('🔍 Socket state:', {
-          connected: socketRef.current.connected,
-          id: socketRef.current.id,
-          rooms: Array.from(socketRef.current.rooms || [])
+          hasOffer: !!offer
         });
         
         socketRef.current.emit('call-initiated', {
@@ -347,11 +357,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           conversationId,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+          offer: offer  // Include the SDP offer
         }, (ack: any) => {
           console.log('📨 Server acknowledgment:', ack);
         });
         
-        console.log('✅ call-initiated event emitted');
+        console.log('✅ call-initiated event emitted with offer');
       } else {
         console.error('❌ Socket not connected for call initiation');
         showToast('error', 'Connection Error', 'Lost connection. Please try again.');
