@@ -40,6 +40,15 @@ export interface IncomingCallData {
   offer?: any;
 }
 
+// SDP transform: cap audio bitrate for low-bandwidth connections
+function sdpTransform(sdp: string): string {
+  // Cap Opus audio bitrate to 32kbps (phone quality, very lightweight)
+  sdp = sdp.replace(/(useinbandfec=1)/g, '$1;maxaveragebitrate=32000;stereo=0');
+  // Cap video bitrate for each video section
+  sdp = sdp.replace(/m=video (.*\r\n)/g, (m) => m + 'b=AS:256\r\n');
+  return sdp;
+}
+
 export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
@@ -70,6 +79,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Dedicated audio element for remote stream — critical for audio to play in voice calls
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Keep refs in sync
   useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
@@ -152,16 +163,21 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     };
   }, [enabled, user?.id, signalingSocket, waitForSocketReady]);
 
-  // Get local media stream
+  // Get local media with lightweight constraints
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
     try {
       let stream: MediaStream;
       if (callType === 'screen') {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10 } },
+          audio: true,
+        });
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: callType === 'video' ? { width: 1280, height: 720 } : false,
-          audio: { echoCancellation: true, noiseSuppression: true },
+          video: callType === 'video'
+            ? { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 15, max: 30 } }
+            : false,
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
       }
       setLocalStream(stream);
@@ -186,6 +202,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     localStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    // Stop remote audio
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current.pause();
+    }
     remoteUserIdRef.current = '';
   }, []);
 
@@ -200,11 +221,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       initiator: isInitiator,
       trickle: true,
       stream,
+      sdpTransform,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
         ]
       }
     });
@@ -255,8 +276,18 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
 
     peer.on('stream', (remote: MediaStream) => {
+      console.log('📡 Remote stream received, tracks:', remote.getTracks().map(t => `${t.kind}(${t.enabled})`));
       setRemoteStream(remote);
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
+      // Attach to video element for video calls
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remote;
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      // CRITICAL: dedicated audio element ensures audio plays for BOTH voice and video calls
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remote;
+        remoteAudioRef.current.play().catch((e) => console.warn('⚠️ Remote audio play blocked:', e));
+      }
     });
 
     peer.on('close', () => {
@@ -448,47 +479,60 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
   }, []);
 
-  // Toggle screen sharing
+  // Toggle screen sharing — uses RTCPeerConnection.getSenders() to avoid SimplePeer replaceTrack bug
   const toggleScreenShare = useCallback(async () => {
     const peer = peerRef.current;
-    const stream = localStreamRef.current;
+    if (!peer) return;
+    // Access the underlying RTCPeerConnection directly
+    const pc = (peer as any)._pc as RTCPeerConnection | undefined;
 
     if (callState.isScreenSharing) {
+      // Stop screen share, revert to camera
       try {
-        const camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (peer && stream) {
-          const newTrack = camStream.getVideoTracks()[0];
-          const oldTrack = stream.getVideoTracks()[0];
-          if (newTrack && oldTrack) peer.replaceTrack(newTrack, oldTrack, stream);
-          oldTrack?.stop();
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } },
+          audio: false,
+        });
+        const newVideoTrack = camStream.getVideoTracks()[0];
+        if (pc && newVideoTrack) {
+          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) await sender.replaceTrack(newVideoTrack);
         }
-        setLocalStream(camStream);
-        localStreamRef.current = camStream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = camStream;
+        // Update local stream tracks
+        const existing = localStreamRef.current;
+        if (existing) {
+          existing.getVideoTracks().forEach(t => { t.stop(); existing.removeTrack(t); });
+          existing.addTrack(newVideoTrack);
+          if (localVideoRef.current) localVideoRef.current.srcObject = existing;
+        }
         setCallState(prev => ({ ...prev, isScreenSharing: false }));
         showToast('info', 'Screen Share Stopped', 'Switched back to camera');
       } catch (err) {
         console.error('❌ Stop screen share error:', err);
       }
     } else {
+      // Start screen share
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        if (peer && stream) {
-          const newTrack = screenStream.getVideoTracks()[0];
-          const oldTrack = stream.getVideoTracks()[0];
-          if (newTrack && oldTrack) peer.replaceTrack(newTrack, oldTrack, stream);
-          oldTrack?.stop();
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10 } },
+          audio: false,
+        });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        if (pc) {
+          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) {
+            await sender.replaceTrack(screenTrack);
+          } else {
+            // Voice call — no video sender yet, add one
+            pc.addTrack(screenTrack, screenStream);
+          }
         }
-        setLocalStream(screenStream);
-        localStreamRef.current = screenStream;
+        // Show screen in local preview
         if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
         setCallState(prev => ({ ...prev, isScreenSharing: true }));
         showToast('info', 'Screen Sharing', 'You are now sharing your screen');
-
-        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-          setCallState(prev => ({ ...prev, isScreenSharing: true }));
-          toggleScreenShare();
-        });
+        // Auto-stop when user ends share via browser UI
+        screenTrack.addEventListener('ended', () => toggleScreenShare());
       } catch (err) {
         console.error('❌ Start screen share error:', err);
         showToast('error', 'Screen Share Failed', 'Could not share screen');
@@ -553,5 +597,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     toggleScreenShare,
     setLocalVideoRef: (ref: HTMLVideoElement | null) => { localVideoRef.current = ref; },
     setRemoteVideoRef: (ref: HTMLVideoElement | null) => { remoteVideoRef.current = ref; },
+    setRemoteAudioRef: (ref: HTMLAudioElement | null) => { remoteAudioRef.current = ref; },
   };
 };

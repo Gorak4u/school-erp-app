@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMessenger } from '@/hooks/useMessenger';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { showToast } from '@/lib/toastUtils';
+import { unlockAudio } from '@/lib/ringtone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, Search, Plus, Send, Paperclip, 
@@ -21,6 +22,18 @@ export default function MessengerPage() {
   const { theme } = useTheme();
   const { messengerEnabled } = useAppConfig();
   const { user } = useAuth();
+
+  // Unlock AudioContext early so ringtones work when calls arrive
+  useEffect(() => {
+    unlockAudio();
+    const handler = () => unlockAudio();
+    window.addEventListener('click', handler);
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, []);
   const isDark = theme === 'dark';
   
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
