@@ -65,7 +65,7 @@ function playIncomingMessageTone() {
 
     oscillator.type = 'sine';
     oscillator.frequency.value = 880;
-    gain.gain.value = 0.3;
+    gain.gain.value = 1.0;
 
     oscillator.connect(gain);
     gain.connect(audioContext.destination);
