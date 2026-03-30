@@ -245,19 +245,43 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     });
 
     peer.on('signal', (data: any) => {
+      console.log('🔔 Peer signal emitted:', {
+        isInitiator,
+        signalType: data.type,
+        offerAlreadySent,
+        remoteUserId,
+        hasSocket: !!socketRef.current,
+      });
+
       // Skip the first signal for the initiator — it's the offer, sent via call-initiated
       if (offerAlreadySent) {
+        console.log('⏭️ Skipping first signal (offer already sent via call-initiated)');
         offerAlreadySent = false;
         return;
       }
 
-      if (!socketRef.current || !user || !conversationIdRef.current) return;
+      if (!socketRef.current || !user || !conversationIdRef.current) {
+        console.error('❌ Cannot send signal - missing socket/user/conversationId:', {
+          hasSocket: !!socketRef.current,
+          hasUser: !!user,
+          hasConversationId: !!conversationIdRef.current,
+        });
+        return;
+      }
 
       // Derive signal type from the actual payload so ICE candidates are routed correctly
       let sigType: CallSignal['type'];
       if (data.type === 'offer') sigType = 'call-offer';
       else if (data.type === 'answer') sigType = 'call-answer';
       else sigType = 'call-ice-candidate'; // candidate / renegotiation
+
+      console.log('📤 Sending signal:', {
+        sigType,
+        from: user.id,
+        to: remoteUserId,
+        conversationId: conversationIdRef.current,
+        payloadType: data.type,
+      });
 
       socketRef.current.emit('call-signal', {
         type: sigType,
@@ -267,6 +291,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         callType,
         payload: data,
       } as CallSignal);
+
+      console.log('✅ Signal sent successfully');
     });
 
     peer.on('connect', () => {
@@ -429,13 +455,21 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       const { peer } = createPeer(false, stream, callData.from, callData.callType);
       peerRef.current = peer;
 
-      // Apply the offer
+      // Apply the offer - this will trigger the peer to generate an answer
       const offer = callData.offer;
       console.log('🔍 Applying offer in acceptCall:', offer?.type || offer);
 
       if (offer && typeof offer === 'object' && offer.sdp) {
+        console.log('📝 About to apply SDP offer. Socket ready:', socketRef.current?.connected);
+        console.log('📝 Receiver context:', {
+          userId: user.id,
+          remoteUserId: callData.from,
+          conversationId: callData.conversationId,
+          socketConnected: socketRef.current?.connected,
+        });
+        
         peer.signal(offer);
-        console.log('✅ Applied SDP offer to peer');
+        console.log('✅ Applied SDP offer to peer - answer should be generated and sent');
       } else {
         console.error('❌ No valid SDP offer in callData:', offer);
         showToast('error', 'Call Error', 'Invalid call data. Please ask caller to try again.');
@@ -609,9 +643,23 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     if (!sock) return;
 
     const handleCallSignal = (signal: CallSignal) => {
-      if (signal.to !== user?.id) return;
+      console.log('📥 Received call-signal:', {
+        type: signal.type,
+        from: signal.from,
+        to: signal.to,
+        myId: user?.id,
+        hasPeer: !!peerRef.current,
+        hasPayload: !!signal.payload,
+        payloadType: signal.payload?.type,
+      });
+
+      if (signal.to !== user?.id) {
+        console.log('⏭️ Ignoring signal - not for me');
+        return;
+      }
 
       if (signal.type === 'call-hangup') {
+        console.log('☎️ Call hangup received');
         endCall();
         showToast('info', 'Call Ended', 'The other party ended the call');
         return;
@@ -622,9 +670,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         try {
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
           peerRef.current.signal(signal.payload);
+          console.log('✅ Signal applied successfully to peer');
         } catch (e) {
           console.error('❌ Error applying signal to peer:', signal.type, e);
         }
+      } else {
+        console.error('❌ Cannot apply signal - missing peer or payload:', {
+          hasPeer: !!peerRef.current,
+          hasPayload: !!signal.payload,
+        });
       }
     };
 
