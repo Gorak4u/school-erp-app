@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useWebRTCCall, IncomingCallData } from '@/hooks/useWebRTCCall';
 import { playIncomingRingtone, playRingbackTone, stopRingtone, unlockAudio } from '@/lib/ringtone';
+import { CallControls } from '@/components/CallControls';
+import { LiveReactions } from '@/components/LiveReactions';
 
 interface ChatMessage {
   id: string;
@@ -398,20 +400,11 @@ export const CallModal: React.FC<CallModalProps> = ({
             {showActive && (
               <div className="flex flex-col flex-1 h-full relative">
 
-                {/* Floating reactions */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-                  <AnimatePresence>
-                    {reactions.map(r => (
-                      <motion.div key={r.id}
-                        initial={{ opacity:1, y:'90%', x:`${r.x}%` }}
-                        animate={{ opacity:0, y:'10%' }}
-                        exit={{ opacity:0 }}
-                        transition={{ duration:2.5 }}
-                        className="absolute text-4xl select-none"
-                      >{r.emoji}</motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                {/* Live Reactions Component */}
+                <LiveReactions
+                  onReact={(emoji) => sendReaction(emoji)}
+                  incomingReactions={reactions.map(r => ({ ...r, y: 90, timestamp: Date.now() }))}
+                />
 
                 {/* Raise hand indicator */}
                 {handRaised && (
@@ -483,72 +476,22 @@ export const CallModal: React.FC<CallModalProps> = ({
                   </div>
                 )}
 
-                {/* Controls bar */}
-                <motion.div animate={{ opacity:showControls?1:0, y:showControls?0:20 }} transition={{ duration:0.3 }}
-                  className={`${isVideo?'absolute bottom-0 left-0 right-0':'relative'} flex flex-col gap-3 px-5 pt-3 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent`}>
-
-                  {/* Reaction bar */}
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    {REACTIONS.map(e => (
-                      <button key={e} onClick={() => sendReaction(e)}
-                        className="text-2xl hover:scale-125 active:scale-110 transition-transform select-none">
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Main controls */}
-                  <div className="flex items-center justify-center gap-4 flex-wrap">
-                    <CtrlBtn onClick={toggleMute} active={!callState.isMuted} label={callState.isMuted?'Unmute':'Mute'}>
-                      {callState.isMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
-                    </CtrlBtn>
-
-                    {callState.callType === 'video' && (
-                      <CtrlBtn onClick={toggleCamera} active={!callState.isCameraOff} label={callState.isCameraOff?'Start Cam':'Stop Cam'}>
-                        {callState.isCameraOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
-                      </CtrlBtn>
-                    )}
-
-                    {/* Voice ↔ Video switch */}
-                    {callState.callType === 'voice' ? (
-                      <CtrlBtn onClick={upgradeToVideo} label="Add Video">
-                        <Video className="w-5 h-5 text-white" />
-                      </CtrlBtn>
-                    ) : (
-                      <CtrlBtn onClick={downgradeToVoice} label="Voice Only">
-                        <Phone className="w-5 h-5 text-white" />
-                      </CtrlBtn>
-                    )}
-
-                    <CtrlBtn onClick={toggleScreenShare} active={callState.isScreenSharing} label={callState.isScreenSharing?'Stop Share':'Share'}>
-                      {callState.isScreenSharing ? <MonitorOff className="w-5 h-5 text-white" /> : <Monitor className="w-5 h-5 text-white" />}
-                    </CtrlBtn>
-
-                    <CtrlBtn onClick={() => setHandRaised(v => !v)} active={handRaised} label={handRaised?'Lower Hand':'Raise Hand'}>
-                      <Hand className="w-5 h-5 text-white" />
-                    </CtrlBtn>
-
-                    <CtrlBtn onClick={() => setShowChat(v => !v)} active={showChat} label="Chat">
-                      <MessageSquare className="w-5 h-5 text-white" />
-                    </CtrlBtn>
-
-                    {onScheduleMeeting && (
-                      <CtrlBtn onClick={onScheduleMeeting} label="Schedule">
-                        <Calendar className="w-5 h-5 text-white" />
-                      </CtrlBtn>
-                    )}
-
-                    {!isVideo && (
-                      <CtrlBtn onClick={toggleFs} active={isFullscreen} label="Fullscreen">
-                        {isFullscreen ? <Minimize2 className="w-5 h-5 text-white" /> : <Maximize2 className="w-5 h-5 text-white" />}
-                      </CtrlBtn>
-                    )}
-
-                    <CtrlBtn onClick={handleEndCall} danger label="End Call">
-                      <PhoneOff className="w-5 h-5 text-white" />
-                    </CtrlBtn>
-                  </div>
-                </motion.div>
+                {/* Enhanced Call Controls */}
+                <CallControls
+                  isMuted={callState.isMuted}
+                  isCameraOff={callState.isCameraOff}
+                  isScreenSharing={callState.isScreenSharing}
+                  showChat={showChat}
+                  chatUnread={chatMessages.filter(m => !m.mine).length}
+                  onToggleMute={toggleMute}
+                  onToggleCamera={toggleCamera}
+                  onToggleScreenShare={toggleScreenShare}
+                  onToggleChat={() => setShowChat(v => !v)}
+                  onEndCall={handleEndCall}
+                  onRaiseHand={() => setHandRaised(v => !v)}
+                  autoHide={isVideo}
+                  autoHideDelay={3000}
+                />
               </div>
             )}
 

@@ -19,6 +19,9 @@ import {
   Smile, MoreVertical, Phone, Video,
   Trash2, Users, X, Check, CheckCheck, Mic, Edit2, Sparkles
 } from 'lucide-react';
+import { MessageBubble } from '@/components/MessageBubble';
+import { TypingIndicator } from '@/components/TypingIndicator';
+import { RichTextEditor } from '@/components/RichTextEditor';
 
 export default function MessengerPage() {
   const { theme } = useTheme();
@@ -719,109 +722,31 @@ export default function MessengerPage() {
                     const isOwnMessage = msg.sender.id === user?.id;
                     const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
                     return (
-                      <motion.div
+                      <MessageBubble
                         key={msg.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`group flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                          {!isOwnMessage && (
-                            <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {msg.sender.name}
-                            </span>
-                          )}
-                          <div
-                            className={`px-4 py-2.5 rounded-2xl ${
-                              isOwnMessage
-                                ? 'bg-blue-600 text-white rounded-br-sm'
-                                : isDark
-                                ? 'bg-gray-700 text-white rounded-bl-sm'
-                                : 'bg-gray-200 text-gray-900 rounded-bl-sm'
-                            }`}
-                          >
-                            {msg.replyTo && (
-                              <div className={`mb-2 pb-2 border-b ${isOwnMessage ? 'border-blue-500' : isDark ? 'border-gray-600' : 'border-gray-300'} text-xs opacity-75`}>
-                                <div className="font-medium">{msg.replyTo.senderName}</div>
-                                <div className="truncate">{msg.replyTo.body}</div>
-                              </div>
-                            )}
-                            {attachments.length > 0 && (
-                              <div className="mb-2 space-y-2">
-                                {attachments.map((attachment: any, index: number) => {
-                                  const isImage = attachment?.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(attachment?.url || attachment?.name || '');
-                                  return isImage ? (
-                                    <a key={`${msg.id}-attachment-${index}`} href={attachment.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/10">
-                                      <img src={attachment.url} alt={attachment.name || 'Attachment'} className="max-h-56 w-full object-cover" />
-                                    </a>
-                                  ) : (
-                                    <a key={`${msg.id}-attachment-${index}`} href={attachment.url} target="_blank" rel="noreferrer" className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${isOwnMessage ? 'border-white/20 bg-white/10 text-white' : isDark ? 'border-gray-600 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'}`}>
-                                      <Paperclip className="h-4 w-4" />
-                                      <span className="truncate">{attachment.name || attachment.filename || 'Attachment'}</span>
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {isOwnMessage && (
-                              msg.isRead ? (
-                                <CheckCheck className="w-3 h-3 text-blue-400" />
-                              ) : (
-                                <Check className="w-3 h-3 text-gray-400" />
-                              )
-                            )}
-                          </div>
-                          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                            {isOwnMessage && (
-                              <>
-                                <button
-                                  onClick={() => handleStartEditMessage(msg)}
-                                  className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-                                  title="Edit message"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteMessage(msg.id)}
-                                  className={`rounded-lg p-1.5 ${isDark ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-red-50 text-red-600'}`}
-                                  title="Delete message"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
+                        id={msg.id}
+                        text={msg.body || ''}
+                        isMine={isOwnMessage}
+                        timestamp={new Date(msg.createdAt)}
+                        status={msg.isRead ? 'read' : 'delivered'}
+                        senderName={!isOwnMessage ? msg.sender.name : undefined}
+                        attachments={attachments.map((att: any) => ({
+                          type: att.type?.startsWith('image/') ? 'image' : 'file',
+                          url: att.url,
+                          name: att.name || att.filename,
+                          size: att.size ? `${Math.round(att.size / 1024)} KB` : undefined,
+                        }))}
+                        onEdit={() => handleStartEditMessage(msg)}
+                        onDelete={() => handleDeleteMessage(msg.id)}
+                      />
                     );
                   })
                 )}
                 <div ref={messagesEndRef} />
 
-                {/* AI Typing Indicator */}
+                {/* Typing Indicator */}
                 {isAIThinking && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="flex justify-start"
-                  >
-                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl rounded-bl-sm ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'}`}>
-                      <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '0ms' }} />
-                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '150ms' }} />
-                        <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? 'bg-purple-400' : 'bg-purple-600'}`} style={{ animationDelay: '300ms' }} />
-                      </div>
-                      <span className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>AI is typing...</span>
-                    </div>
-                  </motion.div>
+                  <TypingIndicator userName="AI Assistant" />
                 )}
               </div>
 
@@ -1019,54 +944,13 @@ export default function MessengerPage() {
                     >
                       <Sparkles className="w-5 h-5" />
                     </button>
-                    <div className="relative flex-1">
-                      <textarea
-                        value={messageInput}
-                        onChange={(e) => {
-                          setMessageInput(e.target.value);
-                          // Simulate auto-suggest when typing more than 3 characters
-                          if (e.target.value.length > 3 && e.target.value.length < 20) {
-                            const suggestions = ['looking forward to it', 'great job on this', 'can you explain more', 'thank you so much'];
-                            setAiAutoSuggest(suggestions[Math.floor(Math.random() * suggestions.length)]);
-                          } else {
-                            setAiAutoSuggest('');
-                          }
-                        }}
-                        onKeyDown={handleKeyPress}
-                        placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
-                        rows={1}
-                        className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
-                      />
-                      {/* AI Auto-suggest */}
-                      {aiAutoSuggest && messageInput.length > 3 && (
-                        <div className="absolute left-4 right-4 top-full mt-1">
-                          <button
-                            onClick={() => {
-                              setMessageInput(messageInput + ' ' + aiAutoSuggest);
-                              setAiAutoSuggest('');
-                            }}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${isDark ? 'bg-purple-600/20 text-purple-300 border border-purple-600/30' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            <span className="opacity-70">{aiAutoSuggest}</span>
-                            <span className="text-[10px] ml-1 opacity-50">Tab to accept</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={sending || ((editingMessageId ? !messageInput.trim() : !messageInput.trim() && pendingAttachments.length === 0))}
-                      className={`p-2.5 rounded-xl transition-all ${
-                        (!editingMessageId && (messageInput.trim() || pendingAttachments.length > 0) || (editingMessageId && messageInput.trim())) && !sending
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : isDark
-                          ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {editingMessageId ? <Edit2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-                    </button>
+                    <RichTextEditor
+                      value={messageInput}
+                      onChange={setMessageInput}
+                      onSend={handleSendMessage}
+                      placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
+                      showFormatting={true}
+                    />
                   </div>
                 </div>
               </div>
