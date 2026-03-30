@@ -119,7 +119,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       }
 
       console.log('🔌 Creating new fallback socket for WebRTC');
-      const newSocket = io({
+      const serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+      console.log('🔗 Fallback socket connecting to:', serverUrl);
+      const newSocket = io(serverUrl, {
         path: '/api/socket',
         transports: ['websocket', 'polling'],
         reconnection: true,
