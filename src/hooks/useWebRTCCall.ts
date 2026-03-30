@@ -29,6 +29,7 @@ export interface CallSignal {
   conversationId: string;
   callType: 'voice' | 'video' | 'screen';
   payload?: any;
+  offer?: any; // SDP offer from caller
 }
 
 export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
