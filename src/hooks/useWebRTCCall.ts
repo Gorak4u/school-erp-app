@@ -39,6 +39,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   // We'll get the socket from the messenger hook or create a minimal one for signaling
   const [socket, setSocket] = useState<any>(null);
   const socketRef = useRef<any>(null);
+  const socketReadyRef = useRef<boolean>(false);
   
   const [callState, setCallState] = useState<CallState>({
     isInCall: false,
@@ -60,58 +61,114 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Reuse the messenger socket when available so call signaling uses the same
-  // authenticated connection as chat delivery.
+  // Helper to wait for socket to be ready (connected + joined to room)
+  const waitForSocketReady = useCallback((targetSocket: any, timeoutMs: number = 5000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkReady = () => {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed >= timeoutMs) {
+          console.log('⏰ Socket readiness timeout');
+          resolve(false);
+          return;
+        }
+        
+        if (targetSocket && targetSocket.connected) {
+          console.log('✅ Socket is connected and ready');
+          socketReadyRef.current = true;
+          resolve(true);
+        } else {
+          setTimeout(checkReady, 100);
+        }
+      };
+      
+      checkReady();
+    });
+  }, []);
+
+  // Initialize socket for call signaling
   useEffect(() => {
     if (!enabled || !user?.id) return;
 
-    if (signalingSocket && signalingSocket.connected) {
-      console.log('🔌 Using connected messenger socket for WebRTC:', signalingSocket.id);
-      setSocket(signalingSocket);
-      socketRef.current = signalingSocket;
-      setIsConnected(true);
-      return;
-    }
+    let cleanup = () => {};
 
-    // Fallback for environments where the messenger socket is unavailable or not connected.
-    if (socketRef.current) return;
+    const initializeSocket = async () => {
+      // Try to use messenger socket first
+      if (signalingSocket) {
+        console.log('� Attempting to use messenger socket for WebRTC');
+        
+        const isReady = await waitForSocketReady(signalingSocket, 3000);
+        
+        if (isReady) {
+          console.log('✅ Using messenger socket for WebRTC:', signalingSocket.id);
+          setSocket(signalingSocket);
+          socketRef.current = signalingSocket;
+          setIsConnected(true);
+          socketReadyRef.current = true;
+          return;
+        } else {
+          console.log('⚠️ Messenger socket not ready, will create fallback');
+        }
+      }
 
-    console.log('🔌 Creating fallback socket for WebRTC (messenger socket not connected)');
-    const newSocket = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 1000,
-    });
+      // Create fallback socket
+      if (socketRef.current) {
+        console.log('🔍 Fallback socket already exists, reusing');
+        const isReady = await waitForSocketReady(socketRef.current, 2000);
+        if (isReady) {
+          setIsConnected(true);
+          return;
+        }
+      }
 
-    newSocket.on('connect', () => {
-      console.log('🔌 Fallback socket connected:', newSocket.id);
-      console.log('👤 WebRTC socket joining user room:', user.id);
-      setIsConnected(true);
-      newSocket.emit('join', user.id);
-      setSocket(newSocket);
-      socketRef.current = newSocket;
+      console.log('🔌 Creating new fallback socket for WebRTC');
+      const newSocket = io({
+        path: '/api/socket',
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      newSocket.on('connect', () => {
+        console.log('🔌 Fallback socket connected:', newSocket.id);
+        newSocket.emit('join', user.id);
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('🔌 Fallback socket disconnected');
+        setIsConnected(false);
+        socketReadyRef.current = false;
+      });
+
+      // Wait for connection and room join
+      const isReady = await waitForSocketReady(newSocket, 5000);
       
-      // Wait a moment for the room to be joined
-      setTimeout(() => {
-        console.log('🔍 WebRTC socket connected and ready');
-      }, 500);
-    });
+      if (isReady) {
+        console.log('✅ Fallback socket ready for WebRTC');
+        setSocket(newSocket);
+        socketRef.current = newSocket;
+        setIsConnected(true);
+      } else {
+        console.error('❌ Failed to initialize fallback socket');
+        showToast('error', 'Connection Error', 'Could not establish call connection');
+      }
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+      cleanup = () => {
+        if (newSocket) {
+          newSocket.disconnect();
+        }
+      };
+    };
 
-    socketRef.current = newSocket;
-    setSocket(newSocket);
+    initializeSocket();
 
     return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
+      cleanup();
     };
-  }, [enabled, user?.id, signalingSocket]);
+  }, [enabled, user?.id, signalingSocket, waitForSocketReady]);
 
   // Initialize local media stream
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
@@ -204,39 +261,19 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const startCall = useCallback(async (targetUserId: string, targetUserName: string, callType: 'voice' | 'video') => {
     if (!user || !conversationId) return;
 
-    // Wait for socket to be connected before starting call
-    if (!socketRef.current || !socketRef.current.connected) {
-      console.log('⏳ Waiting for socket connection...');
-      // Wait up to 5 seconds for socket to connect
-      let attempts = 0;
-      const maxAttempts = 50; // 5 seconds with 100ms intervals
-      
-      const waitForSocket = () => {
-        return new Promise<boolean>((resolve) => {
-          const checkSocket = () => {
-            attempts++;
-            if (socketRef.current && socketRef.current.connected) {
-              console.log('✅ Socket connected, proceeding with call');
-              resolve(true);
-            } else if (attempts >= maxAttempts) {
-              console.error('❌ Socket connection timeout');
-              resolve(false);
-            } else {
-              setTimeout(checkSocket, 100);
-            }
-          };
-          checkSocket();
-        });
-      };
-      
-      const socketConnected = await waitForSocket();
-      if (!socketConnected) {
-        showToast('error', 'Connection Error', 'Could not establish connection. Please try again.');
-        return;
-      }
-    }
-
     try {
+      // Ensure socket is ready before starting call
+      if (!socketRef.current || !socketRef.current.connected) {
+        console.log('⏳ Waiting for socket to be ready...');
+        const isReady = await waitForSocketReady(socketRef.current, 5000);
+        
+        if (!isReady) {
+          console.error('❌ Socket not ready for call');
+          showToast('error', 'Connection Error', 'Could not establish connection. Please try again.');
+          return;
+        }
+      }
+
       setCallState({
         isInCall: true,
         isOutgoingCall: true,
@@ -286,9 +323,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         
         console.log('✅ call-initiated event emitted');
       } else {
-        console.error('❌ Socket not available or not connected for call initiation');
-        console.log('🔍 Socket ref:', socketRef.current);
-        console.log('🔍 Socket connected:', socketRef.current?.connected);
+        console.error('❌ Socket not connected for call initiation');
+        showToast('error', 'Connection Error', 'Lost connection. Please try again.');
+        return;
       }
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);
@@ -307,22 +344,28 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       });
       showToast('error', 'Call Failed', 'Could not start the call. Please check microphone/camera permissions.');
     }
-  }, [user, conversationId, initializeLocalStream, createPeer]);
+  }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady]);
 
   // Accept incoming call
   const acceptCall = useCallback(async (signal: CallSignal) => {
-    if (!user || !conversationId) return;
+    if (!user) return;
 
     try {
-      const stream = await initializeLocalStream(signal.callType);
-      const peer = createPeer(false, stream);
-      
-      peerRef.current = peer;
+      // Ensure socket is ready
+      if (!socketRef.current || !socketRef.current.connected) {
+        console.log('⏳ Waiting for socket before accepting call...');
+        const isReady = await waitForSocketReady(socketRef.current, 3000);
+        if (!isReady) {
+          console.error('❌ Socket not ready to accept call');
+          showToast('error', 'Connection Error', 'Could not establish connection');
+          return;
+        }
+      }
 
       setCallState({
         isInCall: true,
         isOutgoingCall: false,
-        isIncomingCall: true,
+        isIncomingCall: false,
         callType: signal.callType,
         remoteUserId: signal.from,
         remoteUserName: signal.payload?.callerName || 'Unknown',
@@ -333,22 +376,23 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         connectionState: 'connecting',
       });
 
-      // Send answer signal
-      if (signal.payload) {
-        peer.signal(signal.payload);
-      }
+      const stream = await initializeLocalStream(signal.callType);
+      const peer = createPeer(false, stream);
+      
+      peerRef.current = peer;
+      peer.signal(signal.payload);
 
       // Start call timer
       callTimerRef.current = setInterval(() => {
         setCallState(prev => ({ ...prev, callDuration: prev.callDuration + 1 }));
       }, 1000);
 
-      showToast('success', 'Call Accepted', 'You are now connected');
+      showToast('success', 'Call Accepted', 'Connecting...');
     } catch (error) {
       console.error('Failed to accept call:', error);
-      rejectCall(signal.from);
+      showToast('error', 'Call Error', 'Could not accept the call');
     }
-  }, [user, conversationId, initializeLocalStream, createPeer]);
+  }, [user, initializeLocalStream, createPeer, waitForSocketReady]);
 
   // Reject incoming call
   const rejectCall = useCallback((fromUserId: string) => {
