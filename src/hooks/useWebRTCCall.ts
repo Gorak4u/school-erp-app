@@ -127,6 +127,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         reconnectionDelay: 1000,
       });
 
+      // Set socketRef immediately so waitForSocketReady can find it
+      socketRef.current = newSocket;
+
       newSocket.on('connect', () => {
         console.log('🔌 Fallback socket connected:', newSocket.id);
         newSocket.emit('join', user.id);
@@ -144,7 +147,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       if (isReady) {
         console.log('✅ Fallback socket ready for WebRTC');
         setSocket(newSocket);
-        socketRef.current = newSocket;
         setIsConnected(true);
       } else {
         console.error('❌ Failed to initialize fallback socket');
