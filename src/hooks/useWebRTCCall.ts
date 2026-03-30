@@ -284,9 +284,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     
     console.log('✅ Call cleanup complete');
     
-    // CRITICAL: Reset all guard flags immediately to allow next call
-    isStartingCallRef.current = false;
-    
     // Reset cleanup guard after a delay to allow new calls
     setTimeout(() => {
       isCleaningUpRef.current = false;
@@ -494,17 +491,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       return;
     }
 
-    // GUARDRAIL: Clean up any existing connection before starting new call
-    console.log('🛡️ [GUARDRAIL] Cleaning up before starting new call');
-    cleanupCall();
-
-    // CRITICAL GUARD: Prevent multiple simultaneous startCall invocations
-    // This check is AFTER cleanup to ensure we don't have race conditions
+    // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
       console.log('⏭️ [GUARD] startCall already in progress, ignoring duplicate call');
       return;
     }
     isStartingCallRef.current = true;
+
+    // GUARDRAIL: Clean up any existing connection before starting new call
+    console.log('🛡️ [GUARDRAIL] Cleaning up before starting new call');
+    cleanupCall();
     
     try {
       if (!socketRef.current?.connected) {
@@ -559,6 +555,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isScreenSharing: false, callDuration: 0, connectionState: 'failed',
       });
       showToast('error', 'Call Failed', 'Could not start the call. Check mic/camera permissions.');
+    } finally {
+      // Reset guard to allow next call
+      isStartingCallRef.current = false;
     }
   }, [user, conversationId, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
@@ -566,17 +565,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const acceptCall = useCallback(async (callData: IncomingCallData) => {
     if (!user) return;
 
-    // GUARDRAIL: Clean up any existing connection before accepting new call
-    console.log('🛡️ [GUARDRAIL] Cleaning up before accepting call');
-    cleanupCall();
-
-    // CRITICAL GUARD: Prevent multiple simultaneous acceptCall invocations
-    // This check is AFTER cleanup to ensure we don't have race conditions
+    // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
       console.log('⏭️ [GUARD] acceptCall already in progress, ignoring duplicate accept');
       return;
     }
     isStartingCallRef.current = true;
+
+    // GUARDRAIL: Clean up any existing connection before accepting new call
+    console.log('🛡️ [GUARDRAIL] Cleaning up before accepting call');
+    cleanupCall();
     
     try {
       if (!socketRef.current?.connected) {
@@ -632,6 +630,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       console.error('❌ acceptCall error:', error);
       cleanupCall();
       showToast('error', 'Call Error', 'Could not accept the call');
+    } finally {
+      // Reset guard to allow retry if needed
+      isStartingCallRef.current = false;
     }
   }, [user, initializeLocalStream, createPeer, waitForSocketReady, cleanupCall]);
 
@@ -795,10 +796,19 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   }, [callState.callType]);
 
   // Listen for incoming call signals - use stable ref to prevent re-registration
+  // CRITICAL: Only process signals when in an active call to prevent conflicts with other hook instances
   const endCallRef = useRef(endCall);
   endCallRef.current = endCall;
   
   useEffect(() => {
+    // Only listen for signals when this instance is managing an active call
+    // This prevents CallContext's hook instance from conflicting with CallModal's instance
+    // NOTE: Must check callState (not ref) since refs don't trigger re-renders
+    if (!callState.isInCall && !callState.isOutgoingCall && !callState.isIncomingCall) {
+      console.log('⏭️ [SignalListener] Not in active call, skipping registration');
+      return;
+    }
+    
     const sock = socketRef.current;
     if (!sock || !user?.id) return;
 
@@ -846,7 +856,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       }
 
       // Ignore signals when not in active call (stale ICE candidates from previous call)
-      if (!peerRef.current && !isActiveCallRef.current) {
+      if (!peerRef.current && !callState.isInCall && !callState.isOutgoingCall) {
         console.log('⏭️ Ignoring signal - no active peer and not in active call');
         return;
       }
@@ -867,7 +877,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
     sock.on('call-signal', handleCallSignal);
     return () => { sock.off('call-signal', handleCallSignal); };
-  }, [user?.id]); // Only re-register when user ID changes
+  }, [user?.id, callState.isInCall, callState.isOutgoingCall, callState.isIncomingCall]); // Re-register when user or call state changes
 
   // Cleanup on disable/unmount
   useEffect(() => {

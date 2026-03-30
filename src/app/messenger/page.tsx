@@ -407,7 +407,10 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
-      dismissCall();
+      // Only dismiss if there's an incoming call, not for outgoing
+      if (incomingCallData) {
+        dismissCall();
+      }
       setCallType('voice');
       setShowCallModal(true);
       // Reset guard after modal opens
@@ -436,7 +439,10 @@ export default function MessengerPage() {
     // Find the other participant for direct calls
     const otherParticipant = callParticipant;
     if (otherParticipant) {
-      dismissCall();
+      // Only dismiss if there's an incoming call, not for outgoing
+      if (incomingCallData) {
+        dismissCall();
+      }
       setCallType('video');
       setShowCallModal(true);
       // Reset guard after modal opens
