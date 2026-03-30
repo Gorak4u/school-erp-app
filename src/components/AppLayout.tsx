@@ -20,7 +20,7 @@ import { GlobalCallNotification } from '@/components/GlobalCallNotification';
 import { unlockAudio } from '@/lib/ringtone';
 import { useGlobalSocket } from '@/contexts/SocketContext';
 import { useRouter } from 'next/navigation';
-import { CallProvider, useCallContext } from '@/contexts/CallContext';
+import { useCallContext } from '@/contexts/CallContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -30,7 +30,7 @@ interface AppLayoutProps {
   onThemeChange?: (theme: 'dark' | 'light') => void;
 }
 
-function AppLayoutInner({ 
+export default function AppLayout({ 
   children, 
   currentPage, 
   title = 'School ERP',
@@ -920,15 +920,5 @@ function AppLayoutInner({
         />
       )}
     </div>
-  );
-}
-
-export default function AppLayout(props: AppLayoutProps) {
-  const { socket } = useGlobalSocket();
-  
-  return (
-    <CallProvider socket={socket}>
-      <AppLayoutInner {...props} />
-    </CallProvider>
   );
 }

@@ -10,6 +10,7 @@ import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 import { TemplateInitializer } from "@/components/TemplateInitializer";
 import CallNotifications from "@/components/CallNotifications";
+import { CallProviderWrapper } from "@/components/CallProviderWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,8 +48,10 @@ export default function RootLayout({
             <SchoolConfigProvider>
               <NotificationProvider>
                 <SocketProvider>
-                  <CallNotifications />
-                  {children}
+                  <CallProviderWrapper>
+                    <CallNotifications />
+                    {children}
+                  </CallProviderWrapper>
                 </SocketProvider>
               </NotificationProvider>
             </SchoolConfigProvider>
