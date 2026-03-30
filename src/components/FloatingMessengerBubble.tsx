@@ -127,7 +127,8 @@ export function FloatingMessengerBubble() {
     }
 
     console.log('🫧 [FloatingMessengerBubble] Creating socket connection for user:', user.id);
-    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000', {
+    console.log('🫧 [FloatingMessengerBubble] Using default socket URL (same as useMessenger)');
+    const socketInstance = io({
       path: '/api/socket',
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -136,6 +137,14 @@ export function FloatingMessengerBubble() {
     socketInstance.on('connect', () => {
       console.log('🫧 [FloatingMessengerBubble] Socket connected, emitting join for user:', user.id);
       socketInstance.emit('join', user.id);
+    });
+
+    socketInstance.on('connect_error', (error: any) => {
+      console.error('🫧 [FloatingMessengerBubble] Socket connection error:', error);
+    });
+
+    socketInstance.on('disconnect', (reason: any) => {
+      console.log('🫧 [FloatingMessengerBubble] Socket disconnected, reason:', reason);
     });
 
     // Debug: Listen for common events that might be sent
