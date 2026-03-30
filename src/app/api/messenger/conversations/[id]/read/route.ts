@@ -77,6 +77,50 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           console.warn('Socket.IO not available');
         }
       }
+    } else {
+      // No messageId provided - mark ALL unread messages as read
+      const unreadMessages = await prisma.messengerMessage.findMany({
+        where: {
+          conversationId,
+          status: 'active',
+          senderId: { not: ctx.userId },
+          readReceipts: {
+            none: { userId: ctx.userId },
+          },
+        },
+        select: { id: true, senderId: true },
+      });
+
+      if (unreadMessages.length > 0) {
+        // Create read receipts for all unread messages
+        await prisma.messengerMessageReadReceipt.createMany({
+          data: unreadMessages.map((m: any) => ({
+            schoolId: ctx.schoolId,
+            messageId: m.id,
+            userId: ctx.userId,
+          })),
+          skipDuplicates: true,
+        });
+
+        // Notify senders that their messages were read
+        try {
+          const io = getIO();
+          const senderIds = [...new Set(unreadMessages.map((m: any) => m.senderId))];
+          for (const senderId of senderIds) {
+            const messageIds = unreadMessages
+              .filter((m: any) => m.senderId === senderId)
+              .map((m: any) => m.id);
+            io.to(`user:${senderId}`).emit('messages:readBulk', {
+              conversationId,
+              messageIds,
+              userId: ctx.userId,
+              readAt: new Date(),
+            });
+          }
+        } catch (socketError) {
+          console.warn('Socket.IO not available');
+        }
+      }
     }
 
     await prisma.messengerConversationParticipant.update({
