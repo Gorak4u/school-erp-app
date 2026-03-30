@@ -62,30 +62,25 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // Helper to wait for socket to be ready (connected + joined to room)
-  const waitForSocketReady = useCallback((targetSocket: any, timeoutMs: number = 5000): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const startTime = Date.now();
+  const waitForSocketReady = useCallback(async (timeoutMs: number = 5000): Promise<boolean> => {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < timeoutMs) {
+      // Check current socketRef value (live reference)
+      const currentSocket = socketRef.current;
       
-      const checkReady = () => {
-        const elapsed = Date.now() - startTime;
-        
-        if (elapsed >= timeoutMs) {
-          console.log('⏰ Socket readiness timeout');
-          resolve(false);
-          return;
-        }
-        
-        if (targetSocket && targetSocket.connected) {
-          console.log('✅ Socket is connected and ready');
-          socketReadyRef.current = true;
-          resolve(true);
-        } else {
-          setTimeout(checkReady, 100);
-        }
-      };
+      if (currentSocket && currentSocket.connected) {
+        console.log('✅ Socket is connected and ready:', currentSocket.id);
+        socketReadyRef.current = true;
+        return true;
+      }
       
-      checkReady();
-    });
+      // Wait 100ms before checking again
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('⏰ Socket readiness timeout');
+    return false;
   }, []);
 
   // Initialize socket for call signaling
@@ -99,7 +94,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       if (signalingSocket) {
         console.log('� Attempting to use messenger socket for WebRTC');
         
-        const isReady = await waitForSocketReady(signalingSocket, 3000);
+        const isReady = await waitForSocketReady(3000);
         
         if (isReady) {
           console.log('✅ Using messenger socket for WebRTC:', signalingSocket.id);
@@ -116,7 +111,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Create fallback socket
       if (socketRef.current) {
         console.log('🔍 Fallback socket already exists, reusing');
-        const isReady = await waitForSocketReady(socketRef.current, 2000);
+        const isReady = await waitForSocketReady(2000);
         if (isReady) {
           setIsConnected(true);
           return;
@@ -265,7 +260,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Ensure socket is ready before starting call
       if (!socketRef.current || !socketRef.current.connected) {
         console.log('⏳ Waiting for socket to be ready...');
-        const isReady = await waitForSocketReady(socketRef.current, 5000);
+        const isReady = await waitForSocketReady(5000);
         
         if (!isReady) {
           console.error('❌ Socket not ready for call');
@@ -354,7 +349,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Ensure socket is ready
       if (!socketRef.current || !socketRef.current.connected) {
         console.log('⏳ Waiting for socket before accepting call...');
-        const isReady = await waitForSocketReady(socketRef.current, 3000);
+        const isReady = await waitForSocketReady(3000);
         if (!isReady) {
           console.error('❌ Socket not ready to accept call');
           showToast('error', 'Connection Error', 'Could not establish connection');
