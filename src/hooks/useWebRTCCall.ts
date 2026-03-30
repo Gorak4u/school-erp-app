@@ -467,6 +467,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       return;
     }
 
+    // GUARDRAIL: Clean up any existing connection before starting new call
+    console.log('🛡️ [GUARDRAIL] Cleaning up before starting new call');
+    cleanupCall();
+    
     try {
       if (!socketRef.current?.connected) {
         const ready = await waitForSocketReady(5000);
@@ -524,6 +528,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const acceptCall = useCallback(async (callData: IncomingCallData) => {
     if (!user) return;
 
+    // GUARDRAIL: Clean up any existing connection before accepting new call
+    console.log('🛡️ [GUARDRAIL] Cleaning up before accepting call');
+    cleanupCall();
+    
     try {
       if (!socketRef.current?.connected) {
         const ready = await waitForSocketReady(3000);
