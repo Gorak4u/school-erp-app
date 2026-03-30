@@ -12,18 +12,60 @@ interface MessengerNotification {
   id: string;
   type: 'message' | 'conversation' | 'mention';
   title: string;
-  message: string;
-  isRead: boolean;
+  message?: string;
+  conversationId?: string;
+  senderName?: string;
   createdAt: string;
+  isRead?: boolean;
   metadata?: {
-    module?: string;
-    conversationId?: string;
-    messageId?: string;
+    module: string;
     [key: string]: any;
   };
 }
 
 type SocketType = ReturnType<typeof io>;
+
+// Message notification sound function
+function playMessageSound() {
+  console.log('🎵 playMessageSound called');
+  if (typeof window === 'undefined') {
+    console.log('❌ Window not available');
+    return;
+  }
+
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextClass) {
+    console.log('❌ AudioContext not available');
+    return;
+  }
+
+  try {
+    console.log('🔊 Creating audio context and oscillator');
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.0001;
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.start();
+    gain.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
+    oscillator.stop(audioContext.currentTime + 0.36);
+    console.log('✅ Sound playing successfully');
+
+    oscillator.onended = () => {
+      console.log('🔇 Sound ended, closing audio context');
+      audioContext.close().catch(() => {});
+    };
+  } catch (error) {
+    console.error('❌ Error playing sound:', error);
+  }
+}
 
 export function FloatingMessengerBubble() {
   const { user } = useAuth();
@@ -86,8 +128,26 @@ export function FloatingMessengerBubble() {
     });
 
     socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
-      if (notification.metadata?.module !== 'messenger') return;
       setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
+    });
+
+    // Add message:received event for sound notifications
+    socketInstance.on('message:received', (data: any) => {
+      console.log('🔔 [FloatingMessengerBubble] Message received:', data);
+      console.log('📍 Current page:', window.location.pathname);
+      console.log('👤 User ID:', user?.id, 'Sender ID:', data.sender?.id);
+      
+      // Only play notification sound if NOT on messenger page and not own message
+      if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
+        console.log('🎵 [FloatingMessengerBubble] Playing notification sound');
+        playMessageSound();
+      } else {
+        console.log('🔇 [FloatingMessengerBubble] Not playing sound:', {
+          hasUser: !!user?.id,
+          isOwnMessage: user?.id === data.sender?.id,
+          onMessengerPage: window.location.pathname === '/messenger'
+        });
+      }
     });
 
     setSocket(socketInstance);

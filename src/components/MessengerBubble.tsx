@@ -52,8 +52,12 @@ export function MessengerBubble() {
     });
 
     socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
-      if (notification.metadata?.module !== 'messenger') return;
-      setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
+      console.log('📩 Messenger notification received:', notification);
+      // This is already a messenger notification, no need to check metadata.module
+      setNotifications((prev) => {
+        console.log('📬 Updating notifications, current count:', prev.length);
+        return [notification, ...prev.filter((item) => item.id !== notification.id)];
+      });
     });
 
     setSocket(socketInstance);

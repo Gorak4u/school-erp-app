@@ -45,12 +45,20 @@ interface SendMessageOptions {
 }
 
 function playIncomingMessageTone() {
-  if (typeof window === 'undefined') return;
+  console.log('🎵 playIncomingMessageTone called');
+  if (typeof window === 'undefined') {
+    console.log('❌ Window not available');
+    return;
+  }
 
   const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContextClass) return;
+  if (!AudioContextClass) {
+    console.log('❌ AudioContext not available');
+    return;
+  }
 
   try {
+    console.log('🔊 Creating audio context and oscillator');
     const audioContext = new AudioContextClass();
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -66,11 +74,14 @@ function playIncomingMessageTone() {
     gain.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
     oscillator.stop(audioContext.currentTime + 0.36);
+    console.log('✅ Sound playing successfully');
 
     oscillator.onended = () => {
+      console.log('🔇 Sound ended, closing audio context');
       audioContext.close().catch(() => {});
     };
   } catch (error) {
+    console.error('❌ Error playing sound:', error);
   }
 }
 
@@ -123,9 +134,20 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     });
 
     newSocket.on('message:received', (data: any) => {
+      console.log('🔔 Message received:', data);
+      console.log('📍 Current page:', window.location.pathname);
+      console.log('👤 User ID:', user?.id, 'Sender ID:', data.sender?.id);
+      
       // Only play notification sound if NOT on messenger page
       if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
+        console.log('🎵 Playing notification sound');
         playIncomingMessageTone();
+      } else {
+        console.log('🔇 Not playing sound:', {
+          hasUser: !!user?.id,
+          isOwnMessage: user?.id === data.sender?.id,
+          onMessengerPage: window.location.pathname === '/messenger'
+        });
       }
       
       // Add message to current conversation if viewing it
