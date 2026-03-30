@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { showToast } from '@/lib/toastUtils';
+import { useRouter } from 'next/navigation';
 
 interface IncomingCallData {
   from: string;
@@ -26,6 +28,7 @@ const CallContext = createContext<CallContextType | null>(null);
 
 export function CallProvider({ children, socket }: { children: ReactNode; socket: any }) {
   const { user } = useAuth();
+  const router = useRouter();
   const [incomingCallData, setIncomingCallData] = useState<IncomingCallData | null>(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const [isOnMessengerPage, setIsOnMessengerPage] = useState(false);
@@ -41,8 +44,24 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
 
     const handleIncomingCall = (data: IncomingCallData) => {
       console.log('📞 [CallProvider] Incoming call received:', data);
+      
+      // Show toast notification
+      showToast(
+        'info',
+        'Incoming Call',
+        `${data.callerName} is calling you (${data.callType})`,
+        10000
+      );
+      
       setIncomingCallData(data);
       setShowCallModal(true);
+      
+      // Auto-redirect to messenger after 3 seconds if not already there
+      if (window.location.pathname !== '/messenger') {
+        setTimeout(() => {
+          router.push('/messenger');
+        }, 3000);
+      }
     };
 
     socket.on('call-incoming', handleIncomingCall);
@@ -53,7 +72,7 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
       socket.off('call-incoming', handleIncomingCall);
       listenerRegisteredRef.current = false;
     };
-  }, [socket, user?.id]);
+  }, [socket, user?.id, router]);
 
   const acceptCall = async (data: IncomingCallData) => {
     // Just set state - CallModal will handle the actual WebRTC connection

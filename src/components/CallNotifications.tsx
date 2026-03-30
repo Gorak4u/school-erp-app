@@ -15,48 +15,17 @@ export default function CallNotifications() {
   useEffect(() => {
     if (!socket || !session?.user?.id) return;
 
-    // Listen for incoming calls globally
-    const handleIncomingCall = (data: any) => {
-      console.log('📞 Incoming call notification:', data);
-      
-      // Show notification
-      showToast(
-        'info',
-        'Incoming Call',
-        `${data.callerName} is calling you (${data.callType})`,
-        10000
-      );
-
-      // Store call data
-      setIncomingCall(data);
-
-      // Auto-redirect to messenger after 3 seconds if not already there
-      const timer = setTimeout(() => {
-        if (window.location.pathname !== '/messenger') {
-          router.push('/messenger');
-        }
-      }, 3000);
-
-      // Listen for call ended to clean up
-      const handleCallEnded = () => {
-        setIncomingCall(null);
-        clearTimeout(timer);
-      };
-
-      socket.on('call-ended', handleCallEnded);
-      socket.on('call-rejected', handleCallEnded);
-
-      return () => {
-        clearTimeout(timer);
-        socket.off('call-ended', handleCallEnded);
-        socket.off('call-rejected', handleCallEnded);
-      };
+    // Listen for call ended to clean up
+    const handleCallEnded = () => {
+      setIncomingCall(null);
     };
 
-    socket.on('call-incoming', handleIncomingCall);
+    socket.on('call-ended', handleCallEnded);
+    socket.on('call-rejected', handleCallEnded);
 
     return () => {
-      socket.off('call-incoming', handleIncomingCall);
+      socket.off('call-ended', handleCallEnded);
+      socket.off('call-rejected', handleCallEnded);
     };
   }, [socket, session?.user?.id, router]);
 
