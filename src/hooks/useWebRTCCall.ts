@@ -139,7 +139,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       });
 
       // Wait for connection and room join
-      const isReady = await waitForSocketReady(newSocket, 5000);
+      const isReady = await waitForSocketReady(5000);
       
       if (isReady) {
         console.log('✅ Fallback socket ready for WebRTC');
