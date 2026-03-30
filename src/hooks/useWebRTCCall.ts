@@ -87,6 +87,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   // Guard to prevent redundant cleanup calls
   const isCleaningUpRef = useRef<boolean>(false);
+  // Guard to prevent ping-pong hangup signals
+  const hangupProcessedRef = useRef<boolean>(false);
+  // Signal deduplication - track recently processed signals with timestamps
+  const processedSignalsRef = useRef<Map<string, number>>(new Map());
+  // Track if we're in an active call to ignore stale signals
+  const isActiveCallRef = useRef<boolean>(false);
 
   // Keep refs in sync
   useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
@@ -276,10 +282,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     
     console.log('✅ Call cleanup complete');
     
-    // Reset cleanup guard after a brief delay to allow new calls
+    // Reset cleanup guard after a delay to allow new calls
     setTimeout(() => {
       isCleaningUpRef.current = false;
-    }, 100);
+      // Also reset hangup processed flag after a longer delay
+      setTimeout(() => {
+        hangupProcessedRef.current = false;
+        isActiveCallRef.current = false;
+      }, 500);
+    }, 300);
   }, []);
 
   // Create WebRTC peer - IMPORTANT: remoteUserId and callType passed as params to avoid stale closures
@@ -422,13 +433,24 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   }, [user, cleanupCall]);
 
   // End call - notify remote and clean up EVERYTHING
-  const endCall = useCallback(() => {
-    console.log('📞 Ending call...');
+  const endCall = useCallback((options?: { skipHangupSignal?: boolean; triggeredByRemote?: boolean }) => {
+    console.log('📞 Ending call...', options);
+    
+    // Prevent duplicate hangup processing
+    if (hangupProcessedRef.current && options?.triggeredByRemote) {
+      console.log('⏭️ Hangup already processed, skipping');
+      return;
+    }
+    
+    if (options?.triggeredByRemote) {
+      hangupProcessedRef.current = true;
+    }
+    
     const remoteId = remoteUserIdRef.current;
     const convId = conversationIdRef.current;
 
-    // Notify remote party
-    if (socketRef.current?.connected && user && remoteId && convId) {
+    // Notify remote party (only if WE are ending the call, not if remote ended it)
+    if (!options?.skipHangupSignal && !options?.triggeredByRemote && socketRef.current?.connected && user && remoteId && convId) {
       console.log('📤 Sending hangup signal to:', remoteId);
       socketRef.current.emit('call-signal', {
         type: 'call-hangup',
@@ -488,6 +510,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isMuted: false, isCameraOff: false, isScreenSharing: false,
         callDuration: 0, connectionState: 'connecting',
       });
+      
+      // Mark as active call for signal handling
+      isActiveCallRef.current = true;
 
       const stream = await initializeLocalStream(callType);
       const { peer, firstSignalPromise } = createPeer(true, stream, targetUserId, callType);
@@ -551,6 +576,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isMuted: false, isCameraOff: false, isScreenSharing: false,
         callDuration: 0, connectionState: 'connecting',
       });
+      
+      // Mark as active call for signal handling
+      isActiveCallRef.current = true;
 
       const stream = await initializeLocalStream(callData.callType);
       const { peer } = createPeer(false, stream, callData.from, callData.callType);
@@ -745,12 +773,33 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     showToast('info', 'Video Off', 'Switched to voice call');
   }, [callState.callType]);
 
-  // Listen for incoming call signals
+  // Listen for incoming call signals - use stable ref to prevent re-registration
+  const endCallRef = useRef(endCall);
+  endCallRef.current = endCall;
+  
   useEffect(() => {
     const sock = socketRef.current;
-    if (!sock) return;
+    if (!sock || !user?.id) return;
 
     const handleCallSignal = (signal: CallSignal) => {
+      // Signal deduplication: ignore duplicate signals within 500ms
+      const now = Date.now();
+      const signalKey = `${signal.type}-${signal.from}-${signal.to}`;
+      
+      // Clean up old entries (older than 2 seconds)
+      for (const [key, timestamp] of processedSignalsRef.current.entries()) {
+        if (now - timestamp > 2000) {
+          processedSignalsRef.current.delete(key);
+        }
+      }
+      
+      // Check for duplicate
+      if (processedSignalsRef.current.has(signalKey)) {
+        console.log('⏭️ Ignoring duplicate signal:', signal.type);
+        return;
+      }
+      processedSignalsRef.current.set(signalKey, now);
+
       console.log('📥 Received call-signal:', {
         type: signal.type,
         from: signal.from,
@@ -759,6 +808,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         hasPeer: !!peerRef.current,
         hasPayload: !!signal.payload,
         payloadType: signal.payload?.type,
+        isActiveCall: isActiveCallRef.current,
       });
 
       if (signal.to !== user?.id) {
@@ -768,19 +818,20 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
       if (signal.type === 'call-hangup') {
         console.log('☎️ Call hangup received');
-        endCall();
+        // Use ref to avoid dependency issues and mark as remote hangup
+        endCallRef.current?.({ triggeredByRemote: true });
         showToast('info', 'Call Ended', 'The other party ended the call');
         return;
       }
 
       // Ignore signals when not in active call (stale ICE candidates from previous call)
-      if (!peerRef.current) {
-        console.log('⏭️ Ignoring signal - no active peer (likely stale from previous call)');
+      if (!peerRef.current && !isActiveCallRef.current) {
+        console.log('⏭️ Ignoring signal - no active peer and not in active call');
         return;
       }
 
       // For all other signal types (offer, answer, ice-candidate), forward to peer
-      if (signal.payload) {
+      if (signal.payload && peerRef.current) {
         try {
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
           peerRef.current.signal(signal.payload);
@@ -788,14 +839,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         } catch (e) {
           console.error('❌ Error applying signal to peer:', signal.type, e);
         }
-      } else {
+      } else if (!signal.payload) {
         console.warn('⚠️ Signal received without payload:', signal.type);
       }
     };
 
     sock.on('call-signal', handleCallSignal);
     return () => { sock.off('call-signal', handleCallSignal); };
-  }, [user?.id, endCall]);
+  }, [user?.id]); // Only re-register when user ID changes
 
   // Cleanup on disable/unmount
   useEffect(() => {
