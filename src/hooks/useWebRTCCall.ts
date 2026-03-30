@@ -85,6 +85,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   // Track the active screen share track so we can stop it reliably
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+  // Guard to prevent redundant cleanup calls
+  const isCleaningUpRef = useRef<boolean>(false);
 
   // Keep refs in sync
   useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
@@ -208,6 +210,13 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
   // Clean up all media and peer - COMPLETE cleanup to prevent duplicate calls
   const cleanupCall = useCallback(() => {
+    // Guard: prevent redundant cleanup
+    if (isCleaningUpRef.current) {
+      console.log('⏭️ Cleanup already in progress, skipping...');
+      return;
+    }
+    
+    isCleaningUpRef.current = true;
     console.log('🧹 Starting complete call cleanup...');
     
     // Destroy peer connection
@@ -266,6 +275,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
     
     console.log('✅ Call cleanup complete');
+    
+    // Reset cleanup guard after a brief delay to allow new calls
+    setTimeout(() => {
+      isCleaningUpRef.current = false;
+    }, 100);
   }, []);
 
   // Create WebRTC peer - IMPORTANT: remoteUserId and callType passed as params to avoid stale closures
