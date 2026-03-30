@@ -118,7 +118,14 @@ export default function MessengerPage() {
   }, [selectedConversationId, conversations, user?.id]);
 
   useEffect(() => {
-    if (!socket || !user?.id) return;
+    if (!socket || !user?.id) {
+      console.log('🚫 Socket or user not available for call-incoming listener');
+      return;
+    }
+
+    console.log('🔧 Setting up call-incoming listener for user:', user.id);
+    console.log('🔍 Socket connected:', socket.connected);
+    console.log('🔍 Socket ID:', socket.id);
 
     const handleIncomingCall = (data: {
       from: string;
@@ -127,6 +134,9 @@ export default function MessengerPage() {
       callerName?: string;
     }) => {
       console.log('🔔 Received incoming call:', data);
+      console.log('👤 Current user ID:', user.id);
+      console.log('📞 Call from:', data.from, 'to:', user.id);
+      
       if (data.from === user.id) {
         console.log('🚫 Ignoring call from self');
         return;
@@ -139,15 +149,21 @@ export default function MessengerPage() {
         'Unknown';
 
       console.log('📞 Setting up incoming call modal for:', callerName);
+      console.log('🏠 Available conversations:', conversations.map(c => ({ id: c.id, title: c.title })));
+      
       setIncomingCallData({ ...data, callerName });
       setCallType(data.callType);
       setShowCallModal(true);
       showToast('info', `${data.callType === 'video' ? 'Video' : 'Voice'} call`, `${callerName} is calling you`);
+      
+      console.log('✅ Call modal opened for incoming call');
     };
 
     socket.on('call-incoming', handleIncomingCall);
+    console.log('✅ call-incoming listener registered');
 
     return () => {
+      console.log('🔧 Cleaning up call-incoming listener');
       socket.off('call-incoming', handleIncomingCall);
     };
   }, [socket, conversations, user?.id]);

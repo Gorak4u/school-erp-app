@@ -198,6 +198,38 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const startCall = useCallback(async (targetUserId: string, targetUserName: string, callType: 'voice' | 'video') => {
     if (!user || !conversationId) return;
 
+    // Wait for socket to be connected before starting call
+    if (!socketRef.current || !socketRef.current.connected) {
+      console.log('⏳ Waiting for socket connection...');
+      // Wait up to 5 seconds for socket to connect
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds with 100ms intervals
+      
+      const waitForSocket = () => {
+        return new Promise<boolean>((resolve) => {
+          const checkSocket = () => {
+            attempts++;
+            if (socketRef.current && socketRef.current.connected) {
+              console.log('✅ Socket connected, proceeding with call');
+              resolve(true);
+            } else if (attempts >= maxAttempts) {
+              console.error('❌ Socket connection timeout');
+              resolve(false);
+            } else {
+              setTimeout(checkSocket, 100);
+            }
+          };
+          checkSocket();
+        });
+      };
+      
+      const socketConnected = await waitForSocket();
+      if (!socketConnected) {
+        showToast('error', 'Connection Error', 'Could not establish connection. Please try again.');
+        return;
+      }
+    }
+
     try {
       setCallState({
         isInCall: true,

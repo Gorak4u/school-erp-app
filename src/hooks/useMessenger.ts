@@ -96,13 +96,18 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     });
 
     newSocket.on('connect', () => {
+      console.log('🔌 Messenger socket connected:', newSocket.id);
+      console.log('👤 User joining room:', user.id);
       setIsConnected(true);
       newSocket.emit('join', user.id);
       
       // Join conversation room if viewing a conversation
       if (conversationId) {
+        console.log('🏠 Joining conversation room:', conversationId);
         newSocket.emit('conversation:join', { conversationId });
       }
+      
+      console.log('✅ Messenger socket setup complete');
     });
 
     newSocket.on('disconnect', () => {

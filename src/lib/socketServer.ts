@@ -17,9 +17,12 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
 
     // Join user-specific room
     socket.on('join', (userId: string) => {
+      console.log('👤 User joining room:', userId, 'Socket:', socket.id);
+      console.log('🏠 Available rooms before join:', Array.from(socket.rooms));
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };
-      console.log(`User ${userId} joined their room`);
+      console.log(`✅ User ${userId} joined their room: user:${userId}`);
+      console.log('🏠 Socket rooms after join:', Array.from(socket.rooms));
       
       // Register messenger handlers immediately after user joins
       const { registerMessengerHandlers } = require('./socket/messengerHandlers');
@@ -28,6 +31,8 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       // Register call handlers for voice/video calling
       const { registerCallHandlers } = require('./socket/callHandlers');
       registerCallHandlers(io, socket);
+      
+      console.log('🔧 All handlers registered for user:', userId);
     });
 
     // Join school-specific room
