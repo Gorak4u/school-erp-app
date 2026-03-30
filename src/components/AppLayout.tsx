@@ -14,6 +14,10 @@ import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import Link from 'next/link';
 import Toast from './Toast';
 import TrialBanner from './TrialBanner';
+import { CallModal } from '@/components/CallModal';
+import { ScheduleMeetingModal } from '@/components/ScheduleMeetingModal';
+import { unlockAudio } from '@/lib/ringtone';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,8 +45,18 @@ export default function AppLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarTimeout, setSidebarTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  const { socket } = useGlobalSocket();
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
+
   useEffect(() => {
     setIsClient(true);
+    unlockAudio();
+
+    const unlockHandler = () => unlockAudio();
+    window.addEventListener('click', unlockHandler);
+    window.addEventListener('keydown', unlockHandler);
 
     // Global fetch interceptor for X-Toast headers
     const originalFetch = window.fetch;
@@ -64,8 +78,26 @@ export default function AppLayout({
 
     return () => {
       window.fetch = originalFetch;
+      window.removeEventListener('click', unlockHandler);
+      window.removeEventListener('keydown', unlockHandler);
     };
   }, []);
+
+  // Global Call Listener
+  useEffect(() => {
+    if (!socket || !user?.id) return;
+
+    const handleIncomingCall = (data: any) => {
+      console.log('📞 Global incoming call:', data);
+      setIncomingCallData(data);
+      setShowCallModal(true);
+    };
+
+    socket.on('call-incoming', handleIncomingCall);
+    return () => {
+      socket.off('call-incoming', handleIncomingCall);
+    };
+  }, [socket, user?.id]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -867,6 +899,31 @@ export default function AppLayout({
 
       {/* Toast Notifications */}
       <Toast theme={globalTheme} />
+
+      {/* Global Call UI */}
+      {isClient && (
+        <>
+          <CallModal
+            isOpen={showCallModal}
+            onClose={() => {
+              setShowCallModal(false);
+              setIncomingCallData(null);
+            }}
+            signalingSocket={socket}
+            isIncomingCall={Boolean(incomingCallData)}
+            incomingCallData={incomingCallData || undefined}
+            enabled={showCallModal}
+            currentUserName={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'You'}
+            onScheduleMeeting={() => setShowScheduleModal(true)}
+          />
+
+          <ScheduleMeetingModal
+            isOpen={showScheduleModal}
+            onClose={() => setShowScheduleModal(false)}
+            signalingSocket={socket}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -268,13 +268,16 @@ export const CallModal: React.FC<CallModalProps> = ({
 
   const showIncoming = (Boolean(incomingCallData) || isIncomingCall) && !callState.isInCall && !callEnded;
   const showRinging  = callState.isOutgoingCall && !callState.isInCall && !callEnded;
-  const showActive   = callState.isInCall;
+  const showActive   = callState.isInCall || (callState.connectionState === 'connecting' && !showIncoming && !showRinging);
   const showFailed   = callState.connectionState === 'failed' && !callState.isInCall && !showIncoming && !callEnded;
   const callType     = incomingCallData?.callType || callState.callType || initialCallType;
   const isVideo      = callState.callType === 'video' || callState.isScreenSharing;
   const callerName   = incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown';
   const isConnected  = callState.connectionState === 'connected';
   const REACTIONS    = ['👍','👏','😂','❤️','🎉','🙌'];
+  
+  // Fallback: if no state is showing, show a blank with close button to prevent gray screen
+  const showFallback = !showIncoming && !showRinging && !showActive && !showFailed && !callEnded;
 
   return (
     <AnimatePresence>
@@ -302,6 +305,9 @@ export const CallModal: React.FC<CallModalProps> = ({
             {showIncoming && (
               <div className={`flex flex-col items-center justify-center flex-1 gap-8 px-8 text-center
                 bg-gradient-to-br ${callType === 'video' ? 'from-indigo-950 via-purple-950 to-gray-950' : 'from-emerald-950 via-teal-950 to-gray-950'}`}>
+                <button onClick={handleRejectCall} className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <X className="w-5 h-5" />
+                </button>
                 <div className="relative flex items-center justify-center">
                   {[1.6,1.35,1.1].map((sc,i) => (
                     <motion.div key={i} className={`absolute rounded-full ${callType==='video'?'bg-purple-500/20':'bg-emerald-500/20'}`}
@@ -338,6 +344,9 @@ export const CallModal: React.FC<CallModalProps> = ({
             {/* ══ RINGING ══ */}
             {showRinging && (
               <div className="flex flex-col items-center justify-center flex-1 gap-8 px-8 text-center bg-gradient-to-br from-blue-950 via-indigo-950 to-gray-950">
+                <button onClick={handleEndCall} className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <X className="w-5 h-5" />
+                </button>
                 <div className="relative flex items-center justify-center">
                   {[1.6,1.35,1.1].map((sc,i) => (
                     <motion.div key={i} className="absolute rounded-full bg-blue-500/20"
@@ -364,6 +373,9 @@ export const CallModal: React.FC<CallModalProps> = ({
             {/* ══ CALL ENDED ══ */}
             {callEnded && (
               <div className="flex flex-col items-center justify-center flex-1 gap-5 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+                <button onClick={onClose} className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <X className="w-5 h-5" />
+                </button>
                 <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center">
                   <PhoneOff className="w-9 h-9 text-gray-400" />
                 </div>
@@ -535,12 +547,32 @@ export const CallModal: React.FC<CallModalProps> = ({
             {/* ══ FAILED ══ */}
             {showFailed && (
               <div className="flex flex-col items-center justify-center flex-1 gap-6 p-8 text-center">
+                <button onClick={onClose} className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <X className="w-5 h-5" />
+                </button>
                 <div className="w-24 h-24 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
                   <PhoneOff className="w-10 h-10 text-red-400" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white">Call Failed</h2>
                   <p className="text-gray-400 mt-2 max-w-sm text-sm">Could not connect. Check camera/microphone permissions.</p>
+                </div>
+                <button onClick={onClose} className="px-8 py-3 rounded-2xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors">Close</button>
+              </div>
+            )}
+
+            {/* ══ FALLBACK (Prevents blank gray screen) ══ */}
+            {showFallback && (
+              <div className="flex flex-col items-center justify-center flex-1 gap-6 p-8 text-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+                <button onClick={onClose} className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center">
+                  <PhoneOff className="w-8 h-8 text-gray-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Call Disconnected</h2>
+                  <p className="text-gray-400 mt-2 text-sm">The call has been cancelled or disconnected.</p>
                 </div>
                 <button onClick={onClose} className="px-8 py-3 rounded-2xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors">Close</button>
               </div>

@@ -196,6 +196,12 @@ export async function middleware(request: NextRequest) {
     response.headers.set(key, value);
   });
 
+  // ── Public Route Check ───────────────────────────────────────────────────
+  // Allow public routes without authentication
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    return response;
+  }
+  
   // ── Cron Job Security ─────────────────────────────────────────────────────
   // Only allow cron jobs with proper authentication in production
   if (pathname.startsWith('/api/cron')) {
