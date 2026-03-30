@@ -87,10 +87,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
     newSocket.on('connect', () => {
       console.log('🔌 Fallback socket connected:', newSocket.id);
+      console.log('👤 WebRTC socket joining user room:', user.id);
       setIsConnected(true);
       newSocket.emit('join', user.id);
       setSocket(newSocket);
       socketRef.current = newSocket;
+      
+      // Wait a moment for the room to be joined
+      setTimeout(() => {
+        console.log('🔍 WebRTC socket connected and ready');
+      }, 500);
     });
 
     newSocket.on('disconnect', () => {
