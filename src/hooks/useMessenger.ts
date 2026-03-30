@@ -123,7 +123,8 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
     });
 
     newSocket.on('message:received', (data: any) => {
-      if (user?.id && data.sender?.id !== user.id) {
+      // Only play notification sound if NOT on messenger page
+      if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
         playIncomingMessageTone();
       }
       
