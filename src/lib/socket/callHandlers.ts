@@ -21,17 +21,47 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   
   // Handle call signaling
   socket.on('call-signal', (signal: CallSignal) => {
-    console.log('📞 Call signal received:', signal);
-    console.log('📍 Forwarding to room:', `user:${signal.to}`);
+    console.log('📞 Call signal received:', {
+      type: signal.type,
+      from: signal.from,
+      to: signal.to,
+      conversationId: signal.conversationId,
+      payloadType: signal.payload?.type,
+      senderId: socket.id,
+      senderUserId: socket.data?.userId,
+    });
+    
+    const targetRoom = `user:${signal.to}`;
+    console.log('📍 Forwarding to room:', targetRoom);
+    
+    // Check if target room exists and has members
+    const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
+    console.log('🔍 Target room members:', {
+      room: targetRoom,
+      memberCount: socketsInRoom?.size || 0,
+      socketIds: socketsInRoom ? Array.from(socketsInRoom) : [],
+    });
+    
+    if (!socketsInRoom || socketsInRoom.size === 0) {
+      console.error('❌ Target room empty! Signal will not be delivered:', targetRoom);
+    }
     
     // Forward the signal to the target user
-    io.to(`user:${signal.to}`).emit('call-signal', signal);
-    console.log('✅ Call signal forwarded');
+    io.to(targetRoom).emit('call-signal', signal);
+    console.log('✅ Call signal forwarded to', targetRoom);
   });
 
   // Handle call initiation
   socket.on('call-initiated', (data: CallInitiated & { callerName?: string; offer?: any }, callback?: Function) => {
-    console.log('📞 Call initiated received:', data);
+    console.log('📞 Call initiated received:', {
+      from: data.from,
+      to: data.to,
+      conversationId: data.conversationId,
+      callType: data.callType,
+      hasOffer: !!data.offer,
+      callerId: socket.id,
+      callerUserId: socket.data?.userId,
+    });
     
     // Send acknowledgment back to client if callback provided
     if (callback && typeof callback === 'function') {
@@ -44,8 +74,12 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     // Check if target user room exists
     const targetRoom = `user:${data.to}`;
     const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
-    console.log('🔍 Sockets in target room:', socketsInRoom);
-    console.log('🔍 All active rooms:', Array.from(io.sockets.adapter.rooms.keys()));
+    console.log('🔍 Sockets in target room:', {
+      room: targetRoom,
+      memberCount: socketsInRoom?.size || 0,
+      socketIds: socketsInRoom ? Array.from(socketsInRoom) : [],
+    });
+    console.log('🔍 All active user rooms:', Array.from(io.sockets.adapter.rooms.keys()).filter(k => k.startsWith('user:')));
     
     if (!socketsInRoom || socketsInRoom.size === 0) {
       console.error('❌ Target user not in room:', data.to);
@@ -62,13 +96,6 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     });
     
     console.log('✅ Emitted call-incoming to user:', data.to, 'with offer:', !!data.offer);
-    console.log('📨 Call-incoming payload sent:', {
-      from: data.from,
-      conversationId: data.conversationId,
-      callType: data.callType,
-      callerName: data.callerName || 'Unknown User',
-      hasOffer: !!data.offer
-    });
   });
 
   // Handle joining a call room
