@@ -42,7 +42,7 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
       const wsUrl = url.startsWith('ws') ? url : `ws://${url}`;
       
       // Validate WebSocket URL before creating connection
-      if (!wsUrl || wsUrl.startsWith('mock://') || (wsUrl === 'ws://localhost:3001' && typeof window !== 'undefined')) {
+      if (!wsUrl || wsUrl.startsWith('mock://') || (wsUrl === 'ws://localhost:3000' && typeof window !== 'undefined')) {
         console.warn('WebSocket server not configured. Using mock connection for demo.');
         // Create a mock WebSocket for demo purposes
         createMockWebSocket();
@@ -188,7 +188,7 @@ export function useFinesWebSocket(schoolId: string) {
   // Use a more reliable WebSocket URL or fallback to mock
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 
     (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'ws://localhost:3001' 
+      ? 'ws://localhost:3000' 
       : null);
   
   const { isConnected, lastMessage, sendMessage } = useWebSocket(
