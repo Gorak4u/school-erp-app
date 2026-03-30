@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import io from 'socket.io-client';
 import SimplePeer from 'simple-peer';
 import { useAuth } from '@/hooks/useAuth';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 import { showToast } from '@/lib/toastUtils';
 
 type SocketType = ReturnType<typeof io>;
@@ -51,6 +52,7 @@ function sdpTransform(sdp: string): string {
 
 export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
   const { user } = useAuth();
+  const { socket: globalSocket, isConnected: globalSocketConnected } = useGlobalSocket();
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<any>(null);
   const socketReadyRef = useRef<boolean>(false);
@@ -81,6 +83,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   // Dedicated audio element for remote stream — critical for audio to play in voice calls
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  // Track the active screen share track so we can stop it reliably
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
   // Keep refs in sync
   useEffect(() => { conversationIdRef.current = conversationId || ''; }, [conversationId]);
@@ -103,7 +107,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     if (!enabled || !user?.id) return;
 
     const init = async () => {
-      // Prefer messenger socket
+      // Use global socket for incoming calls
+      if (globalSocket && globalSocketConnected) {
+        socketRef.current = globalSocket;
+        socketReadyRef.current = true;
+        setIsConnected(true);
+        return;
+      }
+
+      // Fallback: messenger socket if available
       if (signalingSocket?.connected) {
         socketRef.current = signalingSocket;
         socketReadyRef.current = true;
@@ -111,14 +123,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         return;
       }
 
-      // Wait briefly for messenger socket
-      if (signalingSocket) {
-        socketRef.current = signalingSocket;
-        const ready = await waitForSocketReady(3000);
-        if (ready) { setIsConnected(true); return; }
-      }
-
-      // Fallback: create own socket
+      // Last resort: create own socket
       if (socketRef.current?.connected) { setIsConnected(true); return; }
 
       const serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
@@ -161,7 +166,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         socketRef.current = null;
       }
     };
-  }, [enabled, user?.id, signalingSocket, waitForSocketReady]);
+  }, [enabled, user?.id, globalSocket, globalSocketConnected, signalingSocket, waitForSocketReady]);
 
   // Get local media with lightweight constraints
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
@@ -479,66 +484,124 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     }
   }, []);
 
+  // Internal: revert from screen share back to camera
+  const revertToCamera = useCallback(async () => {
+    const peer = peerRef.current;
+    if (!peer) return;
+    const pc = (peer as any)._pc as RTCPeerConnection | undefined;
+    try {
+      // STOP the screen track so the browser removes the sharing indicator
+      if (screenTrackRef.current) {
+        screenTrackRef.current.stop();
+        screenTrackRef.current = null;
+      }
+      const camStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } },
+        audio: false,
+      });
+      const newVideoTrack = camStream.getVideoTracks()[0];
+      if (pc && newVideoTrack) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) await sender.replaceTrack(newVideoTrack);
+      }
+      const existing = localStreamRef.current;
+      if (existing) {
+        existing.getVideoTracks().forEach(t => { t.stop(); existing.removeTrack(t); });
+        existing.addTrack(newVideoTrack);
+        if (localVideoRef.current) localVideoRef.current.srcObject = existing;
+      }
+      setCallState(prev => ({ ...prev, isScreenSharing: false }));
+      showToast('info', 'Screen Share Stopped', 'Switched back to camera');
+    } catch (err) {
+      console.error('❌ Stop screen share error:', err);
+      setCallState(prev => ({ ...prev, isScreenSharing: false }));
+    }
+  }, []);
+
   // Toggle screen sharing — uses RTCPeerConnection.getSenders() to avoid SimplePeer replaceTrack bug
   const toggleScreenShare = useCallback(async () => {
     const peer = peerRef.current;
     if (!peer) return;
-    // Access the underlying RTCPeerConnection directly
     const pc = (peer as any)._pc as RTCPeerConnection | undefined;
 
     if (callState.isScreenSharing) {
-      // Stop screen share, revert to camera
-      try {
-        const camStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } },
-          audio: false,
-        });
-        const newVideoTrack = camStream.getVideoTracks()[0];
-        if (pc && newVideoTrack) {
-          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-          if (sender) await sender.replaceTrack(newVideoTrack);
-        }
-        // Update local stream tracks
-        const existing = localStreamRef.current;
-        if (existing) {
-          existing.getVideoTracks().forEach(t => { t.stop(); existing.removeTrack(t); });
-          existing.addTrack(newVideoTrack);
-          if (localVideoRef.current) localVideoRef.current.srcObject = existing;
-        }
-        setCallState(prev => ({ ...prev, isScreenSharing: false }));
-        showToast('info', 'Screen Share Stopped', 'Switched back to camera');
-      } catch (err) {
-        console.error('❌ Stop screen share error:', err);
-      }
+      await revertToCamera();
     } else {
-      // Start screen share
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10 } },
           audio: false,
         });
         const screenTrack = screenStream.getVideoTracks()[0];
+        screenTrackRef.current = screenTrack; // store so we can stop it later
+
         if (pc) {
           const sender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (sender) {
             await sender.replaceTrack(screenTrack);
           } else {
-            // Voice call — no video sender yet, add one
             pc.addTrack(screenTrack, screenStream);
           }
         }
-        // Show screen in local preview
         if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
         setCallState(prev => ({ ...prev, isScreenSharing: true }));
-        showToast('info', 'Screen Sharing', 'You are now sharing your screen');
-        // Auto-stop when user ends share via browser UI
-        screenTrack.addEventListener('ended', () => toggleScreenShare());
+        showToast('info', 'Screen Sharing', 'Sharing your screen');
+
+        // User stops sharing via browser UI — revert automatically
+        screenTrack.addEventListener('ended', () => {
+          screenTrackRef.current = null;
+          revertToCamera();
+        }, { once: true });
       } catch (err) {
         console.error('❌ Start screen share error:', err);
         showToast('error', 'Screen Share Failed', 'Could not share screen');
       }
     }
-  }, [callState.isScreenSharing]);
+  }, [callState.isScreenSharing, revertToCamera]);
+
+  // Upgrade voice call to video
+  const upgradeToVideo = useCallback(async () => {
+    const peer = peerRef.current;
+    if (!peer || callState.callType === 'video') return;
+    const pc = (peer as any)._pc as RTCPeerConnection | undefined;
+    try {
+      const camStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } }
+      });
+      const videoTrack = camStream.getVideoTracks()[0];
+      const existing = localStreamRef.current;
+      if (existing) {
+        existing.addTrack(videoTrack);
+        if (pc) pc.addTrack(videoTrack, existing);
+        if (localVideoRef.current) localVideoRef.current.srcObject = existing;
+      }
+      setCallState(prev => ({ ...prev, callType: 'video', isCameraOff: false }));
+      showToast('info', 'Video On', 'Camera started');
+    } catch (err) {
+      console.error('❌ Upgrade to video error:', err);
+      showToast('error', 'Camera Failed', 'Could not start camera');
+    }
+  }, [callState.callType]);
+
+  // Downgrade video call to voice only
+  const downgradeToVoice = useCallback(() => {
+    const peer = peerRef.current;
+    if (!peer || callState.callType === 'voice') return;
+    const pc = (peer as any)._pc as RTCPeerConnection | undefined;
+    const existing = localStreamRef.current;
+    if (existing) {
+      existing.getVideoTracks().forEach(t => {
+        t.stop();
+        existing.removeTrack(t);
+        if (pc) {
+          const sender = pc.getSenders().find(s => s.track === t);
+          if (sender) pc.removeTrack(sender);
+        }
+      });
+    }
+    setCallState(prev => ({ ...prev, callType: 'voice' }));
+    showToast('info', 'Video Off', 'Switched to voice call');
+  }, [callState.callType]);
 
   // Listen for incoming call signals
   useEffect(() => {
@@ -595,6 +658,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     toggleMute,
     toggleCamera,
     toggleScreenShare,
+    upgradeToVideo,
+    downgradeToVoice,
     setLocalVideoRef: (ref: HTMLVideoElement | null) => { localVideoRef.current = ref; },
     setRemoteVideoRef: (ref: HTMLVideoElement | null) => { remoteVideoRef.current = ref; },
     setRemoteAudioRef: (ref: HTMLAudioElement | null) => { remoteAudioRef.current = ref; },

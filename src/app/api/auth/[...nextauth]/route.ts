@@ -123,20 +123,20 @@ export const authOptions = {
       name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
       options: {
         httpOnly: true,
-        sameSite: 'lax' as const,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.up.railway.app' : undefined,
+        // Remove domain restriction for mobile compatibility
       },
     },
     csrfToken: {
       name: process.env.NODE_ENV === 'production' ? '__Host-next-auth.csrf-token' : 'next-auth.csrf-token',
       options: {
         httpOnly: true,
-        sameSite: 'lax' as const,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.up.railway.app' : undefined,
+        // Remove domain restriction for mobile compatibility
       },
     },
   },

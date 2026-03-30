@@ -5,9 +5,11 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 import { TemplateInitializer } from "@/components/TemplateInitializer";
+import CallNotifications from "@/components/CallNotifications";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,7 +46,10 @@ export default function RootLayout({
           <ThemeProvider>
             <SchoolConfigProvider>
               <NotificationProvider>
-                {children}
+                <SocketProvider>
+                  <CallNotifications />
+                  {children}
+                </SocketProvider>
               </NotificationProvider>
             </SchoolConfigProvider>
           </ThemeProvider>
