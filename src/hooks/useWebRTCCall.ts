@@ -316,6 +316,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
           conversationId,
           callType,
           callerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        }, (ack: any) => {
+          console.log('📨 Server acknowledgment:', ack);
         });
         
         console.log('✅ call-initiated event emitted');

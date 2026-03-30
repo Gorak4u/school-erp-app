@@ -30,8 +30,14 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   });
 
   // Handle call initiation
-  socket.on('call-initiated', (data: CallInitiated & { callerName?: string }) => {
+  socket.on('call-initiated', (data: CallInitiated & { callerName?: string }, callback?: Function) => {
     console.log('📞 Call initiated received:', data);
+    
+    // Send acknowledgment back to client if callback provided
+    if (callback && typeof callback === 'function') {
+      callback({ received: true, timestamp: Date.now() });
+    }
+    
     console.log('📍 Target user room:', `user:${data.to}`);
     console.log('🏠 Caller socket rooms:', Array.from(socket.rooms));
     
