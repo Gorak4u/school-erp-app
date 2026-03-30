@@ -126,6 +126,7 @@ export const authOptions = {
         sameSite: 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? '.up.railway.app' : undefined,
       },
     },
     csrfToken: {
@@ -135,6 +136,7 @@ export const authOptions = {
         sameSite: 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? '.up.railway.app' : undefined,
       },
     },
   },
