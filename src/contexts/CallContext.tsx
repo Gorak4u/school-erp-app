@@ -64,15 +64,27 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
       }
     };
 
+    const handleCallCancelled = (data: { from: string; conversationId: string }) => {
+      console.log('📞 [CallProvider] Call cancelled by caller:', data);
+      
+      // Only process if this matches our current incoming call
+      if (incomingCallData && incomingCallData.from === data.from && incomingCallData.conversationId === data.conversationId) {
+        showToast('info', 'Call Cancelled', 'The caller cancelled the call');
+        dismissCall();
+      }
+    };
+
     socket.on('call-incoming', handleIncomingCall);
+    socket.on('call-cancelled', handleCallCancelled);
     listenerRegisteredRef.current = true;
 
     return () => {
       console.log('🧹 [CallProvider] Cleaning up call-incoming listener');
       socket.off('call-incoming', handleIncomingCall);
+      socket.off('call-cancelled', handleCallCancelled);
       listenerRegisteredRef.current = false;
     };
-  }, [socket, user?.id, router]);
+  }, [socket, user?.id, router, incomingCallData]);
 
   const acceptCall = async (data: IncomingCallData) => {
     // Just set state - CallModal will handle the actual WebRTC connection

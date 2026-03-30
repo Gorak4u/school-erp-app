@@ -490,16 +490,27 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     const remoteId = remoteUserIdRef.current;
     const convId = conversationIdRef.current;
 
-    // Notify remote party (only if WE are ending the call, not if remote ended it)
+    // For outgoing calls that haven't connected yet, send call-cancelled directly
     if (!options?.skipHangupSignal && !options?.triggeredByRemote && socketRef.current?.connected && user && remoteId && convId) {
-      console.log('📤 Sending hangup signal to:', remoteId);
-      socketRef.current.emit('call-signal', {
-        type: 'call-hangup',
-        from: user.id,
-        to: remoteId,
-        conversationId: convId,
-        callType: 'voice',
-      } as CallSignal);
+      if (callState.isOutgoingCall && callState.connectionState === 'connecting') {
+        // Outgoing call cancelled before connection - send direct cancellation
+        console.log('📤 Sending call-cancelled to:', remoteId);
+        socketRef.current.emit('call-cancelled', {
+          from: user.id,
+          to: remoteId,
+          conversationId: convId,
+        });
+      } else {
+        // Connected call or incoming call - use regular hangup signal
+        console.log('📤 Sending hangup signal to:', remoteId);
+        socketRef.current.emit('call-signal', {
+          type: 'call-hangup',
+          from: user.id,
+          to: remoteId,
+          conversationId: convId,
+          callType: 'voice',
+        } as CallSignal);
+      }
     }
 
     // Complete cleanup
@@ -528,7 +539,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       clearTimeout(globalCallLockTimeout);
       globalCallLockTimeout = null;
     }
-  }, [user, cleanupCall]);
+  }, [user, callState.isOutgoingCall, callState.connectionState, cleanupCall]);
 
   // Start outgoing call
   const startCall = useCallback(async (targetUserId: string, targetUserName: string, callType: 'voice' | 'video') => {

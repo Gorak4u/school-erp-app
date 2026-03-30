@@ -145,6 +145,26 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     console.log('✅ Emitted call-incoming to user:', data.to, 'with offer:', !!data.offer);
   });
 
+  // Handle call cancellation (when caller cancels outgoing call before connection)
+  socket.on('call-cancelled', (data: { from: string; to: string; conversationId: string }) => {
+    console.log('📞 Call cancelled received:', {
+      from: data.from,
+      to: data.to,
+      conversationId: data.conversationId,
+      callerId: socket.id,
+      callerUserId: socket.data?.userId,
+    });
+    
+    // Forward the cancellation to the target user
+    const targetRoom = `user:${data.to}`;
+    io.to(targetRoom).emit('call-cancelled', {
+      from: data.from,
+      conversationId: data.conversationId,
+    });
+    
+    console.log('✅ Emitted call-cancelled to user:', data.to);
+  });
+
   // Handle joining a call room
   socket.on('join-call', (data: { conversationId: string }) => {
     socket.join(`call:${data.conversationId}`);
