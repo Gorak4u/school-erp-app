@@ -96,8 +96,16 @@ export function validateSubdomain(subdomain: string): { valid: boolean; error?: 
 /**
  * Extract school subdomain from the hostname.
  * Works for both production (xyz.schoolerp.com) and dev (xyz.localhost:3000).
+ * 
+ * NOTE: Subdomains are disabled if NEXT_PUBLIC_DISABLE_SUBDOMAINS is set.
+ * This is useful for platforms like Railway that don't support wildcard SSL.
  */
 export function extractSubdomain(hostname: string): string | null {
+  // Disable subdomains if env var is set (Railway, Heroku, etc.)
+  if (process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS === 'true') {
+    return null;
+  }
+  
   const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'localhost';
   const host = hostname.split(':')[0]; // Remove port if present
 
