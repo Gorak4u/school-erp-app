@@ -292,6 +292,16 @@ export const CallModal: React.FC<CallModalProps> = ({
   const isVideo      = callState.callType === 'video' || callState.isScreenSharing;
   const callerName   = incomingCallData?.callerName || callState.remoteUserName || targetUserName || 'Unknown';
   const isConnected  = callState.connectionState === 'connected';
+  
+  // Get status text based on connection state
+  const getStatusText = () => {
+    if (isConnected) return fmt(callState.callDuration);
+    if (callState.connectionState === 'calling') return 'Calling...';
+    if (callState.connectionState === 'ringing') return 'Ringing...';
+    if (callState.connectionState === 'connecting') return 'Connecting...';
+    return 'Connecting...';
+  };
+  
   const REACTIONS    = ['👍','👏','😂','❤️','🎉','🙌'];
   
   // Fallback: if no state is showing, show a blank with close button to prevent gray screen
@@ -441,7 +451,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                     <div className="text-center">
                       <h2 className="text-3xl font-bold text-white">{callerName}</h2>
                       <p className={`text-xl mt-2 font-mono font-semibold ${isConnected?'text-emerald-400':'text-yellow-400 animate-pulse'}`}>
-                        {isConnected ? fmt(callState.callDuration) : '● Connecting…'}
+                        {getStatusText()}
                       </p>
                     </div>
                   </div>
@@ -455,7 +465,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                       <div className={`w-2 h-2 rounded-full ${isConnected?'bg-emerald-400':'bg-yellow-400 animate-pulse'}`} />
                       <span className="text-white font-semibold">{callerName}</span>
                       <span className={`text-sm font-mono ${isConnected?'text-emerald-300':'text-yellow-300'}`}>
-                        {isConnected ? fmt(callState.callDuration) : 'Connecting...'}
+                        {getStatusText()}
                       </span>
                     </div>
                     <button onClick={toggleFs} className="pointer-events-auto p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white">
@@ -480,7 +490,10 @@ export const CallModal: React.FC<CallModalProps> = ({
                   <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-4">
                     <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}
                       className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full" />
-                    <p className="text-white text-lg font-medium">Connecting…</p>
+                    <p className="text-white text-lg font-medium">
+                      {callState.connectionState === 'calling' ? 'Calling...' : 
+                       callState.connectionState === 'ringing' ? 'Ringing...' : 'Connecting...'}
+                    </p>
                   </div>
                 )}
 

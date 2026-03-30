@@ -29,7 +29,7 @@ export interface CallState {
   isCameraOff: boolean;
   isScreenSharing: boolean;
   callDuration: number;
-  connectionState: 'connecting' | 'connected' | 'ended' | 'failed';
+  connectionState: 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended' | 'failed';
 }
 
 export interface CallSignal {
@@ -370,24 +370,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         return;
       }
 
-      // Deduplication: skip if we've already sent this exact candidate
-      if (data.candidate) {
-        const candidateKey = `${data.candidate.candidate}-${data.candidate.sdpMid}-${data.candidate.sdpMLineIndex}`;
-        if (sentCandidates.has(candidateKey)) {
-          console.log('⏭️ Skipping duplicate ICE candidate');
-          return;
-        }
-        
-        // Throttling: don't send candidates too frequently
-        const now = Date.now();
-        if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
-          console.log('⏭️ Throttling ICE candidate (too frequent)');
-          return;
-        }
-        lastCandidateTime = now;
-        sentCandidates.add(candidateKey);
-      }
-
       // Derive signal type from the actual payload so ICE candidates are routed correctly
       let sigType: CallSignal['type'];
       if (data.type === 'offer') sigType = 'call-offer';
@@ -397,11 +379,24 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       console.log('📤 Sending signal:', {
         sigType,
         from: user.id,
-        to: remoteUserId,
+        to: remoteUserIdRef.current,
         conversationId: conversationIdRef.current,
-        payloadType: data.type,
+        payloadType: data.type || 'candidate',
+        offerAlreadySent,
+        hasSocket: !!socketRef.current,
       });
 
+      // Throttle ICE candidates to prevent flooding
+      if (sigType === 'call-ice-candidate') {
+        const now = Date.now();
+        if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
+          console.log('⏭️ Throttling ICE candidate (too frequent)');
+          return;
+        }
+        lastCandidateTime = now;
+      }
+
+      // Send the signal via socket
       socketRef.current.emit('call-signal', {
         type: sigType,
         from: user.id,
@@ -416,7 +411,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
     peer.on('connect', () => {
       console.log('✅ Peer connected!');
-      setCallState(prev => ({ ...prev, connectionState: 'connected' }));
+      setCallState(prev => ({ 
+        ...prev, 
+        isInCall: true,
+        connectionState: 'connected' 
+      }));
       // Start timer only when truly connected
       if (!callTimerRef.current) {
         callTimerRef.current = setInterval(() => {
@@ -601,7 +600,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         isInCall: false, isOutgoingCall: true, isIncomingCall: false,
         callType, remoteUserId: targetUserId, remoteUserName: targetUserName,
         isMuted: false, isCameraOff: false, isScreenSharing: false,
-        callDuration: 0, connectionState: 'connecting',
+        callDuration: 0, connectionState: 'calling',
       });
       
       // Mark as active call for signal handling
@@ -621,6 +620,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       // Record emission BEFORE emitting to prevent duplicates from StrictMode remounts
       lastCallEmissionKey = emissionKey;
       lastCallEmissionTime = Date.now();
+      
+      // Update state to ringing after sending call-initiated
+      setCallState(prev => ({
+        ...prev,
+        connectionState: 'ringing'
+      }));
       
       socketRef.current.emit('call-initiated', {
         from: user.id,
@@ -983,13 +988,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
         try {
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
           
-          // If this is an answer to our outgoing call, mark as connected
+          // If this is an answer to our outgoing call, mark as connecting
           if (signal.type === 'call-answer' && callState.isOutgoingCall && !callState.isInCall) {
-            console.log('🤝 Call connected - received answer');
+            console.log('🤝 Call answered - moving to connecting state');
             setCallState(prev => ({
               ...prev,
-              isInCall: true,
-              connectionState: 'connected'
+              connectionState: 'connecting'
             }));
           }
           
