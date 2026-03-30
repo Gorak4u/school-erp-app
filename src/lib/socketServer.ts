@@ -25,15 +25,18 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       console.log('🏠 Socket rooms after join:', Array.from(socket.rooms));
       
       // Register messenger handlers immediately after user joins
-      const { registerMessengerHandlers } = require('./socket/messengerHandlers');
-      registerMessengerHandlers(io, socket);
-      
-      console.log('🔧 Starting call handlers registration...');
+      try {
+        const { registerMessengerHandlers } = require('./socket/messengerHandlers');
+        registerMessengerHandlers(io, socket);
+        console.log('✅ Messenger handlers registered for user:', userId);
+      } catch (error) {
+        console.error('❌ Error registering messenger handlers:', error);
+      }
       
       // Register call handlers for voice/video calling
       try {
         const { registerCallHandlers } = require('./socket/callHandlers');
-        console.log('🔧 About to register call handlers for socket:', socket.id);
+        console.log('🔧 Registering call handlers for socket:', socket.id);
         registerCallHandlers(io, socket);
         console.log('✅ Call handlers registered for user:', userId);
       } catch (error) {
