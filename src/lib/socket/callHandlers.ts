@@ -30,7 +30,7 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   });
 
   // Handle call initiation
-  socket.on('call-initiated', (data: CallInitiated & { callerName?: string }, callback?: Function) => {
+  socket.on('call-initiated', (data: CallInitiated & { callerName?: string; offer?: any }, callback?: Function) => {
     console.log('📞 Call initiated received:', data);
     
     // Send acknowledgment back to client if callback provided
@@ -52,20 +52,22 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
       return;
     }
     
-    // Notify the target user about the incoming call
+    // Notify the target user about the incoming call WITH the offer
     io.to(targetRoom).emit('call-incoming', {
       from: data.from,
       conversationId: data.conversationId,
       callType: data.callType,
       callerName: data.callerName || 'Unknown User',
+      offer: data.offer  // Forward the SDP offer
     });
     
-    console.log('✅ Emitted call-incoming to user:', data.to);
+    console.log('✅ Emitted call-incoming to user:', data.to, 'with offer:', !!data.offer);
     console.log('📨 Call-incoming payload sent:', {
       from: data.from,
       conversationId: data.conversationId,
       callType: data.callType,
       callerName: data.callerName || 'Unknown User',
+      hasOffer: !!data.offer
     });
   });
 
