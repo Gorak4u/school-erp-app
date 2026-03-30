@@ -16,10 +16,10 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
     console.log('Client connected:', socket.id);
 
     // Simple ping/pong for connection testing
-    socket.on('ping', (callback?: Function) => {
-      console.log('🏓 Ping received from:', socket.id);
+    socket.on('ping', (data: any, callback?: Function) => {
+      console.log('🏓 Ping received from:', socket.id, 'data:', data);
       if (callback && typeof callback === 'function') {
-        callback({ pong: true, timestamp: Date.now(), socketId: socket.id });
+        callback({ pong: true, timestamp: Date.now(), socketId: socket.id, received: data });
       }
     });
 

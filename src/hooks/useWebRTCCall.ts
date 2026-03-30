@@ -135,17 +135,26 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
       newSocket.on('connect', () => {
         console.log('🔌 Fallback socket connected:', newSocket.id);
+        console.log('🔗 Connected to server:', serverUrl, 'with path:', newSocket.io.opts.path);
         
-        // Test ping/pong first
-        newSocket.emit('ping', (pong: any) => {
+        // Immediate test - emit right away
+        console.log('📡 Testing immediate emit...');
+        newSocket.emit('ping', { test: true }, (pong: any) => {
           console.log('🏓 Ping/pong successful:', pong);
         });
         
-        // Then join
-        newSocket.emit('join', user.id, (ack: any) => {
-          console.log('✅ Server acknowledged join:', ack);
-          joinAcknowledged = true;
-        });
+        // Then join with retry
+        const tryJoin = () => {
+          console.log('📡 Emitting join for user:', user.id);
+          newSocket.emit('join', user.id, (ack: any) => {
+            console.log('✅ Server acknowledged join:', ack);
+            joinAcknowledged = true;
+          });
+        };
+        
+        // Try join immediately and after a short delay
+        tryJoin();
+        setTimeout(tryJoin, 500);
       });
 
       newSocket.on('connect_error', (err: Error) => {
