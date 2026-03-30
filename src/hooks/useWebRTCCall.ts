@@ -209,28 +209,36 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       }
     });
 
-    // Promise resolves with the first signal (SDP offer/answer)
-    let firstSignalResolved = false;
+    // For initiator: skip the very first signal because it's the SDP offer
+    // already sent embedded in call-initiated. Subsequent signals are ICE candidates.
+    let offerAlreadySent = isInitiator;
+
+    // Promise resolves with the first signal (the SDP offer for the initiator)
     const firstSignalPromise = new Promise<any>((resolve) => {
-      peer.once('signal', (data: any) => {
-        firstSignalResolved = true;
-        resolve(data);
-      });
+      peer.once('signal', (data: any) => resolve(data));
     });
 
     peer.on('signal', (data: any) => {
+      // Skip the first signal for the initiator — it's the offer, sent via call-initiated
+      if (offerAlreadySent) {
+        offerAlreadySent = false;
+        return;
+      }
+
       if (!socketRef.current || !user || !conversationIdRef.current) return;
-      // Don't re-emit the first signal if it's already sent via call-initiated
-      const type = isInitiator
-        ? (firstSignalResolved ? 'call-offer' : 'call-offer')
-        : 'call-answer';
+
+      // Derive signal type from the actual payload so ICE candidates are routed correctly
+      let sigType: CallSignal['type'];
+      if (data.type === 'offer') sigType = 'call-offer';
+      else if (data.type === 'answer') sigType = 'call-answer';
+      else sigType = 'call-ice-candidate'; // candidate / renegotiation
 
       socketRef.current.emit('call-signal', {
-        type,
+        type: sigType,
         from: user.id,
-        to: remoteUserId,       // use parameter, not stale state
+        to: remoteUserId,
         conversationId: conversationIdRef.current,
-        callType,               // use parameter
+        callType,
         payload: data,
       } as CallSignal);
     });
@@ -496,33 +504,20 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     const handleCallSignal = (signal: CallSignal) => {
       if (signal.to !== user?.id) return;
 
-      switch (signal.type) {
-        case 'call-answer':
-          if (peerRef.current && signal.payload?.sdp) {
-            try {
-              peerRef.current.signal(signal.payload);
-              console.log('✅ Applied call-answer');
-            } catch (e) {
-              console.error('❌ Error applying answer:', e);
-            }
-          }
-          break;
+      if (signal.type === 'call-hangup') {
+        endCall();
+        showToast('info', 'Call Ended', 'The other party ended the call');
+        return;
+      }
 
-        case 'call-offer':
-        case 'call-ice-candidate':
-          if (peerRef.current && signal.payload) {
-            try {
-              peerRef.current.signal(signal.payload);
-            } catch (e) {
-              console.error('❌ Error applying ICE/offer signal:', e);
-            }
-          }
-          break;
-
-        case 'call-hangup':
-          endCall();
-          showToast('info', 'Call Ended', 'The other party ended the call');
-          break;
+      // For all other signal types (offer, answer, ice-candidate), forward to peer
+      if (peerRef.current && signal.payload) {
+        try {
+          console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
+          peerRef.current.signal(signal.payload);
+        } catch (e) {
+          console.error('❌ Error applying signal to peer:', signal.type, e);
+        }
       }
     };
 

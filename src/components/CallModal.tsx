@@ -7,6 +7,7 @@ import {
   Maximize2, Minimize2, X, PhoneOff
 } from 'lucide-react';
 import { useWebRTCCall, IncomingCallData } from '@/hooks/useWebRTCCall';
+import { playIncomingRingtone, playRingbackTone, stopRingtone } from '@/lib/ringtone';
 
 interface CallModalProps {
   isOpen: boolean;
@@ -64,6 +65,27 @@ export const CallModal: React.FC<CallModalProps> = ({
     setRemoteVideoRef(remoteVideoRef.current);
   }, [setLocalVideoRef, setRemoteVideoRef]);
 
+  // Ringtone management
+  useEffect(() => {
+    const isIncoming = (Boolean(incomingCallData) || isIncomingCall) && !callState.isInCall;
+    const isRinging = callState.isOutgoingCall && !callState.isInCall;
+
+    if (isIncoming) {
+      playIncomingRingtone();
+    } else if (isRinging) {
+      playRingbackTone();
+    } else {
+      stopRingtone();
+    }
+
+    return () => stopRingtone();
+  }, [
+    incomingCallData,
+    isIncomingCall,
+    callState.isInCall,
+    callState.isOutgoingCall,
+  ]);
+
   // Attach remote stream to video element when available
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
@@ -86,21 +108,24 @@ export const CallModal: React.FC<CallModalProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const handleEndCall = () => {
-    endCall();
-    onClose();
-  };
-
   const handleAcceptCall = () => {
     if (!incomingCallData) return;
+    stopRingtone();
     acceptCall(incomingCallData);
   };
 
   const handleRejectCall = () => {
+    stopRingtone();
     const callerId = incomingCallData?.from || callState.remoteUserId;
     if (callerId) {
       rejectCall(callerId, incomingCallData?.conversationId);
     }
+    onClose();
+  };
+
+  const handleEndCall = () => {
+    stopRingtone();
+    endCall();
     onClose();
   };
 
