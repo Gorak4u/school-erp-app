@@ -28,6 +28,8 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       const { registerMessengerHandlers } = require('./socket/messengerHandlers');
       registerMessengerHandlers(io, socket);
       
+      console.log('🔧 Starting call handlers registration...');
+      
       // Register call handlers for voice/video calling
       try {
         const { registerCallHandlers } = require('./socket/callHandlers');
