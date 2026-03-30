@@ -1202,6 +1202,9 @@ export default function MessengerPage() {
             onClose={() => {
               setShowCallModal(false);
               dismissCall();
+              // CRITICAL: Reset guards when modal closes to allow next call
+              callInitiatingRef.current = false;
+              lastCallAttemptRef.current = 0;
             }}
             conversationId={incomingCallData?.conversationId || selectedConversationId || undefined}
             targetUserId={callParticipant?.id || incomingCallData?.from}
