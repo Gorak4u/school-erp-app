@@ -136,15 +136,24 @@ export function FloatingMessengerBubble() {
       // Play sound and show toast for incoming messages
       if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
         playMessageSound();
-        // Show toast notification
+        // Show toast notification with sender name and message preview
         if (typeof window !== 'undefined') {
+          const senderName = data.sender?.name || data.senderName || 'Someone';
+          const messageContent = data.content || data.message || '';
+          const messagePreview = messageContent.length > 50 
+            ? messageContent.substring(0, 50) + '...' 
+            : messageContent;
+          
           const toast = document.createElement('div');
-          toast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-          toast.textContent = `New message from ${data.senderName || 'Someone'}`;
+          toast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 animate-pulse max-w-sm';
+          toast.innerHTML = `
+            <div class="font-semibold">${senderName}</div>
+            <div class="text-sm opacity-90">${messagePreview || 'New message'}</div>
+          `;
           document.body.appendChild(toast);
           setTimeout(() => {
             toast.remove();
-          }, 3000);
+          }, 5000);
         }
       }
     });
