@@ -16,8 +16,10 @@ import Toast from './Toast';
 import TrialBanner from './TrialBanner';
 import { CallModal } from '@/components/CallModal';
 import { ScheduleMeetingModal } from '@/components/ScheduleMeetingModal';
+import { GlobalCallNotification } from '@/components/GlobalCallNotification';
 import { unlockAudio } from '@/lib/ringtone';
 import { useGlobalSocket } from '@/contexts/SocketContext';
+import { useRouter } from 'next/navigation';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -49,10 +51,15 @@ export default function AppLayout({
   const [showCallModal, setShowCallModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
+  const [isMessengerPage, setIsMessengerPage] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
     unlockAudio();
+    
+    // Track if we're on messenger page
+    setIsMessengerPage(window.location.pathname === '/messenger');
 
     const unlockHandler = () => unlockAudio();
     window.addEventListener('click', unlockHandler);
@@ -83,14 +90,18 @@ export default function AppLayout({
     };
   }, []);
 
-  // Global Call Listener
+  // Global Call Listener - only show full modal on non-messenger pages
   useEffect(() => {
     if (!socket || !user?.id) return;
 
     const handleIncomingCall = (data: any) => {
       console.log('📞 Global incoming call:', data);
       setIncomingCallData(data);
-      setShowCallModal(true);
+      
+      // Only open full modal if NOT on messenger page (messenger has its own)
+      if (typeof window !== 'undefined' && window.location.pathname !== '/messenger') {
+        setShowCallModal(true);
+      }
     };
 
     socket.on('call-incoming', handleIncomingCall);
@@ -900,29 +911,29 @@ export default function AppLayout({
       {/* Toast Notifications */}
       <Toast theme={globalTheme} />
 
-      {/* Global Call UI */}
-      {isClient && (
-        <>
-          <CallModal
-            isOpen={showCallModal}
-            onClose={() => {
-              setShowCallModal(false);
-              setIncomingCallData(null);
-            }}
-            signalingSocket={socket}
-            isIncomingCall={Boolean(incomingCallData)}
-            incomingCallData={incomingCallData || undefined}
-            enabled={showCallModal}
-            currentUserName={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'You'}
-            onScheduleMeeting={() => setShowScheduleModal(true)}
-          />
+      {/* Global Call UI - Compact notification on non-messenger pages */}
+      {isClient && !isMessengerPage && incomingCallData && (
+        <GlobalCallNotification
+          incomingCallData={incomingCallData}
+          socket={socket}
+          onAccept={() => {
+            // Redirect to messenger and open call modal there
+            setIncomingCallData(null);
+            router.push('/messenger');
+          }}
+          onReject={() => {
+            setIncomingCallData(null);
+          }}
+        />
+      )}
 
-          <ScheduleMeetingModal
-            isOpen={showScheduleModal}
-            onClose={() => setShowScheduleModal(false)}
-            signalingSocket={socket}
-          />
-        </>
+      {/* Schedule Meeting Modal - available globally */}
+      {isClient && (
+        <ScheduleMeetingModal
+          isOpen={showScheduleModal}
+          onClose={() => setShowScheduleModal(false)}
+          signalingSocket={socket}
+        />
       )}
     </div>
   );
