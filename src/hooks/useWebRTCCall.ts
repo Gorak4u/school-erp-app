@@ -410,7 +410,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       const peer = createPeer(false, stream);
       
       peerRef.current = peer;
-      peer.signal(signal.payload);
+      
+      // Validate signal payload before applying
+      console.log('🔍 Accepting call with signal payload:', signal.payload);
+      if (signal.payload && typeof signal.payload === 'object' && (signal.payload.sdp || signal.payload.candidate)) {
+        peer.signal(signal.payload);
+        console.log('✅ Applied signal to peer in acceptCall');
+      } else {
+        console.warn('⚠️ Invalid signal payload in acceptCall:', signal.payload);
+      }
 
       // Start call timer
       callTimerRef.current = setInterval(() => {
