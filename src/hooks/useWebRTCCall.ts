@@ -129,16 +129,21 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
 
       // Set socketRef immediately so waitForSocketReady can find it
       socketRef.current = newSocket;
+      let joinAcknowledged = false;
 
       newSocket.on('connect', () => {
         console.log('🔌 Fallback socket connected:', newSocket.id);
-        newSocket.emit('join', user.id);
+        newSocket.emit('join', user.id, (ack: any) => {
+          console.log('✅ Server acknowledged join:', ack);
+          joinAcknowledged = true;
+        });
       });
 
       newSocket.on('disconnect', () => {
         console.log('🔌 Fallback socket disconnected');
         setIsConnected(false);
         socketReadyRef.current = false;
+        joinAcknowledged = false;
       });
 
       // Wait for connection and room join

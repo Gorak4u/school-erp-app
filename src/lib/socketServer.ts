@@ -16,13 +16,18 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
     console.log('Client connected:', socket.id);
 
     // Join user-specific room
-    socket.on('join', (userId: string) => {
+    socket.on('join', (userId: string, callback?: Function) => {
       console.log('👤 User joining room:', userId, 'Socket:', socket.id);
       console.log('🏠 Available rooms before join:', Array.from(socket.rooms));
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };
       console.log(`✅ User ${userId} joined their room: user:${userId}`);
       console.log('🏠 Socket rooms after join:', Array.from(socket.rooms));
+      
+      // Send acknowledgment if callback provided
+      if (callback && typeof callback === 'function') {
+        callback({ joined: true, room: `user:${userId}`, socketId: socket.id });
+      }
       
       // Register messenger handlers immediately after user joins
       try {
