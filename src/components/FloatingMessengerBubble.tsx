@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import io from 'socket.io-client';
 import { MessageSquare, X, Bell, GripVertical } from 'lucide-react';
@@ -32,22 +32,43 @@ export function FloatingMessengerBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [, setSocket] = useState<SocketType | null>(null);
+  const [mounted, setMounted] = useState(false);
+  
+  // Default position - bottom right (24px from edges)
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const dragControls = useDragControls();
-  const constraintsRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
     [notifications]
   );
 
-  // Load saved position from localStorage
+  // Set initial position after mount (to get window dimensions)
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem('messengerBubblePosition');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      setPosition(parsed);
+      try {
+        const parsed = JSON.parse(saved);
+        setPosition(parsed);
+      } catch {
+        setPosition({ x: window.innerWidth - 88, y: window.innerHeight - 88 });
+      }
+    } else {
+      setPosition({ x: window.innerWidth - 88, y: window.innerHeight - 88 });
     }
+  }, []);
+
+  // Update position on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev) => ({
+        x: Math.min(prev.x, window.innerWidth - 80),
+        y: Math.min(prev.y, window.innerHeight - 80),
+      }));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Socket connection
@@ -111,44 +132,50 @@ export function FloatingMessengerBubble() {
   };
 
   const handleDragEnd = (_: any, info: any) => {
-    const newPosition = { x: info.point.x, y: info.point.y };
+    setIsDragging(false);
+    const newPosition = { x: position.x + info.offset.x, y: position.y + info.offset.y };
     setPosition(newPosition);
     localStorage.setItem('messengerBubblePosition', JSON.stringify(newPosition));
   };
 
-  if (!messengerEnabled || !user?.id) {
+  // Don't render if not mounted, messenger disabled, or no user
+  if (!mounted || !messengerEnabled || !user?.id) {
     return null;
   }
 
   return (
     <>
       {/* Drag constraints container */}
-      <div ref={constraintsRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 9998 }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 9998 }} />
 
       {/* Floating Bubble */}
       <motion.div
         drag
-        dragControls={dragControls}
         dragMomentum={false}
         dragElastic={0}
-        dragConstraints={constraintsRef}
+        dragConstraints={{ left: 0, right: window.innerWidth - 64, top: 0, bottom: window.innerHeight - 64 }}
+        onDragStart={() => setIsDragging(true)}
         onDragEnd={handleDragEnd}
-        initial={position.x === 0 && position.y === 0 ? { bottom: 24, right: 24 } : position}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1, x: position.x, y: position.y }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         style={{
           position: 'fixed',
-          ...(position.x === 0 && position.y === 0 ? { bottom: 24, right: 24 } : { x: position.x, y: position.y }),
+          top: 0,
+          left: 0,
           zIndex: 9999,
+          cursor: isDragging ? 'grabbing' : 'grab',
         }}
         className="pointer-events-auto"
       >
         <div className="relative">
           {/* Main Button */}
           <motion.button
-            onClick={() => setIsOpen((prev) => !prev)}
+            onClick={() => !isDragging && setIsOpen((prev) => !prev)}
             className="relative w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-2xl transition-all duration-300 flex items-center justify-center group"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            title="Messenger notifications"
+            title="Messenger notifications (drag to move)"
           >
             <MessageSquare className="w-7 h-7" />
             {unreadCount > 0 && (
@@ -162,7 +189,7 @@ export function FloatingMessengerBubble() {
             )}
             
             {/* Drag handle indicator */}
-            <div className="absolute -top-1 -left-1 p-1 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-move">
+            <div className="absolute -top-1 -left-1 p-1 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
               <GripVertical className="w-3 h-3" />
             </div>
           </motion.button>
