@@ -131,6 +131,15 @@ export function FloatingMessengerBubble() {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/read-all', { method: 'PUT' });
+      if (!response.ok) return;
+      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    } catch {
+    }
+  };
+
   const handleDragEnd = (_: any, info: any) => {
     setIsDragging(false);
     const newPosition = { x: position.x + info.offset.x, y: position.y + info.offset.y };
@@ -260,7 +269,7 @@ export function FloatingMessengerBubble() {
 
                 <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <button
-                    onClick={() => setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))}
+                    onClick={markAllAsRead}
                     className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
                     Mark all read
