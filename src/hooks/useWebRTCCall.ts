@@ -418,17 +418,19 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
       });
 
       const stream = await initializeLocalStream(signal.callType);
-      const peer = createPeer(false, stream);
+      const { peer, offerPromise } = createPeer(false, stream);
       
       peerRef.current = peer;
       
-      // Validate signal payload before applying
-      console.log('🔍 Accepting call with signal payload:', signal.payload);
-      if (signal.payload && typeof signal.payload === 'object' && (signal.payload.sdp || signal.payload.candidate)) {
-        peer.signal(signal.payload);
-        console.log('✅ Applied signal to peer in acceptCall');
+      // Use the offer from call-incoming event
+      const offer = signal.offer || signal.payload;
+      console.log('🔍 Accepting call with offer:', offer);
+      
+      if (offer && typeof offer === 'object' && (offer.sdp || offer.candidate)) {
+        peer.signal(offer);
+        console.log('✅ Applied offer to peer in acceptCall');
       } else {
-        console.warn('⚠️ Invalid signal payload in acceptCall:', signal.payload);
+        console.warn('⚠️ Invalid offer in acceptCall:', offer);
       }
 
       // Start call timer
