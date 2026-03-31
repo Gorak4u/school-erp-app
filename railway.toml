@@ -2,6 +2,15 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x", "python3", "gcc", "glibc"]  # Added build tools for native deps
+
+[build.nixpacksPlan.phases.install]
+cmds = ["npm ci --include=dev"]  # Include dev deps for build
+
+[build.nixpacksPlan.phases.build]
+cmds = ["npx prisma generate", "npm run build"]
+
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/api/health"

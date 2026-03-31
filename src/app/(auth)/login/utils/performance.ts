@@ -27,14 +27,19 @@ export const throttle = <T extends (...args: any[]) => void>(
 };
 
 export const preloadCriticalResources = () => {
-  // Preload critical fonts and images
+  // Preload critical fonts and images only when needed
+  // Note: Only preload resources that are used immediately on page load
+  // to avoid browser warnings about unused preloads
   if (typeof window !== 'undefined') {
-    // Preload any critical images or fonts here
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = '/logo.svg';
-    document.head.appendChild(link);
+    // Add any critical preloads here that are used within first few seconds
+    // Example: Preload critical fonts
+    // const fontLink = document.createElement('link');
+    // fontLink.rel = 'preload';
+    // fontLink.as = 'font';
+    // fontLink.href = '/fonts/critical-font.woff2';
+    // fontLink.type = 'font/woff2';
+    // fontLink.crossOrigin = 'anonymous';
+    // document.head.appendChild(fontLink);
   }
 };
 

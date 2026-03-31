@@ -2,6 +2,10 @@
   "name": "school-erp-app",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "tsx scripts/startup-init.ts && tsx server.js",
     "build": "prisma generate && next build",
