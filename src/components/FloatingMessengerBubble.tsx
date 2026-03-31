@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Bell, X, GripVertical, Send, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
-import io from 'socket.io-client';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 
 interface MessengerNotification {
   id: string;
@@ -22,11 +22,10 @@ interface MessengerNotification {
   metadata?: {
     module: string;
     conversationId?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
 }
-
-type SocketType = ReturnType<typeof io>;
 
 // Chat functionality functions
 const fetchConversationMessages = async (conversationId: string) => {
@@ -104,10 +103,10 @@ function playMessageSound() {
 export function FloatingMessengerBubble() {
   const { user } = useAuth();
   const { messengerEnabled } = useAppConfig();
+  const { subscribe, isConnected } = useGlobalSocket();
   const [notifications, setNotifications] = useState<MessengerNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [, setSocket] = useState<SocketType | null>(null);
   const [mounted, setMounted] = useState(false);
   const [chatView, setChatView] = useState<'notifications' | 'chat'>('notifications');
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
@@ -207,32 +206,16 @@ export function FloatingMessengerBubble() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Socket connection
+  // Subscribe to global socket events for messenger
   useEffect(() => {
-    if (!messengerEnabled || !user?.id) {
+    if (!messengerEnabled || !user?.id || !isConnected) {
       return;
     }
 
-    const socketInstance = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-    });
+    console.log('💬 FloatingMessengerBubble subscribing to global socket');
 
-    socketInstance.on('connect', () => {
-      socketInstance.emit('join', user.id);
-    });
-
-    socketInstance.on('connect_error', (error: any) => {
-      // Connection error handled silently
-    });
-
-    socketInstance.on('disconnect', (reason: any) => {
-      // Disconnect handled silently
-    });
-
-    // Listen for message events
-    socketInstance.on('message:received', (data: any) => {
+    // Subscribe to message events
+    const unsubscribeMessageReceived = subscribe('message:received', (data: any) => {
       // Play sound and show toast for incoming messages
       if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
         playMessageSound();
@@ -257,25 +240,26 @@ export function FloatingMessengerBubble() {
         }
       }
     });
-    
-    socketInstance.on('new-message', (data: any) => {
+
+    const unsubscribeNewMessage = subscribe('new-message', (data: any) => {
       // Handle new-message events
     });
 
-    socketInstance.on('notification', (data: any) => {
+    const unsubscribeNotification = subscribe('notification', (data: any) => {
       // Handle notification events
     });
 
-    socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
+    const unsubscribeMessengerNotification = subscribe('messenger_notification', (notification: MessengerNotification) => {
       setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
     });
 
-    setSocket(socketInstance);
-
     return () => {
-      socketInstance.disconnect();
+      unsubscribeMessageReceived();
+      unsubscribeNewMessage();
+      unsubscribeNotification();
+      unsubscribeMessengerNotification();
     };
-  }, [messengerEnabled, user?.id]);
+  }, [messengerEnabled, user?.id, isConnected, subscribe]);
 
   // Fetch conversations and notifications
   useEffect(() => {

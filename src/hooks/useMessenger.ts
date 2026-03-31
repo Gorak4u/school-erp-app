@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import io from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
 import { showToast } from '@/lib/toastUtils';
-
-type SocketType = ReturnType<typeof io>;
+import { useGlobalSocket } from '@/contexts/SocketContext';
 
 interface MessengerConversation {
   id: string;
@@ -81,48 +79,30 @@ function playIncomingMessageTone() {
 
 export function useMessenger(conversationId?: string, enabled: boolean = true) {
   const { user } = useAuth();
-  const [socket, setSocket] = useState<SocketType | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const { subscribe, isConnected, emit, joinRoom } = useGlobalSocket();
   const [conversations, setConversations] = useState<MessengerConversation[]>([]);
   const [messages, setMessages] = useState<MessengerMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const socketRef = useRef<SocketType | null>(null);
+  const joinedConversationRef = useRef<string | null>(null);
 
+  // Subscribe to messenger events via global socket
   useEffect(() => {
-    if (!enabled || !user?.id) return;
+    if (!enabled || !user?.id || !isConnected) return;
 
-    const newSocket = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    console.log('💬 useMessenger subscribing to global socket events');
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      newSocket.emit('join', user.id);
-      
-      // Join conversation room if viewing a conversation
-      if (conversationId) {
-        newSocket.emit('conversation:join', { conversationId });
-      }
-    });
+    // Join user room
+    joinRoom(user.id);
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+    // Join conversation room if viewing a conversation
+    if (conversationId && conversationId !== joinedConversationRef.current) {
+      emit('conversation:join', { conversationId });
+      joinedConversationRef.current = conversationId;
+    }
 
-    newSocket.on('reconnect', (_attemptNumber: number) => {
-      setIsConnected(true);
-      newSocket.emit('join', user.id);
-      if (conversationId) {
-        newSocket.emit('conversation:join', { conversationId });
-      }
-    });
-
-    newSocket.on('message:received', (data: any) => {
+    // Subscribe to message events
+    const unsubscribeMessageReceived = subscribe('message:received', (data: any) => {
       // Only play notification sound if NOT on messenger page
       if (user?.id && data.sender?.id !== user.id && window.location.pathname !== '/messenger') {
         playIncomingMessageTone();
@@ -157,37 +137,33 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
       });
     });
 
-    newSocket.on('message:updated', (data: any) => {
+    const unsubscribeMessageUpdated = subscribe('message:updated', (data: any) => {
       setMessages((prev) => prev.map((message) => (message.id === data.id ? { ...message, ...data } : message)));
       void fetchConversations().catch(() => {});
     });
 
-    newSocket.on('message:deleted', (data: any) => {
+    const unsubscribeMessageDeleted = subscribe('message:deleted', (data: any) => {
       setMessages((prev) => prev.filter((message) => message.id !== data.id));
       void fetchConversations().catch(() => {});
     });
 
-    // Handle new conversations
-    newSocket.on('conversation:created', (data: any) => {
+    const unsubscribeConversationCreated = subscribe('conversation:created', (data: any) => {
       setConversations((prev) => [data, ...prev]);
     });
 
-    newSocket.on('message:readReceipt', (data: any) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === data.messageId ? { ...m, isRead: true } : m))
-      );
-    });
-
-    socketRef.current = newSocket;
-    setSocket(newSocket);
-
     return () => {
-      if (conversationId) {
-        newSocket.emit('conversation:leave', { conversationId });
+      unsubscribeMessageReceived();
+      unsubscribeMessageUpdated();
+      unsubscribeMessageDeleted();
+      unsubscribeConversationCreated();
+      
+      // Leave conversation room when unmounting or changing conversation
+      if (joinedConversationRef.current) {
+        emit('conversation:leave', { conversationId: joinedConversationRef.current });
+        joinedConversationRef.current = null;
       }
-      newSocket.disconnect();
     };
-  }, [enabled, user?.id, conversationId]);
+  }, [enabled, user?.id, isConnected, subscribe, emit, joinRoom, conversationId]);
 
   const fetchConversations = useCallback(async (page: number = 1, archived?: string) => {
     if (!enabled) return { data: [], pagination: { page, pageSize: 25, total: 0, totalPages: 0, hasMore: false } };
@@ -394,7 +370,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
   }, [enabled]);
 
   return {
-    socket,
     isConnected,
     conversations,
     messages,

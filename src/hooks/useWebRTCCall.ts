@@ -1,13 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import io from 'socket.io-client';
 import SimplePeer from 'simple-peer';
 import { useAuth } from '@/hooks/useAuth';
 import { useGlobalSocket } from '@/contexts/SocketContext';
 import { showToast } from '@/lib/toastUtils';
-
-type SocketType = ReturnType<typeof io>;
 
 // GLOBAL GUARD: Module-level flag to prevent multiple simultaneous calls across ALL hook instances
 let globalCallLock = false;
@@ -59,7 +56,7 @@ function sdpTransform(sdp: string): string {
   return sdp;
 }
 
-export const useWebRTCCall = (conversationId?: string, enabled: boolean = false, signalingSocket?: SocketType | null) => {
+export const useWebRTCCall = (conversationId?: string, enabled: boolean = false) => {
   const { user } = useAuth();
   const { socket: globalSocket, isConnected: globalSocketConnected } = useGlobalSocket();
   const [isConnected, setIsConnected] = useState(false);
@@ -126,74 +123,29 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     if (!enabled || !user?.id) return;
 
     const init = async () => {
-      // Use global socket for incoming calls
+      // Use global socket for calls - no fallback needed since global socket is always available
       if (globalSocket && globalSocketConnected) {
         socketRef.current = globalSocket;
-        // CRITICAL: Join user room so signals can be delivered
+        // Join user room so signals can be delivered
         globalSocket.emit('join', user.id, (ack: any) => {
-          console.log('✅ Global socket joined user room:', ack);
+          console.log('✅ WebRTC using global socket, joined user room:', ack);
         });
         socketReadyRef.current = true;
         setIsConnected(true);
-        return;
-      }
-
-      // Fallback: messenger socket if available
-      if (signalingSocket?.connected) {
-        socketRef.current = signalingSocket;
-        // CRITICAL: Join user room so signals can be delivered
-        signalingSocket.emit('join', user.id, (ack: any) => {
-          console.log('✅ Signaling socket joined user room:', ack);
-        });
-        socketReadyRef.current = true;
-        setIsConnected(true);
-        return;
-      }
-
-      // Last resort: create own socket
-      if (socketRef.current?.connected) { setIsConnected(true); return; }
-
-      const serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
-      const newSocket = io(serverUrl, {
-        path: '/api/socket',
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-      });
-
-      socketRef.current = newSocket;
-
-      newSocket.on('connect', () => {
-        newSocket.emit('join', user.id, (ack: any) => {
-          console.log('✅ Socket joined room:', ack);
-        });
-        socketReadyRef.current = true;
-        setIsConnected(true);
-      });
-
-      newSocket.on('connect_error', (err: Error) => {
-        console.error('❌ Socket connect error:', err.message);
-      });
-
-      newSocket.on('disconnect', () => {
-        socketReadyRef.current = false;
+      } else {
+        console.warn('📞 WebRTC: Global socket not available yet');
         setIsConnected(false);
-      });
-
-      const ready = await waitForSocketReady(5000);
-      if (!ready) showToast('error', 'Connection Error', 'Could not establish call connection');
+      }
     };
 
     init();
 
     return () => {
-      if (socketRef.current && !signalingSocket) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      // Don't disconnect - global socket is managed by SocketProvider
+      socketRef.current = null;
+      setIsConnected(false);
     };
-  }, [enabled, user?.id, globalSocket, globalSocketConnected, signalingSocket, waitForSocketReady]);
+  }, [enabled, user?.id, globalSocket, globalSocketConnected]);
 
   // Get local media with lightweight constraints
   const initializeLocalStream = useCallback(async (callType: 'voice' | 'video' | 'screen') => {
@@ -1005,14 +957,12 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false,
     return () => {
       if (!enabled) {
         cleanupCall();
-        if (socketRef.current && !signalingSocket) {
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
+        // Don't disconnect global socket - it's managed by SocketProvider
+        socketRef.current = null;
         setIsConnected(false);
       }
     };
-  }, [enabled, signalingSocket, cleanupCall]);
+  }, [enabled, cleanupCall]);
 
   return {
     callState,

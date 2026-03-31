@@ -86,7 +86,6 @@ export default function MessengerPage() {
     messages, 
     loading, 
     sending,
-    socket,
     fetchConversations, 
     fetchMessages, 
     sendMessage, 
@@ -1214,7 +1213,6 @@ export default function MessengerPage() {
             targetUserName={callParticipant?.name || selectedConversation?.title || incomingCallData?.callerName || 'Unknown'}
             currentUserName={user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'You'}
             initialCallType={callType}
-            signalingSocket={socket}
             isIncomingCall={Boolean(incomingCallData)}
             incomingCallData={incomingCallData || undefined}
             enabled={showCallModal}
@@ -1225,11 +1223,10 @@ export default function MessengerPage() {
             isOpen={showScheduleModal}
             onClose={() => setShowScheduleModal(false)}
             currentConversationParticipants={selectedConversation?.participants?.map((p: any) => ({
-              id: p.userId || p.id || '',
+              id: p.userId || p.id,
               name: p.name || p.firstName ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'User',
               role: p.role,
             })) || []}
-            signalingSocket={socket}
             currentConversationId={selectedConversationId || undefined}
           />
         </>

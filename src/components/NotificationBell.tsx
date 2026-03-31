@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, X, AlertCircle, CreditCard, FileText, Clock, MessageSquare } from 'lucide-react';
-import io from 'socket.io-client';
-import type { Socket } from 'socket.io-client';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 
 interface Notification {
   id: string;
@@ -56,36 +55,32 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { subscribe, isConnected } = useGlobalSocket();
 
+  // Fetch notifications on mount and periodically
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Subscribe to notification events via global socket
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !isConnected) return;
 
-    // Connect to Socket.IO
-    const socket = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling'],
-    });
+    console.log('🔔 NotificationBell subscribing to global socket');
 
-    // Join user room
-    socket.emit('join', userId);
-
-    // Listen for new notifications
-    socket.on('notification', (newNotification: Notification) => {
+    // Subscribe to notification events
+    const unsubscribe = subscribe('notification', (newNotification: Notification) => {
       if (newNotification.metadata?.module === 'messenger') return;
       setNotifications(prev => [newNotification, ...prev]);
       setUnreadCount(prev => prev + 1);
     });
 
     return () => {
-      socket.disconnect();
+      unsubscribe();
     };
-  }, [userId]);
+  }, [userId, isConnected, subscribe]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -37,6 +37,43 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('✅ Client connected:', socket.id);
 
+    // User joins their personal room
+    socket.on('join', (userId, callback) => {
+      socket.join(`user:${userId}`);
+      socket.data = { ...socket.data, userId };
+      console.log(`👤 User ${userId} joined their room`);
+      
+      // Send acknowledgment if callback provided
+      if (callback && typeof callback === 'function') {
+        callback({ joined: true, room: `user:${userId}`, socketId: socket.id });
+      }
+      
+      // Register messenger handlers
+      try {
+        const { registerMessengerHandlers } = require('./src/lib/socket/messengerHandlers.ts');
+        registerMessengerHandlers(io, socket);
+        console.log('✅ Messenger handlers registered for user:', userId);
+      } catch (error) {
+        console.log('📝 Messenger handlers not available:', error.message);
+      }
+      
+      // Register call handlers for voice/video
+      try {
+        const { registerCallHandlers } = require('./src/lib/socket/callHandlers.ts');
+        registerCallHandlers(io, socket);
+        console.log('✅ Call handlers registered for user:', userId);
+      } catch (error) {
+        console.log('📝 Call handlers not available:', error.message);
+      }
+    });
+
+    // School joins their room
+    socket.on('joinSchool', (schoolId) => {
+      socket.join(`school:${schoolId}`);
+      socket.data = { ...socket.data, schoolId };
+      console.log(`🏫 School ${schoolId} joined`);
+    });
+
     // Simple ping/pong for connection testing
     socket.on('ping', (data, callback) => {
       console.log('🏓 Ping received from:', socket.id, 'data:', data);
@@ -72,42 +109,6 @@ app.prepare().then(() => {
       });
       
       console.log('✅ Emitted call-incoming to user:', data.to, 'with offer:', !!data.offer);
-    });
-
-    // Join user-specific room
-    socket.on('join', (userId, callback) => {
-      socket.join(`user:${userId}`);
-      socket.data = { ...socket.data, userId };
-      console.log(`👤 User ${userId} joined their room`);
-      
-      // Send acknowledgment if callback provided
-      if (callback && typeof callback === 'function') {
-        callback({ joined: true, room: `user:${userId}`, socketId: socket.id });
-      }
-      
-      // Register messenger handlers
-      try {
-        const { registerMessengerHandlers } = require('./src/lib/socket/messengerHandlers.ts');
-        registerMessengerHandlers(io, socket);
-        console.log('✅ Messenger handlers registered for user:', userId);
-      } catch (error) {
-        console.error('❌ Error registering messenger handlers:', error.message);
-      }
-      
-      // Register call handlers for voice/video
-      try {
-        const { registerCallHandlers } = require('./src/lib/socket/callHandlers.ts');
-        registerCallHandlers(io, socket);
-        console.log('✅ Call handlers registered for user:', userId);
-      } catch (error) {
-        console.error('❌ Error registering call handlers:', error.message);
-      }
-    });
-
-    socket.on('joinSchool', (schoolId) => {
-      socket.join(`school:${schoolId}`);
-      socket.data = { ...socket.data, schoolId };
-      console.log(`🏫 School ${schoolId} joined`);
     });
 
     socket.on('disconnect', () => {

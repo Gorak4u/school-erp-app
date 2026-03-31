@@ -3,10 +3,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import io from 'socket.io-client';
 import { MessageSquare, X, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 
 interface MessengerNotification {
   id: string;
@@ -19,48 +19,38 @@ interface MessengerNotification {
     module?: string;
     conversationId?: string;
     messageId?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
 }
 
-type SocketType = ReturnType<typeof io>;
-
 export function MessengerBubble() {
   const { user } = useAuth();
   const { messengerEnabled } = useAppConfig();
+  const { subscribe, isConnected } = useGlobalSocket();
   const [notifications, setNotifications] = useState<MessengerNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [, setSocket] = useState<SocketType | null>(null);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
     [notifications]
   );
 
+  // Subscribe to messenger notifications via global socket
   useEffect(() => {
-    if (!messengerEnabled || !user?.id) return;
+    if (!messengerEnabled || !user?.id || !isConnected) return;
 
-    const socketInstance = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-    });
+    console.log('💬 MessengerBubble subscribing to global socket');
 
-    socketInstance.on('connect', () => {
-      socketInstance.emit('join', user.id);
-    });
-
-    socketInstance.on('messenger_notification', (notification: MessengerNotification) => {
+    const unsubscribe = subscribe('messenger_notification', (notification: MessengerNotification) => {
       setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
     });
 
-    setSocket(socketInstance);
-
     return () => {
-      socketInstance.disconnect();
+      unsubscribe();
     };
-  }, [messengerEnabled, user?.id]);
+  }, [messengerEnabled, user?.id, isConnected, subscribe]);
 
   useEffect(() => {
     if (!messengerEnabled || !user?.id) return;

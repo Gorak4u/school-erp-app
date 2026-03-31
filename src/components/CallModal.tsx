@@ -8,6 +8,7 @@ import {
   Hand, Calendar, ChevronRight, SmilePlus,
 } from 'lucide-react';
 import { useWebRTCCall, IncomingCallData } from '@/hooks/useWebRTCCall';
+import { useGlobalSocket } from '@/contexts/SocketContext';
 import { playIncomingRingtone, playRingbackTone, stopRingtone, unlockAudio } from '@/lib/ringtone';
 import { CallControls } from '@/components/CallControls';
 import { LiveReactions } from '@/components/LiveReactions';
@@ -35,7 +36,6 @@ interface CallModalProps {
   currentUserName?: string;
   initialCallType?: 'voice' | 'video';
   enabled?: boolean;
-  signalingSocket?: any;
   isIncomingCall?: boolean;
   incomingCallData?: IncomingCallData;
   onScheduleMeeting?: () => void;
@@ -69,11 +69,11 @@ export const CallModal: React.FC<CallModalProps> = ({
   conversationId,
   targetUserId,
   targetUserName,
+  currentUserName,
   initialCallType = 'voice',
+  enabled,
+  isIncomingCall,
   incomingCallData,
-  isIncomingCall = false,
-  signalingSocket,
-  enabled = isOpen,
   onScheduleMeeting,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -95,6 +95,8 @@ export const CallModal: React.FC<CallModalProps> = ({
 
   const activeConvId = incomingCallData?.conversationId || conversationId;
 
+  const { subscribe, emit, isConnected: socketConnected } = useGlobalSocket();
+
   const {
     callState,
     localStream,
@@ -111,7 +113,7 @@ export const CallModal: React.FC<CallModalProps> = ({
     setLocalVideoRef,
     setRemoteVideoRef,
     setRemoteAudioRef,
-  } = useWebRTCCall(activeConvId, enabled ?? isOpen, signalingSocket);
+  } = useWebRTCCall(activeConvId, enabled ?? isOpen);
 
   // ── Effects ──────────────────────────────────────────
 
@@ -208,10 +210,10 @@ export const CallModal: React.FC<CallModalProps> = ({
     return () => { if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); };
   }, [resetHideTimer]);
 
-  // In-call chat: receive messages from socket
+  // In-call chat: receive messages from global socket
   useEffect(() => {
-    if (!signalingSocket || !activeConvId) return;
-    const handler = (msg: any) => {
+    if (!socketConnected || !activeConvId) return;
+    const unsubscribe = subscribe('new-message', (msg: any) => {
       if (msg.conversationId === activeConvId || msg.conversationId === conversationId) {
         setChatMessages(prev => [...prev, {
           id: msg._id || msg.id || Date.now().toString(),
@@ -222,10 +224,9 @@ export const CallModal: React.FC<CallModalProps> = ({
         }]);
         if (!showChat) { /* unread badge could go here */ }
       }
-    };
-    signalingSocket.on('new-message', handler);
-    return () => signalingSocket.off('new-message', handler);
-  }, [signalingSocket, activeConvId, conversationId, showChat]);
+    });
+    return () => unsubscribe();
+  }, [socketConnected, activeConvId, conversationId, showChat, subscribe]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -253,8 +254,8 @@ export const CallModal: React.FC<CallModalProps> = ({
 
   const sendChatMessage = () => {
     const text = chatInput.trim();
-    if (!text || !signalingSocket || !activeConvId) return;
-    signalingSocket.emit('send-message', { conversationId: activeConvId, content: text });
+    if (!text || !socketConnected || !activeConvId) return;
+    emit('send-message', { conversationId: activeConvId, content: text });
     setChatMessages(prev => [...prev, {
       id: Date.now().toString(), from: targetUserName || 'You', text, mine: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
