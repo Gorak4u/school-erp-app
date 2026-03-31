@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
   Crown,
   Users,
@@ -215,6 +216,7 @@ interface BillingData {
 
 export default function SubscriptionPage() {
   const { data: session, status } = useSession();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [billing, setBilling] = useState<BillingData | null>(null);
@@ -227,7 +229,6 @@ export default function SubscriptionPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [canManageSubscription, setCanManageSubscription] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     // Check user permissions
