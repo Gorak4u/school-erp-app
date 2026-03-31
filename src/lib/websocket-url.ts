@@ -12,25 +12,25 @@ export function getWebSocketServerUrl(): string {
   const protocol = window.location.protocol;
   const port = window.location.port;
 
+  // For Railway deployments - use current origin directly (Railway assigns unique subdomains)
+  if (hostname.includes('railway.app')) {
+    return window.location.origin;
+  }
+
   // For development with subdomains, always connect to main domain
   if (hostname !== 'localhost' && hostname.endsWith('.localhost')) {
     // Extract main domain from subdomain (svsn.localhost -> localhost)
     return `${protocol}//localhost${port ? ':' + port : ''}`;
   }
 
-  // For production with subdomains, connect to main domain
-  if (hostname !== 'localhost' && hostname.includes('.')) {
+  // For production with custom subdomains (not Railway), connect to main domain
+  if (hostname !== 'localhost' && !hostname.includes('railway.app') && hostname.split('.').length > 2) {
     // Extract main domain from subdomain (svsn.schoolerp.com -> schoolerp.com)
     const parts = hostname.split('.');
     const mainDomain = parts.slice(-2).join('.'); // Get last 2 parts: schoolerp.com
     return `${protocol}//${mainDomain}${port ? ':' + port : ''}`;
   }
 
-  // For Railway deployment with subdomains disabled
-  if (process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS === 'true' && hostname !== 'localhost') {
-    return `${protocol}//${hostname}${port ? ':' + port : ''}`;
-  }
-
-  // Default: use current origin
+  // For Railway or simple deployments - use current origin
   return window.location.origin;
 }
