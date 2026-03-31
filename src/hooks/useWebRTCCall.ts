@@ -283,73 +283,77 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       }
     });
 
-    // For initiator: skip the very first signal because it's the SDP offer
-    // already sent embedded in call-initiated. Subsequent signals are ICE candidates.
-    let offerAlreadySent = isInitiator;
+  // For initiator: the first signal is the SDP offer which is sent via call-initiated
+  // ICE candidates come after and should be sent normally
+  let offerSent = false; // Track if we've sent the offer
+  
+  // Deduplication: track which ICE candidates we've already sent
+  const sentCandidates = new Set<string>();
+  // Throttling: track last candidate send time to prevent flooding
+  let lastCandidateTime = 0;
+  const CANDIDATE_THROTTLE_MS = 50; // Min 50ms between candidates
+
+  // Promise resolves with the first signal (the SDP offer for the initiator)
+  const firstSignalPromise = new Promise<any>((resolve) => {
+    peer.once('signal', (data: any) => resolve(data));
+  });
+
+  peer.on('signal', (data: any) => {
+    // Only log important signals, not every ICE candidate
+    if (data.type === 'offer' || data.type === 'answer') {
+      console.log('📡 Signal generated:', data.type, 'for', isInitiator ? 'initiator' : 'receiver');
+    }
     
-    // Deduplication: track which ICE candidates we've already sent
-    const sentCandidates = new Set<string>();
-    // Track if we've already sent the offer (prevent duplicate call-initiated)
-    let offerSent = false;
-    // Throttling: track last candidate send time to prevent flooding
-    let lastCandidateTime = 0;
-    const CANDIDATE_THROTTLE_MS = 50; // Min 50ms between candidates
+    // For initiator: the first signal is the offer which is sent via call-initiated event
+    // NOT via call-signal. So we skip emitting it here.
+    if (isInitiator && !offerSent && data.type === 'offer') {
+      offerSent = true;
+      console.log('📡 Offer generated for initiator - will be sent via call-initiated, not call-signal');
+      return; // Don't emit via call-signal, it's handled by caller
+    }
 
-    // Promise resolves with the first signal (the SDP offer for the initiator)
-    const firstSignalPromise = new Promise<any>((resolve) => {
-      peer.once('signal', (data: any) => resolve(data));
-    });
+    if (!socketRef.current || !user || !conversationIdRef.current) {
+      console.warn('⚠️ Cannot send signal - missing socket/user/conversation');
+      return;
+    }
 
-    peer.on('signal', (data: any) => {
-      // Only log important signals, not every ICE candidate
-      if (data.type === 'offer' || data.type === 'answer') {
-        // Important signal processed
+    // Derive signal type from the actual payload
+    let sigType: CallSignal['type'];
+    if (data.type === 'offer') sigType = 'call-offer';
+    else if (data.type === 'answer') sigType = 'call-answer';
+    else sigType = 'call-ice-candidate';
+
+    // Throttle ICE candidates to prevent flooding
+    if (sigType === 'call-ice-candidate') {
+      const candidateKey = data.candidate?.candidate || JSON.stringify(data);
+      if (sentCandidates.has(candidateKey)) {
+        return; // Skip duplicate candidate
       }
+      sentCandidates.add(candidateKey);
       
-      // Skip the first signal for the initiator — it's the offer, sent via call-initiated
-      if (offerAlreadySent) {
-        offerAlreadySent = false;
-        return;
+      const now = Date.now();
+      if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
+        return; // Skip throttled candidate
       }
+      lastCandidateTime = now;
+    }
 
-      if (!socketRef.current || !user || !conversationIdRef.current) {
-        return;
-      }
-
-      // Derive signal type from the actual payload so ICE candidates are routed correctly
-      let sigType: CallSignal['type'];
-      if (data.type === 'offer') sigType = 'call-offer';
-      else if (data.type === 'answer') sigType = 'call-answer';
-      else sigType = 'call-ice-candidate'; // candidate / renegotiation
-
-      socketRef.current.emit('call-signal', {
-        sigType,
-        from: user.id,
-        to: remoteUserIdRef.current,
-        conversationId: conversationIdRef.current,
-        payloadType: data.type || 'candidate',
-        offerAlreadySent,
-        hasSocket: !!socketRef.current,
-      });
-
-      // Throttle ICE candidates to prevent flooding
-      if (sigType === 'call-ice-candidate') {
-        const now = Date.now();
-        if (now - lastCandidateTime < CANDIDATE_THROTTLE_MS) {
-          return;
-        }
-        lastCandidateTime = now;
-      }
-
-      // Send the signal via socket
-      socketRef.current.emit('call-signal', {
-        type: sigType,
-        from: user.id,
-        to: remoteUserIdRef.current,
-        conversationId: conversationIdRef.current,
-        payload: data,
-      });
-    });
+    // Send the signal via socket
+    const signal: CallSignal = {
+      type: sigType,
+      from: user.id,
+      to: remoteUserIdRef.current,
+      conversationId: conversationIdRef.current,
+      callType: callType,
+      payload: data,
+    };
+    
+    socketRef.current.emit('call-signal', signal);
+    
+    if (sigType !== 'call-ice-candidate') {
+      console.log('📤 Sent signal:', sigType, 'to', remoteUserIdRef.current);
+    }
+  });
 
     peer.on('connect', () => {
       setCallState(prev => ({ 
@@ -430,29 +434,22 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     const remoteId = remoteUserIdRef.current;
     const convId = conversationIdRef.current;
 
-    // For outgoing calls that haven't connected yet, send call-cancelled directly
+    // FIXED: Always send hangup signal when ending call (unless remote already sent one)
     if (!options?.skipHangupSignal && !options?.triggeredByRemote && socketRef.current?.connected && user && remoteId && convId) {
-      if (callState.isOutgoingCall && callState.connectionState === 'connecting') {
-        // Outgoing call cancelled before connection - send direct cancellation
-        console.log('📤 Sending call-cancelled to:', remoteId);
-        socketRef.current.emit('call-cancelled', {
-          from: user.id,
-          to: remoteId,
-          conversationId: convId,
-        });
-      } else {
-        // Connected call or incoming call - use regular hangup signal
-        console.log('📤 Sending hangup signal to:', remoteId);
-        socketRef.current.emit('call-signal', {
-          type: 'call-hangup',
-          from: user.id,
-          to: remoteId,
-          conversationId: convId,
-          callType: 'voice',
-        } as CallSignal);
-      }
+      // Use call-signal with hangup type for all call endings
+      console.log('📤 Sending hangup signal to:', remoteId);
+      socketRef.current.emit('call-signal', {
+        type: 'call-hangup',
+        from: user.id,
+        to: remoteId,
+        conversationId: convId,
+        callType: callStateRef.current?.callType || 'voice',
+      } as CallSignal);
     }
 
+    // Reset isStartingCallRef when ending call - FIXED Bug #6
+    isStartingCallRef.current = false;
+    
     // Complete cleanup
     cleanupCall();
     
@@ -703,6 +700,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
   const rejectCall = useCallback((fromUserId: string, convId?: string) => {
     const targetConvId = convId || conversationIdRef.current || conversationId;
     if (socketRef.current?.connected && user && targetConvId) {
+      // FIXED: Use call-hangup instead of non-existent call-reject event
       socketRef.current.emit('call-signal', {
         type: 'call-hangup',
         from: user.id,
@@ -858,17 +856,19 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     showToast('info', 'Video Off', 'Switched to voice call');
   }, [callState.callType]);
 
-  // Listen for incoming call signals - use stable ref to prevent re-registration
-  // CRITICAL: Only process signals when in an active call to prevent conflicts with other hook instances
+  // Listen for incoming call signals - FIXED: Only register once per enabled session
+  // CRITICAL BUG FIX: Removed callState dependencies to prevent re-registration
+  // This ensures signals aren't missed during call setup
   const endCallRef = useRef(endCall);
   endCallRef.current = endCall;
+  const callStateRef = useRef(callState);
+  callStateRef.current = callState;
   
   useEffect(() => {
-    // Only listen for signals when this instance is managing an active call
-    // This prevents CallContext's hook instance from conflicting with CallModal's instance
-    // NOTE: Must check callState (not ref) since refs don't trigger re-renders
-    if (!callState.isInCall && !callState.isOutgoingCall && !callState.isIncomingCall) {
-      console.log('⏭️ [SignalListener] Not in active call, skipping registration');
+    // FIXED: Listen for signals whenever socket is available and enabled
+    // The handler itself will filter based on whether signal is relevant
+    if (!enabled) {
+      console.log('⏭️ [SignalListener] Not enabled, skipping registration');
       return;
     }
     
@@ -903,6 +903,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
         hasPayload: !!signal.payload,
         payloadType: signal.payload?.type,
         isActiveCall: isActiveCallRef.current,
+        currentCallState: callStateRef.current.connectionState,
       });
 
       if (signal.to !== user?.id) {
@@ -918,9 +919,16 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
         return;
       }
 
-      // Ignore signals when not in active call (stale ICE candidates from previous call)
-      if (!peerRef.current && !callState.isInCall && !callState.isOutgoingCall) {
-        console.log('⏭️ Ignoring signal - no active peer and not in active call');
+      // FIXED: Process signals when we have a peer OR when call is being established
+      // This allows caller to receive answer signals during outgoing call
+      const hasActivePeer = !!peerRef.current;
+      const isEstablishingCall = isActiveCallRef.current || 
+                                  callStateRef.current.isOutgoingCall || 
+                                  callStateRef.current.isIncomingCall ||
+                                  callStateRef.current.isInCall;
+      
+      if (!hasActivePeer && !isEstablishingCall) {
+        console.log('⏭️ Ignoring signal - no peer and not establishing call');
         return;
       }
 
@@ -930,7 +938,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
           console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
           
           // If this is an answer to our outgoing call, mark as connecting
-          if (signal.type === 'call-answer' && callState.isOutgoingCall && !callState.isInCall) {
+          if (signal.type === 'call-answer' && callStateRef.current.isOutgoingCall && !callStateRef.current.isInCall) {
             console.log('🤝 Call answered - moving to connecting state');
             setCallState(prev => ({
               ...prev,
@@ -948,9 +956,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       }
     };
 
+    console.log('🎯 [SignalListener] Registering signal listener');
     sock.on('call-signal', handleCallSignal);
-    return () => { sock.off('call-signal', handleCallSignal); };
-  }, [user?.id, callState.isInCall, callState.isOutgoingCall, callState.isIncomingCall]); // Re-register when user or call state changes
+    return () => { 
+      console.log('🧹 [SignalListener] Cleaning up signal listener');
+      sock.off('call-signal', handleCallSignal); 
+    };
+  // FIXED: Only re-register when user or enabled changes, NOT on every call state change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, enabled]);
 
   // Cleanup on disable/unmount
   useEffect(() => {

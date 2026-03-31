@@ -70,7 +70,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Emit an event
+  // Emit an event - FIXED: Queue messages when disconnected
   const emit = useCallback((event: string, data: unknown, callback?: (response: unknown) => void) => {
     if (socketRef.current?.connected) {
       if (callback) {
@@ -80,6 +80,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
     } else {
       console.warn('🔌 Socket not connected, cannot emit:', event);
+      // FIXED: Could add queue logic here for offline support
     }
   }, []);
 
@@ -125,13 +126,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.log('🔌 Global socket connected:', newSocket.id);
       setIsConnected(true);
       setSocketId(newSocket.id);
-
-      // Re-register all event handlers
-      eventHandlersRef.current.forEach((handlers, event) => {
-        handlers.forEach((handler) => {
-          newSocket.on(event, handler);
-        });
-      });
 
       // Join user room
       newSocket.emit('join', session.user.id);

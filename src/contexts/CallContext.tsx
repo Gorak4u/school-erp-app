@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { showToast } from '@/lib/toastUtils';
 import { useRouter } from 'next/navigation';
@@ -62,11 +62,12 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
       setIncomingCallData(data);
       setShowCallModal(true);
       
-      // Auto-redirect to messenger after 3 seconds if not already there
+      // Auto-redirect to messenger after short delay if not already there
+      // FIXED: Reduced from 3000ms to 500ms for better UX
       if (window.location.pathname !== '/messenger') {
         setTimeout(() => {
           router.push('/messenger');
-        }, 3000);
+        }, 500);
       }
     };
 
@@ -100,16 +101,19 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
     setShowCallModal(true);
   };
 
-  const rejectCall = () => {
+  // Reject incoming call
+  const rejectCall = useCallback(() => {
     if (incomingCallData && socket) {
-      // Send reject signal
-      socket.emit('call-reject', { 
+      // FIXED: Use call-hangup instead of call-reject (server doesn't have call-reject handler)
+      socket.emit('call-signal', { 
+        type: 'call-hangup',
         conversationId: incomingCallData.conversationId,
+        from: user?.id,
         to: incomingCallData.from 
       });
     }
     dismissCall();
-  };
+  }, [incomingCallData, socket, user?.id]);
 
   const dismissCall = () => {
     setIncomingCallData(null);

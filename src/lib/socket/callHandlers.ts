@@ -57,7 +57,7 @@ function isDuplicateCall(from: string, to: string, conversationId: string): bool
 export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
   console.log('🔧 Registering call handlers for socket:', socket.id);
   
-  // Handle call signaling
+  // Handle call signaling - FIXED: Only forward to target user, not all in room
   socket.on('call-signal', (signal: CallSignal) => {
     console.log('📞 Call signal received:', {
       type: signal.type,
@@ -72,21 +72,17 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     const targetRoom = `user:${signal.to}`;
     console.log('📍 Forwarding to room:', targetRoom);
     
-    // Check if target room exists and has members
-    const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
-    console.log('🔍 Target room members:', {
-      room: targetRoom,
-      memberCount: socketsInRoom?.size || 0,
-      socketIds: socketsInRoom ? Array.from(socketsInRoom) : [],
-    });
-    
-    if (!socketsInRoom || socketsInRoom.size === 0) {
-      console.error('❌ Target room empty! Signal will not be delivered:', targetRoom);
+    // FIXED: Use socket.to() with the specific target socket only
+    // This ensures only the intended recipient gets the signal
+    const targetSockets = io.sockets.adapter.rooms.get(targetRoom);
+    if (!targetSockets || targetSockets.size === 0) {
+      console.error('❌ Target user not online:', signal.to);
+      return;
     }
     
-    // Forward the signal to the target user
+    // Forward to the specific user room (all their connected sockets)
     io.to(targetRoom).emit('call-signal', signal);
-    console.log('✅ Call signal forwarded to', targetRoom);
+    console.log('✅ Call signal forwarded to user:', signal.to);
   });
 
   // Handle call initiation

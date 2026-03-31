@@ -195,26 +195,35 @@ export const CallModal: React.FC<CallModalProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setRemoteVideoRef, setRemoteAudioRef]);
 
-  // Auto-start outgoing call ONCE per modal open
+  // Auto-start outgoing call ONCE per modal open - FIXED: Added guards to prevent race conditions
   useEffect(() => {
     if (isOpen) {
-      // Extra safety: don't auto-start if already in any call state
+      // GUARD: Don't auto-start if already in any call state
       if (callState.isInCall || callState.isOutgoingCall || callState.isIncomingCall) {
+        console.log('⏭️ Auto-start skipped - already in call state');
         return;
       }
       
+      // GUARD: Don't auto-start if modal was already opened for a call
+      if (wasInCallRef.current) {
+        console.log('⏭️ Auto-start skipped - was already in a call');
+        return;
+      }
+      
+      // GUARD: Validate target data is fresh and matches
       if (!callStartedRef.current && !isIncomingCall && !incomingCallData && targetUserId && targetUserName) {
         // Set ref IMMEDIATELY to prevent any race conditions
         callStartedRef.current = true;
-        
+        console.log('📞 Auto-starting outgoing call to:', targetUserName);
         startCall(targetUserId, targetUserName, initialCallType);
       }
     } else {
+      // Reset when modal closes
       callStartedRef.current = false;
       setCallEnded(false);
-      wasInCallRef.current = false;
     }
-  }, [isOpen, targetUserId, targetUserName, initialCallType, isIncomingCall, incomingCallData, callState.isInCall, callState.isOutgoingCall, callState.isIncomingCall, startCall]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, targetUserId, targetUserName, initialCallType, isIncomingCall, incomingCallData]);
 
   // Track when call goes active so we can detect when it ends
   useEffect(() => {
