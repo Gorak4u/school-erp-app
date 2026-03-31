@@ -217,7 +217,7 @@ export default function StudentsPageRefactored() {
   useEffect(() => {
     const studentId = searchParams.get('student');
     if (studentId && state.students) {
-      const student = state.students.find(s => s.id === studentId);
+      const student = state.students.find(s => s.id.toString() === studentId);
       if (student) {
         state.setSelectedStudent(student);
         // Clear the URL parameter after setting the student

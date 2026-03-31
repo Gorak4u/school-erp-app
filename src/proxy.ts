@@ -20,8 +20,6 @@ import {
   canViewStudentsAccess,
 } from '@/lib/permissions';
 
-export const runtime = 'nodejs';
-
 // Production environment check
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -157,7 +155,7 @@ function getClientIdentifier(request: NextRequest): string {
   return `${ip}:${request.headers.get('user-agent')?.slice(0, 50) || 'unknown'}`;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 

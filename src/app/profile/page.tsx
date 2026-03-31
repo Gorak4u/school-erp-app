@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useSession } from 'next-auth/react';
 import { 
   User, 
   Mail, 
@@ -36,10 +37,7 @@ import {
 export default function ProfilePage() {
   const { theme } = useTheme();
   const { user } = useAuth();
-  
-  // Debug: Check if user is authenticated
-  console.log('Profile page - User:', user);
-  console.log('Profile page - User authenticated:', !!user);
+  const { update } = useSession();
   
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -59,7 +57,6 @@ export default function ProfilePage() {
           const data = await res.json();
           setProfileData(data.user);
           setProfileLoaded(true);
-          console.log('Profile data loaded:', data.user);
         } else {
           console.error('Failed to load profile:', res.status);
         }
@@ -164,6 +161,15 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json();
         setProfileData(data.user); // Update local state with new data
+        
+        // Update session to reflect changes in header
+        await update({
+          ...user,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          avatar: data.user.avatar,
+        });
+        
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
         setEditMode(false);
@@ -205,7 +211,16 @@ export default function ProfilePage() {
         });
 
         if (profileRes.ok) {
+          const profileData = await profileRes.json();
           setProfileImage(uploadData.url);
+          setProfileData(profileData.user);
+          
+          // Update session to reflect new avatar in header
+          await update({
+            ...user,
+            avatar: uploadData.url,
+          });
+          
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         }
@@ -383,21 +398,9 @@ export default function ProfilePage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 flex-col">
-                <div className="text-xs text-gray-500 mb-2">Debug: editMode={editMode}, loading={loading}</div>
-                <button 
-                  onClick={() => alert('Test button works!')}
-                  className="px-4 py-2 bg-red-500 text-white rounded-xl mb-2"
-                >
-                  TEST BUTTON
-                </button>
-                <div className="flex gap-3">
+              <div className="flex gap-3">
                 <motion.button
-                  onClick={() => {
-                    console.log('Edit Profile button clicked!');
-                    console.log('Current editMode:', editMode);
-                    setEditMode(!editMode);
-                  }}
+                  onClick={() => setEditMode(!editMode)}
                   className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                     editMode
                       ? theme === 'dark'
@@ -415,11 +418,7 @@ export default function ProfilePage() {
                   {editMode ? 'Save Changes' : 'Edit Profile'}
                 </motion.button>
                 <motion.button
-                  onClick={() => {
-                    console.log('Change Password button clicked!');
-                    console.log('Current showPwForm:', showPwForm);
-                    setShowPwForm(!showPwForm);
-                  }}
+                  onClick={() => setShowPwForm(!showPwForm)}
                   className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                     theme === 'dark'
                       ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -432,7 +431,6 @@ export default function ProfilePage() {
                   <Lock className="w-4 h-4" />
                   Change Password
                 </motion.button>
-                </div>
               </div>
             </div>
           </div>

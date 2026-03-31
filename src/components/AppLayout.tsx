@@ -451,10 +451,18 @@ export default function AppLayout({
                     className="relative"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white text-sm font-bold">
-                        {user ? (user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase() : 'U'}
-                      </span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                      {user?.avatar ? (
+                        <img 
+                          src={user.avatar} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-sm font-bold">
+                          {user ? (user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase() : 'U'}
+                        </span>
+                      )}
                     </div>
                     
                     {/* Online Status Indicator */}

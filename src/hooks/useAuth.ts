@@ -24,6 +24,7 @@ export function useAuth() {
     firstName: (session.user as any).firstName || '',
     lastName: (session.user as any).lastName || '',
     role: (session.user as any).role || 'student',
+    avatar: (session.user as any).avatar || undefined,
     employeeId: (session.user as any).employeeId || null,
   } : null;
 
