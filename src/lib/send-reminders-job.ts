@@ -430,12 +430,12 @@ async function flushFeeGroup(group: FeeGroup, deadline: number, runDate: string,
   const recipients = recipientList(group.student);
   if (!recipients.length) {
     stats.feeSkipped += 1;
-    logger.warn('Fee reminder skipped: no recipient emails found', {
+    logger.debug('Fee reminder skipped: no recipient emails found', {
       studentId: group.student.id,
       studentName: group.student.name,
       schoolId: group.student.schoolId,
     });
-    return true;
+    return true; // Continue processing other students
   }
 
   const { totalDue, overdueCount, html } = buildFeeReminderHtml(group.student.name, group.fees);
@@ -668,6 +668,27 @@ async function processAttendanceAlerts(deadline: number, stats: ReminderStats) {
 }
 
 export async function runSendRemindersJob() {
+  try {
+    // Test database connection first
+    console.log('[Cron] Testing database connection for send-reminders...');
+    await (schoolPrisma as any).$queryRaw`SELECT 1 as test`;
+    console.log('[Cron] Database connection OK for send-reminders');
+  } catch (dbError: any) {
+    console.error('[Cron] Database connection failed for send-reminders:', dbError);
+    return createCronJobResult({
+      success: false,
+      jobName: 'send-reminders',
+      scope: 'school',
+      message: 'Database connection failed',
+      processed: 0,
+      attempted: 0,
+      delivered: 0,
+      skipped: 0,
+      failed: 1,
+      errors: [dbError?.message || 'Database connection error'],
+    });
+  }
+
   const deadline = Date.now() + MAX_DURATION_MS;
   const stats: ReminderStats = {
     feeStudents: 0,
@@ -701,23 +722,31 @@ export async function runSendRemindersJob() {
   const delivered = stats.feeSent + stats.attendanceSent;
   const skipped = stats.feeSkipped + stats.attendanceSkipped;
   const failed = stats.feeFailed + stats.attendanceFailed;
-  const success = stats.errors === 0 && failed === 0 && (delivered > 0 || attempted === 0);
+  
+  // Success if no errors occurred - regardless of whether emails were sent, skipped, or not attempted
+  // This handles cases where:
+  // - All emails were delivered successfully
+  // - All emails were skipped (no email addresses available)
+  // - No emails were needed (no outstanding fees/attendance issues)
+  const success = stats.errors === 0 && failed === 0;
 
   return createCronJobResult({
     success,
     jobName: 'send-reminders',
     scope: 'school',
     message: attempted === 0
-      ? 'No reminder emails were due'
-      : success
-        ? `Delivered ${delivered} reminder email(s)`
-        : 'No reminder emails were delivered',
+      ? 'No reminder emails were due (no students with outstanding fees/attendance issues)'
+      : delivered === 0 && skipped > 0
+        ? `No emails sent (all ${skipped} students have no email addresses on file)`
+        : success
+          ? `Delivered ${delivered} reminder email(s)${skipped > 0 ? ` (skipped ${skipped} without email addresses)` : ''}`
+          : 'Some reminder emails failed to send',
     attempted,
     delivered,
     skipped,
     failed,
     stats: stats as unknown as Record<string, unknown>,
     processed: stats.feeSent + stats.feeSkipped + stats.feeFailed + stats.attendanceSent + stats.attendanceSkipped + stats.attendanceFailed,
-    errors: success ? [] : ['One or more reminder emails failed or were skipped'],
+    errors: success ? [] : ['One or more reminder emails failed'],
   });
 }

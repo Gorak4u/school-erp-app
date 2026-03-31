@@ -380,9 +380,20 @@ function AISchoolLoginInner() {
         const session = await sessionRes.json();
         
         if (session?.user?.isSuperAdmin) {
-          router.push('/admin');
+          // For super admin, redirect to admin dashboard on main domain
+          if (process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS === 'true') {
+            router.push('/admin');
+          } else {
+            // Preserve subdomain for super admin if needed
+            window.location.href = `/admin`;
+          }
         } else {
-          router.push('/dashboard');
+          // For regular users, redirect to school dashboard
+          if (process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS === 'true') {
+            router.push('/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
         }
       }
     } catch (error) {

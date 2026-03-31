@@ -3,7 +3,7 @@ import { runUpdateStatisticsJob } from '@/lib/cron/jobs/update-statistics-job';
 import { cronUnauthorizedResponse, isCronAuthorized } from '@/lib/cron/route-helpers';
 
 export async function POST(request: NextRequest) {
-  if (!isCronAuthorized(request)) {
+  if (!(await isCronAuthorized(request))) {
     return cronUnauthorizedResponse();
   }
 

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { schoolPrisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { cronUnauthorizedResponse, isCronAuthorized, readCronBody } from '@/lib/cron/route-helpers';
 
-// DELETE /api/cron/cleanup-inactive-conversations - Archive inactive conversations
-export async function DELETE(request: NextRequest) {
+// POST /api/cron/cleanup-inactive-conversations - Archive inactive conversations
+export async function POST(request: NextRequest) {
+  if (!(await isCronAuthorized(request))) {
+    return cronUnauthorizedResponse();
+  }
+
   try {
-    // Verify cron secret if configured
-    const cronSecret = request.headers.get('x-cron-secret');
-    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const prisma = schoolPrisma as any;
     const oneYearAgo = new Date();
     oneYearAgo.setDate(oneYearAgo.getDate() - 365);
@@ -110,5 +109,5 @@ export async function DELETE(request: NextRequest) {
 
 // Also support GET for testing
 export async function GET(request: NextRequest) {
-  return DELETE(request);
+  return POST(request);
 }

@@ -208,31 +208,55 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/cron')) {
     if (isProduction) {
       const cronSecret = request.headers.get('x-cron-secret');
-      if (cronSecret !== process.env.CRON_SECRET) {
-        console.warn(`🚫 Unauthorized cron attempt: ${pathname}`);
+      const authHeader = request.headers.get('authorization');
+      
+      // Check both CRON_SECRET header and Authorization Bearer token
+      const validCronSecret = cronSecret === process.env.CRON_SECRET;
+      const validAuthHeader = authHeader && authHeader.startsWith('Bearer ') && 
+                           authHeader.replace('Bearer ', '') === process.env.CRON_SECRET;
+      
+      if (!validCronSecret && !validAuthHeader) {
+        console.warn(`🚫 Unauthorized cron attempt: ${pathname} - Missing or invalid secret`);
         return NextResponse.json(
-          { error: 'Unauthorized' },
+          { error: 'Unauthorized - Missing or invalid cron secret' },
           { status: 401 }
         );
       }
     }
+    // For cron endpoints, don't do further processing - let the route handle auth
     return response;
   }
 
   // ── Subdomain Detection ──────────────────────────────────────────────────
   const schoolSubdomain = extractSubdomain(hostname);
 
-  // ── Non-subdomain deployment: Allow API routes to pass through ────────────
+  // ── Non-subdomain deployment: Handle API routes properly ────────────
   // This handles production deployments on Railway/Heroku/Vercel without subdomains
   if (!schoolSubdomain && pathname.startsWith('/api/')) {
-    // Check auth but don't redirect - let API handle 401/403 responses
+    // For API routes without subdomain, check auth but don't redirect
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
-      // Return JSON 401 for API routes instead of redirect
+    
+    // Allow public API routes without authentication
+    const publicApiRoutes = [
+      '/api/plans', '/api/admin/plans', '/api/auth', '/api/register', 
+      '/api/reset-password', '/api/promo-codes/validate', '/api/create-payment-order',
+      '/api/verify-payment', '/api/razorpay/webhook', '/api/razorpay/create-order',
+      '/api/razorpay/verify-payment', '/api/razorpay/verify-subscription-payment',
+      '/api/school/by-subdomain', '/api/upload'
+    ];
+    
+    const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route));
+    
+    if (!isPublicApi && !token) {
+      // Return JSON 401 for non-public API routes instead of redirect
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
     // Continue with normal API handling (permission checks below)
-  } else if (schoolSubdomain) {
+    return response;
+  }
+  
+  if (schoolSubdomain) {
     // CRITICAL: Validate school exists in database before allowing access
     try {
       const school = await (saasPrisma as any).School.findUnique({

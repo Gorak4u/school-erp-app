@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saasPrisma } from '@/lib/prisma';
+import { cronUnauthorizedResponse, isCronAuthorized } from '@/lib/cron/route-helpers';
 // import { io } from '@/lib/socket-singleton';
 
 // Cron job to send meeting reminders
-export async function GET(req: NextRequest) {
-  try {
-    // Verify cron secret
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export async function POST(req: NextRequest) {
+  if (!(await isCronAuthorized(req))) {
+    return cronUnauthorizedResponse();
+  }
 
+  try {
     // TODO: Process meeting reminders after DB migration
     console.log('📅 Meeting reminder system ready - awaiting DB migration');
     
@@ -26,4 +25,9 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Also support GET for testing
+export async function GET(req: NextRequest) {
+  return POST(req);
 }

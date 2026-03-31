@@ -126,7 +126,11 @@ export const authOptions = {
         sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // Remove domain restriction for mobile compatibility
+        // Important for subdomain-disabled deployments: don't set domain restriction
+        // This allows cookies to work across different deployment scenarios
+        domain: process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS !== 'true' 
+                ? undefined 
+                : undefined,
       },
     },
     csrfToken: {
@@ -136,7 +140,10 @@ export const authOptions = {
         sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // Remove domain restriction for mobile compatibility
+        // Important for subdomain-disabled deployments: don't set domain restriction
+        domain: process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS !== 'true' 
+                ? undefined 
+                : undefined,
       },
     },
   },

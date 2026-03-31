@@ -28,7 +28,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    const serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+    // Determine server URL based on deployment mode
+    let serverUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+    
+    // If subdomains are disabled and we're not on localhost, construct proper URL
+    if (process.env.NEXT_PUBLIC_DISABLE_SUBDOMAINS === 'true' && window.location.hostname !== 'localhost') {
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+      serverUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+    }
     const newSocket = io(serverUrl, {
       path: '/api/socket',
       transports: ['websocket', 'polling'],

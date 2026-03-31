@@ -3,7 +3,7 @@ import { runProcessSuspensionsJob } from '@/lib/cron/jobs/process-suspensions-jo
 import { cronUnauthorizedResponse, isCronAuthorized } from '@/lib/cron/route-helpers';
 
 export async function POST(request: NextRequest) {
-  if (!isCronAuthorized(request)) {
+  if (!(await isCronAuthorized(request))) {
     return cronUnauthorizedResponse();
   }
 

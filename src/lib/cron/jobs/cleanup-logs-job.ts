@@ -2,6 +2,27 @@ import { createCronJobResult } from '@/lib/cron/job-contract';
 import { schoolPrisma } from '@/lib/prisma';
 
 export async function runCleanupLogsJob(input: { daysToKeep?: number } = {}) {
+  try {
+    // Test database connection first
+    console.log('[Cron] Testing database connection...');
+    await schoolPrisma.$queryRaw`SELECT 1 as test`;
+    console.log('[Cron] Database connection OK');
+  } catch (dbError: any) {
+    console.error('[Cron] Database connection failed:', dbError);
+    return createCronJobResult({
+      success: false,
+      jobName: 'cleanup-logs',
+      scope: 'school',
+      message: 'Database connection failed',
+      processed: 0,
+      attempted: 0,
+      delivered: 0,
+      skipped: 0,
+      failed: 1,
+      errors: [dbError?.message || 'Database connection error'],
+    });
+  }
+
   const daysToKeep = Math.max(1, input.daysToKeep || 7);
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
@@ -89,10 +110,14 @@ export async function runCleanupLogsJob(input: { daysToKeep?: number } = {}) {
     errors.push(error instanceof Error ? error.message : 'Failed to delete password reset tokens');
   }
 
-  // Cleanup Sessions (7 days retention - already using cutoffDate)
+  // Cleanup Sessions (7 days retention - use expires field instead of createdAt)
   try {
     const result = await (schoolPrisma as any).session.deleteMany({
-      where: { createdAt: { lt: cutoffDate } },
+      where: { 
+        expires: { 
+          lt: cutoffDate 
+        } 
+      },
     });
     sessions = result.count;
   } catch (error) {
