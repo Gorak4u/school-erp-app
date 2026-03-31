@@ -240,7 +240,7 @@ export default function AppLayout({
           }}
         />
         
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             {/* Left Section - Enhanced Sidebar Toggle & Page Info */}
             <div className="flex items-center gap-6">
