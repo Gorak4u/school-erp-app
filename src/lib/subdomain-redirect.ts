@@ -11,8 +11,8 @@ export function getCurrentSubdomain(): string | null {
   const host = window.location.hostname;
   const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
   
-  // If no app domain configured, assume localhost
-  if (!appDomain) {
+  // If no app domain configured, or it's localhost, handle localhost subdomains
+  if (!appDomain || appDomain === 'localhost') {
     if (host === 'localhost' || host === 'www.localhost' || host === '127.0.0.1') return null;
     if (host.endsWith('.localhost')) {
       return host.slice(0, -('.localhost'.length)) || null;
@@ -50,7 +50,7 @@ export function getSchoolLoginUrl(): string {
     return '/login';
   }
   
-  if (!appDomain) {
+  if (!appDomain || appDomain === 'localhost') {
     // Local development with subdomain
     return port ? `${protocol}//${subdomain}.localhost:${port}/school-login` : `${protocol}//${subdomain}.localhost/school-login`;
   } else {
@@ -85,7 +85,7 @@ export function smartLogoutRedirect(): void {
     return;
   }
   
-  if (!appDomain) {
+  if (!appDomain || appDomain === 'localhost') {
     // Local development with subdomain - use current protocol
     const protocol = window.location.protocol;
     const port = window.location.port;

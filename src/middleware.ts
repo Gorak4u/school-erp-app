@@ -197,65 +197,10 @@ export async function middleware(request: NextRequest) {
     response.headers.set(key, value);
   });
 
-  // ── Public Route Check ───────────────────────────────────────────────────
-  // Allow public routes without authentication
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return response;
-  }
-  
-  // ── Cron Job Security ─────────────────────────────────────────────────────
-  // Only allow cron jobs with proper authentication in production
-  if (pathname.startsWith('/api/cron')) {
-    if (isProduction) {
-      const cronSecret = request.headers.get('x-cron-secret');
-      const authHeader = request.headers.get('authorization');
-      
-      // Check both CRON_SECRET header and Authorization Bearer token
-      const validCronSecret = cronSecret === process.env.CRON_SECRET;
-      const validAuthHeader = authHeader && authHeader.startsWith('Bearer ') && 
-                           authHeader.replace('Bearer ', '') === process.env.CRON_SECRET;
-      
-      if (!validCronSecret && !validAuthHeader) {
-        console.warn(`🚫 Unauthorized cron attempt: ${pathname} - Missing or invalid secret`);
-        return NextResponse.json(
-          { error: 'Unauthorized - Missing or invalid cron secret' },
-          { status: 401 }
-        );
-      }
-    }
-    // For cron endpoints, don't do further processing - let the route handle auth
-    return response;
-  }
-
   // ── Subdomain Detection ──────────────────────────────────────────────────
   const schoolSubdomain = extractSubdomain(hostname);
 
-  // ── Non-subdomain deployment: Handle API routes properly ────────────
-  // This handles production deployments on Railway/Heroku/Vercel without subdomains
-  if (!schoolSubdomain && pathname.startsWith('/api/')) {
-    // For API routes without subdomain, check auth but don't redirect
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    
-    // Allow public API routes without authentication
-    const publicApiRoutes = [
-      '/api/plans', '/api/admin/plans', '/api/auth', '/api/register', 
-      '/api/reset-password', '/api/promo-codes/validate', '/api/create-payment-order',
-      '/api/verify-payment', '/api/razorpay/webhook', '/api/razorpay/create-order',
-      '/api/razorpay/verify-payment', '/api/razorpay/verify-subscription-payment',
-      '/api/school/by-subdomain', '/api/upload'
-    ];
-    
-    const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route));
-    
-    if (!isPublicApi && !token) {
-      // Return JSON 401 for non-public API routes instead of redirect
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Continue with normal API handling (permission checks below)
-    return response;
-  }
-  
+  // ── Subdomain Logic (Priority over public routes) ───────────────────────────
   if (schoolSubdomain) {
     // CRITICAL: Validate school exists in database before allowing access
     try {
@@ -327,8 +272,32 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Public Route Check ───────────────────────────────────────────────────
-  // Allow public routes without authentication
+  // Allow public routes without authentication (only for main domain)
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    return response;
+  }
+  
+  // ── Cron Job Security ─────────────────────────────────────────────────────
+  // Only allow cron jobs with proper authentication in production
+  if (pathname.startsWith('/api/cron')) {
+    if (isProduction) {
+      const cronSecret = request.headers.get('x-cron-secret');
+      const authHeader = request.headers.get('authorization');
+      
+      // Check both CRON_SECRET header and Authorization Bearer token
+      const validCronSecret = cronSecret === process.env.CRON_SECRET;
+      const validAuthHeader = authHeader && authHeader.startsWith('Bearer ') && 
+                           authHeader.replace('Bearer ', '') === process.env.CRON_SECRET;
+      
+      if (!validCronSecret && !validAuthHeader) {
+        console.warn(`🚫 Unauthorized cron attempt: ${pathname} - Missing or invalid secret`);
+        return NextResponse.json(
+          { error: 'Unauthorized - Missing or invalid cron secret' },
+          { status: 401 }
+        );
+      }
+    }
+    // For cron endpoints, don't do further processing - let the route handle auth
     return response;
   }
 
