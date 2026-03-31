@@ -174,6 +174,27 @@ export const CallModal: React.FC<CallModalProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setLocalVideoRef]);
 
+  // CRITICAL FIX: Re-attach remote stream when ref is set (handles race condition)
+  // This fixes the issue where caller can't see receiver video
+  useEffect(() => {
+    const attachRemoteStream = () => {
+      if (remoteStream && remoteVideoRef.current && callState.callType !== 'voice') {
+        console.log('📡 Attaching remote stream to video element (ref callback)');
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (remoteStream && remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(() => {});
+      }
+    };
+    attachRemoteStream();
+    // Also attach after a short delay to handle strict mode remounts
+    const timeoutId = setTimeout(attachRemoteStream, 100);
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setRemoteVideoRef, setRemoteAudioRef]);
+
   // Auto-start outgoing call ONCE per modal open
   useEffect(() => {
     if (isOpen) {

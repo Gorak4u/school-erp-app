@@ -45,6 +45,12 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
     const handleIncomingCall = (data: IncomingCallData) => {
       console.log('📞 [CallProvider] Incoming call received:', data);
       
+      // GUARD: Don't process if we already have an active incoming call
+      if (incomingCallData) {
+        console.log('⏭️ [CallProvider] Already have active incoming call, ignoring duplicate');
+        return;
+      }
+      
       // Show toast notification
       showToast(
         'info',
@@ -84,7 +90,9 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
       socket.off('call-cancelled', handleCallCancelled);
       listenerRegisteredRef.current = false;
     };
-  }, [socket, user?.id, router, incomingCallData]);
+  // CRITICAL: Only re-register when socket or user changes, NOT when incomingCallData changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, user?.id, router]);
 
   const acceptCall = async (data: IncomingCallData) => {
     // Just set state - CallModal will handle the actual WebRTC connection
