@@ -151,9 +151,28 @@ export const CallModal: React.FC<CallModalProps> = ({
     }
   }, [remoteStream, callState.callType]);
 
+  // CRITICAL FIX: Re-attach local stream when ref is set (handles race condition)
   useEffect(() => {
-    if (localStream && localVideoRef.current && callState.callType !== 'voice') localVideoRef.current.srcObject = localStream;
+    if (localStream && localVideoRef.current && callState.callType !== 'voice') {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
+    }
   }, [localStream, callState.callType]);
+
+  // Re-attach local stream when video ref callback is invoked (race condition fix)
+  useEffect(() => {
+    const attachLocalStream = () => {
+      if (localStream && localVideoRef.current && callState.callType !== 'voice') {
+        localVideoRef.current.srcObject = localStream;
+        localVideoRef.current.play().catch(() => {});
+      }
+    };
+    attachLocalStream();
+    // Also attach after a short delay to handle strict mode remounts
+    const timeoutId = setTimeout(attachLocalStream, 100);
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setLocalVideoRef]);
 
   // Auto-start outgoing call ONCE per modal open
   useEffect(() => {
