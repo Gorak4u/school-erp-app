@@ -668,27 +668,6 @@ async function processAttendanceAlerts(deadline: number, stats: ReminderStats) {
 }
 
 export async function runSendRemindersJob() {
-  try {
-    // Test database connection first
-    console.log('[Cron] Testing database connection for send-reminders...');
-    await (schoolPrisma as any).$queryRaw`SELECT 1 as test`;
-    console.log('[Cron] Database connection OK for send-reminders');
-  } catch (dbError: any) {
-    console.error('[Cron] Database connection failed for send-reminders:', dbError);
-    return createCronJobResult({
-      success: false,
-      jobName: 'send-reminders',
-      scope: 'school',
-      message: 'Database connection failed',
-      processed: 0,
-      attempted: 0,
-      delivered: 0,
-      skipped: 0,
-      failed: 1,
-      errors: [dbError?.message || 'Database connection error'],
-    });
-  }
-
   const deadline = Date.now() + MAX_DURATION_MS;
   const stats: ReminderStats = {
     feeStudents: 0,
