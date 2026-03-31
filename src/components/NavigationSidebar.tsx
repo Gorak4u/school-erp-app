@@ -355,7 +355,7 @@ export default function NavigationSidebar({
   const getThemeClasses = () => {
     const isDark = theme === 'dark';
     return {
-      sidebar: `fixed left-0 top-0 h-full w-64 z-40 transition-all duration-300 ${
+      sidebar: `fixed left-0 top-0 h-full w-56 z-40 transition-all duration-300 ${
         isDark 
           ? 'bg-gray-900 border-gray-700' 
           : 'bg-white border-gray-200'

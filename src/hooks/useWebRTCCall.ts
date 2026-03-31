@@ -978,6 +978,11 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     };
   }, [enabled, cleanupCall]);
 
+  // Memoized ref setters to prevent infinite re-render loops in CallModal
+  const setLocalVideoRef = useCallback((ref: HTMLVideoElement | null) => { localVideoRef.current = ref; }, []);
+  const setRemoteVideoRef = useCallback((ref: HTMLVideoElement | null) => { remoteVideoRef.current = ref; }, []);
+  const setRemoteAudioRef = useCallback((ref: HTMLAudioElement | null) => { remoteAudioRef.current = ref; }, []);
+
   return {
     callState,
     localStream,
@@ -992,8 +997,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     toggleScreenShare,
     upgradeToVideo,
     downgradeToVoice,
-    setLocalVideoRef: (ref: HTMLVideoElement | null) => { localVideoRef.current = ref; },
-    setRemoteVideoRef: (ref: HTMLVideoElement | null) => { remoteVideoRef.current = ref; },
-    setRemoteAudioRef: (ref: HTMLAudioElement | null) => { remoteAudioRef.current = ref; },
+    setLocalVideoRef,
+    setRemoteVideoRef,
+    setRemoteAudioRef,
   };
 };

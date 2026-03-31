@@ -150,6 +150,7 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
+        token.id = user.id; // CRITICAL: Set token.id for middleware checks
         token.role = user.role;
         token.schoolId = user.schoolId;
         token.customRoleId = user.customRoleId;
@@ -160,6 +161,11 @@ export const authOptions = {
         token.schema = user.schema;
         token.isSuperAdmin = (user as any).isSuperAdmin ?? (user.role === 'super_admin');
         token.employeeId = (user as any).employeeId || null;
+      }
+
+      // CRITICAL: Always ensure token.id exists (from token.sub if needed) for middleware checks
+      if (!token.id && token.sub) {
+        token.id = token.sub;
       }
 
       if (token.schema === 'school' && token.email) {

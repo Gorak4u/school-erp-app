@@ -218,7 +218,7 @@ export default function AppLayout({
             ? 'bg-gray-900/90 border-gray-800/50' 
             : 'bg-white/90 border-gray-200/50'
         }`}
-        style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}
+        style={{ marginLeft: isSidebarOpen ? '14rem' : '0' }}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -740,7 +740,7 @@ export default function AppLayout({
       {/* Light Animated Ribbon with Continuous Left-to-Right Movement */}
       <div 
         className="relative z-20 transition-all duration-300 overflow-hidden" 
-        style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}
+        style={{ marginLeft: isSidebarOpen ? '14rem' : '0' }}
       >
         {/* Small ribbon container */}
         <motion.div 
@@ -878,12 +878,12 @@ export default function AppLayout({
       </div>
 
       {/* Trial/Subscription Banner */}
-      <div className="relative z-20 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
+      <div className="relative z-20 transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '14rem' : '0' }}>
         <TrialBanner />
       </div>
 
       {/* Main Content */}
-      <main className="relative transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '16rem' : '0' }}>
+      <main className="relative transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '14rem' : '0' }}>
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>

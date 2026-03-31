@@ -327,6 +327,15 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
+    // For API routes, return JSON 401 instead of redirecting to login page
+    if (pathname.startsWith('/api/')) {
+      console.warn(`🚫 Unauthorized API access attempt: ${pathname}`);
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in', code: 'SESSION_EXPIRED' },
+        { status: 401 }
+      );
+    }
+    
     console.warn(`🚫 Unauthorized access attempt: ${pathname}`);
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);

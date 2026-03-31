@@ -80,6 +80,20 @@ export default function AlumniPage() {
       if (filterYear) params.set('graduationYear', filterYear);
 
       const res = await fetch(`/api/alumni?${params}`);
+      
+      // Check for non-OK responses before parsing JSON
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.error('Session expired - please log in again');
+          // Optionally redirect to login or show auth error
+          setAlumni([]);
+          setTotal(0);
+          setTotalPages(1);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
       if (data.success) {
         setAlumni(data.data);
@@ -94,9 +108,13 @@ export default function AlumniPage() {
           transferred: all.filter(a => a.exitReason === 'transferred').length,
           withDues: canViewAlumniDues ? all.filter(a => a.pendingDues > 0).length : 0,
         });
+      } else {
+        console.error('API error:', data.error);
+        setAlumni([]);
       }
     } catch (err) {
       console.error('Failed to load alumni:', err);
+      setAlumni([]);
     } finally {
       setLoading(false);
     }
