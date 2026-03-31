@@ -10,6 +10,7 @@ import { smartLogoutRedirect } from '@/lib/subdomain-redirect';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { NotificationBell } from '@/components/NotificationBell';
 import { FloatingMessengerBubble } from '@/components/FloatingMessengerBubble';
+import { GlobalSearch } from '@/components/GlobalSearch';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import Link from 'next/link';
 import Toast from './Toast';
@@ -392,80 +393,7 @@ export default function AppLayout({
             {/* Right Section - Enhanced Actions */}
             <div className="flex items-center gap-3">
               {/* AI-Powered Global Search */}
-              <div className="relative">
-                <motion.div
-                  className={`hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-300 ${
-                    globalTheme === 'dark' 
-                      ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50' 
-                      : 'bg-gray-100/50 border-gray-300 hover:bg-gray-200/50'
-                  }`}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 }}
-                  whileHover={{ scale: 1.02, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {/* Search Icon with AI Badge */}
-                  <div className="relative">
-                    <svg className={`w-4 h-4 ${
-                      globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <motion.div
-                      className="absolute -top-1 -right-1 w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-                      animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.8, 1, 0.8]
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Enhanced Search Input */}
-                  <input
-                    type="text"
-                    placeholder="AI Search..."
-                    className={`bg-transparent outline-none text-sm w-32 lg:w-48 xl:w-64 transition-all duration-300 ${
-                      globalTheme === 'dark' ? 'text-gray-300 placeholder-gray-500' : 'text-gray-700 placeholder-gray-400'
-                    }`}
-                    onFocus={(e) => {
-                      e.target.placeholder = "Search students, fees, teachers...";
-                      e.target.classList.add('w-64');
-                    }}
-                    onBlur={(e) => {
-                      e.target.placeholder = "AI Search...";
-                      e.target.classList.remove('w-64');
-                    }}
-                  />
-                  
-                  {/* AI Assistant Button */}
-                  <motion.button
-                    className={`p-1.5 rounded-lg transition-all duration-200 ${
-                      globalTheme === 'dark'
-                        ? 'hover:bg-blue-600/20 text-blue-400'
-                        : 'hover:bg-blue-100 text-blue-600'
-                    }`}
-                    whileHover={{ scale: 1.1, rotate: 15 }}
-                    whileTap={{ scale: 0.9 }}
-                    title="AI Search Assistant"
-                  >
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
-                      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
-                    </svg>
-                  </motion.button>
-                </motion.div>
-                
-                {/* AI Search Suggestions Dropdown */}
-                <AnimatePresence>
-                  {/* This would be controlled by search state */}
-                </AnimatePresence>
-              </div>
+              <GlobalSearch isDark={globalTheme === 'dark'} />
 
               {/* Advanced Theme Toggle */}
               <motion.button

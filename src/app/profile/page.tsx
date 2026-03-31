@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -36,19 +36,65 @@ import {
 export default function ProfilePage() {
   const { theme } = useTheme();
   const { user } = useAuth();
+  
+  // Debug: Check if user is authenticated
+  console.log('Profile page - User:', user);
+  console.log('Profile page - User authenticated:', !!user);
+  
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editMode, setEditMode] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Load profile data from API
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (profileLoaded) return; // Prevent multiple calls
+      
+      try {
+        const res = await fetch('/api/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setProfileData(data.user);
+          setProfileLoaded(true);
+          console.log('Profile data loaded:', data.user);
+        } else {
+          console.error('Failed to load profile:', res.status);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.id) {
+      loadProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [user?.id, profileLoaded]);
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    firstName: (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '',
-    lastName: (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '',
-    email: user?.email || '',
-    phone: (user as any)?.phone || '',
-    bio: (user as any)?.bio || '',
-    location: (user as any)?.location || ''
+    firstName: profileData?.firstName || (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '',
+    lastName: profileData?.lastName || (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '',
+    email: profileData?.email || user?.email || ''
   });
+
+  // Update form when profile data loads
+  useEffect(() => {
+    if (profileData) {
+      setProfileForm({
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        email: profileData.email || ''
+      });
+      setProfileImage(profileData.avatar || '');
+    }
+  }, [profileData]);
 
   // Change Password state
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
@@ -105,15 +151,92 @@ export default function ProfilePage() {
   };
 
   const handleProfileSave = async () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: profileForm.firstName,
+          lastName: profileForm.lastName,
+        }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setProfileData(data.user); // Update local state with new data
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        setEditMode(false);
+      } else {
+        const data = await res.json();
+        console.error('Failed to update profile:', data.error);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
-  const firstName = (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '';
-  const lastName = (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '';
-  const email = user?.email || '';
-  const role = (user as any)?.role || 'user';
+  const [profileImage, setProfileImage] = useState(profileData?.avatar || (user as any)?.avatar || '');
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'profile');
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (uploadRes.ok) {
+        const uploadData = await uploadRes.json();
+        
+        // Update profile with new image
+        const profileRes = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileImage: uploadData.url }),
+        });
+
+        if (profileRes.ok) {
+          setProfileImage(uploadData.url);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
+        }
+      } else {
+        console.error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const firstName = profileData?.firstName || (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '';
+  const lastName = profileData?.lastName || (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '';
+  const email = profileData?.email || user?.email || '';
+  const role = profileData?.role || (user as any)?.role || 'user';
   const initials = (firstName[0] || 'U').toUpperCase();
+
+  if (loading) {
+    return (
+      <AppLayout currentPage="profile" title="Profile">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout 
@@ -161,19 +284,29 @@ export default function ProfilePage() {
                 >
                   {/* Avatar */}
                   <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-2xl relative overflow-hidden">
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 opacity-20"
-                      animate={{
-                        opacity: [0.2, 0.4, 0.2],
-                        scale: [1, 1.1, 1]
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
-                    <span className="text-white text-4xl font-bold relative z-10">{initials}</span>
+                    {profileImage ? (
+                      <img 
+                        src={profileImage} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <>
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 opacity-20"
+                          animate={{
+                            opacity: [0.2, 0.4, 0.2],
+                            scale: [1, 1.1, 1]
+                          }}
+                          transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                        />
+                        <span className="text-white text-4xl font-bold relative z-10">{initials}</span>
+                      </>
+                    )}
                   </div>
                   
                   {/* Camera Button */}
@@ -181,9 +314,25 @@ export default function ProfilePage() {
                     className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg"
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
+                    disabled={uploading}
                   >
-                    <Camera className="w-5 h-5 text-white" />
+                    {uploading ? (
+                      <motion.div
+                        className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                    ) : (
+                      <Camera className="w-5 h-5 text-white" />
+                    )}
                   </motion.button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={uploading}
+                  />
                 </motion.div>
 
                 {/* User Info */}
@@ -234,9 +383,21 @@ export default function ProfilePage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-col">
+                <div className="text-xs text-gray-500 mb-2">Debug: editMode={editMode}, loading={loading}</div>
+                <button 
+                  onClick={() => alert('Test button works!')}
+                  className="px-4 py-2 bg-red-500 text-white rounded-xl mb-2"
+                >
+                  TEST BUTTON
+                </button>
+                <div className="flex gap-3">
                 <motion.button
-                  onClick={() => setEditMode(!editMode)}
+                  onClick={() => {
+                    console.log('Edit Profile button clicked!');
+                    console.log('Current editMode:', editMode);
+                    setEditMode(!editMode);
+                  }}
                   className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                     editMode
                       ? theme === 'dark'
@@ -248,12 +409,17 @@ export default function ProfilePage() {
                   } shadow-lg`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  style={{ zIndex: 10 }}
                 >
                   {editMode ? <Save className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                   {editMode ? 'Save Changes' : 'Edit Profile'}
                 </motion.button>
                 <motion.button
-                  onClick={() => setShowPwForm(!showPwForm)}
+                  onClick={() => {
+                    console.log('Change Password button clicked!');
+                    console.log('Current showPwForm:', showPwForm);
+                    setShowPwForm(!showPwForm);
+                  }}
                   className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                     theme === 'dark'
                       ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -261,10 +427,12 @@ export default function ProfilePage() {
                   } shadow-lg`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  style={{ zIndex: 10 }}
                 >
                   <Lock className="w-4 h-4" />
                   Change Password
                 </motion.button>
+                </div>
               </div>
             </div>
           </div>
@@ -384,61 +552,6 @@ export default function ProfilePage() {
                     whileTap={editMode ? { scale: 0.98 } : {}}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone className={`absolute left-4 top-3.5 w-5 h-5 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                  <motion.input
-                    type="tel"
-                    value={profileForm.phone}
-                    onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                    disabled={!editMode}
-                    className={`w-full pl-12 pr-4 py-3 rounded-xl transition-all ${
-                      editMode
-                        ? theme === 'dark'
-                          ? 'bg-gray-700 border-gray-600 text-white'
-                          : 'bg-gray-100 border-gray-300 text-gray-900'
-                        : theme === 'dark'
-                          ? 'bg-gray-800 border-gray-700 text-gray-400'
-                          : 'bg-gray-50 border-gray-200 text-gray-500'
-                    } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    whileHover={editMode ? { scale: 1.02 } : {}}
-                    whileTap={editMode ? { scale: 0.98 } : {}}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  Bio
-                </label>
-                <motion.textarea
-                  value={profileForm.bio}
-                  onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})}
-                  disabled={!editMode}
-                  rows={3}
-                  className={`w-full px-4 py-3 rounded-xl transition-all resize-none ${
-                    editMode
-                      ? theme === 'dark'
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-gray-100 border-gray-300 text-gray-900'
-                      : theme === 'dark'
-                        ? 'bg-gray-800 border-gray-700 text-gray-400'
-                        : 'bg-gray-50 border-gray-200 text-gray-500'
-                  } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  whileHover={editMode ? { scale: 1.02 } : {}}
-                  whileTap={editMode ? { scale: 0.98 } : {}}
-                />
               </div>
             </div>
 

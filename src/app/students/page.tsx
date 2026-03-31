@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { Student } from './types';
 import { useStudentState } from './hooks/useStudentState';
@@ -145,6 +146,8 @@ export default function StudentsPageRefactored() {
   const { theme } = useTheme();
   const { hasPermission, isAdmin } = usePermissions();
   const { getSetting } = useSchoolConfig();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const canCreateStudents = isAdmin || hasPermission('create_students');
   const canEditStudents = isAdmin || hasPermission('edit_students');
   const canDeleteStudents = isAdmin || hasPermission('delete_students');
@@ -209,6 +212,19 @@ export default function StudentsPageRefactored() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const state = useStudentState(activeTab);
+  
+  // Handle URL parameter for opening student profile
+  useEffect(() => {
+    const studentId = searchParams.get('student');
+    if (studentId && state.students) {
+      const student = state.students.find(s => s.id === studentId);
+      if (student) {
+        state.setSelectedStudent(student);
+        // Clear the URL parameter after setting the student
+        router.replace('/students');
+      }
+    }
+  }, [searchParams, state.students, state.setSelectedStudent, router]);
   
   // Create context with school config
   const ctx: StudentContext = { ...state, getSetting };
