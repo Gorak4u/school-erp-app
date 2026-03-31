@@ -75,6 +75,22 @@ const DEFAULT_JOBS = [
     schedule: '0 3 * * 0',
     enabled: true,
   },
+  {
+    jobName: 'cleanup-messenger-messages',
+    scope: 'school',
+    category: 'maintenance',
+    description: 'Delete messenger messages older than 180 days',
+    schedule: '0 4 * * 0',
+    enabled: true,
+  },
+  {
+    jobName: 'cleanup-inactive-conversations',
+    scope: 'school',
+    category: 'maintenance',
+    description: 'Archive conversations inactive for 365 days',
+    schedule: '0 5 * * 0',
+    enabled: true,
+  },
   // ── SaaS jobs ──
   {
     jobName: 'process-renewals',

@@ -396,7 +396,6 @@ export default function MessengerPage() {
     // GUARD: Prevent multiple rapid clicks (debounce 2 seconds)
     const now = Date.now();
     if (callInitiatingRef.current || showCallModal || (now - lastCallAttemptRef.current < 2000)) {
-      console.log('⏭️ Ignoring duplicate voice call click');
       return;
     }
     
@@ -428,7 +427,6 @@ export default function MessengerPage() {
     // GUARD: Prevent multiple rapid clicks (debounce 2 seconds)
     const now = Date.now();
     if (callInitiatingRef.current || showCallModal || (now - lastCallAttemptRef.current < 2000)) {
-      console.log('⏭️ Ignoring duplicate video call click');
       return;
     }
     

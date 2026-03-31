@@ -46,8 +46,11 @@ async function seedDefaultTemplates(): Promise<SeedResult> {
       });
 
       if (existing) {
-        // Update if version is different or isDefault changed
-        if (existing.version !== template.version || !existing.isDefault) {
+        // Update only if version is different OR if isDefault needs to be fixed
+        const needsUpdate = existing.version !== template.version || 
+                           (!existing.isDefault && template.isDefault);
+        
+        if (needsUpdate) {
           await prisma.CommunicationTemplate.update({
             where: { id: existing.id },
             data: {
@@ -62,7 +65,7 @@ async function seedDefaultTemplates(): Promise<SeedResult> {
               variablesSchema: template.variablesSchema,
               primaryColor: template.primaryColor,
               accentColor: template.accentColor,
-              isDefault: true,
+              isDefault: template.isDefault,
               isActive: true,
               version: template.version || 1
             }
