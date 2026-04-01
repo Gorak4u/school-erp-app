@@ -623,7 +623,22 @@ export default function AppLayout({
                             {item.action === 'logout' ? (
                               <motion.button
                                 onClick={() => {
-                                  smartLogoutRedirect();
+                                  // Clear all local storage and session storage first
+                                  localStorage.clear();
+                                  sessionStorage.clear();
+                                  
+                                  // Clear any remaining authentication cookies manually
+                                  document.cookie.split(";").forEach(function(c) { 
+                                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                                  });
+                                  
+                                  // Perform NextAuth sign out properly
+                                  signOut({ 
+                                    redirect: false, // Don't redirect immediately
+                                  }).then(() => {
+                                    // After NextAuth clears session, do smart redirect
+                                    smartLogoutRedirect();
+                                  });
                                 }}
                                 className={`w-full flex items-center gap-3 px-6 py-3 text-left transition-colors ${
                                   globalTheme === 'dark'

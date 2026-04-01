@@ -354,6 +354,23 @@ export default function NavigationSidebar({
     );
   };
 
+  const handleLogout = () => {
+    // Clear all local storage and session storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Clear any remaining authentication cookies manually
+    document.cookie.split(";").forEach(function(c) { 
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
+    // Perform NextAuth sign out with explicit redirect
+    signOut({ 
+      callbackUrl: '/login',
+      redirect: true,
+    });
+  };
+
   const getThemeClasses = () => {
     const isDark = theme === 'dark';
     return {
