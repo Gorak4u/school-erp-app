@@ -117,6 +117,8 @@ export const authOptions = {
   },
   session: {
     strategy: 'jwt' as const,
+    maxAge: 24 * 60 * 60, // 1 day in seconds (24 hours)
+    updateAge: 60 * 30, // Update session every 30 minutes of activity
   },
   cookies: {
     sessionToken: {
