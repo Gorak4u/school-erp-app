@@ -268,6 +268,14 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
         return false;
       }
 
+      // Filter by selected medium (from Step 1)
+      if (formData.mediumIds.length > 0) {
+        const structureMediumId = structure.mediumId || structure.medium?.id;
+        if (structureMediumId && !formData.mediumIds.includes(structureMediumId)) {
+          return false;
+        }
+      }
+
       if (formData.scope === 'transport') {
         return true;
       }
@@ -292,6 +300,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
 
       const structureClassName = structure.class?.name || structure.className || '';
       const structureClassId = structure.class?.id || structure.classId || '';
+      const structureMediumId = structure.mediumId || structure.medium?.id || '';
 
       // For student scope, if no students selected yet, show all applicable fee structures
       if (formData.scope === 'student') {
@@ -308,19 +317,24 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
       }
 
       if (formData.scope === 'class') {
-        if (selectedClassNames.length === 0 && formData.classIds.length === 0) {
-          // Show all fee structures when no classes selected
+        // Filter by class AND medium if selected
+        if (formData.classIds.length === 0 && formData.mediumIds.length === 0) {
+          // Show all fee structures when no filters selected
           return true;
         }
-        const matches = formData.classIds.includes(structureClassId) || selectedClassNames.includes(structureClassName);
-        return matches;
+        
+        const classMatches = formData.classIds.length === 0 || 
+                            formData.classIds.includes(structureClassId) || 
+                            selectedClassNames.includes(structureClassName);
+        
+        return classMatches;
       }
 
       return true;
     });
     
     return filtered;
-  }, [feeStructures, formData.academicYear, formData.classIds, formData.scope, selectedClassNames, selectedStudentClassNames, selectedStudentLookup]);
+  }, [feeStructures, formData.academicYear, formData.classIds, formData.mediumIds, formData.scope, selectedClassNames, selectedStudentClassNames, selectedStudentLookup]);
 
   // Map classes with their fee structures
   const classesWithFees = useMemo(() => {

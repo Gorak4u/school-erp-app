@@ -20,7 +20,6 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<any>(null);
   const [feeStructures, setFeeStructures] = useState<Array<{id: string; name: string; class?: {name: string}}>>([]);
-  const [students, setStudents] = useState<Array<{id: string; name: string; class?: string; section?: string}>>([]);
   const [classes, setClasses] = useState<Array<{id: string; name: string}>>([]);
   const [transportRoutes, setTransportRoutes] = useState<Array<{id: string; routeName: string; name: string; routeNumber: string}>>([]);
   
@@ -69,31 +68,19 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
 
   useEffect(() => {
     fetchFeeStructures();
-    fetchStudentsAndClasses();
+    fetchClasses();
     fetchTransportRoutes();
   }, []);
 
-  const fetchStudentsAndClasses = async () => {
+  const fetchClasses = async () => {
     try {
-      const [studRes, configRes] = await Promise.all([
-        fetch('/api/students?page=1&limit=500'), 
-        fetch('/api/school-config'),
-      ]);
-      if (studRes.ok) {
-        const d = await studRes.json();
-        setStudents((d.students || []).map((s: any) => ({ 
-          id: s.id, 
-          name: s.name, 
-          class: s.class?.name || s.class, 
-          section: s.section?.name || s.section 
-        })));
-      }
-      if (configRes.ok) {
-        const d = await configRes.json();
+      const res = await fetch('/api/school-config');
+      if (res.ok) {
+        const d = await res.json();
         setClasses((d.classes || d.dropdowns?.classes || []).map((c: any) => ({ id: c.id || c.value, name: c.name || c.label })));
       }
     } catch (err) {
-      console.error('Failed to fetch students/classes:', err);
+      console.error('Failed to fetch classes:', err);
     }
   };
 
@@ -126,14 +113,12 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
     }
   };
 
-  const resolveStudentNames = (studentIds: string[]): string => {
-    if (!studentIds?.length) return '-';
-    const names = studentIds.slice(0, 3).map(id => {
-      const student = students.find(s => s.id === id);
-      if (!student) return id;
-      return student.class ? `${student.name} (${student.class})` : student.name;
-    });
-    const suffix = studentIds.length > 3 ? ` +${studentIds.length - 3} more` : '';
+  const resolveStudentNames = (requestStudents: any[]): string => {
+    if (!requestStudents?.length) return '-';
+    const names = requestStudents.slice(0, 3).map((s: any) => 
+      s.class ? `${s.name} (${s.class})` : s.name
+    );
+    const suffix = requestStudents.length > 3 ? ` +${requestStudents.length - 3} more` : '';
     return names.join(', ') + suffix;
   };
 
@@ -145,17 +130,12 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
   };
 
   const getTargetDisplay = (request: any): { students: string; classes: string; transport: string } => {
-    let studentIds: string[] = [];
     let classIds: string[] = [];
     let transportRouteIds: string[] = [];
-    try { studentIds = JSON.parse(request.studentIds || '[]'); } catch { studentIds = []; }
     try { classIds = JSON.parse(request.classIds || '[]'); } catch { classIds = []; }
     try { transportRouteIds = JSON.parse(request.transportRouteIds || '[]'); } catch { transportRouteIds = []; }
     
-    const studentNames = studentIds.slice(0, 3).map(id => {
-      const student = students.find(s => s.id === id);
-      return student ? student.name : `Student (${id.slice(0, 8)}...)`;
-    });
+    const studentNames = (request.students || []).slice(0, 3).map((s: any) => s.name);
     const classNames = classIds.slice(0, 3).map(id => {
       const cls = classes.find(c => c.id === id);
       return cls ? cls.name : `Class (${id.slice(0, 8)}...)`;
@@ -168,7 +148,7 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
     const suffix = (arr: any[], count: number) => arr.length > count ? ` +${arr.length - count} more` : '';
     
     return {
-      students: studentNames.join(', ') + suffix(studentIds, 3),
+      students: studentNames.join(', ') + suffix(request.students || [], 3),
       classes: classNames.join(', ') + suffix(classIds, 3),
       transport: transportNames.join(', ') + suffix(transportRouteIds, 3)
     };
@@ -989,19 +969,16 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                     </div>
                     
                     {selectedRequest.scope === 'student' && (() => {
-                      let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
-                      return sIds.length > 0 ? (
+                      const students = selectedRequest.students || [];
+                      return students.length > 0 ? (
                         <div>
-                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Target Students ({sIds.length})</label>
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Target Students ({students.length})</label>
                           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                            {sIds.map(id => {
-                              const s = students.find(st => st.id === id);
-                              return (
-                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-200 border-blue-700/50' : 'bg-blue-100 text-blue-800 border-blue-200/50'} border`}>
-                                  👤 {s ? `${s.name}${s.class ? ` (${s.class})` : ''}` : id}
-                                </span>
-                              );
-                            })}
+                            {students.map((s: any, idx: number) => (
+                              <span key={idx} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-200 border-blue-700/50' : 'bg-blue-100 text-blue-800 border-blue-200/50'} border`}>
+                                👤 {s.class ? `${s.name} (${s.class})` : s.name}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       ) : null;
@@ -1046,19 +1023,16 @@ export default function EnhancedDiscountApprovalQueue({ theme, canApproveDiscoun
                     })()}
                     
                     {selectedRequest.scope === 'bulk' && (() => {
-                      let sIds: string[] = []; try { sIds = JSON.parse(selectedRequest.studentIds || '[]'); } catch {}
-                      return sIds.length > 0 ? (
+                      const students = selectedRequest.students || [];
+                      return students.length > 0 ? (
                         <div>
-                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Additional Students ({sIds.length})</label>
+                          <label className={`text-xs font-semibold ${textSecondary} block mb-2`}>Additional Students ({students.length})</label>
                           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                            {sIds.map(id => {
-                              const s = students.find(st => st.id === id);
-                              return (
-                                <span key={id} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-purple-900/30 text-purple-200 border-purple-700/50' : 'bg-purple-100 text-purple-800 border-purple-200/50'} border`}>
-                                  👤 {s?.name || id}
-                                </span>
-                              );
-                            })}
+                            {students.map((s: any, idx: number) => (
+                              <span key={idx} className={`px-2 py-1 text-xs rounded-full font-medium ${isDark ? 'bg-purple-900/30 text-purple-200 border-purple-700/50' : 'bg-purple-100 text-purple-800 border-purple-200/50'} border`}>
+                                👤 {s.name}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       ) : null;

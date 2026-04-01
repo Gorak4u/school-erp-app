@@ -14,27 +14,24 @@ export async function ensureDefaultTemplates() {
   }
 
   try {
-    logger.info('Checking default communication templates...');
-
-    // Reconcile all default templates from code into the database.
-    // This backfills missing templates and refreshes outdated ones.
+    // Run seed process silently (checks DB for changes internally)
     const seedResult = await seedDefaultTemplates();
 
-    // Only log if there were actual changes (not just updates)
-    if (seedResult.created > 0 || seedResult.errors.length > 0) {
-      logger.info('Default communication templates reconciled', {
+    // Only log if there were actual changes
+    if (seedResult.created > 0) {
+      logger.info('Communication templates created', {
         created: seedResult.created,
-        updated: seedResult.updated,
-        skipped: seedResult.skipped,
-        errors: seedResult.errors.length,
       });
     } else if (seedResult.updated > 0) {
-      // Silently skip logging if only updates happened (templates already exist)
-      logger.debug('Default communication templates already exist', {
+      logger.info('Communication templates updated', {
         updated: seedResult.updated,
-        skipped: seedResult.skipped,
+      });
+    } else if (seedResult.errors.length > 0) {
+      logger.error('Communication template errors', {
+        errors: seedResult.errors.length,
       });
     }
+    // If all skipped (no changes), log nothing
 
     isTemplatesInitialized = true;
   } catch (error) {

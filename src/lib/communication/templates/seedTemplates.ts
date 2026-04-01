@@ -33,8 +33,6 @@ async function seedDefaultTemplates(): Promise<SeedResult> {
     errors: []
   };
 
-  logger.info('Starting template seed process...');
-
   for (const [key, template] of Object.entries(defaultTemplates)) {
     try {
       // Check if template already exists

@@ -49,11 +49,27 @@ export async function GET(request: NextRequest) {
       where.classId = classId;
     }
 
-    const structures = await (schoolPrisma as any).feeStructure.findMany({
-      where,
-      include: INCLUDE_RELATIONS,
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-    });
+    // Retry logic for database connection issues (Neon serverless sleep)
+    let retries = 3;
+    let structures;
+    while (retries > 0) {
+      try {
+        structures = await (schoolPrisma as any).feeStructure.findMany({
+          where,
+          include: INCLUDE_RELATIONS,
+          orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        });
+        break; // Success, exit loop
+      } catch (e: any) {
+        if (e.code === 'P1001' && retries > 1) {
+          retries--;
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+          continue;
+        }
+        throw e; // Non-retryable error or exhausted retries
+      }
+    }
+
     const headers = new Headers();
     headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     headers.set('Pragma', 'no-cache');

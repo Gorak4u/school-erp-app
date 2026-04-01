@@ -384,9 +384,44 @@ export async function GET(request: NextRequest) {
       (schoolPrisma as any).DiscountRequest.count({ where }),
     ]);
 
+    // Fetch student names for all requests
+    const allStudentIds = requests.flatMap((req: any) => {
+      try {
+        return JSON.parse(req.studentIds || '[]');
+      } catch {
+        return [];
+      }
+    });
+    const uniqueStudentIds = [...new Set(allStudentIds)];
+
+    let studentMap: Record<string, { name: string; class?: string }> = {};
+    if (uniqueStudentIds.length > 0) {
+      const students = await (schoolPrisma as any).Student.findMany({
+        where: { id: { in: uniqueStudentIds } },
+        select: { id: true, name: true, class: true },
+      });
+      studentMap = students.reduce((acc: any, s: any) => {
+        acc[s.id] = { name: s.name, class: s.class };
+        return acc;
+      }, {});
+    }
+
+    // Enrich requests with student names
+    const enrichedRequests = requests.map((req: any) => {
+      const studentIds = (() => {
+        try {
+          return JSON.parse(req.studentIds || '[]');
+        } catch {
+          return [];
+        }
+      })();
+      const students = studentIds.map((id: string) => studentMap[id] || { name: `Student (${id.slice(0, 8)}...)`, id });
+      return { ...req, students };
+    });
+
     return NextResponse.json({
       success: true,
-      data: requests,
+      data: enrichedRequests,
       pagination: {
         page,
         pageSize,
