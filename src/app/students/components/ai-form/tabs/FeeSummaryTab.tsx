@@ -30,9 +30,6 @@ const FeeSummaryTab: React.FC<FeesTabProps> = ({
   fmtCurrency,
   activeAcademicYear,
 }) => {
-  console.log('FeeSummaryTab rendered with tuitionAnnual:', tuitionAnnual);
-  console.log('FeeSummaryTab rendered with combinedAnnual:', combinedAnnual);
-  
   const isDark = theme === 'dark';
 
   return (

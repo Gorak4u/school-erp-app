@@ -41,8 +41,6 @@ export function MessengerBubble() {
   useEffect(() => {
     if (!messengerEnabled || !user?.id || !isConnected) return;
 
-    console.log('💬 MessengerBubble subscribing to global socket');
-
     const unsubscribe = subscribe('messenger_notification', (notification: MessengerNotification) => {
       setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)]);
     });

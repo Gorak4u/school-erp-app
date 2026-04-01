@@ -67,12 +67,10 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
 
   // Handle cascaded changes
   const handleBoardChange = (boardId: string) => {
-    console.log('AcademicInfoTab: Board changed to:', boardId);
     onChange('boardId', boardId);
     // Also set the display name
     const selectedBoard = boards.find(b => b.id === boardId);
     if (selectedBoard) {
-      console.log('AcademicInfoTab: Setting board name to:', selectedBoard.name);
       onChange('board', selectedBoard.name);
     }
     // Reset dependent fields
@@ -85,12 +83,10 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
   };
 
   const handleMediumChange = (mediumId: string) => {
-    console.log('AcademicInfoTab: Medium changed to:', mediumId);
     onChange('mediumId', mediumId);
     // Also set the display name
     const selectedMedium = mediums.find(m => m.id === mediumId);
     if (selectedMedium) {
-      console.log('AcademicInfoTab: Setting languageMedium to:', selectedMedium.name);
       onChange('languageMedium', selectedMedium.name);
     }
     // Reset dependent fields
@@ -101,12 +97,10 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
   };
 
   const handleClassChange = (classId: string) => {
-    console.log('AcademicInfoTab: Class changed to:', classId);
     onChange('classId', classId);
     // Also set the display name
     const selectedClass = classes.find(c => c.id === classId);
     if (selectedClass) {
-      console.log('AcademicInfoTab: Setting class name to:', selectedClass.name);
       onChange('class', selectedClass.name);
     }
     // Reset dependent field
@@ -115,12 +109,10 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
   };
 
   const handleSectionChange = (sectionId: string) => {
-    console.log('AcademicInfoTab: Section changed to:', sectionId);
     onChange('sectionId', sectionId);
     // Also set the display name
     const selectedSection = sections.find(s => s.id === sectionId);
     if (selectedSection) {
-      console.log('AcademicInfoTab: Setting section name to:', selectedSection.name);
       onChange('section', selectedSection.name);
     }
   };

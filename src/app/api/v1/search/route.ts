@@ -10,7 +10,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // Zod schema for search validation
 const SearchSchema = z.object({
   query: z.string().min(1).max(100).trim(),
-  entities: z.array(z.enum(['students', 'teachers', 'classes'])).default(['students', 'teachers', 'classes']),
+  entities: z.array(z.enum(['students', 'teachers', 'classes', 'navigation'])).default(['students', 'teachers', 'classes', 'navigation']),
   page: z.string().transform(Number).pipe(z.number().int().min(1).max(100)).default(1),
   limit: z.string().transform(Number).pipe(z.number().int().min(1).max(50)).default(20),
   schoolId: z.string().min(1, 'School ID is required')
@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
             id: teacher.id,
             title: teacher.name,
             subtitle: `ID: ${teacher.employeeId} • ${teacher.designation || 'Teacher'}`,
-            url: `/teachers/${teacher.id}`,
+            url: `/teachers?search=${encodeURIComponent(teacher.name)}`,
             metadata: {
               email: teacher.email,
               employeeId: teacher.employeeId,
@@ -288,7 +288,7 @@ export async function GET(req: NextRequest) {
             id: cls.id,
             title: `${cls.name} (${cls.code})`,
             subtitle: `Level: ${cls.level} • ${cls.isActive ? 'Active' : 'Inactive'}`,
-            url: `/classes/${cls.id}`,
+            url: `/settings?tab=classes&search=${encodeURIComponent(cls.name)}`,
             metadata: {
               code: cls.code,
               level: cls.level,
@@ -313,6 +313,106 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Navigation pages search
+    if (entities.includes('navigation')) {
+      searchPromises.push(
+        (async () => {
+          const navigationPages = [
+            { 
+              id: 'students', 
+              title: 'Students', 
+              subtitle: 'Student management and records',
+              url: '/students',
+              keywords: ['student', 'students', 'pupil', 'pupils', 'enrollment', 'admission']
+            },
+            { 
+              id: 'teachers', 
+              title: 'Teachers', 
+              subtitle: 'Teacher management and staff records',
+              url: '/teachers',
+              keywords: ['teacher', 'teachers', 'staff', 'faculty', 'employee']
+            },
+            { 
+              id: 'fees', 
+              title: 'Fees', 
+              subtitle: 'Fee management and payment tracking',
+              url: '/fees',
+              keywords: ['fee', 'fees', 'payment', 'billing', 'finance', 'tuition']
+            },
+            { 
+              id: 'attendance', 
+              title: 'Attendance', 
+              subtitle: 'Student and staff attendance tracking',
+              url: '/attendance',
+              keywords: ['attendance', 'present', 'absent', 'daily', 'tracking']
+            },
+            { 
+              id: 'exams', 
+              title: 'Exams', 
+              subtitle: 'Exam management and results',
+              url: '/exams',
+              keywords: ['exam', 'exams', 'test', 'tests', 'assessment', 'evaluation']
+            },
+            { 
+              id: 'assignments', 
+              title: 'Assignments', 
+              subtitle: 'Assignment management and submission',
+              url: '/assignments',
+              keywords: ['assignment', 'assignments', 'homework', 'task', 'tasks']
+            },
+            { 
+              id: 'settings', 
+              title: 'Settings', 
+              subtitle: 'School configuration and settings',
+              url: '/settings',
+              keywords: ['settings', 'config', 'configuration', 'admin', 'setup']
+            },
+            { 
+              id: 'dashboard', 
+              title: 'Dashboard', 
+              subtitle: 'Main dashboard and overview',
+              url: '/dashboard',
+              keywords: ['dashboard', 'home', 'overview', 'main', 'summary']
+            },
+            { 
+              id: 'messenger', 
+              title: 'Messenger', 
+              subtitle: 'Internal messaging and communication',
+              url: '/messenger',
+              keywords: ['messenger', 'message', 'chat', 'communication', 'talk']
+            },
+            { 
+              id: 'notifications', 
+              title: 'Notifications', 
+              subtitle: 'System notifications and alerts',
+              url: '/notifications',
+              keywords: ['notification', 'notifications', 'alert', 'alerts', 'notice']
+            }
+          ];
+
+          const queryLower = query.toLowerCase();
+          
+          return navigationPages
+            .filter(page => 
+              page.title.toLowerCase().includes(queryLower) ||
+              page.subtitle.toLowerCase().includes(queryLower) ||
+              page.keywords.some(keyword => keyword.includes(queryLower))
+            )
+            .map(page => ({
+              type: 'navigation',
+              id: page.id,
+              title: page.title,
+              subtitle: page.subtitle,
+              url: page.url,
+              metadata: {
+                keywords: page.keywords,
+                category: 'navigation'
+              }
+            }));
+        })()
+      );
+    }
+
     // Execute all queries in parallel for better performance
     const results = await Promise.all(searchPromises);
     
@@ -327,6 +427,10 @@ export async function GET(req: NextRequest) {
       totalResults += results[resultIndex++];
     }
     if (entities.includes('classes')) {
+      allResults.push(...results[resultIndex++]);
+      totalResults += results[resultIndex++];
+    }
+    if (entities.includes('navigation')) {
       allResults.push(...results[resultIndex++]);
       totalResults += results[resultIndex++];
     }

@@ -131,9 +131,6 @@ async function listTemplates(): Promise<void> {
     }
   });
 
-  console.log('\n📋 Available Templates:');
-  console.log('========================\n');
-
   const grouped = templates.reduce((acc: any, t: any) => {
     const group = t.category;
     if (!acc[group]) acc[group] = [];
@@ -142,15 +139,12 @@ async function listTemplates(): Promise<void> {
   }, {});
 
   for (const [category, items] of Object.entries(grouped)) {
-    console.log(`\n${category.toUpperCase()}:`);
-    console.log('-'.repeat(40));
+    // Process category templates
     (items as any[]).forEach(t => {
       const scope = t.schoolId ? 'School' : (t.isDefault ? 'Global' : 'Custom');
-      console.log(`  • ${t.name} (${t.key}) [${scope}] v${t.version}`);
+      // Process template
     });
   }
-
-  console.log(`\nTotal: ${templates.length} templates\n`);
 }
 
 /**

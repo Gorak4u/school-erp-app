@@ -23,6 +23,7 @@ interface StructureTabProps {
   mediumsApi: any;
   classesApi: any;
   sectionsApi: any;
+  searchQuery?: string;
 }
 
 export const StructureTab: React.FC<StructureTabProps> = ({
@@ -42,7 +43,20 @@ export const StructureTab: React.FC<StructureTabProps> = ({
   mediumsApi,
   classesApi,
   sectionsApi,
+  searchQuery,
 }) => {
+  // Filter classes based on search query
+  const filteredClasses = useMemo(() => {
+    if (!searchQuery) return classes;
+    
+    const query = searchQuery.toLowerCase();
+    return classes.filter(cls => 
+      cls.name.toLowerCase().includes(query) ||
+      cls.code.toLowerCase().includes(query) ||
+      cls.level.toString().includes(query)
+    );
+  }, [classes, searchQuery]);
+
   // Centralized theme object
   const theme = useMemo(() => ({
     bg: isDark ? 'bg-gray-900' : 'bg-white',
@@ -909,8 +923,8 @@ export const StructureTab: React.FC<StructureTabProps> = ({
             </thead>
             <tbody>
               {/* Existing Class Rows */}
-              {[...new Set(classes.filter((c: Class) => !selectedMediumAY || c.academicYearId === selectedMediumAY).map((c: Class) => c.name))].sort().map((className: string) => {
-                const rowClasses = classes.filter((c: Class) => c.name === className && (!selectedMediumAY || c.academicYearId === selectedMediumAY));
+              {[...new Set(filteredClasses.filter((c: Class) => !selectedMediumAY || c.academicYearId === selectedMediumAY).map((c: Class) => c.name))].sort().map((className: string) => {
+                const rowClasses = filteredClasses.filter((c: Class) => c.name === className && (!selectedMediumAY || c.academicYearId === selectedMediumAY));
                 const first = rowClasses[0];
                 const isEditingRow = editingClassRow?.oldName === className;
                 return (

@@ -13,6 +13,7 @@ import {
   DollarSign, 
   FileText, 
   Calendar,
+  Compass,
   ArrowRight,
   Sparkles,
   Clock,
@@ -49,6 +50,7 @@ const ENTITY_ICONS = {
   student: User,
   teacher: Users,
   class: GraduationCap,
+  navigation: Compass,
   fee: DollarSign,
   assignment: FileText,
   attendance: Calendar
@@ -58,9 +60,10 @@ const ENTITY_COLORS = {
   student: 'from-blue-500 to-cyan-500',
   teacher: 'from-purple-500 to-pink-500',
   class: 'from-green-500 to-emerald-500',
+  navigation: 'from-indigo-500 to-purple-500',
   fee: 'from-yellow-500 to-orange-500',
-  assignment: 'from-indigo-500 to-purple-500',
-  attendance: 'from-red-500 to-rose-500'
+  assignment: 'from-amber-500 to-red-500',
+  attendance: 'from-teal-500 to-cyan-500'
 };
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
@@ -118,7 +121,7 @@ export function GlobalSearch({ isDark, className = '' }: GlobalSearchProps) {
       }
 
       const response = await fetch(
-        `/api/v1/search?q=${encodeURIComponent(searchQuery)}&entities=students,teachers,classes&limit=8&schoolId=${encodeURIComponent(schoolId)}`,
+        `/api/v1/search?q=${encodeURIComponent(searchQuery)}&entities=students,teachers,classes,navigation&limit=8&schoolId=${encodeURIComponent(schoolId)}`,
         {
           method: 'GET',
           headers: {

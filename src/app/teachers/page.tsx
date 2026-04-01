@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -73,9 +74,11 @@ type QueryParams = Record<string, unknown>;
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
-export default function StaffPage() {
+function TeachersPageWithParams() {
   const { theme } = useTheme();
   const { hasPermission } = usePermissions();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const isDark = theme === 'dark';
   
   // Permission checks
@@ -132,6 +135,19 @@ export default function StaffPage() {
 
     loadSchoolData();
   }, []);
+
+  // Handle search query parameter
+  useEffect(() => {
+    const searchQuery = searchParams.get('search');
+    if (searchQuery) {
+      // Set the search filter
+      setFilter('search', searchQuery);
+      // Clear the search parameter after applying it
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('search');
+      router.replace(`/teachers?${newParams.toString()}`);
+    }
+  }, [searchParams, setFilter, router]);
 
   const normalizeDateValue = (value: unknown) => {
     if (!value || typeof value !== 'string') return '';
@@ -1220,5 +1236,20 @@ export default function StaffPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+// Export with Suspense wrapper
+export default function TeachersPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout currentPage="teachers">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </AppLayout>
+    }>
+      <TeachersPageWithParams />
+    </Suspense>
   );
 }

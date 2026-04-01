@@ -68,8 +68,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
   useEffect(() => {
     if (!userId || !isConnected) return;
 
-    console.log('🔔 NotificationBell subscribing to global socket');
-
     // Subscribe to notification events
     const unsubscribe = subscribe('notification', (newNotification: Notification) => {
       if (newNotification.metadata?.module === 'messenger') return;

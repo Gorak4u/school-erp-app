@@ -82,7 +82,7 @@ export function createFeeHandlers(ctx: any) {
           });
           
           if (emailResult.success) {
-            console.log('Payment confirmation email sent successfully');
+            // Email sent successfully
           }
         }
       } catch (emailError) {

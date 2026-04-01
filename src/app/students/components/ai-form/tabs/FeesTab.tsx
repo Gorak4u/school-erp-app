@@ -22,16 +22,11 @@ const FeesTab: React.FC<FeesTabProps> = ({
   fmtCurrency,
   activeAcademicYear,
 }) => {
-  console.log('FeesTab component rendered'); // Add this to see if it's rendering
-  
   const isDark = theme === 'dark';
-  
-  // Debug: Log the received props
-  console.log('Debug FeesTab props:', { tuitionAnnual, feeCalcs, applicableFeeStructures });
   
   // Error boundary check
   if (!tuitionAnnual && tuitionAnnual !== 0) {
-    console.error('FeesTab: tuitionAnnual is undefined');
+    // Handle missing tuition data
   }
 
   return (

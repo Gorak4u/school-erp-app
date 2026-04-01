@@ -32,7 +32,6 @@ export default function SessionVerifier() {
             const data = await res.json();
             // If user doesn't exist in DB anymore, log them out
             if (!data.valid) {
-              console.log('Session invalid (user removed from DB), logging out...');
               smartLoginRedirect('SessionExpired');
             }
           }

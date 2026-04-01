@@ -39,7 +39,7 @@ export async function sendRefundStatusNotification(refundId: string, status: str
     }
 
     // Log notification
-    console.log('Refund notification sent:', notificationData);
+    // Notification sent successfully
   } catch (error) {
     console.error('Error sending refund notification:', error);
   }
@@ -60,8 +60,6 @@ async function sendRefundEmail(data: any) {
       timestamp: data.timestamp
     }
   };
-
-  console.log('Email notification data:', emailContent);
   // await emailService.send(emailContent);
 }
 
@@ -71,8 +69,6 @@ async function sendRefundSMS(data: any) {
     to: data.parentPhone,
     message: `Refund ${data.status}: ${data.refundNumber} for ₹${data.amount}. Status: ${data.status}. ${data.timestamp.toLocaleDateString()}`
   };
-
-  console.log('SMS notification data:', smsContent);
   // await smsService.send(smsContent);
 }
 
@@ -171,7 +167,6 @@ async function notifyFinanceDepartment(refund: any) {
     processedAt: new Date()
   };
 
-  console.log('Finance department notification:', financeNotification);
   // await notificationService.notifyFinance(financeNotification);
 }
 

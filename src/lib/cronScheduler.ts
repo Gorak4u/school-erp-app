@@ -227,10 +227,13 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
   const durationMs = Date.now() - start;
   await markRunFinish(run.id, jobName, status, durationMs, processed, failed, output, error || undefined);
 
-  console.log(
-    `[Cron][${scope}] ${jobName} → ${status} in ${durationMs}ms` +
-      (processed ? ` (${processed} records)` : ''),
-  );
+  // Log completion
+  const logMessage = `[Cron][${scope}] ${jobName} → ${status} in ${durationMs}ms` +
+    (processed ? ` (${processed} records)` : '');
+  
+  if (status !== 'success') {
+    console.error(logMessage);
+  }
 
   return {
     success: status === 'success',
@@ -244,32 +247,24 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
 // ─── Scheduler lifecycle ─────────────────────────────────────────────────────
 
 export async function initializeCronScheduler(): Promise<boolean> {
-  console.log('[Cron] Initializing scheduler…');
-
   try {
     await seedDefaultConfigs();
-    const jobs = await loadEnabledConfigs();
 
-    // Stop any previously running tasks (hot-reload safe)
-    stopAllJobs();
+    const jobs = await loadEnabledConfigs();
+    activeTasks.clear();
 
     for (const job of jobs) {
-      if (!cron.validate(job.schedule)) {
-        console.warn(`[Cron] Invalid schedule for ${job.jobName}: "${job.schedule}" – skipped`);
-        continue;
-      }
+      if (!job.isActive) continue;
 
-      const task = cron.schedule(
-        job.schedule,
-        () => dispatchJob(job.jobName, job.scope, 'scheduler'),
-        { timezone: TZ },
-      );
+      const task = cron.schedule(job.schedule, async () => {
+        await dispatchJob(job.jobName, job.scope, 'scheduler');
+      }, {
+        timezone: 'Asia/Kolkata',
+      });
 
       activeTasks.set(job.jobName, task);
-      console.log(`[Cron] Scheduled ${job.scope}/${job.jobName} @ "${job.schedule}"`);
     }
 
-    console.log(`[Cron] ${activeTasks.size} jobs active`);
     return true;
   } catch (err) {
     if (isDatabaseConnectivityError(err)) {

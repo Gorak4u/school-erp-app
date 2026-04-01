@@ -67,7 +67,6 @@ export function createSearchHandlers(ctx: any) {
 
         // Rebuild index whenever the visible student set changes
         searchEngine.buildIndex(students);
-        console.log(`Student search engine initialized with ${students.length} records`);
       }
     };
     
@@ -546,21 +545,10 @@ export function createSearchHandlers(ctx: any) {
       });
       if (result.student) {
         const replaceAllSafe = (value: any, search: any, replacement: any) => {
-          // Convert all values to strings and handle null/undefined
-          const valueStr = value != null ? String(value) : '';
-          const searchStr = search != null ? String(search) : '';
-          const replacementStr = replacement != null ? String(replacement) : '';
-          
-          // Debug logging for non-string inputs
-          if (value != null && typeof value !== 'string') {
-            console.log('replaceAllSafe: value is not a string:', typeof value, value);
-          }
-          if (search != null && typeof search !== 'string') {
-            console.log('replaceAllSafe: search is not a string:', typeof search, search);
-          }
-          if (replacement != null && typeof replacement !== 'string') {
-            console.log('replaceAllSafe: replacement is not a string:', typeof replacement, replacement);
-          }
+          // Ensure all inputs are strings to prevent regex errors
+          const valueStr = String(value || '');
+          const searchStr = String(search || '');
+          const replacementStr = String(replacement || '');
           
           if (!valueStr || !searchStr || !replacementStr || searchStr === replacementStr) return valueStr;
           return valueStr.split(searchStr).join(replacementStr);

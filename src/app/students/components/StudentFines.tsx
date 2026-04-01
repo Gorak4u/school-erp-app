@@ -68,7 +68,6 @@ export default function StudentFines({ student, theme }: StudentFinesProps) {
       const response = await fetch(`/api/fees/students/${student.id || student.studentId}/fines`);
       if (!response.ok) throw new Error('Failed to fetch fines');
       const data = await response.json();
-      console.log('Fetched fines data:', data);
       setFines(data.fines || []);
     } catch (err: any) {
       console.error('Fetch fines error:', err);

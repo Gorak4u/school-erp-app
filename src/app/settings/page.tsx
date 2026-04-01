@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -151,14 +152,14 @@ const settingsApi = {
   upsertBatch: (data: { group: string; settings: Record<string, string> }) => fetch('/api/school-structure/settings', { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }).then(r => r.json()),
 };
 
-export default function SettingsPage() {
+function SettingsPageWithParams() {
   const { theme } = useTheme();
-  const { refresh: refreshSchoolConfig } = useSchoolConfig();
-  const { hasPermission, isAdmin } = usePermissions();
-  const canManageSettings = isAdmin || hasPermission('manage_settings');
-  
-  // Theme state
+  const { hasPermission } = usePermissions();
+  const searchParams = useSearchParams();
   const isDark = theme === 'dark';
+  useSchoolConfig();
+  const { hasPermission: hasPermission2, isAdmin } = usePermissions();
+  const canManageSettings = isAdmin || hasPermission2('manage_settings');
   
   // Enhanced state management with proper typing
   const [isClient, setIsClient] = useState(false);
@@ -225,22 +226,6 @@ export default function SettingsPage() {
     return settingsMap?.[group]?.[key] || defaultValue;
   }, [settingsMap]);
 
-  const saveBatchSettings = useCallback(async (group: string, settings: Record<string, string>) => {
-    setSaving(true);
-    setError(null);
-    try {
-      await settingsApi.upsertBatch({ group, settings });
-      await fetchAll();
-      refreshSchoolConfig();
-      showToast({ type: 'success', title: 'Settings saved successfully' });
-    } catch (e: any) {
-      setError(e.message);
-      showToast({ type: 'error', title: 'Failed to save settings', message: e.message });
-    } finally {
-      setSaving(false);
-    }
-  }, [refreshSchoolConfig]);
-
   // Optimized data fetching with error handling
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -299,6 +284,21 @@ export default function SettingsPage() {
     }
   }, [academicYearsApi, boardsApi, mediumsApi, classesApi, sectionsApi, timingsApi, feeStructuresApi, settingsApi]);
 
+  const saveBatchSettings = useCallback(async (group: string, settings: Record<string, string>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await settingsApi.upsertBatch({ group, settings });
+      await fetchAll();
+      showToast({ type: 'success', title: 'Settings saved successfully' });
+    } catch (e: any) {
+      setError(e.message);
+      showToast({ type: 'error', title: 'Failed to save settings', message: e.message });
+    } finally {
+      setSaving(false);
+    }
+  }, [fetchAll]);
+
   // Refresh timings without setting main loading state
   const refreshTimings = useCallback(async () => {
     console.log('refreshTimings called - NOT setting loading state');
@@ -352,9 +352,25 @@ export default function SettingsPage() {
   // Initialize component and handle URL parameters
   useEffect(() => {
     setIsClient(true);
-    handleUrlTabParam();
+    
+    // Handle URL parameters in useEffect to prevent infinite re-renders
+    const searchQuery = searchParams.get('search');
+    const tabParam = searchParams.get('tab');
+    
+    // If we have a search parameter and it's for the structure tab
+    if (searchQuery && tabParam === 'classes') {
+      // Force set the active tab to structure
+      setActiveTab('structure');
+    } else if (tabParam && TABS.find(tab => tab.id === tabParam)) {
+      // Handle normal tab parameter
+      setActiveTab(tabParam);
+    }
+    
     fetchAll();
-  }, []); // Run only once on mount
+  }, [searchParams]); // Add searchParams dependency
+
+  // Get search query for classes
+  const searchQuery = searchParams.get('search');
 
   // ─── Delete handler ───────────────────────────────────────────────────────────
   const handleDelete = async (entity: string, id: string, name: string, cascade: boolean = false) => {
@@ -485,7 +501,7 @@ export default function SettingsPage() {
       case 'academic':
         return <AcademicYearsTab {...commonProps} />;
       case 'structure':
-        return <StructureTab {...commonProps} />;
+        return <StructureTab {...commonProps} searchQuery={searchQuery || undefined} />;
       case 'fees':
         return <FeeTab {...commonProps} />;
       case 'timings':
@@ -852,5 +868,20 @@ export default function SettingsPage() {
         </AnimatePresence>
       </div>
     </AppLayout>
+  );
+}
+
+// Export with Suspense wrapper
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout currentPage="settings">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </AppLayout>
+    }>
+      <SettingsPageWithParams />
+    </Suspense>
   );
 }
