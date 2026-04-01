@@ -326,6 +326,8 @@ export default function NavigationSidebar({
         items: group.items.filter(item => {
           // Hide messenger when disabled by school app settings
           if (item.pageKey === 'messenger' && !messengerEnabled) return false;
+          // Super admin only items
+          if (item.superAdminOnly && !userIsSuperAdmin) return false;
           // Super admin sees everything
           if (userIsSuperAdmin) return true;
           // Admin-only items hidden from non-admins
@@ -550,7 +552,7 @@ export default function NavigationSidebar({
         </Link>
 
         {/* Enhanced Navigation Menu */}
-        <nav className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        <nav className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden pr-2 min-h-0 scrollbar-thin scrollbar-track-gray-200 scrollbar-thumb-gray-400 hover:scrollbar-thumb-gray-500 dark:scrollbar-track-gray-800 dark:scrollbar-thumb-gray-600 dark:hover:scrollbar-thumb-gray-500" style={{ maxHeight: 'calc(100vh - 250px)' }}>
           <AnimatePresence>
             {filteredGroups.map((group, groupIndex) => (
               <motion.div

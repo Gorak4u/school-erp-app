@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/admin/reminder-settings', label: 'Reminder Settings', icon: '🔔' },
   { href: '/admin/cron', label: 'Cron Jobs', icon: '⏰' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: '🔍' },
+  { href: '/admin/student-data-deletion', label: 'Student Data Deletion', icon: '🗑️' },
   { href: '/admin/settings', label: 'Platform Settings', icon: '⚙️' },
 ];
 
@@ -92,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-full w-60 z-40 border-r transition-transform duration-300 ${
+      <aside className={`fixed left-0 top-0 h-full w-60 z-40 border-r transition-transform duration-300 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         {/* Logo */}
@@ -109,7 +110,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navigation */}
-        <nav className="p-3 space-y-1">
+        <nav className="p-3 space-y-1 overflow-y-auto overflow-x-hidden flex-1">
           {NAV_ITEMS.map(item => (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
@@ -128,7 +129,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom */}
-        <div className={`absolute bottom-0 left-0 right-0 p-3 border-t ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`p-3 border-t ${isDark ? 'border-gray-800' : 'border-gray-200'} mt-auto`}>
           <button onClick={() => setShowSchoolPicker(true)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
               isDark ? 'text-green-400 hover:bg-green-500/10' : 'text-green-600 hover:bg-green-50'
