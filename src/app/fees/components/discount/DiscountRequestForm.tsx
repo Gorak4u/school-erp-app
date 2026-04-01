@@ -710,14 +710,14 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                       ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg transform scale-105' 
                       : isActive
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
-                      : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'
+                      : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
                   {isCompleted ? <CheckCircle className="w-4 h-4" /> : <span className="text-sm">{stepInfo.icon}</span>}
                 </motion.div>
-                <span className={`text-xs mt-1 font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <span className={`text-xs mt-1 font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {stepInfo.title}
                 </span>
               </div>
@@ -827,7 +827,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                     {/* Compact Search and Selection */}
                     <div className="space-y-3">
                       <div className="relative">
-                        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                         <input
                           type="text"
                           placeholder="Search students (min 2 chars)..."
@@ -880,7 +880,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                       {/* Selected Students Preview */}
                       {formData.studentIds.length > 0 && (
                         <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                          <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Students:</div>
+                          <div className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Selected Students:</div>
                           <div className="flex flex-wrap gap-1">
                             {formData.studentIds.slice(0, 8).map((studentId) => {
                               const student = selectedStudentLookup[studentId] || students.find((s: any) => s.id === studentId);
@@ -903,7 +903,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                               ) : null;
                             })}
                             {formData.studentIds.length > 8 && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                              <span className="text-xs text-gray-600 dark:text-gray-300 px-1.5 py-0.5">
                                 +{formData.studentIds.length - 8} more
                               </span>
                             )}
@@ -947,7 +947,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                             >
                               <div className="flex-1">
                                 <div className="font-medium text-sm">{student.name}</div>
-                                <div className="text-xs text-gray-500 flex items-center gap-3">
+                                <div className="text-xs text-gray-600 flex items-center gap-3">
                                   <span>Class: {student.class?.name || student.class}</span>
                                   <span>Adm No: {student.admissionNo}</span>
                                   <span>Status: {formatStudentStatus(student.status)}</span>
@@ -978,7 +978,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                   <div className="space-y-4">
                     <div>
                       <label className={label}>
-                        Select Medium <span className="text-xs text-gray-500">(Optional - will filter classes)</span>
+                        Select Medium <span className="text-xs text-gray-600">(Optional - will filter classes)</span>
                       </label>
                       <select
                         className={input}
@@ -1028,9 +1028,10 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                           </button>
                         </div>
                         
+                        {/* Selected Classes Preview */}
                         {formData.classIds.length > 0 && (
                           <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                            <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Classes:</div>
+                            <div className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Selected Classes:</div>
                             <div className="flex flex-wrap gap-1">
                               {formData.classIds.slice(0, 8).map((classId) => {
                                 const cls = classesWithFees.find((c: any) => c.id === classId);
@@ -1053,7 +1054,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                 ) : null;
                               })}
                               {formData.classIds.length > 8 && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                                <span className="text-xs text-gray-600 dark:text-gray-300 px-1.5 py-0.5">
                                   +{formData.classIds.length - 8} more
                                 </span>
                               )}
@@ -1080,7 +1081,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium text-xs truncate">{cls.name}</div>
-                                  <div className="text-xs text-gray-500 truncate">
+                                  <div className="text-xs text-gray-600 truncate">
                                     {cls.medium?.name || 'No Medium'}
                                   </div>
                                 </div>
@@ -1148,7 +1149,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                         <span className="text-2xl">🚌</span>
                         <div>
                           <h4 className="font-semibold text-sm">Transport Route Application</h4>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <p className="text-xs text-gray-700 dark:text-gray-300">
                             This discount will apply to all students in selected routes
                           </p>
                         </div>
@@ -1197,7 +1198,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                         
                         <div className="space-y-2">
                           <div className="relative">
-                            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                             <input
                               type="text"
                               placeholder="Search routes by name, number, or area..."
@@ -1326,7 +1327,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="font-medium text-xs truncate">{route.routeName || route.name || `Route ${route.routeNumber}`}</div>
-                                    <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
+                                    <div className="text-xs text-gray-600 flex items-center gap-2 truncate">
                                       {route.routeNumber && <span>No: {route.routeNumber}</span>}
                                       {route.description && <span>{route.description}</span>}
                                       {route.area && <span>{route.area}</span>}
@@ -1349,7 +1350,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                               ))}
                               
                               {transportRoutes.length === 0 && (
-                                <div className="text-center p-3 text-gray-500 text-xs">
+                                <div className="text-center p-3 text-gray-600 text-xs">
                                   No transport routes found. Please check if transport routes are configured in the system.
                                 </div>
                               )}
@@ -1363,7 +1364,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   route.area?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                               ).length === 0 && (
-                                <div className="text-center p-3 text-gray-500 text-xs">
+                                <div className="text-center p-3 text-gray-600 text-xs">
                                   No transport routes found matching "{searchTerm}"
                                 </div>
                               )}
@@ -1373,7 +1374,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                           {/* Selected Routes Preview */}
                           {formData.transportRouteIds.length > 0 && (
                             <div className={`p-2 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                              <div className="text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Selected Routes:</div>
+                              <div className="text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Selected Routes:</div>
                               <div className="flex flex-wrap gap-1">
                                 {formData.transportRouteIds.slice(0, 8).map((routeId) => {
                                   const route = transportRoutes.find((r: any) => r.id === routeId);
@@ -1406,7 +1407,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   ) : null;
                                 })}
                                 {formData.transportRouteIds.length > 8 && (
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5">
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 px-1.5 py-0.5">
                                     +{formData.transportRouteIds.length - 8} more
                                   </span>
                                 )}
@@ -1439,7 +1440,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="font-medium text-xs truncate">{student.name}</div>
-                                    <div className="text-xs text-gray-500 flex items-center gap-2 truncate">
+                                    <div className="text-xs text-gray-600 flex items-center gap-2 truncate">
                                       <span>{student.admissionNumber}</span>
                                       <span>{student.class}</span>
                                       <span>{student.status}</span>
@@ -1449,7 +1450,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                               ))}
                               
                               {students.length === 0 && (
-                                <div className="text-center p-3 text-gray-500 text-xs">
+                                <div className="text-center p-3 text-gray-600 text-xs">
                                   No students found
                                 </div>
                               )}
@@ -1462,7 +1463,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   student.phone?.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                               ).length === 0 && (
-                                <div className="text-center p-3 text-gray-500 text-xs">
+                                <div className="text-center p-3 text-gray-600 text-xs">
                                   No transport routes found matching "{searchTerm}"
                                 </div>
                               )}
@@ -1525,7 +1526,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                         {formData.scope === 'class' && 'Class-Wide Discount'}
                         {formData.scope === 'transport' && 'Transport-Wide Discount'}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-600">
                         {formData.scope === 'student' && 'Applying to selected students only'}
                         {formData.scope === 'class' && 'Applying to all students in selected classes'}
                         {formData.scope === 'transport' && 'Applying to all students using transport'}
@@ -1576,7 +1577,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                       Select Fee Type <span className="text-red-500">*</span>
                     </label>
                     {loadingFeeBalances && formData.scope === 'student' && (
-                      <div className={`mb-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className={`mb-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                         Loading pending balances for selected students...
                       </div>
                     )}
@@ -1624,7 +1625,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                     />
                                     <div>
                                       <span className="font-medium text-orange-700 dark:text-orange-300">🚌 Transport Fees</span>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-gray-600">
                                         {transportStructures.length} fee structure{transportStructures.length > 1 ? 's' : ''}
                                       </div>
                                     </div>
@@ -1834,7 +1835,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                     <div className="text-center">
                       <span className="text-2xl mb-2">🚌</span>
                       <div className={`font-semibold text-green-700 dark:text-green-300`}>Transport-Wide Discount</div>
-                      <div className={`text-sm text-gray-500 dark:text-gray-400 mt-1`}>
+                      <div className={`text-sm text-gray-600 dark:text-gray-300 mt-1`}>
                         This discount will apply to all students using the selected transport services
                       </div>
                     </div>
@@ -1851,7 +1852,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                                   <div className={`font-medium text-sm text-gray-800 dark:text-gray-200`}>
                                     {route.name || route.routeName || `Route ${route.routeNumber}`}
                                   </div>
-                                  <div className={`text-xs text-gray-500 dark:text-gray-400`}>
+                                  <div className={`text-xs text-gray-600 dark:text-gray-300`}>
                                     {route.routeNumber && `Route #: ${route.routeNumber}`}
                                     {route.vehicleNumber && ` • Vehicle: ${route.vehicleNumber}`}
                                     {route.driverName && ` • Driver: ${route.driverName}`}
@@ -2026,7 +2027,7 @@ export default function DiscountRequestForm({ theme, onClose, onSuccess, initial
                       min="0"
                       step="1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       Maximum discount amount that can be applied regardless of percentage
                     </p>
                   </div>

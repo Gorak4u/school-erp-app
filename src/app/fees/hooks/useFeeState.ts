@@ -574,17 +574,11 @@ export function useFeeState() {
 
     const loadAllStudents = async () => {
       try {
-        await Promise.all([
-          loadAllStudentsData(currentPage, pageSize, includeArchivedStudents, {
-            search: debouncedSearchTerm,
-            studentClass: selectedClass,
-            paymentStatus: selectedStatus,
-          }),
-          loadFeeStatistics({
-            studentClass: selectedClass,
-            includeArchived: includeArchivedStudents,
-          }),
-        ]);
+        await loadAllStudentsData(currentPage, pageSize, includeArchivedStudents, {
+          search: debouncedSearchTerm,
+          studentClass: selectedClass,
+          paymentStatus: selectedStatus,
+        });
       } catch (error) {
         console.error('Error loading fee tab data:', error);
       }

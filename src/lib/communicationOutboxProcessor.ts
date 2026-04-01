@@ -4,6 +4,63 @@ import { schoolPrisma } from '@/lib/prisma';
 import { emitToUser } from '@/lib/socketServer';
 import { createRequire } from 'module';
 
+// Timeout wrapper for async operations
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operationName: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(`${operationName} timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+// Reset stuck items that have been processing for too long
+async function resetStuckProcessingItems(stuckThresholdMinutes: number = 10) {
+  try {
+    const stuckThreshold = new Date(Date.now() - stuckThresholdMinutes * 60 * 1000);
+    
+    // Find items stuck in processing status
+    const stuckItems = await (schoolPrisma as any).communicationOutbox.findMany({
+      where: {
+        status: 'processing',
+        updatedAt: { lt: stuckThreshold },
+      },
+      select: { id: true, attemptCount: true, updatedAt: true },
+    });
+
+    if (stuckItems.length === 0) {
+      return { reset: 0 };
+    }
+
+    // Reset stuck items back to pending/failed status
+    const resetPromises = stuckItems.map(async (item: any) => {
+      const nextAttemptCount = (item.attemptCount || 0) + 1;
+      const nextStatus = nextAttemptCount >= 5 ? 'dead_letter' : 'failed';
+      
+      return (schoolPrisma as any).communicationOutbox.update({
+        where: { id: item.id },
+        data: {
+          status: nextStatus,
+          attemptCount: nextAttemptCount,
+          nextAttemptAt: nextStatus === 'dead_letter' ? null : getNextAttemptDate(nextAttemptCount),
+          lastError: `Job timed out - item was stuck in processing for >${stuckThresholdMinutes} minutes`,
+        },
+      });
+    });
+
+    await Promise.all(resetPromises);
+    
+    logger.warn(`Reset ${stuckItems.length} stuck processing items`, { 
+      stuckItems: stuckItems.map((i: any) => ({ id: i.id, updatedAt: i.updatedAt })) 
+    });
+    
+    return { reset: stuckItems.length };
+  } catch (error) {
+    logger.error('Failed to reset stuck processing items', { error });
+    return { reset: 0, error };
+  }
+}
+
 // SMS Provider implementations
 async function sendSMS(payload: { to: string; message: string }, config: {
   provider: string;
@@ -127,6 +184,20 @@ function getNextAttemptDate(attemptCount: number) {
 }
 
 export async function processCommunicationOutboxBatch(input: ProcessCommunicationOutboxInput = {}) {
+  const BATCH_TIMEOUT_MS = 300000; // 5 minutes max for entire batch
+  const ITEM_TIMEOUT_MS = 60000; // 1 minute max per item (email/SMS)
+  
+  return withTimeout(
+    processCommunicationOutboxBatchInternal(input, ITEM_TIMEOUT_MS),
+    BATCH_TIMEOUT_MS,
+    'processCommunicationOutboxBatch'
+  );
+}
+
+async function processCommunicationOutboxBatchInternal(input: ProcessCommunicationOutboxInput = {}, itemTimeoutMs: number) {
+  // First, reset any items stuck in processing from previous failed runs
+  await resetStuckProcessingItems(10);
+  
   const limit = Math.min(100, Math.max(1, input.limit || 25));
   const now = new Date();
 
@@ -178,13 +249,17 @@ export async function processCommunicationOutboxBatch(input: ProcessCommunicatio
       }
 
       if (item.channel === 'email') {
-        const result = await sendSchoolEmail({
-          to: payload.to || item.recipientAddress,
-          subject: payload.subject,
-          html: payload.html,
-          schoolId: item.schoolId || undefined,
-          attachments: payload.attachments,
-        });
+        const result = await withTimeout(
+          sendSchoolEmail({
+            to: payload.to || item.recipientAddress,
+            subject: payload.subject,
+            html: payload.html,
+            schoolId: item.schoolId || undefined,
+            attachments: payload.attachments,
+          }),
+          itemTimeoutMs,
+          `sendSchoolEmail to ${payload.to || item.recipientAddress}`
+        );
 
         if (result?.skipped) {
           await (schoolPrisma as any).communicationOutbox.update({
@@ -237,9 +312,13 @@ export async function processCommunicationOutboxBatch(input: ProcessCommunicatio
           continue;
         }
 
-        const result = await sendSMS(
-          { to: payload.to || item.recipientAddress, message: payload.message },
-          smsSettings
+        const result = await withTimeout(
+          sendSMS(
+            { to: payload.to || item.recipientAddress, message: payload.message },
+            smsSettings
+          ),
+          itemTimeoutMs,
+          `sendSMS to ${payload.to || item.recipientAddress}`
         );
 
         if (!result?.success) {

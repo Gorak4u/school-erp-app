@@ -406,35 +406,78 @@ export async function PATCH(
 
     // Send email notification for approval
     if (action === 'approve' && result.requestedBy) {
-      queueCommunicationOutbox({
-        notification: {
-          userId: result.requestedBy,
-          type: 'discount_approved',
-          title: 'Discount Request Approved',
-          message: `Your discount request for ${result.student?.name || 'student'} has been approved.`,
-          priority: 'medium',
-          schoolId: ctx.schoolId!,
-          entityType: 'discount_request',
-          entityId: result.id,
-        },
-        templateEmail: result.requestedByUser?.email ? {
-          templateKey: 'discount_approved_email',
-          schoolId: ctx.schoolId || undefined,
-          to: result.requestedByUser.email,
-          recipientUserId: result.requestedBy,
-          variables: {
-            studentName: result.student?.name || 'Student',
-            discountCategory: result.discountCategory || 'Fee Discount',
-            discountType: result.discountType || 'Percentage',
-            discountAmount: String(result.discountValue || 0),
-            comments: note || '',
-          },
-          dedupeKey: `discount_approved:${result.id}`,
-        } : undefined,
-      }).catch((error) => {
-        console.error('Failed to send discount approval notification:', error);
+      // Fetch student data for email template
+      const studentIds = JSON.parse(existingReq.studentIds || '[]');
+      let studentData = null;
+      if (studentIds.length > 0) {
+        studentData = await (schoolPrisma as any).Student.findFirst({
+          where: { id: studentIds[0], ...tenantWhere(ctx) },
+          select: { name: true, admissionNo: true, class: true, section: true }
+        });
+      }
+
+      // Fetch requester email separately
+      const requester = await (schoolPrisma as any).User.findUnique({
+        where: { id: result.requestedBy },
+        select: { email: true }
       });
-    }
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      
+      // Only send notification if we have requester email (to avoid auto-generated notification_email template)
+      if (requester?.email) {
+        await queueCommunicationOutbox({
+          notification: {
+            userId: result.requestedBy,
+            type: 'discount_approved',
+            title: 'Discount Request Approved',
+            message: `Your discount request for ${studentData?.name || 'student'} has been approved.`,
+            priority: 'medium',
+            schoolId: ctx.schoolId!,
+            entityType: 'discount_request',
+            entityId: result.id,
+          },
+          templateEmail: {
+            templateKey: 'discount_approved_email',
+            schoolId: ctx.schoolId || undefined,
+            to: requester.email,
+            recipientUserId: result.requestedBy,
+            variables: {
+              studentName: studentData?.name || 'Student',
+              admissionNo: studentData?.admissionNo || '-',
+              className: studentData?.class || '-',
+              section: studentData?.section || '-',
+              discountCategory: existingReq.discountCategory || 'Fee Discount',
+              approvedAmount: String(existingReq.discountType === 'percentage' 
+                ? `${existingReq.discountValue}%` 
+                : `₹${existingReq.discountValue}`),
+              approvedBy: approverName,
+              approvedAt: new Date().toLocaleDateString(),
+              remarks: note || '',
+              actionUrl: `${appUrl}/fees/discount-requests/${result.id}`,
+            },
+            dedupeKey: `discount_approved:${result.id}`,
+          },
+        }).catch((error) => {
+          console.error('Failed to send discount approval notification:', error);
+        });
+      } else {
+        // Only send in-app notification if no email available
+        await queueCommunicationOutbox({
+          notification: {
+            userId: result.requestedBy,
+            type: 'discount_approved',
+            title: 'Discount Request Approved',
+            message: `Your discount request for ${studentData?.name || 'student'} has been approved.`,
+            priority: 'medium',
+            schoolId: ctx.schoolId!,
+            entityType: 'discount_request',
+            entityId: result.id,
+          },
+        }).catch((error) => {
+          console.error('Failed to send discount approval in-app notification:', error);
+        });
+      }
 
     return NextResponse.json({ 
       success: true, 

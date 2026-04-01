@@ -597,8 +597,13 @@ export async function POST(request: NextRequest) {
         ]);
 
         if (approvers.length > 0 && submitter) {
-          // Send in-app notification + template email to all approvers
-          for (const approver of approvers) {
+          // Filter out submitter from approvers to prevent duplicate emails
+          const approversExcludingSubmitter = approvers.filter(
+            (approver: any) => approver.id !== submitter.id
+          );
+          
+          // Send in-app notification + template email to all approvers (excluding submitter)
+          for (const approver of approversExcludingSubmitter) {
             await queueCommunicationOutbox({
               notification: {
                 userId: approver.id,
@@ -637,6 +642,8 @@ export async function POST(request: NextRequest) {
             
             console.log(`✅ Discount request notification sent to approver: ${approver.email}`);
           }
+
+          console.log(`📧 Sent discount request notifications to ${approversExcludingSubmitter.length} approver(s)`);
 
           // Send confirmation to submitter
           await queueCommunicationOutbox({

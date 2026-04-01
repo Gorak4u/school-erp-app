@@ -660,12 +660,14 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                   </tr>
                 </thead>
                 <tbody>
-                  {feeRecords.length === 0 && (
+                  {feeRecords.length === 0 && fines.length === 0 && (
                     <tr><td colSpan={10} className={`py-6 text-center text-sm ${textSecondary}`}>No fee records found</td></tr>
                   )}
+                  {/* Fee Records */}
                   {feeRecords.map(r => {
-                    const pending = (r.amount || 0) - (r.paidAmount || 0);
-                    const statusLabel = r.status === 'paid' ? 'Paid' : pending > 0 && r.paidAmount > 0 ? 'Partial' : r.status === 'overdue' ? 'Overdue' : 'Pending';
+                    const discountAmount = (r.discount || 0);
+                    const pending = Math.max(0, (r.amount || 0) - (r.paidAmount || 0) - discountAmount);
+                    const statusLabel = pending <= 0 ? 'Paid' : r.status === 'overdue' ? 'Overdue' : r.paidAmount > 0 ? 'Partial' : 'Pending';
                     const statusCls = statusLabel === 'Paid' ? (isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600')
                       : statusLabel === 'Overdue' ? (isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600')
                       : (isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600');
@@ -679,19 +681,11 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                       return 'Discount';
                     };
                     
-                    // Calculate proper discount value based on type
-                    const getDiscountValue = (record: any) => {
-                      if (record.feeStructure?.category === 'transport' && record.discount > 0) {
-                        return 0; // Transport fees have discount moved to waived amount
-                      }
-                      return record.discount || 0;
-                    };
-                    
                     const discountLabel = getDiscountLabel(r);
-                    const discountValue = getDiscountValue(r);
+                    const discountValue = r.discount || 0;
                     
                     return (
-                      <tr key={r.id} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
+                      <tr key={`fee-${r.id}`} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b`}>
                         <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{r.feeStructureName || r.feeStructure?.name || 'Fee'}</td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.feeCategory || r.feeStructure?.category || '-'}</td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.academicYear || '-'}</td>
@@ -710,6 +704,41 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                         <td className={`py-3 px-4 text-sm text-right font-medium ${pending > 0 ? 'text-red-500' : ''}`}>₹{pending.toLocaleString()}</td>
                         <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${statusCls}`}>{statusLabel}</span></td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>{r.dueDate || '-'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
+                      </tr>
+                    );
+                  })}
+                  {/* Fines */}
+                  {fines.map(fine => {
+                    const pending = Math.max(0, (fine.amount || 0) - (fine.paidAmount || 0) - (fine.waivedAmount || 0));
+                    const statusLabel = pending <= 0 ? 'Paid' : fine.pendingAmount > 0 && fine.paidAmount > 0 ? 'Partial' : 'Pending';
+                    const statusCls = statusLabel === 'Paid' ? (isDark ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-600')
+                      : statusLabel === 'Overdue' ? (isDark ? 'bg-red-600/20 text-red-400' : 'bg-red-100 text-red-600')
+                      : (isDark ? 'bg-yellow-600/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600');
+                    const hasWaived = (fine.waivedAmount || 0) > 0;
+                    
+                    return (
+                      <tr key={`fine-${fine.id}`} className={`${isDark ? 'border-gray-700 hover:bg-gray-700/30' : 'border-gray-200 hover:bg-gray-50'} border-b bg-red-50/30`}>
+                        <td className={`py-3 px-4 text-sm font-medium ${textPrimary}`}>{fine.reason || 'Fine'}</td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-600">Fine</span>
+                        </td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{fine.academicYear || '-'}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium`}>₹{(fine.amount || 0).toLocaleString()}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium text-green-500`}>₹{(fine.paidAmount || 0).toLocaleString()}</td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium ${hasWaived ? 'text-orange-500' : 'text-blue-500'}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <span>₹{(fine.waivedAmount || 0).toLocaleString()}</span>
+                            {hasWaived && (
+                              <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full font-medium">
+                                Waived
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={`py-3 px-4 text-sm text-right font-medium ${pending > 0 ? 'text-red-500' : ''}`}>₹{pending.toLocaleString()}</td>
+                        <td className="py-3 px-4"><span className={`text-xs px-2 py-1 rounded-full ${statusCls}`}>{statusLabel}</span></td>
+                        <td className={`py-3 px-4 text-sm ${textSecondary}`}>{fine.imposedDate ? new Date(fine.imposedDate).toLocaleDateString() : '-'}</td>
                         <td className={`py-3 px-4 text-sm ${textSecondary}`}>-</td>
                       </tr>
                     );

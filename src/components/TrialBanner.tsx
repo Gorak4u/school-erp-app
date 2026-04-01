@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
@@ -23,13 +23,22 @@ interface SubscriptionData {
 export default function TrialBanner() {
   const [sub, setSub] = useState<SubscriptionData | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    // Only fetch when session is loaded and not already fetched
+    if (sessionStatus !== 'authenticated' || hasFetched.current) {
+      return;
+    }
+    
     // Don't fetch subscription for super admins
     if (session?.user?.isSuperAdmin) {
       return;
     }
+    
+    // Mark as fetched to prevent duplicate calls
+    hasFetched.current = true;
     
     fetch('/api/subscription')
       .then(res => res.json())
@@ -37,7 +46,7 @@ export default function TrialBanner() {
         if (data.subscription) setSub(data.subscription);
       })
       .catch(() => {});
-  }, [session]);
+  }, [sessionStatus, session?.user?.isSuperAdmin]); // Only depend on stable values
 
   if (!sub || dismissed) return null;
 
