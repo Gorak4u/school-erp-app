@@ -1,1 +1,0 @@
-[2026-03-23T12:59:23.175Z] ERROR | Error sending assignment confirmation | Meta: {"error":{"name":"PrismaClientValidationError","clientVersion":"7.5.0"},"params":{"studentId":"cmn36zx1d0000dk569swxvgof","routeId":"cmmyksqcv0039nn5684qwa6dx","academicYear":"2025-26","schoolId":"cmmyjgnf50001nn56lzcgtwh4"}}
