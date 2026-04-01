@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, X, AlertCircle, CreditCard, FileText, Clock, MessageSquare } from 'lucide-react';
 import { useGlobalSocket } from '@/contexts/SocketContext';
+import { usePathname } from 'next/navigation';
 
 interface Notification {
   id: string;
@@ -56,13 +57,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { subscribe, isConnected } = useGlobalSocket();
+  const pathname = usePathname();
+  const isFetchingRef = useRef(false);
 
-  // Fetch notifications on mount and periodically
+  // Public pages that should not trigger notifications fetch
+  const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing'];
+  const isPublicPage = PUBLIC_PAGES.some(page => pathname?.startsWith(page));
+
+  // Fetch notifications on mount only - socket handles real-time updates
   useEffect(() => {
+    if (isPublicPage || !userId) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [isPublicPage, userId]);
 
   // Subscribe to notification events via global socket
   useEffect(() => {
@@ -91,6 +100,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
   }, []);
 
   const fetchNotifications = async () => {
+    if (isPublicPage) return;
     setLoading(true);
     try {
       const response = await fetch('/api/notifications?limit=10');
@@ -101,7 +111,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
         setUnreadCount(filtered.filter((n: Notification) => !n.isRead).length);
       }
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      // Silently handle errors
     } finally {
       setLoading(false);
     }
@@ -114,8 +124,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
         setNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)));
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
-    } catch (error) {
-      console.error('Failed to mark as read:', error);
+    } catch {
+      // Silently handle errors
     }
   };
 
@@ -126,8 +136,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ isDark, user
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         setUnreadCount(0);
       }
-    } catch (error) {
-      console.error('Failed to mark all as read:', error);
+    } catch {
+      // Silently handle errors
     }
   };
 

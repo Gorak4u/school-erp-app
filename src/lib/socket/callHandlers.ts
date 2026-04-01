@@ -50,8 +50,6 @@ function isDuplicateCall(from: string, to: string, conversationId: string): bool
 }
 
 export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
-  console.log('🔧 Registering call handlers for socket:', socket.id);
-  
   // Handle call signaling - FIXED: Only forward to target user, not all in room
   socket.on('call-signal', (signal: CallSignal) => {
     const targetRoom = `user:${signal.to}`;
@@ -60,7 +58,6 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     // This ensures only the intended recipient gets the signal
     const targetSockets = io.sockets.adapter.rooms.get(targetRoom);
     if (!targetSockets || targetSockets.size === 0) {
-      console.error('❌ Target user not online:', signal.to);
       return;
     }
     
@@ -84,7 +81,6 @@ export function registerCallHandlers(io: SocketIOServer, socket: Socket) {
     const socketsInRoom = io.sockets.adapter.rooms.get(targetRoom);
     
     if (!socketsInRoom || socketsInRoom.size === 0) {
-      console.error('❌ Target user not in room:', data.to);
       return;
     }
     

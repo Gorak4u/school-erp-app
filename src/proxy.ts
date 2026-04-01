@@ -59,6 +59,13 @@ const publicRoutes = [
   '/school-login', 
   '/billing',
   
+  // PWA files (must be accessible without auth)
+  '/manifest.json',
+  '/sw.js',
+  '/workbox-*.js',
+  '/icons',
+  '/icons/*',
+  
   // Public APIs
   '/api/plans', 
   '/api/admin/plans', 
@@ -587,7 +594,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|uploads).*)',
+    '/((?!_next/static|_next/image|favicon.ico|uploads|manifest.json|sw.js|workbox-|icons/.*\\.svg$).*)',
   ],
   // Production-ready configuration
   // Increase body size limit for file uploads and email attachments

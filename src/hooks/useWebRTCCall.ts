@@ -127,13 +127,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       if (globalSocket && globalSocketConnected) {
         socketRef.current = globalSocket;
         // Join user room so signals can be delivered
-        globalSocket.emit('join', user.id, (ack: any) => {
-          console.log('✅ WebRTC using global socket, joined user room:', ack);
-        });
+        globalSocket.emit('join', user.id);
         socketReadyRef.current = true;
         setIsConnected(true);
       } else {
-        console.warn('📞 WebRTC: Global socket not available yet');
         setIsConnected(false);
       }
     };
@@ -171,7 +168,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       }
       return stream;
     } catch (error) {
-      console.error('❌ Media access error:', error);
       showToast('error', 'Media Access Denied', 'Please allow camera/microphone access and try again');
       throw error;
     }
@@ -181,19 +177,17 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
   const cleanupCall = useCallback(() => {
     // Guard: prevent redundant cleanup
     if (isCleaningUpRef.current) {
-      console.log('⏭️ Cleanup already in progress, skipping...');
       return;
     }
     
     isCleaningUpRef.current = true;
-    console.log('🧹 Starting complete call cleanup...');
     
     // Destroy peer connection
     if (peerRef.current) {
       try {
         peerRef.current.destroy();
       } catch (e) {
-        console.warn('Peer destroy error:', e);
+        // Ignore destroy errors
       }
       peerRef.current = null;
     }
@@ -209,7 +203,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     if (stream) {
       stream.getTracks().forEach(t => {
         t.stop();
-        console.log('🛑 Stopped track:', t.kind, t.label);
       });
     }
     
@@ -242,8 +235,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
-    
-    console.log('✅ Call cleanup complete');
     
     // Release global lock to allow future calls
     globalCallLock = false;
@@ -299,21 +290,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
   });
 
   peer.on('signal', (data: any) => {
-    // Only log important signals, not every ICE candidate
-    if (data.type === 'offer' || data.type === 'answer') {
-      console.log('📡 Signal generated:', data.type, 'for', isInitiator ? 'initiator' : 'receiver');
-    }
-    
     // For initiator: the first signal is the offer which is sent via call-initiated event
     // NOT via call-signal. So we skip emitting it here.
     if (isInitiator && !offerSent && data.type === 'offer') {
       offerSent = true;
-      console.log('📡 Offer generated for initiator - will be sent via call-initiated, not call-signal');
       return; // Don't emit via call-signal, it's handled by caller
     }
 
     if (!socketRef.current || !user || !conversationIdRef.current) {
-      console.warn('⚠️ Cannot send signal - missing socket/user/conversation');
       return;
     }
 
@@ -349,10 +333,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     };
     
     socketRef.current.emit('call-signal', signal);
-    
-    if (sigType !== 'call-ice-candidate') {
-      console.log('📤 Sent signal:', sigType, 'to', remoteUserIdRef.current);
-    }
   });
 
     peer.on('connect', () => {
@@ -370,7 +350,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     });
 
     peer.on('stream', (remote: MediaStream) => {
-      console.log('📡 Remote stream received, tracks:', remote.getTracks().map(t => `${t.kind}(${t.enabled})`));
       setRemoteStream(remote);
       // Attach to video element for video calls
       if (remoteVideoRef.current) {
@@ -380,7 +359,7 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       // CRITICAL: dedicated audio element ensures audio plays for BOTH voice and video calls
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remote;
-        remoteAudioRef.current.play().catch((e) => console.warn('⚠️ Remote audio play blocked:', e));
+        remoteAudioRef.current.play().catch(() => {});
       }
     });
 
@@ -399,11 +378,9 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
                            err.code === 'ERR_CONNECTION_FAILURE';
       
       if (isNormalClose) {
-        console.log('ℹ️ Peer closed normally (user hangup)');
         return;
       }
       
-      console.error('❌ Peer error:', err);
       setCallState(prev => ({ ...prev, connectionState: 'failed' }));
       showToast('error', 'Call Failed', 'Connection failed. Please try again.');
       cleanupCall();
@@ -419,11 +396,8 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
 
   // End call - notify remote and clean up EVERYTHING
   const endCall = useCallback((options?: { skipHangupSignal?: boolean; triggeredByRemote?: boolean }) => {
-    console.log('📞 Ending call...', options);
-    
     // Prevent duplicate hangup processing
     if (hangupProcessedRef.current && options?.triggeredByRemote) {
-      console.log('⏭️ Hangup already processed, skipping');
       return;
     }
     
@@ -437,7 +411,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     // FIXED: Always send hangup signal when ending call (unless remote already sent one)
     if (!options?.skipHangupSignal && !options?.triggeredByRemote && socketRef.current?.connected && user && remoteId && convId) {
       // Use call-signal with hangup type for all call endings
-      console.log('📤 Sending hangup signal to:', remoteId);
       socketRef.current.emit('call-signal', {
         type: 'call-hangup',
         from: user.id,
@@ -468,8 +441,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       connectionState: 'connecting',
     });
     
-    console.log('✅ Call ended, state reset');
-    
     // Release global lock to allow future calls
     globalCallLock = false;
     if (globalCallLockTimeout) {
@@ -484,7 +455,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     const emissionKey = `${user?.id}:${targetUserId}:${conversationId}`;
     const now = Date.now();
     if (emissionKey === lastCallEmissionKey && (now - lastCallEmissionTime) < CALL_EMISSION_WINDOW_MS) {
-      console.log('⏭️ [EMISSION GUARD] Duplicate call emission blocked:', emissionKey);
       return;
     }
     
@@ -496,7 +466,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
 
     // GLOBAL GUARD: Check across ALL hook instances first
     if (globalCallLock) {
-      console.log('⏭️ [GLOBAL GUARD] Call already in progress globally, ignoring duplicate');
       return;
     }
     
@@ -505,20 +474,17 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     // Auto-release lock after 30 seconds as safety net
     if (globalCallLockTimeout) clearTimeout(globalCallLockTimeout);
     globalCallLockTimeout = setTimeout(() => {
-      console.log('🔓 [GLOBAL GUARD] Auto-releasing lock after timeout');
       globalCallLock = false;
     }, 30000);
 
     // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
-      console.log('⏭️ [GUARD] startCall already in progress, ignoring duplicate call');
       globalCallLock = false;
       return;
     }
     isStartingCallRef.current = true;
 
     // GUARDRAIL: Clean up any existing connection before starting new call
-    console.log('🛡️ [GUARDRAIL] Cleaning up before starting new call');
     cleanupCall();
     
     try {
@@ -553,7 +519,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
         firstSignalPromise,
         new Promise((_, reject) => setTimeout(() => reject(new Error('Offer timeout')), 10000)),
       ]);
-      console.log('✅ SDP offer ready, type:', (offer as any).type);
 
       // Record emission BEFORE emitting to prevent duplicates from StrictMode remounts
       lastCallEmissionKey = emissionKey;
@@ -572,8 +537,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
         callType,
         callerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
         offer,
-      }, (ack: any) => {
-        console.log('📨 call-initiated ack:', ack);
       });
 
       showToast('info', 'Calling...', `Calling ${targetUserName}`);
@@ -581,7 +544,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       // Reset guard ONLY after all async work completes successfully
       isStartingCallRef.current = false;
     } catch (error) {
-      console.error('❌ startCall error:', error);
       cleanupCall();
       setCallState({
         isInCall: false, isOutgoingCall: false, isIncomingCall: false,
@@ -605,7 +567,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
 
     // GLOBAL GUARD: Check across ALL hook instances first
     if (globalCallLock) {
-      console.log('⏭️ [GLOBAL GUARD] Call already in progress globally, ignoring accept');
       return;
     }
     
@@ -614,20 +575,17 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
     // Auto-release lock after 30 seconds as safety net
     if (globalCallLockTimeout) clearTimeout(globalCallLockTimeout);
     globalCallLockTimeout = setTimeout(() => {
-      console.log('🔓 [GLOBAL GUARD] Auto-releasing lock after timeout');
       globalCallLock = false;
     }, 30000);
 
     // CRITICAL GUARD: Check FIRST before any cleanup to prevent race conditions
     if (isStartingCallRef.current) {
-      console.log('⏭️ [GUARD] acceptCall already in progress, ignoring duplicate accept');
       globalCallLock = false;
       return;
     }
     isStartingCallRef.current = true;
 
     // GUARDRAIL: Clean up any existing connection before accepting new call
-    console.log('🛡️ [GUARDRAIL] Cleaning up before accepting call');
     cleanupCall();
     
     try {
@@ -661,21 +619,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
 
       // Apply the offer - this will trigger the peer to generate an answer
       const offer = callData.offer;
-      console.log('🔍 Applying offer in acceptCall:', offer?.type || offer);
 
       if (offer && typeof offer === 'object' && offer.sdp) {
-        console.log('📝 About to apply SDP offer. Socket ready:', socketRef.current?.connected);
-        console.log('📝 Receiver context:', {
-          userId: user.id,
-          remoteUserId: callData.from,
-          conversationId: callData.conversationId,
-          socketConnected: socketRef.current?.connected,
-        });
-        
         peer.signal(offer);
-        console.log('✅ Applied SDP offer to peer - answer should be generated and sent');
       } else {
-        console.error('❌ No valid SDP offer in callData:', offer);
         showToast('error', 'Call Error', 'Invalid call data. Please ask caller to try again.');
         cleanupCall();
         return;
@@ -686,7 +633,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       // Reset guard ONLY after all async work completes successfully
       isStartingCallRef.current = false;
     } catch (error) {
-      console.error('❌ acceptCall error:', error);
       cleanupCall();
       showToast('error', 'Call Error', 'Could not accept the call');
       // Reset guard on error too
@@ -729,7 +675,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       const willBeOff = !videoTracks[0]?.enabled;
       videoTracks.forEach(t => {
         t.enabled = !t.enabled;
-        console.log(`📹 Local video ${t.enabled ? 'enabled' : 'disabled'}`);
       });
       setCallState(prev => ({ ...prev, isCameraOff: !prev.isCameraOff }));
       showToast('info', willBeOff ? 'Camera Off' : 'Camera On', 
@@ -766,7 +711,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       setCallState(prev => ({ ...prev, isScreenSharing: false }));
       showToast('info', 'Screen Share Stopped', 'Switched back to camera');
     } catch (err) {
-      console.error('❌ Stop screen share error:', err);
       setCallState(prev => ({ ...prev, isScreenSharing: false }));
     }
   }, []);
@@ -806,7 +750,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
           revertToCamera();
         }, { once: true });
       } catch (err) {
-        console.error('❌ Start screen share error:', err);
         showToast('error', 'Screen Share Failed', 'Could not share screen');
       }
     }
@@ -831,7 +774,6 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       setCallState(prev => ({ ...prev, callType: 'video', isCameraOff: false }));
       showToast('info', 'Video On', 'Camera started');
     } catch (err) {
-      console.error('❌ Upgrade to video error:', err);
       showToast('error', 'Camera Failed', 'Could not start camera');
     }
   }, [callState.callType]);
@@ -863,12 +805,10 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
   endCallRef.current = endCall;
   const callStateRef = useRef(callState);
   callStateRef.current = callState;
-  
   useEffect(() => {
     // FIXED: Listen for signals whenever socket is available and enabled
     // The handler itself will filter based on whether signal is relevant
     if (!enabled) {
-      console.log('⏭️ [SignalListener] Not enabled, skipping registration');
       return;
     }
     
@@ -889,30 +829,15 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
       
       // Check for duplicate
       if (processedSignalsRef.current.has(signalKey)) {
-        console.log('⏭️ Ignoring duplicate signal:', signal.type);
         return;
       }
       processedSignalsRef.current.set(signalKey, now);
 
-      console.log('📥 Received call-signal:', {
-        type: signal.type,
-        from: signal.from,
-        to: signal.to,
-        myId: user?.id,
-        hasPeer: !!peerRef.current,
-        hasPayload: !!signal.payload,
-        payloadType: signal.payload?.type,
-        isActiveCall: isActiveCallRef.current,
-        currentCallState: callStateRef.current.connectionState,
-      });
-
       if (signal.to !== user?.id) {
-        console.log('⏭️ Ignoring signal - not for me');
         return;
       }
 
       if (signal.type === 'call-hangup') {
-        console.log('☎️ Call hangup received');
         // Use ref to avoid dependency issues and mark as remote hangup
         endCallRef.current?.({ triggeredByRemote: true });
         showToast('info', 'Call Ended', 'The other party ended the call');
@@ -928,18 +853,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
                                   callStateRef.current.isInCall;
       
       if (!hasActivePeer && !isEstablishingCall) {
-        console.log('⏭️ Ignoring signal - no peer and not establishing call');
         return;
       }
 
       // For all other signal types (offer, answer, ice-candidate), forward to peer
       if (signal.payload && peerRef.current) {
         try {
-          console.log('📡 Applying signal to peer:', signal.type, signal.payload?.type || signal.payload?.candidate?.type);
-          
           // If this is an answer to our outgoing call, mark as connecting
           if (signal.type === 'call-answer' && callStateRef.current.isOutgoingCall && !callStateRef.current.isInCall) {
-            console.log('🤝 Call answered - moving to connecting state');
             setCallState(prev => ({
               ...prev,
               connectionState: 'connecting'
@@ -947,19 +868,14 @@ export const useWebRTCCall = (conversationId?: string, enabled: boolean = false)
           }
           
           peerRef.current.signal(signal.payload);
-          console.log('✅ Signal applied successfully to peer');
         } catch (e) {
-          console.error('❌ Error applying signal to peer:', signal.type, e);
+          // Error applying signal to peer
         }
-      } else if (!signal.payload) {
-        console.warn('⚠️ Signal received without payload:', signal.type);
       }
     };
 
-    console.log('🎯 [SignalListener] Registering signal listener');
     sock.on('call-signal', handleCallSignal);
     return () => { 
-      console.log('🧹 [SignalListener] Cleaning up signal listener');
       sock.off('call-signal', handleCallSignal); 
     };
   // FIXED: Only re-register when user or enabled changes, NOT on every call state change

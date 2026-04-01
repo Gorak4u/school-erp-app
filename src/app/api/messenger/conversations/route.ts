@@ -16,19 +16,10 @@ import { checkRateLimit, apiRateLimiter, getClientIdentifier } from '@/lib/rateL
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('GET /api/messenger/conversations - Starting request');
-    
     const { ctx, error } = await getSessionContext();
     if (error) {
-      console.log('GET /api/messenger/conversations - Session error:', error);
       return error;
     }
-
-    console.log('GET /api/messenger/conversations - Context:', {
-      userId: ctx.userId,
-      schoolId: ctx.schoolId,
-      role: ctx.role
-    });
 
     if (!ctx.schoolId) {
       return NextResponse.json({ error: { code: 'NO_SCHOOL', message: 'No school context' } }, { status: 400 });
@@ -52,12 +43,9 @@ export async function GET(request: NextRequest) {
       archived: searchParams.get('archived'),
     };
     
-    console.log('GET /api/messenger/conversations - Query params:', queryParams);
-    
     const queryResult = ListMessengerConversationsQuerySchema.safeParse(queryParams);
 
     if (!queryResult.success) {
-      console.log('GET /api/messenger/conversations - Validation failed:', queryResult.error.issues);
       return NextResponse.json({ 
         error: { 
           code: 'VALIDATION_ERROR', 
@@ -77,7 +65,6 @@ export async function GET(request: NextRequest) {
       await prisma.messengerConversation.findFirst({ take: 1 });
     } catch (tableError: any) {
       if (tableError.code === 'P2021') {
-        console.log('Messenger tables not found, returning empty result');
         return NextResponse.json({
           data: [],
           pagination: {
@@ -212,13 +199,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err: any) {
-    console.error('GET /api/messenger/conversations - Error:', {
-      message: err.message,
-      stack: err.stack,
-      code: err.code,
-      meta: err.meta
-    });
-    
     // Check for Prisma database errors
     if (err.code === 'P2021' || err.code === 'P2022') {
       return NextResponse.json({ 

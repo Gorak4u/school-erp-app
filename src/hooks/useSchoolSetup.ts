@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SetupStatus {
   isConfigured: boolean;
@@ -23,11 +23,14 @@ export function useSchoolSetup() {
     missingEssential: [],
     loading: true
   });
+  const isFetching = useRef(false);
 
   useEffect(() => {
+    if (isFetching.current) return;
+    isFetching.current = true;
+    
     const checkSetup = async () => {
       try {
-        console.log('Checking school setup status...');
         const response = await fetch('/api/school-setup/check', {
           method: 'GET',
           headers: {
@@ -35,11 +38,8 @@ export function useSchoolSetup() {
           },
         });
         
-        console.log('Setup check response status:', response.status);
-        
         if (response.ok) {
           const data = await response.json();
-          console.log('Setup check data:', data);
           setSetupStatus({
             ...data,
             loading: false,
@@ -47,7 +47,6 @@ export function useSchoolSetup() {
           });
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Setup check failed:', response.status, errorData);
           setSetupStatus(prev => ({ 
             ...prev, 
             loading: false, 
@@ -55,7 +54,6 @@ export function useSchoolSetup() {
           }));
         }
       } catch (error: any) {
-        console.error('Error checking setup:', error);
         setSetupStatus(prev => ({ 
           ...prev, 
           loading: false, 

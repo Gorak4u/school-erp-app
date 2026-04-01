@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 
 interface Approval {
   id: string;
@@ -32,13 +33,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [previousCount, setPreviousCount] = useState(0);
 
   const { status } = useSession();
+  const pathname = usePathname();
+  const isFetchingRef = useRef(false);
+  
+  // Public pages that should not trigger notifications fetch
+  const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing'];
+  const isPublicPage = PUBLIC_PAGES.some(page => pathname?.startsWith(page));
   
   const refresh = useCallback(async () => {
-    // Only fetch if authenticated
-    if (status !== 'authenticated') {
+    // Only fetch if authenticated and not on public page
+    if (status !== 'authenticated' || isPublicPage) {
       setLoading(false);
       return;
     }
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     
     try {
       setLoading(true);
@@ -56,30 +65,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         setApprovals(data.approvals || []);
         setPreviousCount(newCount);
       }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+    } catch {
+      // Silently handle errors
     } finally {
       setLoading(false);
     }
-  }, [previousCount]);
+  }, [previousCount, isPublicPage, status]);
 
   const dismissToast = useCallback(() => {
     setShowToast(false);
   }, []);
 
-  // Initial load
+  // Initial load only - socket handles real-time updates
   useEffect(() => {
-    refresh();
-  }, []);
-
-  // Poll every 60 seconds for updates
-  useEffect(() => {
-    const interval = setInterval(() => {
+    if (!isPublicPage) {
       refresh();
-    }, 60000); // 60 seconds
-
-    return () => clearInterval(interval);
-  }, [refresh]);
+    }
+  }, [refresh, isPublicPage]);
 
   return (
     <NotificationContext.Provider

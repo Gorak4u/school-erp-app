@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { SocketProvider } from "@/contexts/SocketContext";
-import { ProfileProvider } from "@/contexts/ProfileContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 import { TemplateInitializer } from "@/components/TemplateInitializer";
-import CallNotifications from "@/components/CallNotifications";
+import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 import { CallProviderWrapper } from "@/components/CallProviderWrapper";
+import CallNotifications from "@/components/CallNotifications";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,6 +26,31 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "School ERP - Management System",
   description: "Comprehensive School Management ERP Platform",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "School ERP",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#1976D2",
 };
 
 export default function RootLayout({

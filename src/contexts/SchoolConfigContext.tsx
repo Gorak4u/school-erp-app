@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,9 @@ const emptyDropdowns: SchoolConfigDropdowns = {
 
 const SchoolConfigContext = createContext<SchoolConfigContextType | undefined>(undefined);
 
+// Public pages that should not trigger school config fetch
+const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/'];
+
 interface SchoolConfigProviderProps {
   children: ReactNode;
 }
@@ -142,8 +146,14 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { status } = useSession();
+  const pathname = usePathname();
 
   const refresh = useCallback(async () => {
+    // Skip if on public page
+    if (PUBLIC_PAGES.some(page => pathname?.startsWith(page))) {
+      setLoading(false);
+      return;
+    }
     // Only fetch if authenticated
     if (status !== 'authenticated') {
       setLoading(false);
@@ -177,7 +187,7 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
     }
   }, [status]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh, pathname]);
 
   // ─── Convenience getters ──────────────────────────────────────────────────
   const getSetting = useCallback(

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePathname } from 'next/navigation';
 
 interface ProfileData {
   id: string;
@@ -22,12 +23,18 @@ interface ProfileContextType {
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+// Public pages that should not trigger profile fetch
+const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing', '/'];
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const pathname = usePathname();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshProfile = async () => {
+    // Skip if on public page
+    if (PUBLIC_PAGES.some(page => pathname?.startsWith(page))) return;
     if (!user?.id) return;
     
     try {
@@ -47,12 +54,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Skip if on public page
+    if (PUBLIC_PAGES.some(page => pathname?.startsWith(page))) {
+      setLoading(false);
+      return;
+    }
     if (user?.id) {
       refreshProfile();
     } else {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, pathname]);
 
   return (
     <ProfileContext.Provider value={{

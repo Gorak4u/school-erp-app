@@ -40,14 +40,9 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
   useEffect(() => {
     if (!socket || !user?.id || listenerRegisteredRef.current) return;
 
-    console.log('🎯 [CallProvider] Registering SINGLE global call-incoming listener');
-
     const handleIncomingCall = (data: IncomingCallData) => {
-      console.log('📞 [CallProvider] Incoming call received:', data);
-      
       // GUARD: Don't process if we already have an active incoming call
       if (incomingCallData) {
-        console.log('⏭️ [CallProvider] Already have active incoming call, ignoring duplicate');
         return;
       }
       
@@ -72,8 +67,6 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
     };
 
     const handleCallCancelled = (data: { from: string; conversationId: string }) => {
-      console.log('📞 [CallProvider] Call cancelled by caller:', data);
-      
       // Only process if this matches our current incoming call
       if (incomingCallData && incomingCallData.from === data.from && incomingCallData.conversationId === data.conversationId) {
         showToast('info', 'Call Cancelled', 'The caller cancelled the call');
@@ -86,7 +79,6 @@ export function CallProvider({ children, socket }: { children: ReactNode; socket
     listenerRegisteredRef.current = true;
 
     return () => {
-      console.log('🧹 [CallProvider] Cleaning up call-incoming listener');
       socket.off('call-incoming', handleIncomingCall);
       socket.off('call-cancelled', handleCallCancelled);
       listenerRegisteredRef.current = false;

@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useGlobalSocket } from '@/contexts/SocketContext';
+import { usePathname } from 'next/navigation';
+
+// Module-level flag to persist across component remounts
+let hasFetchedGlobally = false;
 
 interface MessengerNotification {
   id: string;
@@ -28,9 +32,15 @@ export function MessengerBubble() {
   const { user } = useAuth();
   const { messengerEnabled } = useAppConfig();
   const { subscribe, isConnected } = useGlobalSocket();
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState<MessengerNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isFetchingRef = useRef(false);
+
+  // Public pages that should not trigger messenger fetch
+  const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing'];
+  const isPublicPage = PUBLIC_PAGES.some(page => pathname?.startsWith(page));
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
@@ -50,8 +60,13 @@ export function MessengerBubble() {
     };
   }, [messengerEnabled, user?.id, isConnected, subscribe]);
 
+  // Fetch messenger notifications on mount only - socket handles real-time updates
   useEffect(() => {
-    if (!messengerEnabled || !user?.id) return;
+    if (!messengerEnabled || !user?.id || isPublicPage) return;
+    if (hasFetchedGlobally) return; // Prevent re-fetch on remounts
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    hasFetchedGlobally = true;
 
     const fetchMessengerNotifications = async () => {
       setLoading(true);
@@ -64,15 +79,14 @@ export function MessengerBubble() {
         );
         setNotifications(messengerItems);
       } catch {
+        // Silently handle errors
       } finally {
         setLoading(false);
       }
     };
 
     fetchMessengerNotifications();
-    const interval = setInterval(fetchMessengerNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [messengerEnabled, user?.id]);
+  }, [messengerEnabled, user?.id, isPublicPage]);
 
   const markAsRead = async (id: string) => {
     try {

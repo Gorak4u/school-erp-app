@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMotionValue, useSpring } from 'framer-motion';
 import { Student } from '../types';
@@ -237,6 +237,8 @@ export function useStudentState(activeTab: string = 'students') {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const loadStudentsRef = useRef(false);
+
   const loadStudents = async (
     page = currentPage,
     size = pageSize,
@@ -246,6 +248,9 @@ export function useStudentState(activeTab: string = 'students') {
     gender = selectedGender,
     includeArchived = includeArchivedStudents,
   ) => {
+    if (loadStudentsRef.current) return;
+    loadStudentsRef.current = true;
+    
     setLoading(true);
     try {
       const params: Record<string, string | number> = { page, pageSize: size };
@@ -269,36 +274,21 @@ export function useStudentState(activeTab: string = 'students') {
       console.error('Failed to load students:', err);
     } finally {
       setLoading(false);
+      // Reset guard after a short delay to allow subsequent intentional calls
+      setTimeout(() => { loadStudentsRef.current = false; }, 100);
     }
   };
 
-  // Initial load - only for students tab
-  useEffect(() => { 
-    if (activeTab === 'students') {
-      loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents); 
-    }
-  }, [activeTab]);
-
+  // Single consolidated effect to load students - prevents duplicate API calls
   useEffect(() => {
-    if (activeTab === 'students') {
-      loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
-    }
-  }, [includeArchivedStudents, activeTab]);
-
-  // Reload when filters change (debounced) - only for students tab
-  useEffect(() => {
-    if (activeTab === 'students') {
-      const t = setTimeout(() => loadStudents(1, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents), 300);
-      return () => clearTimeout(t);
-    }
-  }, [searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents, activeTab]);
-
-  // Reload when page or pageSize changes - only for students tab
-  useEffect(() => {
-    if (activeTab === 'students') {
+    if (activeTab !== 'students') return;
+    
+    const t = setTimeout(() => {
       loadStudents(currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents);
-    }
-  }, [currentPage, pageSize, includeArchivedStudents, activeTab]);
+    }, 100);
+    
+    return () => clearTimeout(t);
+  }, [activeTab, currentPage, pageSize, searchTerm, selectedClass, selectedStatus, selectedGender, includeArchivedStudents]);
 
   // Persist visibleColumns to user-specific localStorage
   useEffect(() => {

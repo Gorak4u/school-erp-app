@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/contexts/SchoolConfigContext';
 import { useGlobalSocket } from '@/contexts/SocketContext';
+import { usePathname } from 'next/navigation';
+
+// Module-level flag to persist across component remounts (AppLayout remounts on every page change)
+let hasFetchedGlobally = false;
 
 interface MessengerNotification {
   id: string;
@@ -104,6 +108,7 @@ export function FloatingMessengerBubble() {
   const { user } = useAuth();
   const { messengerEnabled } = useAppConfig();
   const { subscribe, isConnected } = useGlobalSocket();
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState<MessengerNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -114,6 +119,7 @@ export function FloatingMessengerBubble() {
   const [messageInput, setMessageInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isFetchingRef = useRef(false);
   
   // Default position - bottom right (24px from edges)
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -212,8 +218,6 @@ export function FloatingMessengerBubble() {
       return;
     }
 
-    console.log('💬 FloatingMessengerBubble subscribing to global socket');
-
     // Subscribe to message events
     const unsubscribeMessageReceived = subscribe('message:received', (data: any) => {
       // Play sound and show toast for incoming messages
@@ -261,9 +265,17 @@ export function FloatingMessengerBubble() {
     };
   }, [messengerEnabled, user?.id, isConnected, subscribe]);
 
-  // Fetch conversations and notifications
+  // Public pages that should not trigger messenger fetch
+  const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/pricing'];
+  const isPublicPage = PUBLIC_PAGES.some(page => pathname?.startsWith(page));
+
+  // Fetch conversations and notifications - only once per session
   useEffect(() => {
-    if (!messengerEnabled || !user?.id) return;
+    if (!messengerEnabled || !user?.id || isPublicPage) return;
+    if (hasFetchedGlobally) return; // Prevent re-fetch on remounts
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    hasFetchedGlobally = true; // Set global flag
 
     const fetchMessengerData = async () => {
       setLoading(true);
@@ -306,16 +318,14 @@ export function FloatingMessengerBubble() {
         
         setNotifications(messengerNotifications);
       } catch (error) {
-        console.log('Failed to fetch messenger data:', error);
+        // Silently handle errors
       } finally {
         setLoading(false);
       }
     };
 
     fetchMessengerData();
-    const interval = setInterval(fetchMessengerData, 30000);
-    return () => clearInterval(interval);
-  }, [messengerEnabled, user?.id]);
+  }, [messengerEnabled, user?.id, isPublicPage]);
 
   const markAsRead = async (id: string) => {
     try {

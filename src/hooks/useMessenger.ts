@@ -90,8 +90,6 @@ export function useMessenger(conversationId?: string, enabled: boolean = true) {
   useEffect(() => {
     if (!enabled || !user?.id || !isConnected) return;
 
-    console.log('💬 useMessenger subscribing to global socket events');
-
     // Join user room
     joinRoom(user.id);
 

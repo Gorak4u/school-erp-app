@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export type DashboardType = 'students' | 'teachers' | 'fees' | 'expenses' | 'overview';
 export type Period = 'all' | 'today' | 'this_week' | 'this_month' | 'this_year';
@@ -120,14 +120,19 @@ export function useDashboardStats<T extends DashboardStats>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const isFetchingRef = useRef(false);
 
   // Sync internal period state when initialPeriod prop changes
   useEffect(() => {
-    setPeriod(initialPeriod);
+    if (initialPeriod !== period) {
+      setPeriod(initialPeriod);
+    }
   }, [initialPeriod]);
 
   const fetchStats = useCallback(async () => {
-    console.log('useDashboardStats fetching with type:', type, 'period:', period);
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     setLoading(true);
     setError(null);
 
@@ -146,7 +151,6 @@ export function useDashboardStats<T extends DashboardStats>(
       }
 
       const result = await response.json();
-      console.log('useDashboardStats received data:', result);
       
       if (result.success && result.data) {
         setStats(result.data as T);
@@ -159,6 +163,7 @@ export function useDashboardStats<T extends DashboardStats>(
       setStats(null);
     } finally {
       setLoading(false);
+      setTimeout(() => { isFetchingRef.current = false; }, 100);
     }
   }, [type, period]);
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
+import MobileBottomNav from './MobileBottomNav';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -875,6 +876,9 @@ export default function AppLayout({
 
       {/* Floating Messenger Bubble - draggable, stays on top of all pages */}
       {isClient && <FloatingMessengerBubble />}
+
+      {/* Mobile Bottom Navigation - only visible on mobile */}
+      {isClient && <MobileBottomNav />}
     </div>
   );
 }

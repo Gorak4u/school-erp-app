@@ -128,17 +128,6 @@ async function getStudentStats(schoolId: string, period: Period) {
     `
   ]);
 
-  // Debug logging
-  console.log('Dashboard Stats Debug:', {
-    schoolId,
-    period,
-    totalResult,
-    activeResult,
-    newThisMonth,
-    attendanceData: attendanceData[0],
-    feesData: feesData[0]
-  });
-
   // Get class distribution
   const classDistribution = await (schoolPrisma as any).$queryRaw`
     SELECT class, COUNT(*) as count
@@ -149,15 +138,20 @@ async function getStudentStats(schoolId: string, period: Period) {
   `;
 
   // Get real pending approvals - ACCURATE counts with indexed queries
-  const pendingApprovalsData = await (schoolPrisma as any).$queryRaw`
-    SELECT 
-      (SELECT COUNT(*) FROM "school"."DiscountRequest" WHERE status = 'pending' AND "schoolId" = ${schoolId}) as discount_requests,
-      (SELECT COUNT(*) FROM "school"."FeeArrears" WHERE status = 'pending' AND "schoolId" = ${schoolId}) as fee_arrears,
-      (SELECT COUNT(*) FROM "school"."LeaveApplication" WHERE status = 'pending' AND "schoolId" = ${schoolId}) as leave_applications,
-      (SELECT COUNT(*) FROM "school"."FineWaiverRequest" WHERE status = 'pending' AND "schoolId" = ${schoolId}) as fine_waivers
-  `;
-
-  const totalPendingApprovals = Object.values(pendingApprovalsData[0] || {}).reduce((sum: number, count: any) => sum + (Number(count) || 0), 0);
+  // Use individual queries with try/catch to prevent 500 errors if a table doesn't exist
+  let totalPendingApprovals = 0;
+  try {
+    const [discountRequests, feeArrears, leaveApplications, fineWaivers] = await Promise.all([
+      (schoolPrisma as any).DiscountRequest.count({ where: { schoolId, status: 'pending' } }).catch(() => 0),
+      (schoolPrisma as any).FeeArrears.count({ where: { schoolId, status: 'pending' } }).catch(() => 0),
+      (schoolPrisma as any).LeaveApplication.count({ where: { schoolId, status: 'pending' } }).catch(() => 0),
+      (schoolPrisma as any).FineWaiverRequest.count({ where: { schoolId, status: 'pending' } }).catch(() => 0),
+    ]);
+    totalPendingApprovals = discountRequests + feeArrears + leaveApplications + fineWaivers;
+  } catch (err) {
+    console.error('Error fetching pending approvals:', err);
+    totalPendingApprovals = 0;
+  }
 
   return {
     totalStudents: totalResult,

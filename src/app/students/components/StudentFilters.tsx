@@ -134,9 +134,13 @@ export default function StudentFilters({
   
   // Debounce timeout ref for search
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFetchingRef = useRef(false);
 
   // Fetch classes and mediums from API
   useEffect(() => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     const fetchSchoolStructure = async () => {
       setLoadingData(true);
       try {
@@ -160,6 +164,7 @@ export default function StudentFilters({
         setMediumsData(dropdowns.mediums || []);
       } finally {
         setLoadingData(false);
+        setTimeout(() => { isFetchingRef.current = false; }, 100);
       }
     };
 

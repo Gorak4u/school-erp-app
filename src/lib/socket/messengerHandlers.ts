@@ -88,6 +88,6 @@ export function registerMessengerHandlers(io: SocketIOServer, socket: Socket & {
   });
 
   socket.on('disconnect', () => {
-    logger.info('Messenger user disconnected', { userId });
+    // Messenger user disconnected
   });
 }

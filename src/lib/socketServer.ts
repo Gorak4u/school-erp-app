@@ -13,11 +13,8 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
   });
 
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-
     // Simple ping/pong for connection testing
     socket.on('ping', (data: any, callback?: Function) => {
-      console.log('🏓 Ping received from:', socket.id, 'data:', data);
       if (callback && typeof callback === 'function') {
         callback({ pong: true, timestamp: Date.now(), socketId: socket.id, received: data });
       }
@@ -25,12 +22,8 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
 
     // Join user-specific room
     socket.on('join', (userId: string, callback?: Function) => {
-      console.log('👤 User joining room:', userId, 'Socket:', socket.id);
-      console.log('🏠 Available rooms before join:', Array.from(socket.rooms));
       socket.join(`user:${userId}`);
       socket.data = { ...socket.data, userId };
-      console.log(`✅ User ${userId} joined their room: user:${userId}`);
-      console.log('🏠 Socket rooms after join:', Array.from(socket.rooms));
       
       // Send acknowledgment if callback provided
       if (callback && typeof callback === 'function') {
@@ -41,33 +34,27 @@ export function initSocketServer(server: HTTPServer): SocketIOServer {
       try {
         const { registerMessengerHandlers } = require('./socket/messengerHandlers');
         registerMessengerHandlers(io, socket);
-        console.log('✅ Messenger handlers registered for user:', userId);
       } catch (error) {
-        console.error('❌ Error registering messenger handlers:', error);
+        console.error('Error registering messenger handlers:', error);
       }
       
       // Register call handlers for voice/video calling
       try {
         const { registerCallHandlers } = require('./socket/callHandlers');
-        console.log('🔧 Registering call handlers for socket:', socket.id);
         registerCallHandlers(io, socket);
-        console.log('✅ Call handlers registered for user:', userId);
       } catch (error) {
-        console.error('❌ Error registering call handlers:', error);
+        console.error('Error registering call handlers:', error);
       }
-      
-      console.log('🔧 All handlers registered for user:', userId);
     });
 
     // Join school-specific room
     socket.on('joinSchool', (schoolId: string) => {
       socket.join(`school:${schoolId}`);
       socket.data = { ...socket.data, schoolId };
-      console.log(`School ${schoolId} joined`);
     });
 
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
+      // Client disconnected
     });
   });
 
