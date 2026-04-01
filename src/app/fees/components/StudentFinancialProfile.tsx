@@ -772,7 +772,7 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
         >
           {/* Payment History Summary Stats */}
           {paymentHistoryData?.summary && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Total Payments</p>
                 <p className={`text-2xl font-bold ${textPrimary}`}>{paymentHistoryData.summary.totalPayments}</p>
@@ -784,9 +784,22 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Pending</p>
                 <p className={`text-2xl font-bold text-orange-600`}>
-                  ₹{((apiData?.totalFees || 0) - (apiData?.totalPaid || 0) - (apiData?.totalDiscount || 0) + finesStats.totalFinesPending).toLocaleString()}
+                  ₹{(totalPendingIncludingFines).toLocaleString()}
                 </p>
               </div>
+              {/* Show Waived card if there are waived amounts */}
+              {(totalWaivedAmount > 0 || finesStats.totalFinesWaived > 0) && (
+                <div className={`p-4 rounded-lg border ${cardCls}`}>
+                  <p className={`text-sm ${textSecondary}`}>Waived</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    ₹{(totalWaivedAmount + finesStats.totalFinesWaived).toLocaleString()}
+                  </p>
+                  <div className={`text-xs ${textSecondary}`}>
+                    {totalWaivedAmount > 0 && <span>Transport: ₹{totalWaivedAmount.toLocaleString()}</span>}
+                    {finesStats.totalFinesWaived > 0 && <span className="ml-2">Fines: ₹{finesStats.totalFinesWaived.toLocaleString()}</span>}
+                  </div>
+                </div>
+              )}
               <div className={`p-4 rounded-lg border ${cardCls}`}>
                 <p className={`text-sm ${textSecondary}`}>Payment Days</p>
                 <p className={`text-2xl font-bold ${textPrimary}`}>{paymentHistoryData.summary.paymentDays}</p>
@@ -930,6 +943,76 @@ export default function StudentFinancialProfile({ theme, onClose, studentId, stu
                               {new Date(entry.paymentDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Waived Transport Fees */}
+                    {feeRecords.filter((r: any) => r.feeStructure?.category === 'transport' && (r.discount || 0) > 0).map((record: any, i: number) => (
+                      <tr key={`waived-transport-${record.id}`} className={`${isDark ? 'bg-purple-900/20' : 'bg-purple-50'} hover:${isDark ? 'bg-purple-800/30' : 'bg-purple-100/50'} transition-colors`}>
+                        <td className="px-4 py-3">
+                          <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                            WAIVED
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${textPrimary}`}>
+                          {record.feeStructure?.name || 'Transport Fee'}
+                          <span className={`block text-xs ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>Waived Off</span>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>{record.academicYear || '-'}</td>
+                        <td className={`px-4 py-3 font-semibold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                          ₹{(record.discount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs rounded-full ${isDark ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                            Waiver
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>
+                          <div className="flex items-center gap-1">
+                            <span>🏷️</span>
+                            <span>System</span>
+                          </div>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary} text-xs`}>
+                          {record.updatedAt
+                            ? new Date(record.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Waived Fines */}
+                    {fines.filter((f: any) => (f.waivedAmount || 0) > 0).map((fine: any, i: number) => (
+                      <tr key={`waived-fine-${fine.id}`} className={`${isDark ? 'bg-orange-900/20' : 'bg-orange-50'} hover:${isDark ? 'bg-orange-800/30' : 'bg-orange-100/50'} transition-colors`}>
+                        <td className="px-4 py-3">
+                          <span className={`font-mono text-xs px-2 py-1 rounded ${isDark ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-100 text-orange-700'}`}>
+                            WAIVED
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${textPrimary}`}>
+                          {fine.reason || 'Fine'}
+                          <span className={`block text-xs ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>Fine Waived</span>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>{fine.academicYear || '-'}</td>
+                        <td className={`px-4 py-3 font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                          ₹{(fine.waivedAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs rounded-full ${isDark ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-100 text-orange-700'}`}>
+                            Waiver
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary}`}>
+                          <div className="flex items-center gap-1">
+                            <span>🏷️</span>
+                            <span>System</span>
+                          </div>
+                        </td>
+                        <td className={`px-4 py-3 ${textSecondary} text-xs`}>
+                          {fine.waivedDate
+                            ? new Date(fine.waivedDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : fine.imposedDate
+                              ? new Date(fine.imposedDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : '-'}
                         </td>
                       </tr>
                     ))}
