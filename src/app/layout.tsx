@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SchoolConfigProvider } from "@/contexts/SchoolConfigContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { SocketProvider } from "@/contexts/SocketContext";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Toast from "@/components/Toast";
 import { TemplateInitializer } from "@/components/TemplateInitializer";
@@ -49,8 +50,10 @@ export default function RootLayout({
               <NotificationProvider>
                 <SocketProvider>
                   <CallProviderWrapper>
-                    <CallNotifications />
-                    {children}
+                    <ProfileProvider>
+                      <CallNotifications />
+                      {children}
+                    </ProfileProvider>
                   </CallProviderWrapper>
                 </SocketProvider>
               </NotificationProvider>

@@ -246,8 +246,8 @@ export function useStudentState(activeTab: string = 'students') {
     gender = selectedGender,
     includeArchived = includeArchivedStudents,
   ) => {
+    setLoading(true);
     try {
-      setLoading(true);
       const params: Record<string, string | number> = { page, pageSize: size };
       if (search) params.search = search;
       

@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import NavigationSidebar from './NavigationSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/contexts/ProfileContext';
 import { smartLogoutRedirect } from '@/lib/subdomain-redirect';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -40,6 +41,7 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const { theme: globalTheme, setTheme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { profileData } = useProfile();
   const { messengerEnabled } = useAppConfig();
   const { pendingCount, approvals, showToast, dismissToast } = useNotifications();
   const [isClient, setIsClient] = useState(false);
@@ -452,15 +454,18 @@ export default function AppLayout({
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
-                      {user?.avatar ? (
+                      {profileData?.avatar ? (
                         <img 
-                          src={user.avatar} 
+                          src={profileData.avatar} 
                           alt="Profile" 
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
                       ) : (
                         <span className="text-white text-sm font-bold">
-                          {user ? (user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase() : 'U'}
+                          {(profileData?.firstName?.[0] || user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                         </span>
                       )}
                     </div>
@@ -485,12 +490,12 @@ export default function AppLayout({
                     <div className={`text-sm font-semibold ${
                       globalTheme === 'dark' ? 'text-white' : 'text-gray-900'
                     }`}>
-                      {user?.firstName} {user?.lastName}
+                      {profileData?.firstName || user?.firstName} {profileData?.lastName || user?.lastName}
                     </div>
                     <div className={`text-xs ${
                       globalTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                     }`}>
-                      {user?.role}
+                      {profileData?.role || user?.role}
                     </div>
                   </div>
                   

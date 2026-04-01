@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -142,7 +142,7 @@ const STUDENT_TABS = [
   }
 ];
 
-export default function StudentsPageRefactored() {
+function StudentsPageWithParams() {
   const { theme } = useTheme();
   const { hasPermission, isAdmin } = usePermissions();
   const { getSetting } = useSchoolConfig();
@@ -225,6 +225,40 @@ export default function StudentsPageRefactored() {
       }
     }
   }, [searchParams, state.students, state.setSelectedStudent, router]);
+
+  // Handle search query parameter
+  useEffect(() => {
+    const searchQuery = searchParams.get('search');
+    if (searchQuery) {
+      // Set active tab to students when searching
+      setActiveTab('students');
+      
+      // Set the search term and enable advanced search
+      if (state.setSearchTerm) {
+        state.setSearchTerm(searchQuery);
+      }
+      if (state.setAdvancedSearch) {
+        state.setAdvancedSearch({
+          enabled: true,
+          query: searchQuery,
+          fuzzyThreshold: 0.7,
+          searchFields: ['name', 'fatherName', 'motherName', 'rollNo', 'city', 'state', 'pinCode'],
+          recommendations: [],
+          searchHistory: [],
+          isSearching: false,
+          searchAnalytics: {
+            totalSearches: 0,
+            averageResults: 0,
+            popularQueries: []
+          }
+        });
+      }
+      // Manually trigger loadStudents to ensure search is applied
+      if (state.loadStudents) {
+        state.loadStudents(1, 25, searchQuery, 'all', 'all', 'all', false);
+      }
+    }
+  }, [searchParams]);
   
   // Create context with school config
   const ctx: StudentContext = { ...state, getSetting };
@@ -982,6 +1016,21 @@ export default function StudentsPageRefactored() {
         engine={StudentSearchEngine.getInstance()} 
       />
     </AppLayout>
+  );
+}
+
+// Export with Suspense wrapper
+export default function StudentsPageRefactored() {
+  return (
+    <Suspense fallback={
+      <AppLayout currentPage="students">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </AppLayout>
+    }>
+      <StudentsPageWithParams />
+    </Suspense>
   );
 }
 

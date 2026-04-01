@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
             id: student.id,
             title: student.name,
             subtitle: `${student.class} - ${student.section} • Roll: ${student.rollNo}`,
-            url: `/students?student=${student.id}`,
+            url: `/students?search=${encodeURIComponent(student.name)}`,
             metadata: {
               email: student.email,
               admissionNo: student.admissionNo,

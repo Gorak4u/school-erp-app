@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useSession } from 'next-auth/react';
 import { 
   User, 
@@ -37,47 +38,18 @@ import {
 export default function ProfilePage() {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { profileData, loading, updateProfile } = useProfile();
   const { update } = useSession();
   
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editMode, setEditMode] = useState(false);
-  const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
-
-  // Load profile data from API
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (profileLoaded) return; // Prevent multiple calls
-      
-      try {
-        const res = await fetch('/api/profile');
-        if (res.ok) {
-          const data = await res.json();
-          setProfileData(data.user);
-          setProfileLoaded(true);
-        } else {
-          console.error('Failed to load profile:', res.status);
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user?.id) {
-      loadProfile();
-    } else {
-      setLoading(false);
-    }
-  }, [user?.id, profileLoaded]);
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    firstName: profileData?.firstName || (user as any)?.firstName || (user as any)?.name?.split(' ')[0] || '',
-    lastName: profileData?.lastName || (user as any)?.lastName || (user as any)?.name?.split(' ').slice(1).join(' ') || '',
+    firstName: profileData?.firstName || user?.firstName || '',
+    lastName: profileData?.lastName || user?.lastName || '',
     email: profileData?.email || user?.email || ''
   });
 
@@ -89,7 +61,6 @@ export default function ProfilePage() {
         lastName: profileData.lastName || '',
         email: profileData.email || ''
       });
-      setProfileImage(profileData.avatar || '');
     }
   }, [profileData]);
 
@@ -160,25 +131,26 @@ export default function ProfilePage() {
       
       if (res.ok) {
         const data = await res.json();
-        setProfileData(data.user); // Update local state with new data
+        updateProfile(data.user); // Update ProfileContext
         
         // Update session to reflect changes in header
-        await update({
-          ...user,
-          firstName: data.user.firstName,
-          lastName: data.user.lastName,
-          avatar: data.user.avatar,
-        });
+        try {
+          await update({
+            ...user,
+            firstName: data.user.firstName,
+            lastName: data.user.lastName,
+            avatar: data.user.avatar,
+          });
+        } catch (sessionError) {
+        }
         
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
         setEditMode(false);
       } else {
         const data = await res.json();
-        console.error('Failed to update profile:', data.error);
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
     }
   };
 
@@ -213,22 +185,23 @@ export default function ProfilePage() {
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setProfileImage(uploadData.url);
-          setProfileData(profileData.user);
+          updateProfile(profileData.user); // Update ProfileContext
           
           // Update session to reflect new avatar in header
-          await update({
-            ...user,
-            avatar: uploadData.url,
-          });
+          try {
+            await update({
+              ...user,
+              avatar: uploadData.url,
+            });
+          } catch (sessionError) {
+          }
           
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         }
       } else {
-        console.error('Upload failed');
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
     } finally {
       setUploading(false);
     }
