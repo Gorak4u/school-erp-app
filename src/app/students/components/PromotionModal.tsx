@@ -118,6 +118,12 @@ export default function PromotionModal({
     if (!form.toClass || !form.toAcademicYear) return;
     if (sections.length > 0 && !form.toSection) return;
     
+    // Validate: Prevent promotion to same academic year
+    if (activeAcademicYear && form.toAcademicYear === activeAcademicYear.year) {
+      alert('Cannot promote to the same academic year. Please select a different target academic year.');
+      return;
+    }
+    
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -258,14 +264,26 @@ export default function PromotionModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>Target Academic Year *</label>
-                      <select className={inputCls} value={form.toAcademicYear} onChange={e => setForm(f => ({ ...f, toAcademicYear: e.target.value }))}>
+                      <select 
+                        className={inputCls} 
+                        value={form.toAcademicYear} 
+                        onChange={e => setForm(f => ({ ...f, toAcademicYear: e.target.value }))}
+                      >
                         <option value="">Select Year</option>
-                        {academicYears.map(ay => (
-                          <option key={ay.id} value={ay.year} style={{ fontWeight: ay.isActive ? 'bold' : 'normal', color: ay.isActive ? (isDark ? '#60a5fa' : '#2563eb') : undefined }}>
-                            {ay.name || ay.year} {ay.isActive ? '✓ Active' : ''}
-                          </option>
-                        ))}
+                        {academicYears
+                          .filter(ay => ay.isActive && ay.year !== activeAcademicYear?.year) // Only show active AY except current
+                          .map(ay => (
+                            <option key={ay.id} value={ay.year}>
+                              {ay.name || ay.year} {ay.isActive ? '✓ Active' : ''}
+                            </option>
+                          ))
+                        }
                       </select>
+                      {academicYears.filter(ay => !ay.isActive || ay.year === activeAcademicYear?.year).length > 0 && (
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Only other active academic years can be selected for promotion
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className={labelCls}>Promotion Type</label>
@@ -286,7 +304,11 @@ export default function PromotionModal({
                         disabled={form.promotionType === 'detained'}
                       >
                         <option value="">Select Class</option>
-                        {classes.filter(c => c.isActive).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {classes.filter(c => c.isActive).map(c => (
+                          <option key={c.id} value={c.name}>
+                            {c.name} {c.medium?.name ? `(${c.medium.name})` : ''}
+                          </option>
+                        ))}
                       </select>
                       {form.promotionType === 'detained' && (
                         <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>

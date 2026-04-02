@@ -482,6 +482,19 @@ export async function POST(request: NextRequest) {
       if (!toClass || !toAcademicYear) {
         return NextResponse.json({ error: 'toClass and toAcademicYear are required for promote action' }, { status: 400 });
       }
+      
+      // Validate: Prevent promotion to same academic year
+      const activeAcademicYear = await (schoolPrisma as any).academicYear.findFirst({
+        where: { isActive: true, schoolId: ctx.schoolId },
+        select: { year: true }
+      });
+      
+      if (activeAcademicYear && toAcademicYear === activeAcademicYear.year) {
+        return NextResponse.json({ 
+          error: 'Cannot promote to the same academic year', 
+          message: `Target academic year (${toAcademicYear}) cannot be the same as the current active academic year. Please select a different target year.` 
+        }, { status: 400 });
+      }
     }
 
     // Validate target academic year exists (only for promote)
