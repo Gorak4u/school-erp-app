@@ -10,7 +10,8 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
   errors,
   theme,
   getInputClass,
-  getTextClass
+  getTextClass,
+  readOnly = false
 }) => {
   const isDark = theme === 'dark';
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -308,7 +309,8 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             options: transformedBoards,
             required: true,
             onChange: handleBoardChange,
-            icon: School
+            icon: School,
+            disabled: readOnly
           }, 1, 0)}
           {renderField({
             name: 'mediumId',
@@ -316,7 +318,7 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             type: 'select',
             placeholder: 'Select Medium',
             options: filteredMediums,
-            disabled: !formData.boardId,
+            disabled: readOnly || (!formData.boardId && !formData.mediumId),
             onChange: handleMediumChange,
             icon: BookOpen
           }, 1, 1)}
@@ -342,7 +344,7 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             type: 'select',
             placeholder: 'Select Class',
             options: filteredClasses,
-            disabled: !formData.mediumId,
+            disabled: readOnly || !formData.mediumId,
             onChange: handleClassChange,
             icon: Target
           }, 2, 0)}
@@ -352,7 +354,7 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             type: 'select',
             placeholder: 'Select Section',
             options: filteredSections,
-            disabled: !formData.classId,
+            disabled: readOnly || !formData.classId,
             onChange: handleSectionChange,
             icon: Trophy
           }, 2, 1)}
@@ -377,7 +379,8 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             label: 'Roll Number',
             type: 'text',
             placeholder: 'Assign roll number',
-            icon: Award
+            icon: Award,
+            disabled: readOnly
           }, 3, 0)}
         </div>
       </div>
@@ -400,7 +403,8 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             label: 'Previous School',
             type: 'text',
             placeholder: 'Previous school name',
-            icon: School
+            icon: School,
+            disabled: readOnly
           }, 4, 0)}
         </div>
       </div>
@@ -423,7 +427,8 @@ const AcademicInfoTab: React.FC<TabComponentProps> = ({
             label: 'Previous Class',
             type: 'text',
             placeholder: 'Previous class/grade',
-            icon: Target
+            icon: Target,
+            disabled: readOnly
           }, 5, 0)}
         </div>
       </div>

@@ -26,6 +26,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
   applicableFeeStructures,
   // Helpers
   fmtCurrency,
+  readOnly = false,
 }) => {
   const isDark = theme === 'dark';
   const input = getInputClass();
@@ -204,7 +205,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
               type="checkbox"
               className="sr-only"
               checked={discountData?.hasDiscount || false}
-              onChange={e => handleDiscountToggle(e.target.checked)}
+              onChange={e => !readOnly && handleDiscountToggle(e.target.checked)}
             />
             <motion.div
               animate={{ backgroundColor: discountData?.hasDiscount ? '#10b981' : isDark ? '#4b5563' : '#d1d5db' }}
@@ -251,7 +252,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                 placeholder: 'Select category',
                 options: feeCategories.map(cat => ({ value: cat, label: cat })),
                 value: discountData?.discountCategory || '',
-                onChange: (value) => setDiscountData({ ...discountData, discountCategory: value }),
+                onChange: readOnly ? () => {} : (value) => setDiscountData({ ...discountData, discountCategory: value }),
                 icon: Target
               }, 0, 0)}
 
@@ -267,7 +268,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                     type="button"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setDiscountData({ 
+                    onClick={readOnly ? () => {} : () => setDiscountData({ 
                       ...discountData, 
                       discountType: opt.value as any, 
                       discountValue: 0 
@@ -292,7 +293,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                 min: 0,
                 max: (discountData?.discountType || 'percentage') === 'percentage' ? 100 : feeCalcs.baseTotal,
                 value: discountData?.discountValue || 0,
-                onChange: (value) => setDiscountData({ ...discountData, discountValue: Number(value) }),
+                onChange: readOnly ? () => {} : (value) => setDiscountData({ ...discountData, discountValue: Number(value) }),
                 icon: Calculator
               }, 0, 1)}
 
@@ -303,7 +304,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                 type: 'number',
                 placeholder: 'Maximum discount amount',
                 value: discountData?.maxCapAmount || 0,
-                onChange: (value) => setDiscountData({ ...discountData, maxCapAmount: value }),
+                onChange: readOnly ? () => {} : (value) => setDiscountData({ ...discountData, maxCapAmount: value }),
                 icon: Shield
               }, 0, 2)}
 
@@ -316,7 +317,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                 required: true,
                 rows: 2,
                 value: discountData?.reason || '',
-                onChange: (value) => setDiscountData({ ...discountData, reason: value }),
+                onChange: readOnly ? () => {} : (value) => setDiscountData({ ...discountData, reason: value }),
                 icon: Award
               }, 0, 3)}
 
@@ -366,7 +367,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                 type="checkbox"
                 className="sr-only"
                 checked={transportDiscount?.hasDiscount || false}
-                onChange={e => handleTransportDiscountToggle(e.target.checked)}
+                onChange={e => !readOnly && handleTransportDiscountToggle(e.target.checked)}
               />
               <motion.div
                 animate={{ backgroundColor: transportDiscount?.hasDiscount ? '#10b981' : isDark ? '#4b5563' : '#d1d5db' }}
@@ -408,7 +409,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                       type="button"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setTransportDiscount({ 
+                      onClick={readOnly ? () => {} : () => setTransportDiscount({ 
                         ...transportDiscount, 
                         discountType: opt.value as any, 
                         discountValue: 0 
@@ -433,7 +434,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                   min: 0,
                   max: transportDiscount.discountType === 'percentage' ? 100 : transportFeeCalcs.baseAnnual,
                   value: transportDiscount.discountValue,
-                  onChange: (value) => setTransportDiscount({ ...transportDiscount, discountValue: Number(value) }),
+                  onChange: readOnly ? () => {} : (value) => setTransportDiscount({ ...transportDiscount, discountValue: Number(value) }),
                   icon: Calculator
                 }, 0, 0)}
 
@@ -446,7 +447,7 @@ const DiscountTab: React.FC<FeesTabProps> = ({
                   required: true,
                   rows: 2,
                   value: transportDiscount.reason,
-                  onChange: (value) => setTransportDiscount({ ...transportDiscount, reason: value }),
+                  onChange: readOnly ? () => {} : (value) => setTransportDiscount({ ...transportDiscount, reason: value }),
                   icon: Award
                 }, 0, 1)}
               </motion.div>

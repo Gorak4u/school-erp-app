@@ -7,6 +7,7 @@ import {
   setJobEnabled,
   setJobSchedule,
   initializeCronScheduler,
+  seedDefaultConfigs,
 } from '@/lib/cronScheduler';
 import { isCronAuthorizationHeaderValid } from '@/lib/cron/route-helpers';
 
@@ -67,6 +68,12 @@ export async function POST(request: NextRequest) {
         }
         const status = await getCronStatus();
         return NextResponse.json({ success: true, message: 'Scheduler initialized', ...status });
+      }
+
+      case 'seed-defaults': {
+        await seedDefaultConfigs();
+        const status = await getCronStatus();
+        return NextResponse.json({ success: true, message: 'Default cron jobs seeded', ...status });
       }
 
       case 'trigger': {

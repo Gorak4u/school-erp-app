@@ -781,7 +781,7 @@ export function createSearchHandlers(ctx: any) {
   };
 
   const handleEditStudent = async (studentData: Partial<Student>) => {
-    if (!editingStudent?.id) return;
+    if (!editingStudent?.id) return null;
     try {
       const { studentsApi } = await import('@/lib/apiClient');
       const result = await studentsApi.update(editingStudent.id, studentData);
@@ -796,7 +796,9 @@ export function createSearchHandlers(ctx: any) {
             duration: 3000
           });
         }
+        return result; // Return the result so the form knows it succeeded
       }
+      return null;
     } catch (err: any) {
       console.error('Failed to update student:', err);
       
@@ -811,7 +813,7 @@ export function createSearchHandlers(ctx: any) {
             duration: 6000
           });
         }
-        return;
+        return null;
       }
 
       let errorMessage = 'Something went wrong';
@@ -829,6 +831,7 @@ export function createSearchHandlers(ctx: any) {
           duration: 3000
         });
       }
+      return null;
     }
   };
 

@@ -71,6 +71,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     rollNumber: student?.rollNumber || '',
     mediumId: student?.mediumId || '',
     boardId: student?.boardId || '',
+    board: student?.board || '',
     languageMedium: student?.languageMedium || '',
     previousSchool: student?.previousSchool || '',
     previousClass: student?.previousClass || '',
@@ -256,6 +257,28 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
   const { errors, setErrors, validateForm } = useFormValidation();
   const { subscriptionSummary, limitReached, planError, usagePercent, seatsRemaining, studentsUsed, maxStudents } = useSubscriptionLimits();
   const { mediums, classes, sections, dropdowns, activeAcademicYear, getSetting } = useSchoolConfig();
+
+  // Match IDs from names when school config is available (for edit mode)
+  useEffect(() => {
+    if (!student) return;
+    if (!mediums?.length && !classes?.length) return; // Wait for config
+    
+    // Lookup IDs from names (Student model stores names, form needs IDs)
+    const matchedMedium = mediums?.find((m: any) => m.name === student.languageMedium || m.name === student.medium);
+    const matchedClass = classes?.find((c: any) => c.name === student.class);
+    const matchedSection = sections?.find((s: any) => s.name === student.section);
+    const matchedBoard = dropdowns?.boards?.find((b: any) => b.name === student.board || b.code === student.board);
+    
+    if (matchedMedium || matchedClass || matchedSection || matchedBoard) {
+      setFormData(prev => ({
+        ...prev,
+        classId: matchedClass?.id || prev.classId,
+        sectionId: matchedSection?.id || prev.sectionId,
+        mediumId: matchedMedium?.id || prev.mediumId,
+        boardId: matchedBoard?.id || prev.boardId,
+      }));
+    }
+  }, [student, mediums, classes, sections, dropdowns?.boards]);
 
   // Load fee structures when class changes
   useEffect(() => {
@@ -876,38 +899,91 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     };
 
     // Use the exact same submission logic as old StudentForm
+    // For EDIT mode (student exists): only submit changed student data, no fees/transport/discounts
+    // For ADD mode: include all data and fees/transport/discounts as needed
     const payload = buildPreviewPayload();
+    const isEditMode = !!student;
+    
+    // For edit mode: only send fields that have changed from original student data
+    let dataToSubmit: any = { ...oldFormData, _admissionFlowHandled: true };
+    
+    if (isEditMode && student) {
+      // Only include fields that have changed to non-empty values
+      // Don't overwrite existing data with empty form values
+      const changedFields: any = { _admissionFlowHandled: true };
+      
+      // Helper to check if a value is "empty" (null, undefined, or empty string)
+      const isEmpty = (val: any) => val === '' || val === null || val === undefined;
+      
+      // Compare each field and only include if changed to a meaningful value
+      Object.keys(oldFormData).forEach((key) => {
+        const formValue = (oldFormData as any)[key];
+        const originalValue = (student as any)[key];
+        
+        // Check if values are meaningfully different
+        // Treat null, undefined, and empty string as equivalent (all mean "no value")
+        const formEmpty = isEmpty(formValue);
+        const originalEmpty = isEmpty(originalValue);
+        
+        if (formEmpty && originalEmpty) {
+          // Both empty - no change, don't include
+          return;
+        }
+        
+        if (!formEmpty && !originalEmpty && formValue === originalValue) {
+          // Both have same non-empty value - no change, don't include
+          return;
+        }
+        
+        if (!formEmpty && formValue !== originalValue) {
+          // Form has a new non-empty value that's different - include it
+          // This also covers: form has value, original was empty
+          changedFields[key] = formValue;
+        } else if (formEmpty && !originalEmpty) {
+          // Form is empty but original had a value - user cleared it, include empty
+          changedFields[key] = formValue;
+        }
+        // If both empty OR both same value - already handled above, don't include
+      });
+      
+      // Always include the student ID
+      if (student.id) changedFields.id = student.id;
+      
+      dataToSubmit = changedFields;
+    }
+    
     const result = await onSubmit({
-      ...oldFormData,
-      _admissionFlowHandled: true,
-      _admissionPreview: {
-        previewDocumentHtml: payload.previewDocumentHtml,
-        previewSummary: payload.summary,
-        idCardData: payload.idCardData,
-        idCardHtml: payload.idCardHtml,
-      },
-      ...(discountData.hasDiscount && {
-        _discountInfo: { 
-          ...discountData,
-          ...(discountData.discountType === 'full_waiver' && {
-            discountValue: 100
-          }),
-          feeStructureIds: selectedDiscountFeeIds 
+      ...dataToSubmit,
+      ...(isEditMode ? {} : {
+        _admissionPreview: {
+          previewDocumentHtml: payload.previewDocumentHtml,
+          previewSummary: payload.summary,
+          idCardData: payload.idCardData,
+          idCardHtml: payload.idCardHtml,
         },
-      }),
-      ...(transportInfo.routeId && {
-        _transportInfo: {
-          ...transportInfo,
-          annualFee: transportFeeCalcs.baseAnnual,
-          ...(transportDiscount.hasDiscount && {
-            discountInfo: {
-              ...transportDiscount,
-              ...(transportDiscount.discountType === 'full_waiver' && {
-                discountValue: 100
-              })
-            },
-          }),
-        },
+        ...(discountData.hasDiscount && {
+          _discountInfo: { 
+            ...discountData,
+            ...(discountData.discountType === 'full_waiver' && {
+              discountValue: 100
+            }),
+            feeStructureIds: selectedDiscountFeeIds 
+          },
+        }),
+        ...(transportInfo.routeId && {
+          _transportInfo: {
+            ...transportInfo,
+            annualFee: transportFeeCalcs.baseAnnual,
+            ...(transportDiscount.hasDiscount && {
+              discountInfo: {
+                ...transportDiscount,
+                ...(transportDiscount.discountType === 'full_waiver' && {
+                  discountValue: 100
+                })
+              },
+            }),
+          },
+        }),
       }),
     } as any);
     
@@ -922,10 +998,26 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     setLastAutoSaveAt(null);
     setIsSubmitting(true);
     try {
+      // Check if we're in edit mode (student prop exists)
+      const isEditMode = !!student;
+      
       // Use the old StudentForm submission logic directly
       const result = await useOldStudentFormSubmission(formData);
       
-      const created = result as any;
+      // For edit mode: just close the form on success
+      if (isEditMode) {
+        // Check if result has student property (success) or is null/undefined (failure)
+        const hasStudent = result && (result as any).student;
+        if (!hasStudent) {
+          throw new Error('Student update failed');
+        }
+        showToast('success', 'Student Updated', 'Student information has been updated successfully.');
+        onCancel(); // Close the form
+        return;
+      }
+      
+      // For add mode: show ID card and preview
+      const created = (result as any)?.student || result as any;
       if (!created) {
         throw new Error('Student creation did not return a student record');
       }
@@ -958,6 +1050,8 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
     selectedDiscountFeeIds,
     transportInfo,
     validateBeforeSubmit,
+    student,
+    onCancel,
   ]);
 
   // Handle form submission
@@ -1266,6 +1360,8 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
                     getInputClass,
                     getBtnClass,
                     getTextClass,
+                    // Read-only for specific tabs when editing
+                    readOnly: student ? ['academic', 'transport', 'discount', 'feeSummary'].includes(activeTab) : false,
                   })}
                 </div>
               </motion.div>

@@ -149,6 +149,7 @@ export interface TabComponentProps {
   theme: string;
   getInputClass: () => string;
   getTextClass: (type?: 'primary' | 'secondary' | 'muted' | 'accent') => string;
+  readOnly?: boolean;
 }
 
 // Extended props for FeesTab to receive state from parent

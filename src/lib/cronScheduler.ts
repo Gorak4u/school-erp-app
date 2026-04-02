@@ -136,7 +136,7 @@ function isDatabaseConnectivityError(error: any) {
   );
 }
 
-async function seedDefaultConfigs() {
+export async function seedDefaultConfigs() {
   for (const job of DEFAULT_JOBS) {
     await db().cronJobConfig.upsert({
       where: { jobName: job.jobName },
@@ -145,7 +145,7 @@ async function seedDefaultConfigs() {
         category: job.category,
         description: job.description,
       },
-      create: job,
+      create: { ...job, isActive: true },
     });
   }
 }

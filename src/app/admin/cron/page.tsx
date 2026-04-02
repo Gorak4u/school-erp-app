@@ -73,6 +73,7 @@ export default function CronManagementPage() {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [editSchedule, setEditSchedule] = useState<{ jobName: string; value: string } | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   // ─── Theme shortcuts ──────────────────────────────────────────────────────
@@ -146,6 +147,23 @@ export default function CronManagementPage() {
     setActioning(null);
   };
 
+  const seedDefaults = async () => {
+    setSeeding(true);
+    try {
+      const result = await apiPost({ action: 'seed-defaults' });
+      if (result.success) {
+        showToast(result.message || 'Default cron jobs seeded', true);
+        await fetchStatus();
+      } else {
+        showToast(result.error || 'Failed to seed defaults', false);
+      }
+    } catch {
+      showToast('Failed to seed default cron jobs', false);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   // ─── Derived data ─────────────────────────────────────────────────────────
   const schoolJobs  = jobs.filter(j => j.scope === 'school');
   const saasJobs    = jobs.filter(j => j.scope === 'saas');
@@ -179,6 +197,9 @@ export default function CronManagementPage() {
         <div className="flex gap-2">
           <button onClick={fetchStatus} className={btnS}>
             <RefreshCw className="w-4 h-4 inline mr-1.5"/>Refresh
+          </button>
+          <button onClick={seedDefaults} disabled={seeding} className={btnS}>
+            🌱 {seeding ? 'Seeding…' : 'Seed Defaults'}
           </button>
           <button onClick={handleInitialize} disabled={actioning === 'init'} className={btnP}>
             <Zap className="w-4 h-4 inline mr-1.5"/>

@@ -20,6 +20,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
   transportFeeCalcs,
   // Helpers
   fmtCurrency,
+  readOnly = false,
 }) => {
   const isDark = theme === 'dark';
   const input = getInputClass();
@@ -233,7 +234,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
               type="checkbox"
               className="sr-only"
               checked={formData.transport === 'Yes'}
-              onChange={e => handleTransportToggle(e.target.checked)}
+              onChange={e => !readOnly && handleTransportToggle(e.target.checked)}
             />
             <motion.div
               animate={{ backgroundColor: formData.transport === 'Yes' ? '#10b981' : isDark ? '#4b5563' : '#d1d5db' }}
@@ -283,8 +284,9 @@ const TransportTab: React.FC<FeesTabProps> = ({
                   label: `${route.routeNumber || ''} ${route.routeName || route.name} - ${fmtCurrency(route.monthlyFee || 0)}/mo`
                 })),
                 value: transportInfo?.routeId || '',
-                onChange: handleRouteChange,
-                icon: Bus
+                onChange: readOnly ? () => {} : handleRouteChange,
+                icon: Bus,
+                disabled: readOnly
               }, 0, 0)}
 
               {/* Pickup Stop */}
@@ -310,8 +312,9 @@ const TransportTab: React.FC<FeesTabProps> = ({
                       }));
                     })(),
                     value: transportInfo.pickupStop,
-                    onChange: (value) => setTransportInfo({ ...transportInfo, pickupStop: value }),
-                    icon: MapPin
+                    onChange: readOnly ? () => {} : (value) => setTransportInfo({ ...transportInfo, pickupStop: value }),
+                    icon: MapPin,
+                    disabled: readOnly
                   }, 0, 1)}
 
                   {renderField({
@@ -329,8 +332,9 @@ const TransportTab: React.FC<FeesTabProps> = ({
                       }));
                     })(),
                     value: transportInfo.dropStop,
-                    onChange: (value) => setTransportInfo({ ...transportInfo, dropStop: value }),
-                    icon: Navigation
+                    onChange: readOnly ? () => {} : (value) => setTransportInfo({ ...transportInfo, dropStop: value }),
+                    icon: Navigation,
+                    disabled: readOnly
                   }, 0, 2)}
                 </motion.div>
               )}
@@ -392,7 +396,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
                 type="checkbox"
                 className="sr-only"
                 checked={transportDiscount.hasDiscount}
-                onChange={e => setTransportDiscount({ ...transportDiscount, hasDiscount: e.target.checked })}
+                onChange={e => !readOnly && setTransportDiscount({ ...transportDiscount, hasDiscount: e.target.checked })}
               />
               <motion.div
                 animate={{ backgroundColor: transportDiscount.hasDiscount ? '#10b981' : isDark ? '#4b5563' : '#d1d5db' }}
@@ -434,7 +438,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
                       type="button"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setTransportDiscount({ 
+                      onClick={readOnly ? () => {} : () => setTransportDiscount({ 
                         ...transportDiscount, 
                         discountType: opt.value as any, 
                         discountValue: 0 
@@ -459,7 +463,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
                   min: 0,
                   max: transportDiscount.discountType === 'percentage' ? 100 : transportFeeCalcs.baseAnnual,
                   value: transportDiscount.discountValue,
-                  onChange: (value) => setTransportDiscount({ ...transportDiscount, discountValue: Number(value) }),
+                  onChange: readOnly ? () => {} : (value) => setTransportDiscount({ ...transportDiscount, discountValue: Number(value) }),
                   icon: Calculator
                 }, 0, 0)}
 
@@ -472,7 +476,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
                   required: true,
                   rows: 2,
                   value: transportDiscount.reason,
-                  onChange: (value) => setTransportDiscount({ ...transportDiscount, reason: value }),
+                  onChange: readOnly ? () => {} : (value) => setTransportDiscount({ ...transportDiscount, reason: value }),
                   icon: Award
                 }, 0, 1)}
 

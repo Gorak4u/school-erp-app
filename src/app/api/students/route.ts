@@ -592,24 +592,14 @@ function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName:
   try {
     if (!schoolId) return;
 
-    // Send welcome email to student if they have an email and userId
-    if (student.email?.trim() && student.userId) {
-      queueCommunicationOutbox({
-        notification: {
-          userId: student.userId,
-          type: 'student_welcome',
-          title: `Welcome to ${schoolName}`,
-          message: `Your admission has been confirmed. Admission No: ${student.admissionNo}`,
-          priority: 'medium',
-          schoolId,
-          entityType: 'student',
-          entityId: student.id,
-        },
+    // Send welcome email to student if they have an email
+    if (student.email?.trim()) {
+      const notificationPayload: any = {
         templateEmail: {
           templateKey: 'student_welcome_email',
           schoolId,
           to: student.email,
-          recipientUserId: student.userId,
+          recipientUserId: student.userId, // may be undefined
           variables: {
             studentName: student.name,
             schoolName,
@@ -621,7 +611,23 @@ function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName:
           },
           dedupeKey: `student_welcome:${student.id}`,
         },
-      }).catch((error) => {
+      };
+      
+      // Only add notification if userId exists
+      if (student.userId) {
+        notificationPayload.notification = {
+          userId: student.userId,
+          type: 'student_welcome',
+          title: `Welcome to ${schoolName}`,
+          message: `Your admission has been confirmed. Admission No: ${student.admissionNo}`,
+          priority: 'medium',
+          schoolId,
+          entityType: 'student',
+          entityId: student.id,
+        };
+      }
+      
+      queueCommunicationOutbox(notificationPayload).catch((error) => {
         console.error('Failed to send student welcome email:', error);
       });
     }
@@ -639,38 +645,41 @@ function enqueueWelcomeEmails(student: any, schoolId: string | null, schoolName:
       if (!email || seen.has(email)) continue;
       seen.add(email);
 
-      // Only send if we have a userId for the parent
+      const parentPayload: any = {
+        templateEmail: {
+          templateKey: 'parent_welcome_email',
+          schoolId,
+          to: email,
+          recipientUserId: target.userId, // may be undefined
+          variables: {
+            studentName: student.name,
+            schoolName,
+            admissionNo: student.admissionNo,
+            className: student.class || '',
+            section: student.section || '',
+            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/parent/dashboard`,
+          },
+          dedupeKey: `parent_welcome:${student.id}:${email}`,
+        },
+      };
+      
+      // Only add notification if userId exists
       if (target.userId) {
-        queueCommunicationOutbox({
-          notification: {
-            userId: target.userId,
-            type: 'parent_welcome',
-            title: `Student Admission Confirmation`,
-            message: `${student.name} has been admitted. Admission No: ${student.admissionNo}`,
-            priority: 'medium',
-            schoolId,
-            entityType: 'student',
-            entityId: student.id,
-          },
-          templateEmail: {
-            templateKey: 'parent_welcome_email',
-            schoolId,
-            to: email,
-            recipientUserId: target.userId,
-            variables: {
-              studentName: student.name,
-              schoolName,
-              admissionNo: student.admissionNo,
-              className: student.class || '',
-              section: student.section || '',
-              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/parent/dashboard`,
-            },
-            dedupeKey: `parent_welcome:${student.id}:${target.userId}`,
-          },
-        }).catch((error) => {
-          console.error(`Failed to send parent welcome email to ${email}:`, error);
-        });
+        parentPayload.notification = {
+          userId: target.userId,
+          type: 'parent_welcome',
+          title: `Student Admission Confirmation`,
+          message: `${student.name} has been admitted. Admission No: ${student.admissionNo}`,
+          priority: 'medium',
+          schoolId,
+          entityType: 'student',
+          entityId: student.id,
+        };
       }
+      
+      queueCommunicationOutbox(parentPayload).catch((error) => {
+        console.error(`Failed to send parent welcome email to ${email}:`, error);
+      });
     }
   } catch (error) {
     console.error('Failed to enqueue welcome emails:', error);
