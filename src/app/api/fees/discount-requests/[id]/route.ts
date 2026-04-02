@@ -478,6 +478,7 @@ export async function PATCH(
           console.error('Failed to send discount approval in-app notification:', error);
         });
       }
+    }
 
     return NextResponse.json({ 
       success: true, 
