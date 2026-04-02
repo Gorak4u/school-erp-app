@@ -149,8 +149,9 @@ export function SchoolConfigProvider({ children }: SchoolConfigProviderProps) {
   const pathname = usePathname();
 
   const refresh = useCallback(async () => {
-    // Skip if on public page
-    if (PUBLIC_PAGES.some(page => pathname?.startsWith(page))) {
+    // Skip if on public page (exact match for /, startsWith for others)
+    const isPublicPage = pathname === '/' || PUBLIC_PAGES.filter(p => p !== '/').some(page => pathname?.startsWith(page));
+    if (isPublicPage) {
       setLoading(false);
       return;
     }
