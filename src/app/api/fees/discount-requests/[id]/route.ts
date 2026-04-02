@@ -416,10 +416,10 @@ export async function PATCH(
         });
       }
 
-      // Fetch requester email separately
-      const requester = await (schoolPrisma as any).User.findUnique({
-        where: { id: result.requestedBy },
-        select: { email: true }
+      // Fetch requester email separately from school_User table
+      const requester = await (schoolPrisma as any).school_User.findFirst({
+        where: { id: result.requestedBy, schoolId: ctx.schoolId },
+        select: { email: true, firstName: true, lastName: true }
       });
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

@@ -56,10 +56,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch pending fine waiver requests
     let pendingFineWaivers: any[] = [];
-    if (canApproveFines) {
+    if (canApproveFines && ctx.schoolId) {
       pendingFineWaivers = await (schoolPrisma as any).FineWaiverRequest.findMany({
         where: {
-          schoolId: ctx.schoolId,
+          ...tenantWhere(ctx),
           status: 'pending'
         },
         select: {
@@ -89,10 +89,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch pending transport refund/waiver requests
     let pendingTransportRequests: any[] = [];
-    if (canApproveTransport) {
+    if (canApproveTransport && ctx.schoolId) {
       pendingTransportRequests = await (schoolPrisma as any).RefundRequest.findMany({
         where: {
-          schoolId: ctx.schoolId,
+          ...tenantWhere(ctx),
           status: 'pending',
           type: { in: ['transport_fee', 'transport_fee_waiver'] }
         },

@@ -4,5 +4,5 @@ export async function register() {
   }
 
   const { ensureInitialized } = await import('./lib/cronScheduler');
-  ensureInitialized();
+  await ensureInitialized();
 }

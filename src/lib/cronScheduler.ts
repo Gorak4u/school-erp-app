@@ -145,7 +145,7 @@ export async function seedDefaultConfigs() {
         category: job.category,
         description: job.description,
       },
-      create: { ...job, isActive: true },
+      create: { ...job },
     });
   }
 }
@@ -248,14 +248,19 @@ async function dispatchJob(jobName: string, scope: string, triggeredBy = 'schedu
 
 export async function initializeCronScheduler(): Promise<boolean> {
   try {
+    console.log('[Cron] Initializing scheduler...');
     await seedDefaultConfigs();
 
     const jobs = await loadEnabledConfigs();
+    console.log(`[Cron] Found ${jobs.length} enabled jobs`);
+    
     activeTasks.clear();
 
     for (const job of jobs) {
-      if (!job.isActive) continue;
+      if (!job.enabled) continue;
 
+      console.log(`[Cron] Scheduling "${job.jobName}" (${job.scope}) with schedule "${job.schedule}"`);
+      
       const task = cron.schedule(job.schedule, async () => {
         await dispatchJob(job.jobName, job.scope, 'scheduler');
       }, {
@@ -265,6 +270,7 @@ export async function initializeCronScheduler(): Promise<boolean> {
       activeTasks.set(job.jobName, task);
     }
 
+    console.log(`[Cron] Scheduler initialized successfully - ${activeTasks.size} jobs scheduled`);
     return true;
   } catch (err) {
     if (isDatabaseConnectivityError(err)) {
@@ -375,9 +381,9 @@ export async function getCronStatus() {
 // ─── Auto-init in production ──────────────────────────────────────────────────
 
 let initialized = false;
-export function ensureInitialized() {
+export function ensureInitialized(): Promise<boolean> | void {
   if (initialized || cronGlobals.__cronSchedulerInitialized) {
-    return;
+    return cronGlobals.__cronSchedulerInitPromise || Promise.resolve(true);
   }
 
   initialized = true;
@@ -396,4 +402,6 @@ export function ensureInitialized() {
       console.error('[Cron] Failed to auto-initialize scheduler in server process:', error);
       return false;
     });
+  
+  return cronGlobals.__cronSchedulerInitPromise;
 }

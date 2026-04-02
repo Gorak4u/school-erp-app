@@ -148,6 +148,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     newSocket.on('connect_error', (error: Error) => {
       console.error('🔌 Global socket connection error:', error.message);
+      console.error('🔌 Server URL:', serverUrl, '- Path: /api/socket');
+      console.error('🔌 Make sure server is running with: node server.js (not next dev)');
     });
 
     return () => {
