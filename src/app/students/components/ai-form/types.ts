@@ -31,6 +31,7 @@ export interface StudentFormData {
   rollNumber: string;
   mediumId: string;
   boardId: string;
+  board: string;  // Display name of board
   languageMedium: string;
   previousSchool: string;
   previousClass: string;
@@ -132,7 +133,7 @@ export interface FormErrors {
 
 export interface StudentFormAIProps {
   student?: any;
-  onSubmit: (data: StudentFormData) => void;
+  onSubmit: (data: StudentFormData) => Promise<any> | any;
   onCancel: () => void;
   theme: string;
   themeConfig: any;

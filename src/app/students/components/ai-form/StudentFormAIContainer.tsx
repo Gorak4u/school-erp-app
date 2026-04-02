@@ -1007,7 +1007,7 @@ const StudentFormAIContainer: React.FC<StudentFormAIProps> = ({
       // For edit mode: just close the form on success
       if (isEditMode) {
         // Check if result has student property (success) or is null/undefined (failure)
-        const hasStudent = result && (result as any).student;
+        const hasStudent = !!result && !!(result as any).student;
         if (!hasStudent) {
           throw new Error('Student update failed');
         }

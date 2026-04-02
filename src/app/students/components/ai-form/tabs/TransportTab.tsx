@@ -87,6 +87,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
     max?: string | number;
     value?: string | number;
     onChange: (value: any) => void;
+    disabled?: boolean;
   }, sectionIndex: number, fieldIndex: number) => {
     const hasError = errors[field.name];
     const isFilled = field.value;
@@ -112,6 +113,7 @@ const TransportTab: React.FC<FeesTabProps> = ({
             <select
               value={field.value || ''}
               onChange={(e) => field.onChange(e.target.value)}
+              disabled={field.disabled}
               className={`${consistentInputClass} pl-7 pr-6 transition-all duration-200 ${
                 hasError ? 'border-red-500 focus:border-red-500' :
                 isFilled ? 'border-green-500 focus:border-green-500' :
